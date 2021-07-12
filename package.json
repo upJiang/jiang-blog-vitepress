@@ -1,11 +1,41 @@
 {
-  "license":"ISC",
+  "license": "ISC",
   "devDependencies": {
+    "@babel/eslint-parser": "^7.14.7",
+    "commitizen": "^4.2.4",
+    "cz-customizable": "^6.3.0",
+    "eslint": "^7.30.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^3.4.0",
+    "eslint-plugin-vue": "^7.13.0",
+    "husky": "4.2.5",
+    "lint-staged": "^11.0.0",
+    "prettier": "^2.3.2",
     "vitepress": "^0.15.6"
   },
   "scripts": {
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "deploy-gh": "yarn docs:build && bash scripts/deploy-gh.sh"
+    "dev": "vitepress dev docs",
+    "build": "vitepress build docs",
+    "gh": "yarn docs:build && bash scripts/deploy-gh.sh",
+    "lint-staged": "lint-staged",
+    "commitlint": "commitlint --config commitlint.config.js -e -V"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "lint-staged": {
+    "*.{js,ts,vue,jsx,tsx}": [
+      "prettier --write",
+      "eslint --cache --fix",
+      "git add"
+    ]
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-customizable"
+    }
   }
 }
