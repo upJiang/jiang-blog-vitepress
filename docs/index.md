@@ -4,7 +4,7 @@
 ::: danger STOP
 Danger zone, do not proceed
 :::
-## learning 江df
+## learning 江
 
 [bar - three](./home/index.md)
 
