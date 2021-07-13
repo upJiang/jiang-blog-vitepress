@@ -1,5 +1,15 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-npm run lint-staged
-echo '检查commit规范'
+EMAIL=$(git config user.email)
+if [[ ! $EMAIL =~ ^[.[:alnum:]]+@qq\.com$ ]];
+then
+  echo "Your git information is not valid";
+  echo "Please run:"
+  echo '   git config --local user.name "<Your name in Microsoft>"'
+  echo '   git config --local user.email "<Your alias>@microsoft.com"'
+  exit 1;
+fi;
+
+yarn lint-staged
+echo '检查lint规范'
