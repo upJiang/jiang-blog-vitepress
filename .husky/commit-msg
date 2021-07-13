@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo '?'
+# 强制使用module中的commitlint执行
+npx --no-install commitlint --edit $1
