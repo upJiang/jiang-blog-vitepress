@@ -1,4 +1,5 @@
 {
+  "main": "index.js",
   "license": "ISC",
   "devDependencies": {
     "@babel/eslint-parser": "^7.14.7",
@@ -13,13 +14,18 @@
     "husky": "^7.0.0",
     "lint-staged": "^11.0.0",
     "prettier": "^2.3.2",
-    "vitepress": "^0.15.6"
+    "vitepress": "^0.7.2",
+    "globby": "^11.0.1",
+    "gray-matter": "^4.0.2",
+    "mz": "^2.7.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "gitalk": "^1.7.0"
+  },
   "scripts": {
-    "dev": "vitepress dev docs",
-    "build": "vitepress build docs",
-    "gh": "yarn docs:build && bash scripts/deploy-gh.sh",
+    "dev": "npx vitepress",
+    "build": "npx vitepress build",
+    "gh": "npx vitepress build && bash scripts/deploy-gh.sh",
     "lint-staged": "lint-staged",
     "commitlint": "commitlint --config commitlint.config.js -e -V",
     "prepare": "husky install"
