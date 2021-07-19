@@ -20,16 +20,16 @@ async function getConfig() {
       ],
       ['script', { src: 'https://unpkg.com/gitalk/dist/gitalk.min.js' }]
     ],
-    title: 'Jiang',
+    title: "Jiang's Blog",
     themeConfig: {
       pages: await getPages(),
       author: 'Jiang',
       search: true,
       nav: [
         { text: '首页', link: '/' },
-        { text: '文章', link: '/docs/article/index' },
         { text: '基础', link: '/docs/jsBase/index' },
-        { text: '进阶', link: '/docs/jsAdvanced/index' }
+        { text: '进阶', link: '/docs/jsAdvanced/index' },
+        { text: '文章', link: '/docs/article/index' }
         // { text: "归档", link: "/docs" },
         // { text: "分类", link: "/tags" },
       ]

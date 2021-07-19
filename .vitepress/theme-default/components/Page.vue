@@ -16,6 +16,7 @@
         </a>
       </li>
     </ul>
+    <myHome v-if="pageData.frontmatter.myHome" />
     <!-- md主内容 -->
     <Content />
     <NextAndPrevLinks v-if="!pageData.frontmatter.myHome" />
@@ -32,9 +33,10 @@
 
 <script>
 import NextAndPrevLinks from './NextAndPrevLinks.vue'
+import myHome from './myHome.vue'
 import { usePageData } from 'vitepress'
 export default {
-  components: { NextAndPrevLinks },
+  components: { NextAndPrevLinks, myHome },
 
   setup() {
     const pageData = usePageData()
@@ -193,5 +195,6 @@ export default {
   transform: translate(-50%, 0);
   left: 50%;
   bottom: 0px;
+  font-size: 0.6rem;
 }
 </style>

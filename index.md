@@ -1,11 +1,10 @@
 ---
 page: true
 home: false
-title: Jiang | 前端
+title: 
 myHome: true
 ---
 
-Jiang | 前端
 <!-- <br>
 <br>
 <br> -->
