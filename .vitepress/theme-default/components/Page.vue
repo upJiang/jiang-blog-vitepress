@@ -2,10 +2,12 @@
   <div class="content">
     <slot name="top" />
     <div class="md-header" v-if="!pageData.frontmatter.myHome">
-      <div class="md-title">{{ pageData.title }}</div>
+      <!-- <div class="md-title">{{ pageData.title }}</div> -->
+      <!-- {{ pageData.frontmatter.date }} -->
+      <div class="md-date">今日诗词欣赏</div>
       <span id="jinrishici-sentence">正在加载今日诗词....</span>
-      <div class="md-date">{{ pageData.frontmatter.date }}</div>
     </div>
+    <!-- 右边导航 -->
     <ul class="catalog" v-if="!pageData.frontmatter.myHome">
       <li class="catalog-item" v-for="item in pageData.headers">
         <a class="level level-2" v-if="item.level == 2" :href="'#' + item.slug">
@@ -40,7 +42,6 @@ export default {
 
   setup() {
     const pageData = usePageData()
-    console.log('pageData', pageData)
     return {
       pageData
     }

@@ -10,7 +10,7 @@
       :src="withBase($theme.logo)"
       alt="logo"
     />
-    <span>{{ $site.title }}</span>
+    <span style="color: var(--accent-color)">{{ $site.title }}</span>
   </a>
   <div class="flex-grow"></div>
   <NavBarLinks class="hide-mobile" />

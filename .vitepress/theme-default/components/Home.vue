@@ -1,5 +1,6 @@
 <template>
   <a
+    v-if="!data.myHome"
     v-show="!article.frontMatter.home"
     :href="article.regularPath || ''"
     v-for="(article, index) in siteValue"
@@ -20,6 +21,7 @@
       {{ article.frontMatter.describe || '' }}
     </p>
   </a>
+  <myHome v-else />
 </template>
 
 <script>
@@ -27,9 +29,11 @@ import { defineComponent, computed } from 'vue'
 import NavBarLink from './NavBarLink.vue'
 import { withBase, parseMarkdownList } from '../utils'
 import { usePageData, useSiteData } from 'vitepress'
+import myHome from './myHome.vue'
 export default defineComponent({
   components: {
-    NavBarLink
+    NavBarLink,
+    myHome
   },
 
   setup() {

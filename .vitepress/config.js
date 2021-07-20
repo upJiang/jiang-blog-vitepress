@@ -26,13 +26,26 @@ async function getConfig() {
       author: 'Jiang',
       search: true,
       nav: [
-        { text: '首页', link: '/' },
-        { text: '基础', link: '/docs/jsBase/index' },
-        { text: '进阶', link: '/docs/jsAdvanced/index' },
-        { text: '文章', link: '/docs/article/index' }
+        { text: '🏡首页', link: '/' },
+        { text: '📚基础', link: '/docs/jsBase/git' },
+        { text: '🙇进阶', link: '/docs/jsAdvanced/index' },
+        { text: '🧾文章', link: '/docs/article/index' }
         // { text: "归档", link: "/docs" },
         // { text: "分类", link: "/tags" },
-      ]
+      ],
+      sidebar: {
+        '/': [],
+        // 侧边栏
+        '/docs/jsBase/': [
+          {
+            text: '基础',
+            children: [
+              { text: 'git', link: '/docs/jsBase/git' },
+              { text: 'es6', link: '/docs/jsBase/es6' }
+            ]
+          }
+        ]
+      }
     },
     dest: 'public'
   }

@@ -1,14 +1,9 @@
 ---
 page: true
-home: false
+home: true
 title: 
 myHome: true
 ---
-
-<!-- <br>
-<br>
-<br> -->
-<!-- <center><font face="黑体" size="12" color="#1E80FF">Jiang | 前端</font></center> -->
 
 
 
