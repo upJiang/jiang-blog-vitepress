@@ -22,6 +22,13 @@
     </p>
   </a>
   <myHome v-else />
+  <div class="beian-bottom">
+    <p>
+      <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank">
+        粤ICP备18079096号
+      </a>
+    </p>
+  </div>
 </template>
 
 <script>
@@ -128,5 +135,18 @@ export default defineComponent({
   bottom: 0px;
   left: 50%;
   transform: translate(-50%, 0);
+}
+.beian-bottom {
+  position: fixed;
+  transform: translate(-50%, 0);
+  left: 50%;
+  bottom: 0px;
+  font-size: 0.6rem;
+}
+a:visited {
+  color: #000;
+}
+a:hover {
+  color: var(--accent-color);
 }
 </style>
