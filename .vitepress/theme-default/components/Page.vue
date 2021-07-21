@@ -1,14 +1,14 @@
 <template>
   <div class="content">
     <slot name="top" />
-    <div class="md-header" v-if="!pageData.frontmatter.myHome">
+    <div class="md-header">
       <!-- <div class="md-title">{{ pageData.title }}</div> -->
       <!-- {{ pageData.frontmatter.date }} -->
       <div class="md-date">今日诗词欣赏</div>
       <span id="jinrishici-sentence">正在加载今日诗词....</span>
     </div>
     <!-- 右边导航 -->
-    <ul class="catalog" v-if="!pageData.frontmatter.myHome">
+    <ul class="catalog">
       <li class="catalog-item" v-for="item in pageData.headers">
         <a class="level level-2" v-if="item.level == 2" :href="'#' + item.slug">
           {{ item.title }}
@@ -18,27 +18,18 @@
         </a>
       </li>
     </ul>
-    <myHome v-if="pageData.frontmatter.myHome" />
     <!-- md主内容 -->
     <Content />
-    <NextAndPrevLinks v-if="!pageData.frontmatter.myHome" />
-    <slot name="bottom" v-if="!pageData.frontmatter.myHome" />
-    <div class="beian-bottom" v-if="pageData.frontmatter.myHome">
-      <p>
-        <a href="https://beian.miit.gov.cn/#/Integrated/index">
-          粤ICP备18079096号
-        </a>
-      </p>
-    </div>
+    <NextAndPrevLinks />
+    <slot name="bottom" />
   </div>
 </template>
 
 <script>
 import NextAndPrevLinks from './NextAndPrevLinks.vue'
-import myHome from './myHome.vue'
 import { usePageData } from 'vitepress'
 export default {
-  components: { NextAndPrevLinks, myHome },
+  components: { NextAndPrevLinks },
 
   setup() {
     const pageData = usePageData()
@@ -190,12 +181,5 @@ export default {
   .catalog {
     display: none;
   }
-}
-.beian-bottom {
-  position: fixed;
-  transform: translate(-50%, 0);
-  left: 50%;
-  bottom: 0px;
-  font-size: 0.6rem;
 }
 </style>

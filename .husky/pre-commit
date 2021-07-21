@@ -1,15 +1,15 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-EMAIL=$(git config user.email)
-if [[ ! $EMAIL =~ ^[.[:alnum:]]+@qq\.com$ ]];
-then
-  echo "Your git information is not valid";
-  echo "Please run:"
-  echo '   git config --local user.name "<Your name in qq>"'
-  echo '   git config --local user.email "<Your alias>@qq.com"'
-  exit 1;
-fi;
+# EMAIL=$(git config user.email)
+# if [[ ! $EMAIL =~ ^[.[:alnum:]]+@qq\.com$ ]];
+# then
+#   echo "Your git information is not valid";
+#   echo "Please run:"
+#   echo '   git config --local user.name "<Your name in qq>"'
+#   echo '   git config --local user.email "<Your alias>@qq.com"'
+#   exit 1;
+# fi;
 
 yarn lint-staged
 echo '检查lint规范'
