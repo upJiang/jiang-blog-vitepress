@@ -5,6 +5,9 @@
     <span class="home-tips" style="margin-top: 0.4rem">
       今天的不开心就到此为止 明天依旧光芒万丈
     </span>
+    <span class="home-sum">
+      只有坚持学习，善于总结，不安逸于现状，有自己的目标，才能变得更加优秀！
+    </span>
     <button class="home-learning" @click="toLearn">一起学习吧</button>
   </div>
 </template>
@@ -17,7 +20,7 @@ export default defineComponent({
   setup() {
     const router = useRouter()
     const toLearn = () => {
-      router.go('/docs/jsBase/index')
+      router.go('/docs/jsBase/git')
     }
     return {
       toLearn
@@ -61,6 +64,11 @@ export default defineComponent({
   border-radius: 6px;
   cursor: pointer;
   border: none;
+}
+.home-sum {
+  margin-top: 0.4rem;
+  color: #6495ed;
+  font-size: 0.7rem;
 }
 @media screen and (max-width: 959px) {
   .home-title {
