@@ -107,6 +107,31 @@ git push -u origin 分支名称
 
 删除远程标签：git push origin -d v1.0
 
+### 分支管理
+
+创建本地分支：git branch 分支名
+
+切换到本地分支：git checkout 分支名
+
+上面二合一，创建分支并切换到分支：git branch -b 分支名
+
+删除本地分支：git branch -d 分支名
+
+合并分支：git merge 分支名 合并远程分支 git merge origin/master
+
+在远程分支的基础上创建本地分支：git checkout -b test origin/master 如果这个记不住：也可以用比较简单容易记的方法就是先创建本地分支，再强制拉取，其实就是拆分
+```
+git branch test
+git checkout test        //这两个又可以合并为git branch -b test
+git fetch --all
+git reset --hard origin/master  //这四个可以合并为git checkout -b test origin/maset
+```
+
+强制拉取远程分支内容到本地分支：1. git fetch --all 2.git reset --hard origin/master
+
+切换到远程分支，并且在本地切换到该分支：1. git fetch origin master 2. git checkout master
+
+
 
 
 
