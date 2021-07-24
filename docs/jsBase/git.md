@@ -125,11 +125,22 @@ git branch test
 git checkout test        //这两个又可以合并为git branch -b test
 git fetch --all
 git reset --hard origin/master  //这四个可以合并为git checkout -b test origin/maset
+这个时候远程是没有这个分支的，在提交时要指定提交到远程，会自动创建远程分支，git push origin test
 ```
 
-强制拉取远程分支内容到本地分支：1. git fetch --all 2.git reset --hard origin/master
+强制拉取远程分支内容到本地分支：
 
-切换到远程分支，并且在本地切换到该分支：1. git fetch origin master 2. git checkout master
+1. git fetch --all
+
+2. git reset --hard origin/master
+
+切换到远程分支，并且在本地切换到该分支：
+1. git fetch origin master 
+2. git checkout master
+
+#### git fetch 与 git pull的区别
+>这两个都是从远程分支拉取代码，它们的区别是fetch是强制拉取远程分支下来，不会进行merge，会覆盖本地
+而pull会进行合并，一般如果是新建分支会使用fetch
 
 
 
