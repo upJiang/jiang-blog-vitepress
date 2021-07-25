@@ -129,7 +129,7 @@ git reset --hard origin/master  //这四个可以合并为git checkout -b test o
 
 强制拉取远程分支内容到本地分支：1. git fetch --all 2.git reset --hard origin/master
 
-切换到远程分支，并且在本地切换到该分支：1. git fetch origin master 2. git checkout master
+切换到远程分支，并且在本地切换到该分支：1. git fetch origin master 2. git checkout masterfdsfds
 
 
 
