@@ -131,6 +131,8 @@ git reset --hard origin/master  //这四个可以合并为git checkout -b test o
 
 切换到远程分支，并且在本地切换到该分支：1. git fetch origin master 2. git checkout masterfdsfds
 
+dsfg
+
 
 
 
