@@ -142,5 +142,5 @@ git reset --hard origin/master  //这四个可以合并为git checkout -b test o
 >这两个都是从远程分支拉取代码，它们的区别是fetch是强制拉取远程分支下来，不会进行merge，会覆盖本地
 而pull会进行合并，一般如果是新建分支会使用fetch法撒旦
 
-test:1 
+test:2
 
