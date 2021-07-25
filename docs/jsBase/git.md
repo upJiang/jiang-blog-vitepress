@@ -130,17 +130,68 @@ git reset --hard origin/master  //这四个可以合并为git checkout -b test o
 
 强制拉取远程分支内容到本地分支：
 
-1. git fetch --all
+1. git fetch --all  //拉取远程仓库上所有分支的最新内容，但不合并
 
-2. git reset --hard origin/master
+2. git reset --hard origin/master  //将工作区的代码重置成远程分支的内容
 
 切换到远程分支，并且在本地切换到该分支：
+
 1. git fetch origin master 
+
 2. git checkout master
 
 #### git fetch 与 git pull的区别
->这两个都是从远程分支拉取代码，它们的区别是fetch是强制拉取远程分支下来，不会进行merge，会覆盖本地
-而pull会进行合并，一般如果是新建分支会使用fetch法撒旦
+这两个都是从远程分支拉取代码，它们的区别是fetch不会进行merge,而pull会进行合并。fetch+merge === git pull。fetch没有真正把内容合并到本地库，只是把更新下载下来，让你知道你本地版本和远端有什么差异，是否会有冲突等
 
-test:a
+git fetch origin 分支名 可以指定当前的fetch-head指针，之后可以直接git fetch,
+
+在fetch后，可以看到工作区不会有任何变化，但是我们可以在暂存区看到拉取代码跟本地的对比，然后去选择是否要进行合并,而pull就是直接合并了
+
+**git pull拉取不到最新代码**： 很大可能是本地分支并未与远程分支建立过连接，你只是把远程代码fetch下来了，并且checkout过去，并未建立连接。
+
+使用git pull origin 分支名 这样可以拉取到最新的，但是下次使用git pull仍然拉取不到最新的。所以使用git branch -u origin/分支名 
+
+
+### git rebase(变基)
+>1.在开发时，我们可能会有多个commit，这个时候push的时候会产生多个commit信息，使用rebase可以将多个commit合并成一个
+
+>2.当我们从远程主分支拉取代码并新建分支进行操作时，此时主分支可能已经被别人修改了很多遍，这个时候我们一般会通过merge去合并代码并提交，但这时会产生一条merge的commit信息。使用rebase可以拉取主分支最新代码并且不会产生merge的commit信息
+
+>3.使用rebase可以把一个分支的改动复制到另一个分支上，使用--onto
+
+>每次使用git rebase前，问自己"有没有人也正在基于这个branch写代码？"若是的话，就老老实实用merge，不要尝试rebase。
+
+>该功能可能会导致一些问题，不熟悉的同学还是老老实实使用merge吧，在确保自己的分支只有自己改动的前提下，可以使用合并commit的功能，其它不熟就算了
+
+![](https://user-gold-cdn.xitu.io/2020/6/1/1726e09219fa46fe?imageView2/0/w/1280/h/960/format/webp/ignore-error/1)
+
+```
+pick：保留该commit（缩写:p）
+reword：保留该commit，但我需要修改该commit的注释（缩写:r）
+edit：保留该commit, 但我要停下来修改该提交(不仅仅修改注释)（缩写:e）
+squash：将该commit和前一个commit合并（缩写:s）
+fixup：将该commit和前一个commit合并，但我不要保留该提交的注释信息（缩写:f）
+exec：执行shell命令（缩写:x）
+drop：我要丢弃该commit（缩写:d）
+```
+比如说现在在自己的分支中你提交了三个commit:commit1、commit2、commit3
+```
+git rebase -i  //-i是使用编辑界面，此时可以输入i进入编辑修改操作指令，修改提交信息，比如将commit1 跟 commit2 drop掉，然后将最后一条commit3给reword修改注释，然后esc退出编辑，wq保存
+git rebase --continue  //如果有冲突先解决冲突,如果rebase中途出现问题，可以使用git rebase --abort恢复。
+git push //提交，这个时候就只有一条commit信息
+```
+使用rebase可以把一个分支的改动复制到另一个分支上
+```
+git rebase   [startpoint]   [endpoint]  --onto  [branchName]  //[startpoint] [endpoint]指定的是一个前开后闭的区间,所以起点要后退一步
+git  rebase   90bc0045b^   5de0da9f2   --onto master
+git checkout master
+git reset --hard  0c72e64  //将master所指向的提交id设置为当前HEAD所指向的提交id
+```
+
+
+
+
+
+
+
 
