@@ -31,7 +31,7 @@ git的通用操作流程图
 
 总结：平时在工作去正常开发，通过git add提交代码到暂存区，通过git commit提交代码到本地仓库，通过git push提交代码到远程仓库
 ## 工作区的操作
-### 初始化
+### init(初始化)
 1.从git仓库克隆代码
 > git克隆远程仓库项目时如果不指定分支，只会克隆默认分支的内容
 ```
@@ -48,49 +48,63 @@ git commit -m "first commit"
 git remote add origin 远程地址
 git push -u origin 分支名称
 ```
-### 提交
+### add
 1.提交工作区所有文件到暂存区：git add . 
 
 2.提交工作区中指定文件到暂存区：git add <文件名1> <文件名2> ...;
 
 3.提交工作区中某个文件夹中所有文件到暂存区：git add [文件夹名];
 
-### 删除/撤销/隐藏
-#### 删除（删除工作区文件/删除暂存区文件）：
+### rm(删除)
 
 1.仅从暂存区中删除文件，但是工作区依然还有该文件:git rm --cached <文件名>;
 
 2.删除工作区文件，并且也从暂存区删除对应文件的记录：git rm <文件名1> <文件名2>;
-#### 撤销
+### reset/revert(撤销/回滚)
+
 1.取消暂存区所有暂存的文件：git reset;
 
 2.取消暂存区已经暂存的文件：git reset HEAD <文件名>...;
 
 3.撤销上一次对文件的操作：git checkout --<文件名>。要确定上一次对文件的修改不再需要，如果想保留上一次的修改以备以后继续工作，可以使用stashing和分支来处理；
 
-#### 隐藏（临时切换分支操作的神器）
-1.查看所有隐藏的记录：git stash list  可用于恢复隐藏时查看,会有stash@{0}:信息，之后通过0作为index去应用隐藏
+4.使用reset/revert回滚代码，二选一
+>二者区别(就是是否删除被回滚掉的commit):
 
-2.查看隐藏记录的详情，提交信息：git stash show 0
+>revert是会生成一次新的提交，需要填写提交注释，以前的历史记录都在；
 
-3.隐藏当前修改：git stash / git stash save '说明信息'，如果经常使用隐藏功能，请务必添加说明信息，避免忘记是哪条切换不回来
+>reset是指将HEAD指针指到指定提交，历史记录中不会出现放弃的提交记录。
 
-4.应用隐藏（隐藏记录仍在）：应用最新隐藏git stash apply 应用指定的隐藏git stash apply 0  如果是同一个文件使用时要先隐藏再应用，不然要提交到本地仓库再操作
+1.将本地代码回滚到指定commit:
+```
+git reset/revert --hard HEAD^ 回退到上个版本
+git reset/revert --hard HEAD~3 回退到前3次提交之前，以此类推，回退到n次提交之前
+git reset/revert --hard commit_id 退到/进到，指定commit的哈希码（这次提交之前或之后的提交都会回滚）
+```
+2.回滚后强制提交本地代码上去：git push -f origin 远程分支名
+### stash(暂存)
+1.查看所有暂存的记录：git stash list  可用于恢复暂存时查看,会有stash@{0}:信息，之后通过0作为index去应用暂存
 
-5.清除隐藏：移除指定的储藏git stash drop 0 应用隐藏并将其清除git stash pop 0
+2.查看暂存记录的详情，提交信息：git stash show 0
 
-注：不加stash{0} 都是操作最新的一次（栈顶）隐藏,stash{0}就是数字而已，网上很多教程使用stash@{0}，我在实际操作中都不生效，只需要在后直接加index即可。
-在实际工作中用到最多的应该是：保存隐藏 git stash save '信息'，然后切换分支去做别的事情，然后切回来把保存的隐藏应用并删除git stash pop，如果想要更多骚操作自行百度
+3.暂存当前修改：git stash / git stash save '说明信息'，如果经常使用暂存功能，请务必添加说明信息，避免忘记是哪条切换不回来
+
+4.应用暂存（暂存记录仍在）：应用最新暂存git stash apply 应用指定的暂存git stash apply 0  如果是同一个文件使用时要先暂存再应用，不然要提交到本地仓库再操作
+
+5.清除暂存：移除指定的储藏git stash drop 0 应用暂存并将其清除git stash pop 0
+
+注：不加stash{0} 都是操作最新的一次（栈顶）暂存,stash{0}就是数字而已，网上很多教程使用stash@{0}，我在实际操作中都不生效，只需要在后直接加index即可。
+在实际工作中用到最多的应该是：保存暂存 git stash save '信息'，然后切换分支去做别的事情，然后切回来把保存的暂存应用并删除git stash pop，如果想要更多骚操作自行百度
 
 ## 暂存区的操作
-### 提交版本 
+### commit(提交)
 1.正常提交需要有add的内容，若无则无法commit：git commit -m "提交信息"
 
 2.跳过add将暂存区提交：git commit -a -m "提交信息"
 
 3.撤销上一次的提交：git commit --amend
 
-### 标签tag(在发布节点打上标签是有必要的)
+### tag(标签)
 >Git 可以给仓库历史中的某一个提交打上标签，以示重要。 比较有代表性的是人们会使用这个功能来标记发布结点（ v1.0 、 v2.0 等等）
 
 **轻量标签**：就是简单输个标签名即可，不会有任何附带信息 git tag v1.0
@@ -107,7 +121,7 @@ git push -u origin 分支名称
 
 删除远程标签：git push origin -d v1.0
 
-### 分支管理
+### branch(分支)
 
 创建本地分支：git branch 分支名
 
@@ -116,6 +130,8 @@ git push -u origin 分支名称
 上面二合一，创建分支并切换到分支：git branch -b 分支名
 
 删除本地分支：git branch -d 分支名
+
+删除远程分支：git push origin --d 远程分支名
 
 合并分支：git merge 分支名 合并远程分支 git merge origin/master
 
@@ -152,7 +168,7 @@ git fetch origin 分支名 可以指定当前的fetch-head指针，之后可以�
 使用git pull origin 分支名 这样可以拉取到最新的，但是下次使用git pull仍然拉取不到最新的。所以使用git branch -u origin/分支名 
 
 
-### git rebase(变基)
+### rebase(变基)
 >1.在开发时，我们可能会有多个commit，这个时候push的时候会产生多个commit信息，使用rebase可以将多个commit合并成一个
 
 >2.当我们从远程主分支拉取代码并新建分支进行操作时，此时主分支可能已经被别人修改了很多遍，这个时候我们一般会通过merge去合并代码并提交，但这时会产生一条merge的commit信息。使用rebase可以拉取主分支最新代码并且不会产生merge的commit信息
@@ -187,6 +203,39 @@ git  rebase   90bc0045b^   5de0da9f2   --onto master
 git checkout master
 git reset --hard  0c72e64  //将master所指向的提交id设置为当前HEAD所指向的提交id
 ```
+
+## 本地仓库的操作
+查看本地仓库关联的远程仓库： git remote -v
+
+查看远程仓库的详细信息：git remote show origin
+
+将本地仓库某分支推送到远程仓库上:git push origin 远程分支名
+
+将本地分支推送到远程仓库的不同名分支:git push origin 本地分支名:远程分支名
+
+删除远程分支：git push origin --d 远程分支名   //删除本地分支：git branch -d 分支名
+
+删除远程仓库：git remote rm 远程仓库名 
+
+## .gitignore
+>一般我们总会有些文件无需纳入 Git 的管理，也不希望它们总出现在未跟踪文件列表。通常都是些自动生成的文件，比如日志文件，或者编译过程中创建的临时文件等。我们可以创建一个名为 .gitignore 的文件，列出要忽略的文件模式。
+```
+# 此为注释 – 将被 Git 忽略
+# 忽略所有 .a 结尾的文件
+*.a
+# 但 lib.a 除外
+!lib.a
+# 仅仅忽略项目根目录下的 TODO 文件，不包括 subdir/TODO
+/TODO
+# 忽略 build/ 目录下的所有文件
+build/
+# 会忽略 doc/notes.txt 但不包括 doc/server/arch.txt
+doc/*.txt
+# 忽略 doc/ 目录下所有扩展名为 txt 的文件
+doc/**/*.txt
+```
+
+
 
 
 
