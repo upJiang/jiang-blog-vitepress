@@ -41,7 +41,8 @@ async function getConfig() {
             text: '基础',
             children: [
               { text: 'git', link: '/docs/jsBase/git' },
-              { text: 'es6', link: '/docs/jsBase/es6' }
+              { text: 'es6', link: '/docs/jsBase/es6' },
+              { text: 'this指向', link: '/docs/jsBase/this' }
             ]
           }
         ]
