@@ -28,6 +28,7 @@ async function getConfig() {
       nav: [
         { text: '🏡首页', link: '/' },
         { text: '📚基础', link: '/docs/jsBase/git' },
+        { text: '🤵面试', link: '/docs/interview/center' },
         { text: '🙇进阶', link: '/docs/jsAdvanced/index' },
         { text: '🧾文章', link: '/docs/article/index' }
         // { text: "归档", link: "/docs" },
@@ -42,7 +43,31 @@ async function getConfig() {
             children: [
               { text: 'git', link: '/docs/jsBase/git' },
               { text: 'es6', link: '/docs/jsBase/es6' },
-              { text: 'this指向', link: '/docs/jsBase/this' }
+              { text: 'this指向', link: '/docs/jsBase/this' },
+              { text: 'JavaScript上下文', link: '/docs/jsBase/context' },
+              { text: '垃圾回收机制方式', link: '/docs/jsBase/garbage' },
+              { text: '内存管理', link: '/docs/jsBase/memory' },
+              { text: '原型/原型链', link: '/docs/jsBase/prototype' },
+              { text: 'js中的new', link: '/docs/jsBase/new' },
+              { text: 'js中的五种绑定', link: '/docs/jsBase/bind' },
+              { text: 'https', link: '/docs/jsBase/https' },
+              { text: '浏览器缓存', link: '/docs/jsBase/storage' },
+              { text: 'event loop', link: '/docs/jsBase/eventLoop' }
+            ]
+          }
+        ],
+        '/docs/interview/': [
+          {
+            text: '面试',
+            children: [
+              { text: '垂直居中', link: '/docs/interview/center' },
+              { text: '进程、线程', link: '/docs/interview/process' },
+              { text: '判断数据类型', link: '/docs/interview/dataType' },
+              { text: '盒模型及如何转换', link: '/docs/interview/boxsizing' },
+              { text: '回流、重绘', link: '/docs/interview/repaint' },
+              { text: '节流防抖', link: '/docs/interview/debounce' },
+              { text: 'HTTP状态码', link: '/docs/interview/httpCode' },
+              { text: '深拷贝与浅拷贝', link: '/docs/interview/copy' }
             ]
           }
         ]
