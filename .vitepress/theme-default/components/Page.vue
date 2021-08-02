@@ -8,7 +8,7 @@
       <span id="jinrishici-sentence">正在加载今日诗词....</span>
     </div>
     <!-- 右边导航 -->
-    <ul class="catalog">
+    <!-- <ul class="catalog">
       <li class="catalog-item" v-for="item in pageData.headers">
         <a class="level level-2" v-if="item.level == 2" :href="'#' + item.slug">
           {{ item.title }}
@@ -17,7 +17,7 @@
           {{ item.title }}
         </a>
       </li>
-    </ul>
+    </ul> -->
     <!-- md主内容 -->
     <Content />
     <NextAndPrevLinks />

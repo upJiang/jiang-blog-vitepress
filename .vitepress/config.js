@@ -52,7 +52,14 @@ async function getConfig() {
               { text: 'js中的五种绑定', link: '/docs/jsBase/bind' },
               { text: 'https', link: '/docs/jsBase/https' },
               { text: '浏览器缓存', link: '/docs/jsBase/storage' },
-              { text: 'event loop', link: '/docs/jsBase/eventLoop' }
+              { text: 'event loop', link: '/docs/jsBase/eventLoop' },
+              { text: '深拷贝与浅拷贝', link: '/docs/jsBase/copy' },
+              { text: '前端模块化', link: '/docs/jsBase/module' },
+              { text: '跨域', link: '/docs/jsBase/cors' },
+              { text: 'CSRF/XSS', link: '/docs/jsBase/CSRF' },
+              { text: 'websocket', link: '/docs/jsBase/websocket' },
+              { text: 'http缓存', link: '/docs/jsBase/Cache' },
+              { text: '闭包', link: '/docs/jsBase/closure' }
             ]
           }
         ],
@@ -60,6 +67,13 @@ async function getConfig() {
           {
             text: '面试',
             children: [
+              { text: 'js问题', link: '/docs/interview/jsBaseQuestion' },
+              { text: 'vue问题', link: '/docs/interview/vueBaseQuestion' },
+              { text: 'react问题', link: '/docs/interview/reactBaseQuestion' },
+              {
+                text: '计算机网络问题',
+                link: '/docs/interview/networkBaseQuestion'
+              },
               { text: '垂直居中', link: '/docs/interview/center' },
               { text: '进程、线程', link: '/docs/interview/process' },
               { text: '判断数据类型', link: '/docs/interview/dataType' },
@@ -67,7 +81,21 @@ async function getConfig() {
               { text: '回流、重绘', link: '/docs/interview/repaint' },
               { text: '节流防抖', link: '/docs/interview/debounce' },
               { text: 'HTTP状态码', link: '/docs/interview/httpCode' },
-              { text: '深拷贝与浅拷贝', link: '/docs/interview/copy' }
+              {
+                text: 'vue中的hash跟history',
+                link: '/docs/interview/hashMode'
+              },
+              {
+                text: 'promise链式无限回调',
+                link: '/docs/interview/promiseCicle'
+              },
+              { text: 'async', link: '/docs/interview/async' },
+              {
+                text: 'proxy/defineProperty',
+                link: '/docs/interview/defineProperty'
+              },
+              { text: 'dns域名解析做了什么', link: '/docs/interview/dns' },
+              { text: '长列表的优化', link: '/docs/interview/longList' }
             ]
           }
         ]
