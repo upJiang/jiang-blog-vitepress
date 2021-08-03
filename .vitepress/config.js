@@ -29,7 +29,7 @@ async function getConfig() {
         { text: '🏡首页', link: '/' },
         { text: '📚基础', link: '/docs/jsBase/git' },
         { text: '🤵面试', link: '/docs/interview/center' },
-        { text: '🙇进阶', link: '/docs/jsAdvanced/index' },
+        { text: '🙇进阶', link: '/docs/jsAdvanced/vue3' },
         { text: '🧾文章', link: '/docs/article/index' }
         // { text: "归档", link: "/docs" },
         // { text: "分类", link: "/tags" },
@@ -96,6 +96,16 @@ async function getConfig() {
               },
               { text: 'dns域名解析做了什么', link: '/docs/interview/dns' },
               { text: '长列表的优化', link: '/docs/interview/longList' }
+            ]
+          }
+        ],
+        '/docs/jsAdvanced/': [
+          {
+            text: '进阶',
+            children: [
+              { text: 'vue3', link: '/docs/jsAdvanced/vue3' },
+              { text: 'vite', link: '/docs/jsAdvanced/vite' },
+              { text: '纯函数', link: '/docs/jsAdvanced/pureFuntion' }
             ]
           }
         ]

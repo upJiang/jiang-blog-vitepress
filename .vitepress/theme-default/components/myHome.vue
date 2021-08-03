@@ -64,11 +64,13 @@ export default defineComponent({
   border-radius: 6px;
   cursor: pointer;
   border: none;
+  text-align: center;
 }
 .home-sum {
   margin-top: 0.4rem;
   color: #6495ed;
   font-size: 0.7rem;
+  text-align: center;
 }
 @media screen and (max-width: 959px) {
   .home-title {
