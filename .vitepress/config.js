@@ -105,7 +105,10 @@ async function getConfig() {
             children: [
               { text: 'vue3', link: '/docs/jsAdvanced/vue3' },
               { text: 'vite', link: '/docs/jsAdvanced/vite' },
-              { text: '纯函数', link: '/docs/jsAdvanced/pureFuntion' }
+              { text: '纯函数', link: '/docs/jsAdvanced/pureFuntion' },
+              { text: 'nvm管理node', link: '/docs/jsAdvanced/nvm' },
+              { text: 'cURL', link: '/docs/jsAdvanced/cURL' },
+              { text: 'husky', link: '/docs/jsAdvanced/husky' }
             ]
           }
         ]

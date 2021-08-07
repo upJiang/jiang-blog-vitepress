@@ -1,3 +1,5 @@
+## vue面试总结
+[vue面试总结](https://juejin.cn/post/6992370132148305927)
 ## watch的两个属性
 deep是否深度监听 handler回调 
 
