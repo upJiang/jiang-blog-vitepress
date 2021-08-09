@@ -1,3 +1,5 @@
+[vue代码规范](https://mp.weixin.qq.com/s/qeAoyWx01fOLgEI0jkT_ag)
+
 ## vue3.0的提升与改变（完全自述）
 1. 性能优化上，静态标记，热更新click，vite打包速度，摇树优化（打包时会把一些没有用到的nextnick,observable等方法抽离出来，排除掉）
 2. 语法上，采用最新的script setup语法糖，比如defineEmit,defineProps,useContext(里面有expose，用于暴露组件的方法，真正意义上的组件封装），vue3.2开始使用defineExpose替代

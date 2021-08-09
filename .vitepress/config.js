@@ -30,7 +30,8 @@ async function getConfig() {
         { text: '📚基础', link: '/docs/jsBase/git' },
         { text: '🤵面试', link: '/docs/interview/center' },
         { text: '🙇进阶', link: '/docs/jsAdvanced/vue3' },
-        { text: '🧾文章', link: '/docs/article/index' }
+        { text: '🧾github', link: 'https://github.com/upJiang' }
+        // { text: '🧾文章', link: '/docs/article/index' }
         // { text: "归档", link: "/docs" },
         // { text: "分类", link: "/tags" },
       ],
@@ -43,6 +44,8 @@ async function getConfig() {
             children: [
               { text: 'git', link: '/docs/jsBase/git' },
               { text: 'es6', link: '/docs/jsBase/es6' },
+              { text: 'jquery', link: '/docs/jsBase/jquery' },
+              { text: 'css', link: '/docs/jsBase/css' },
               { text: 'this指向', link: '/docs/jsBase/this' },
               { text: 'JavaScript上下文', link: '/docs/jsBase/context' },
               { text: '垃圾回收机制方式', link: '/docs/jsBase/garbage' },
@@ -67,6 +70,7 @@ async function getConfig() {
           {
             text: '面试',
             children: [
+              { text: '面试指南', link: '/docs/interview/target' },
               { text: 'js问题', link: '/docs/interview/jsBaseQuestion' },
               { text: 'vue问题', link: '/docs/interview/vueBaseQuestion' },
               { text: 'react问题', link: '/docs/interview/reactBaseQuestion' },
@@ -108,7 +112,8 @@ async function getConfig() {
               { text: '纯函数', link: '/docs/jsAdvanced/pureFuntion' },
               { text: 'nvm管理node', link: '/docs/jsAdvanced/nvm' },
               { text: 'cURL', link: '/docs/jsAdvanced/cURL' },
-              { text: 'husky', link: '/docs/jsAdvanced/husky' }
+              { text: 'husky', link: '/docs/jsAdvanced/husky' },
+              { text: 'js原理学习路线', link: '/docs/jsAdvanced/jsAdvanced' }
             ]
           }
         ]
