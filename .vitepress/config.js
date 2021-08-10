@@ -30,6 +30,7 @@ async function getConfig() {
         { text: '📚基础', link: '/docs/jsBase/git' },
         { text: '🤵面试', link: '/docs/interview/center' },
         { text: '🙇进阶', link: '/docs/jsAdvanced/vue3' },
+        { text: '🤭资源&工具', link: '/docs/resources/learning' },
         { text: '🧾github', link: 'https://github.com/upJiang' }
         // { text: '🧾文章', link: '/docs/article/index' }
         // { text: "归档", link: "/docs" },
@@ -114,6 +115,15 @@ async function getConfig() {
               { text: 'cURL', link: '/docs/jsAdvanced/cURL' },
               { text: 'husky', link: '/docs/jsAdvanced/husky' },
               { text: 'js原理学习路线', link: '/docs/jsAdvanced/jsAdvanced' }
+            ]
+          }
+        ],
+        '/docs/resources/': [
+          {
+            text: '进阶',
+            children: [
+              { text: '前端学习', link: '/docs/resources/learning' },
+              { text: '在线工具', link: '/docs/resources/tool' }
             ]
           }
         ]
