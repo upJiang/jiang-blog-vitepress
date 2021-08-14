@@ -17,3 +17,9 @@
 
 ## 简历
 [🥪超级简历网，在线制作](https://www.wondercv.com/auth-signin/?type=login)
+
+## markdown 
+[🎁markdown在线表情](https://www.emojiall.com/en/search-results?keywords=home)
+
+## code
+[caniuse](https://caniuse.com/?search=flex)

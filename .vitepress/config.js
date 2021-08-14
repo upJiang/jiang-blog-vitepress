@@ -114,13 +114,14 @@ async function getConfig() {
               { text: 'nvm管理node', link: '/docs/jsAdvanced/nvm' },
               { text: 'cURL', link: '/docs/jsAdvanced/cURL' },
               { text: 'husky', link: '/docs/jsAdvanced/husky' },
-              { text: 'js原理学习路线', link: '/docs/jsAdvanced/jsAdvanced' }
+              { text: 'js原理学习路线', link: '/docs/jsAdvanced/jsAdvanced' },
+              { text: 'sentry', link: '/docs/jsAdvanced/sentry' }
             ]
           }
         ],
         '/docs/resources/': [
           {
-            text: '进阶',
+            text: '资源&工具',
             children: [
               { text: '前端学习', link: '/docs/resources/learning' },
               { text: '在线工具', link: '/docs/resources/tool' }

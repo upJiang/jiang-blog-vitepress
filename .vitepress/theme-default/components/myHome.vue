@@ -8,7 +8,7 @@
     <span class="home-sum">
       只有坚持学习，善于总结，不安逸于现状，有自己的目标，才能变得更加优秀！
     </span>
-    <button class="home-learning" @click="toLearn">一起学习吧</button>
+    <button class="home-learning" @click="toLearn">一起学习吧~</button>
   </div>
 </template>
 
