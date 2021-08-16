@@ -11,13 +11,13 @@
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^3.4.0",
     "eslint-plugin-vue": "^7.13.0",
-    "husky": "^7.0.0",
-    "lint-staged": "^11.0.0",
-    "prettier": "^2.3.2",
-    "vitepress": "^0.7.2",
     "globby": "^11.0.1",
     "gray-matter": "^4.0.2",
-    "mz": "^2.7.0"
+    "husky": "^7.0.0",
+    "lint-staged": "^11.0.0",
+    "mz": "^2.7.0",
+    "prettier": "^2.3.2",
+    "vitepress": "^0.7.2"
   },
   "dependencies": {
     "gitalk": "^1.7.0"
