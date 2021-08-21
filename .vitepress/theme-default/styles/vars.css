@@ -7,6 +7,9 @@
   --code-bg-color: #282c34;
   --accent-color: #2196f3;
 
+  --z-index-navbar: 10;
+  --z-index-sidebar: 6;
+
   /* responsive breakpoints */
   /* --mq-narrow: 959px; */
   /* --mq-mobile: 719px; */

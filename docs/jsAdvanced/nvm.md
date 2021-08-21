@@ -16,10 +16,11 @@ npm_mirror: https://npm.taobao.org/mirrors/npm/
 ```
 2. 设置nvm环境变量
 
-删除变量名为 NVM_HOME 和 NVM_SYMLINK 的两个系统变量<br/>
-删除path中的 %NVM_HOME%;%NVM_SYMLINK% 两个属性<br/>
-如果有之前没使用nvm控制版本的node变量，如node_path，一样删掉<br/>
-用户变量会有上面一样的变量，不需要动<br/>
+删除系统变量：NVM_HOME 和 NVM_SYMLINK <br/>
+删除path中的 %NVM_HOME%;%NVM_SYMLINK% <br/>
+
+如果之前有设置过node环境变量，如node_path，一起删掉<br/>
+在用户变量中会有上面一样的变量，不需要动<br/>
 
 3. 安装node
 

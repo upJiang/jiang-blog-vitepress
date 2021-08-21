@@ -55,10 +55,4 @@ ExecutionContext = {
 代码执行时根据之前的环境记录对应赋值，比如早期var在创建阶段为undefined，如果有值就对应赋值，像let const值为未初始化，如果有值就赋值，无值则赋予undefined。
 
 
-
-
-
-
-
-
 [更多参考](https://git-scm.com/downloads)

@@ -24,6 +24,10 @@ async function getConfig() {
     themeConfig: {
       pages: await getPages(),
       author: 'Jiang',
+      algolia: {
+        apiKey: '20a5e8ceef472b845b59bc164e9fae87',
+        indexName: 'jiang'
+      },
       search: true,
       nav: [
         { text: '🏡首页', link: '/' },

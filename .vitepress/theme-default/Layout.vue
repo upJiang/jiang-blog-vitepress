@@ -3,7 +3,12 @@
     <header class="navbar" v-if="showNavbar">
       <NavBar>
         <template #search>
-          <slot name="navbar-search" />
+          <slot name="navbar-search">
+            <AlgoliaSearchBox
+              v-if="$site.themeConfig.algolia"
+              :options="$site.themeConfig.algolia"
+            />
+          </slot>
         </template>
       </NavBar>
       <ToggleSideBarButton @toggle="toggleSidebar" />
@@ -54,6 +59,7 @@ import Home from './components/Home.vue'
 import ToggleSideBarButton from './components/ToggleSideBarButton.vue'
 import SideBar from './components/SideBar.vue'
 import Page from './components/Page.vue'
+import AlgoliaSearchBox from './components/AlgoliaSearchBox.vue'
 import {
   useRoute,
   usePageData,
@@ -137,3 +143,10 @@ export default {
   }
 }
 </script>
+
+<style>
+/* remove margin added by user agent */
+.DocSearch-SearchBar form {
+  margin-block-end: 0;
+}
+</style>
