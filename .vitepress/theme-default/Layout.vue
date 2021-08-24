@@ -4,10 +4,10 @@
       <NavBar>
         <template #search>
           <slot name="navbar-search">
-            <AlgoliaSearchBox
+            <!-- <AlgoliaSearchBox
               v-if="$site.themeConfig.algolia"
               :options="$site.themeConfig.algolia"
-            />
+            /> -->
           </slot>
         </template>
       </NavBar>
@@ -59,7 +59,7 @@ import Home from './components/Home.vue'
 import ToggleSideBarButton from './components/ToggleSideBarButton.vue'
 import SideBar from './components/SideBar.vue'
 import Page from './components/Page.vue'
-import AlgoliaSearchBox from './components/AlgoliaSearchBox.vue'
+// import AlgoliaSearchBox from './components/AlgoliaSearchBox.vue'
 import {
   useRoute,
   usePageData,

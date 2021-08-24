@@ -119,7 +119,8 @@ async function getConfig() {
               { text: 'cURL', link: '/docs/jsAdvanced/cURL' },
               { text: 'husky', link: '/docs/jsAdvanced/husky' },
               { text: 'js原理学习路线', link: '/docs/jsAdvanced/jsAdvanced' },
-              { text: 'sentry', link: '/docs/jsAdvanced/sentry' }
+              { text: 'sentry', link: '/docs/jsAdvanced/sentry' },
+              { text: 'vueComponent', link: '/docs/jsAdvanced/vueComponent' }
             ]
           }
         ],
