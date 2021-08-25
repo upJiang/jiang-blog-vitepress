@@ -3,7 +3,7 @@
 **1. 安装插件**   
 ```
 npm i mockjs -S
-npm i vite-plugin-mock cross-env -D
+npm i vite-plugin-mock -D
 ```
 **2. 配置vite.config.ts**
 ```
@@ -35,7 +35,9 @@ export default [
 request({
    url: '/mock/getUser',
    method: "GET"
-});
+}).then((res)=>{
+
+})
 ```
 设置代理的情况下要增加配置，但使用方法是一样的：
 
