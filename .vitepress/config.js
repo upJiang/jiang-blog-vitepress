@@ -35,7 +35,8 @@ async function getConfig() {
         { text: '🤵面试', link: '/docs/interview/center' },
         { text: '🙇进阶', link: '/docs/jsAdvanced/vue3' },
         { text: '🤭资源&工具', link: '/docs/resources/learning' },
-        { text: '🧾github', link: 'https://github.com/upJiang' }
+        { text: '🧾github', link: 'https://github.com/upJiang' },
+        { text: '👍掘金', link: 'https://juejin.cn/user/862487522314366' }
         // { text: '🧾文章', link: '/docs/article/index' }
         // { text: "归档", link: "/docs" },
         // { text: "分类", link: "/tags" },
@@ -124,7 +125,8 @@ async function getConfig() {
                 text: 'vue3的三种组件封装',
                 link: '/docs/jsAdvanced/vueComponent'
               },
-              { text: 'mock', link: '/docs/jsAdvanced/mock' }
+              { text: 'mock', link: '/docs/jsAdvanced/mock' },
+              { text: '组件库开发', link: '/docs/jsAdvanced/jiangVui' }
             ]
           }
         ],
