@@ -1,7 +1,7 @@
 <template>
   <div class="home-container">
     <span class="home-title">Jiang's Blog</span>
-    <span class="home-tips">97 | 前端 | 学习</span>
+    <span class="home-tips">前端 | 学习</span>
     <span class="home-tips" style="margin-top: 0.4rem">
       今天的不开心就到此为止 明天依旧光芒万丈
     </span>

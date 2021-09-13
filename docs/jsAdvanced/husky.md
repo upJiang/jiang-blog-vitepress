@@ -3,53 +3,39 @@
 
 [husky github地址](https://github.com/typicode/husky)
 
-### 安装husky(目前最新v7.0.1)
+### 安装依赖
 ```
-npm install husky --save-dev
-or
+yarn add @commitlint/cli -D 
+yarn add @commitlint/config-conventional -D 
 yarn add husky -D
 ```
 
-### 在packgae.json中添加prepare脚本
+### packgae.json
 ```
-{
-  "scripts": {
-    "prepare": "husky install"
-  }
-}
+添加命令 
+"prepare": "husky install", 
+"commitlint": "commitlint --config commitlint.config.js -e -V"
 
-prepare脚本会在npm install（不带参数）之后自动执行。也就是说当我们执行npm install安装完项目依赖后会执行 husky install命令，该命令会创建.husky/目录并指定该目录为git hooks所在的目录。
+添加husky 
+"husky": 
+    { 
+        "hooks": 
+            { 
+                "pre-commit": "lint-staged", 
+                "commit-msg": "commitlint -E $HUSKY_GIT_PARAMS" 
+            } 
+    }
+
+执行yarn add husky 因为添加了prepare，所以会自动生成husky文件夹
 ```
 
-### 添加git hooks
+### 添加钩子
+添加pre-commit钩子
 ```
 npx husky add .husky/pre-commit "npm run test"
-```
->运行完该命令后我们会看到.husky/目录下新增了一个名为pre-commit的shell脚本。也就是说在在执行git commit命令时会先执行pre-commit这个脚本。pre-commit脚本内容如下：
 
-```
+并在pre-commit中写入邮箱的限制代码
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-   
-npm run  test
-```
-
-在package.json配置hooks钩子
-```
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "commit-msg": "commitlint -E $HUSKY_GIT_PARAMS"
-    }
-  },
-```
-通过husky add 添加钩子
-```
-npx husky add .husky/commit-msg 'npx --no-install commitlint --edit "$1"'
-```
-
-## 在pre-commit钩子中检查邮箱以及lint-staged
-```
 . "$(dirname "$0")/_/husky.sh"
 
 EMAIL=$(git config user.email)
@@ -61,10 +47,51 @@ then
   echo '   git config --local user.email "<Your alias>@qq.com"'
   exit 1;
 fi;
-
-yarn lint-staged
-echo '检查lint规范'
 ```
+
+添加commit-msg钩子
+```
+npx husky add .husky/commit-msg 'npx --no-install commitlint --edit "$1"'
+
+并在commit-msg写入commit代码时的规范限制
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+npm run commitlint
+```
+commitlint.config.js
+```
+module.exports = {
+  extends: ['@commitlint/config-conventional'],
+  // 检测规则
+  rules: {
+    'type-enum': [
+      2,
+      'always',
+      [
+        'feat',
+        'fix',
+        'docs',
+        'style',
+        'refactor',
+        'perf',
+        'test',
+        'chore',
+        'revert',
+        'build'
+      ]
+    ],
+    'type-case': [0],
+    'type-empty': [0],
+    'scope-empty': [0],
+    'scope-case': [0],
+    'subject-full-stop': [0, 'never'],
+    'subject-case': [0, 'never'],
+    'header-max-length': [0, 'always', 72]
+  }
+}
+```
+这样在提交代码的时候，commit信息就必须遵循规范才能够提交，提交邮箱也是有限制的。
 
 [参考GitHook 工具 ](https://juejin.cn/post/6947200436101185566#heading-4)
 

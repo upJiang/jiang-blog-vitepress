@@ -1,4 +1,6 @@
->在我们平时开发中，我们都会用到组件库，比如vant、element、ant-design等，那我们是否有想过这个东西是怎么做出来的，自己能否也整一个。这篇文章将带大家详细的介绍组件库的开发，这里以vue3组件为例，建议跟着文章内容自己实现一遍。建议收藏~嘿嘿
+>在我们平时开发中，我们都会用到组件库，比如vant、element、ant-design等，那我们是否有想过这个东西是怎么做出来的，自己能否也整一个。这篇文章将带大家详细的介绍组件库的开发，这里以vue3组件为例，建议跟着文章内容自己实现一遍。如果觉得文章太长不想现在看，不如先收藏起来，以后想弄的时候再整，作为前端开发，我认为组件库的封装还是非常有必要掌握的~嘿嘿
+
+其实总结起来就是使用rollup打包组件，使用rulp打包样式，引入jest自动化测试，然后引入eslint，husky这些规范等，最后发布使用。其实任何框架的组件库封装都是一个道理，这里其实也不仅限于vue3，改改也可以成为其它框架的组件库的。想了解vue3封装组件形式的可以参考我另一篇文章[vue3如何封装一个在js中也能使用的全局组件？vue3的三种组件封装形式（导入式组件、全局组件、函数式组件）](https://juejin.cn/post/7000032012488671269)
 
 ## 初始化项目
 创建文件夹jiang-vui，初始化
@@ -14,8 +16,10 @@ play/node_modules
 docs/node_modules
 ```
 
-.npmignore
+.npmignore   
 ```
+只需要保留lib目录以及package.json即可
+
 packages/
 node_modules/    
 scripts/        
@@ -42,7 +46,7 @@ package.json
   "name": "jiang-vui",
   "version": "0.0.0",
   "description": "jiangUI组件库",
-  "main": "lib/jiang-ui.esm-browser.prod.js",
+  "main": "lib/jiang-ui.esm-browser.prod.js",  //入口
   "author": "shaonian",
   "license": "ISC",
   "private": false
@@ -51,15 +55,17 @@ package.json
 ```
 
 ## 编写组件
-创建一个文件夹packages，该文件夹用于组件以及样式的编写，还有jest测试，每一个组件都是一个文件夹，组件文件夹下有src/xxx.vue，以及index.js用于注册组件，test用于jest测试(可以没有，看你喜欢)
+创建一个文件夹packages，该文件夹用于组件以及样式的编写，还有jest测试，每一个组件都是一个文件夹，组件文件夹下有src/xxx.vue，以及index.js用于注册组件，test用于jest测试(测试可以没有，我也不是很熟这玩意)
 
 目录结构：<br/>
 ![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/48a40c3b01c441f48e37ce705912ad4a~tplv-k3u1fbpfcp-watermark.image)
 
 依赖
 ```
-yarn add vue@3.1.4
-yarn add @vue/compiler-sfc@3.1.4
+选择vue版本的时候，要注意组件封装的方式，比如说defineEmits是不适用3.0版本的，我这里选的是3.1.4版本
+
+yarn add vue@3.1.4    
+yarn add @vue/compiler-sfc@3.1.4 -D
 ```
 我们以button组件为例:
 
@@ -147,7 +153,6 @@ yarn add jest -D
 # 此版本这个⽀持Vue3.0
 yarn add vue-jest@5.0.0-alpha.5 -D
 yarn add babel-jest -D
-yarn add @vue/compiler-sfc@3.0.2 -D
 yarn add @vue/test-utils@next -D
 yarn add typescript -D
 ```
@@ -441,7 +446,7 @@ export default createPackageConfigs()
 "build": "rollup -c"
 ```
 这个时候我们已经可以打包组件库啦！！！
-执行命令后，我们可以在根目录下生成文件夹lib,并且已经有我们的组件代码了。
+执行命令后，自动在根目录下生成文件夹lib,并且已经有我们的组件代码了。
 
 ![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/daaa605fbb3b4ab7889aa3d62ce69267~tplv-k3u1fbpfcp-watermark.image)
 
@@ -459,9 +464,6 @@ export default createPackageConfigs()
     <title>组件测试界面</title>
     <script src="https://unpkg.com/vue@next"></script>
     <script src="lib/jiang-ui.global.prod.js"></script>
-    <script>
-      
-    </script>
   </head>
   <body>
     <div id="app"></div>
@@ -568,7 +570,7 @@ package.json
 ```
 "pub": "sh ./scripts/publish.sh"
 ```
-当然你也可以手动操作npm login,因为登录过一次之后，之后是不需要重新登录的，可以直接npm publish,
+当然你也可以手动操作发布流程，因为登录过一次之后，之后是不需要重新登录的，可以直接npm publish,
 每次发布之前记得改下版本号，以及build && build:theme打包一哈
 
 ## 在真实环境下使用
@@ -726,6 +728,39 @@ npx husky add .husky/commit-msg 'npx --no-install commitlint --edit "$1"'
 
 npm run commitlint
 ```
+commitlint.config.js
+```
+module.exports = {
+  extends: ['@commitlint/config-conventional'],
+  // 检测规则
+  rules: {
+    'type-enum': [
+      2,
+      'always',
+      [
+        'feat',
+        'fix',
+        'docs',
+        'style',
+        'refactor',
+        'perf',
+        'test',
+        'chore',
+        'revert',
+        'build'
+      ]
+    ],
+    'type-case': [0],
+    'type-empty': [0],
+    'scope-empty': [0],
+    'scope-case': [0],
+    'subject-full-stop': [0, 'never'],
+    'subject-case': [0, 'never'],
+    'header-max-length': [0, 'always', 72]
+  }
+}
+```
+这样在提交代码的时候，commit信息就必须遵循规范才能够提交，提交邮箱也是有限制的。
 
 ## 编写组件库文档项目
 >我们组件库是有了，但是也得有个文档吧，这里重点是使用markdown编写我们的文档项目。在根目录下新建docs文件夹
@@ -1084,9 +1119,9 @@ import MyButton from '../../../packages/compoents/button/src/Button.vue'
 "play": "cd ./play && yarn dev"
 ```
 ## 总结
-这个项目以及这篇文章会持续更新迭代，其实一直都想尝试做个组件库，迟迟没有动手，这个项目也是借鉴了多方才弄出来的，其实对一些细节自己还不是很清楚。缘由是因为在开课吧里看了[全栈然叔](https://juejin.cn/user/1978776660216136)的工程化课程后，就有兴趣自己也弄一个组件库，跟着课程写了点，但是发布啥的都没介绍，样式打包也有问题。然后又借鉴了[手握手教你搭建组件库环境](https://segmentfault.com/a/1190000039920691)这篇文章，结合起来差不多把这个完成了，中间其实也踩了不少坑。
+最近也是一直在学习工程化的东西，一直都想尝试做个组件库，在开课吧里看了[全栈然叔](https://juejin.cn/user/1978776660216136)的工程化课程后，就动手跟着做了一遍，但是发布啥的都没介绍，样式打包也有问题。然后又借鉴了[手握手教你搭建组件库环境](https://segmentfault.com/a/1190000039920691)这篇文章，中间也踩了不少坑，其实项目中有些东西我也不是很懂，如果跟着文章没做出来，那就下载一下我的项目代码对比一下。
 
-项目以及文章我都会持续更新的，其实我也只是个两年工作经验的菜鸟，希望可以一起进步。如果你都看到这里了，觉得有收获，写的还行的话，就点个赞收藏一下吧，如果你也是一个爱学习的前端，不妨点个关注！嘿嘿，代码可以下载下来跑跑。谢谢！！！
+项目以及文章我都会持续更新的，如果你都看到这里了，觉得有收获，写的还行的话，就点个赞收藏一下吧，如果你也是一个爱学习的前端，不妨点个关注！嘿嘿，谢谢！！！
 
 [项目代码地址](https://github.com/upJiang/jiangUI)
 
