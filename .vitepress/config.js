@@ -126,7 +126,11 @@ async function getConfig() {
                 link: '/docs/jsAdvanced/vueComponent'
               },
               { text: 'mock', link: '/docs/jsAdvanced/mock' },
-              { text: '组件库开发', link: '/docs/jsAdvanced/jiangVui' }
+              { text: '组件库开发', link: '/docs/jsAdvanced/jiangVui' },
+              {
+                text: '请求loading封装',
+                link: '/docs/jsAdvanced/loadingHandle'
+              }
             ]
           }
         ],

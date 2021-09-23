@@ -6,9 +6,9 @@
       今天的不开心就到此为止 明天依旧光芒万丈
     </span>
     <span class="home-sum">
-      只有坚持学习，善于总结，不安逸于现状，有自己的目标，才能变得更加优秀！
+      目标明确，坚持学习，善于总结，不积跬步无以至千里
     </span>
-    <button class="home-learning" @click="toLearn">一起学习吧~</button>
+    <button class="home-learning" @click="toLearn">Start learning~</button>
   </div>
 </template>
 
@@ -67,7 +67,7 @@ export default defineComponent({
   text-align: center;
 }
 .home-sum {
-  margin-top: 0.4rem;
+  margin-top: 0.5rem;
   color: #6495ed;
   font-size: 0.7rem;
   text-align: center;
