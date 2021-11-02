@@ -53,6 +53,7 @@ async function getConfig() {
               { text: 'js_类型', link: '/docs/reStudy/js_type' },
               { text: 'js_对象', link: '/docs/reStudy/js_object' },
               { text: 'js_原型', link: '/docs/reStudy/js_prototype' },
+              { text: 'js_事件循环', link: '/docs/reStudy/js_eventLoop' },
             ]
           }
         ],

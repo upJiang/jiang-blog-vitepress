@@ -65,46 +65,16 @@ r.then(() => {
 执行顺序：c1 - c11
 ```
 
+## promise
+>Promise 是 JavaScript 语言提供的一种标准化的异步管理方式，它的总体思想是，需要进行 io、等待或者其它异步操作的函数，不返回真实结果，而返回一个“承诺”，函数的调用方可以在合适的时机，选择等待这个承诺兑现（通过 Promise 的 then 方法的回调）。
+
+基本用法：
+
 ```
-console.log('start');
-
-setTimeout(() => {
-console.log('s1');
-    new Promise(resolve => {
-        console.log('p2');
-        resolve(true);
-    }).then(() => {
-         console.log('then2');
-    });
-});
-
-function task() {
-    console.log('task');
+function sleep(duration) {
+    return new Promise(function(resolve, reject) {
+        setTimeout(resolve,duration);
+    })
 }
-
-new Promise(resolve => {
-    console.log('p1');
-    resolve(true);
-}).then(() => {
-    console.log('then');
-});
-
-task();
-
-console.log('end');
-
-执行顺序：start p1 task end (同步任务) then (微任务) s1(宏任务) p2 then2(宏任务中的微任务，循环) 
-
-现实中的场景：
-settimeout(()=>{
-    console.log("1")
-},2000)
-settimeout(()=>{
-    console.log("2")
-},1000)
-//请求的同步代码
-{
-    2000毫秒后完成
-}
-这个时候如何输出，两秒后同时输出2，1，2比1快
+sleep(1000).then( ()=> console.log("finished"));
 ```
