@@ -31,6 +31,7 @@ async function getConfig() {
       search: true,
       nav: [
         { text: '🏡首页', link: '/' },
+        { text: '📑重学前端', link: '/docs/reStudy/start' },
         { text: '📚基础', link: '/docs/jsBase/git' },
         { text: '🤵面试', link: '/docs/interview/center' },
         { text: '🙇进阶', link: '/docs/jsAdvanced/vue3' },
@@ -44,6 +45,17 @@ async function getConfig() {
       sidebar: {
         '/': [],
         // 侧边栏
+        '/docs/reStudy/': [
+          {
+            text: '重学前端',
+            children: [
+              { text: '开始', link: '/docs/reStudy/start' },
+              { text: 'js_类型', link: '/docs/reStudy/js_type' },
+              { text: 'js_对象', link: '/docs/reStudy/js_object' },
+              { text: 'js_原型', link: '/docs/reStudy/js_prototype' },
+            ]
+          }
+        ],
         '/docs/jsBase/': [
           {
             text: '基础',
