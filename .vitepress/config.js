@@ -55,6 +55,8 @@ async function getConfig() {
               { text: 'js_原型', link: '/docs/reStudy/js_prototype' },
               { text: 'js_事件循环', link: '/docs/reStudy/js_eventLoop' },
               { text: 'js_闭包&执行上下文', link: '/docs/reStudy/js_closure' },
+              { text: 'js_函数', link: '/docs/reStudy/js_function' },
+              { text: 'js_语句', link: '/docs/reStudy/js_completion' },
             ]
           }
         ],
