@@ -57,6 +57,9 @@ async function getConfig() {
               { text: 'js_闭包&执行上下文', link: '/docs/reStudy/js_closure' },
               { text: 'js_函数', link: '/docs/reStudy/js_function' },
               { text: 'js_语句', link: '/docs/reStudy/js_completion' },
+              { text: 'js_词法', link: '/docs/reStudy/js_token' },
+              { text: 'js_分号', link: '/docs/reStudy/js_semicolon' },
+              { text: 'js_语法', link: '/docs/reStudy/js_grammar' },
             ]
           }
         ],
