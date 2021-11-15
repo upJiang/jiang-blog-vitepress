@@ -133,7 +133,7 @@ Function.prototype.call 和 Function.prototype.apply <br/>
 ```
 //这里 call 和 apply 作用是一样的，只是传参方式有区别。会立即执行
 function foo(a, b, c){
-    console.log(this);
+    console.log(this); //如果传进来的this是null或者undefined，那么将会输出global
     console.log(a, b, c);
 }
 foo.call({}, 1, 2, 3);
