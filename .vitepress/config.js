@@ -60,7 +60,8 @@ async function getConfig() {
               { text: 'js_词法', link: '/docs/reStudy/js_token' },
               { text: 'js_分号', link: '/docs/reStudy/js_semicolon' },
               { text: 'js_语法', link: '/docs/reStudy/js_grammar' },
-              { text: 'html_标签', link: '/docs/reStudy/html_tag' }
+              { text: 'html_标签', link: '/docs/reStudy/html_tag' },
+              { text: 'css_规则', link: '/docs/reStudy/css_rule' }
             ]
           }
         ],
