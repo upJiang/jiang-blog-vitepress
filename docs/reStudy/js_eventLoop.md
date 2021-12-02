@@ -4,7 +4,7 @@ event loop 分为宏任务跟微任务，是单线程
 
 微任务：就是由javascript引擎发起，就是由代码产生的，也就是只有promise的then跟process.nexktick
 
-![](https://i.loli.net/2021/08/01/DozyCFaQRxHTheW.png)
+![Image.png](https://i.loli.net/2021/08/01/DozyCFaQRxHTheW.png)
 
 ## 执行顺序
 1.先执行script中的同步代码
