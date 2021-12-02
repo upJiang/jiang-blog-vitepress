@@ -7,7 +7,7 @@ Completion Record 表示一个语句执行完之后的结果，它有三个字�
 * [[target]] 表示语句的目标，通常是一个 JavaScript 标签
 
 ## 语句分类
-![img](https://static001.geekbang.org/resource/image/98/d5/98ce53be306344c018cddd6c083392d5.jpg)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a54f67efdd14d7fb0b99ab091c8a344~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 普通的语句
 在 JavaScript 中，我们把不带控制能力的语句称为普通语句。普通语句有下面几种。

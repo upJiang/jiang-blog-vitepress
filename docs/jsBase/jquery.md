@@ -2,7 +2,8 @@
 
 ## 选择器
 ### 基本选择器
-![fGuB4g.png](https://z3.ax1x.com/2021/08/09/fGuB4g.png)
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/314f7fe64646435a9fc47ed526df4071~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 筛选选择器
 ```
@@ -23,10 +24,12 @@
 ```
 
 ### 内容选择器
-![fGu6vn.png](https://z3.ax1x.com/2021/08/09/fGu6vn.png)
+
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/371a1ff258f242af9caebdd45d8285eb~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 可见性选择器
-![fGuo8J.png](https://z3.ax1x.com/2021/08/09/fGuo8J.png)
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8229ea3a22d94ce1821c0aae068b88e3~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 属性选择器  img[alt]
 ```
@@ -53,31 +56,37 @@
 。。。同上
 ```
 ### 表单选择器
-![fGujUO.png](https://z3.ax1x.com/2021/08/09/fGujUO.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1a243cf786694abc944ca28e65b3016d~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 表单对象选择器
-![fGKp2d.png](https://z3.ax1x.com/2021/08/09/fGKp2d.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1d9779b90f4a4b009a30e9205ff85121~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 属性操作
-![fGKEa8.png](https://z3.ax1x.com/2021/08/09/fGKEa8.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7a3c914a37674824942cdf449a470a34~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGKn2j.png](https://z3.ax1x.com/2021/08/09/fGKn2j.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8c6ef7e8c26e498d95a94bfa5a0c35d0~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGKQrq.png](https://z3.ax1x.com/2021/08/09/fGKQrq.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/74ac91180560498f8c5593614db4cb6f~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGKlq0.png](https://z3.ax1x.com/2021/08/09/fGKlq0.png)
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb11b16b846f42cc8d01f5a3cc53dcff~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 内容由上往下顺序显示
-![fGKGIU.png](https://z3.ax1x.com/2021/08/09/fGKGIU.png)
+
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/611f7bd3fb4646c8885f433eff136116~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 动画
-![fGKUz9.png](https://z3.ax1x.com/2021/08/09/fGKUz9.png)
 
-![fGKws1.png](https://z3.ax1x.com/2021/08/09/fGKws1.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b13008710a81487b87141c374722ce24~tplv-k3u1fbpfcp-watermark.image?)
+
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fe795160768c4dd2abd63162dc3a03ca~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 自定义动画
-![fGK0qx.png](https://z3.ax1x.com/2021/08/09/fGK0qx.png)
 
-![fGM9FU.png](https://z3.ax1x.com/2021/08/09/fGM9FU.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5e5bb16e19974b5aa6f60f8c0aab9567~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGMmTK.png](https://z3.ax1x.com/2021/08/09/fGMmTK.png)
+
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a43a55647d8844be93d4f6f8af43f6f9~tplv-k3u1fbpfcp-watermark.image?)
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e9edffae8980460e995b74f203e645d0~tplv-k3u1fbpfcp-watermark.image?)

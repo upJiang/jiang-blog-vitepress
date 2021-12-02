@@ -279,12 +279,10 @@ let syml = Symbpl('aaa');
 
 ![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b75aa4db3ee4c608b6501d79e3a8f78~tplv-k3u1fbpfcp-watermark.image?)
 
-![Image.png](https://upload.cc/i1/2021/08/09/04oacP.png)
-
 generator结合axios数据请求：
-![Image.png](https://z3.ax1x.com/2021/08/09/fGERHg.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3ce4a18ec5e44b8c921b62a8fe2ea7bb~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGE44s.png](https://z3.ax1x.com/2021/08/09/fGE44s.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a79f0c54715d46339fce0f38f2e09977~tplv-k3u1fbpfcp-watermark.image?)
 
 ## Set
 >Set数据解构：类似数组，但是里面不能有重复值
@@ -295,7 +293,7 @@ let setArr = new Set(['a','a','b','c','c')
 ```
 
 ### 用法
-![fGVAVe.png](https://z3.ax1x.com/2021/08/09/fGVAVe.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b996361a983143c6ac9bc35e1b5556c7~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 链式增加
 ```
@@ -383,31 +381,35 @@ Math.cbrt(27);//计算一个数的立方根3
 
 [详解 ES 2018 新特性](https://mp.weixin.qq.com/s/AfTLs4FJaeir6Lv3hk5UAg)
 
-![fGZWfs.png](https://z3.ax1x.com/2021/08/09/fGZWfs.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/32b044ab6a774f15b2f9a1eea7318b16~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGZv11.png](https://z3.ax1x.com/2021/08/09/fGZv11.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 命名捕获
-![fGeB4J.png](https://z3.ax1x.com/2021/08/09/fGeB4J.png)<br/>
-![fGe2DK.png](https://z3.ax1x.com/2021/08/09/fGe2DK.png)
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?)<br/>
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d3629bdf0f74c24a99ccce49fcfb827~tplv-k3u1fbpfcp-watermark.image?)
 
 ### replace 替换
-![fGmp2n.png](https://z3.ax1x.com/2021/08/09/fGmp2n.png)<br/>
-![fGmV54.png](https://z3.ax1x.com/2021/08/09/fGmV54.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a0556dfba57d4607800b1f5ea25366e7~tplv-k3u1fbpfcp-watermark.image?)<br/>
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a6239679ceaf4271a35c5bb7547e84c4~tplv-k3u1fbpfcp-watermark.image?)
 
 ### dotAll模式
-![fGmMKx.png](https://z3.ax1x.com/2021/08/09/fGmMKx.png)
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/274d33b7b59a441999fdb0944c35631c~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 标签函数
-![fGm8aD.png](https://z3.ax1x.com/2021/08/09/fGm8aD.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/49378e7aa520418da80c1c4fbabeef2a~tplv-k3u1fbpfcp-watermark.image?)
 
 ### Proxy
-![fGmGIe.png](https://z3.ax1x.com/2021/08/09/fGmGIe.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2b7c4ffff5a3419ea3d7dfad1d42c8c8~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGmYPH.png](https://z3.ax1x.com/2021/08/09/fGmYPH.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/494f69c61de140faa8a61744f0867cf3~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGmtGd.png](https://z3.ax1x.com/2021/08/09/fGmtGd.png)<br/>
-![fGm6iQ.png](https://z3.ax1x.com/2021/08/09/fGm6iQ.png)
+
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb512b7762fc4e328b822831e51b2613~tplv-k3u1fbpfcp-watermark.image?)<br/>
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2e630ee4b7894870b16da23ed74d1da0~tplv-k3u1fbpfcp-watermark.image?)
 
 #### set():设置，拦截
 设置一个年龄，保证是整数，范围不能超过200。
@@ -479,9 +481,10 @@ Reflec反射的使用:
 ‘assign’ in Object -> Relect.has(Object,'assign');
 如delete json.a -> Relect.deleteProperty(json,'a');
 ```
-![fGnv1s.png](https://z3.ax1x.com/2021/08/09/fGnv1s.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4d772b217d8147eab9ea88d60a8859b2~tplv-k3u1fbpfcp-watermark.image?)
 
-![fGnzXq.png](https://z3.ax1x.com/2021/08/09/fGnzXq.png)
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bb928770bdbc4124ac6372a259afa23c~tplv-k3u1fbpfcp-watermark.image?)
 
 
 [es6入门教程](https://es6.ruanyifeng.com/)

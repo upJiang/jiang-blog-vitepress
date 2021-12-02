@@ -98,7 +98,8 @@ o.showThis(); // o
 答：因为 class 设计成了默认按 strict 模式执行，this 严格按照调用时传入的值，可能为 null 或者 undefined。
 
 JavaScript 用一个栈来管理执行上下文，这个栈中的每一项又包含一个链表。如下图所示：
-![img](https://static001.geekbang.org/resource/image/e8/31/e8d8e96c983a832eb646d6c17ff3df31.jpg)
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cbf75c95a4cb4dfa85e589c5f1a12381~tplv-k3u1fbpfcp-watermark.image?)
 当函数调用时，会入栈一个新的执行上下文，函数调用结束时，执行上下文被出栈
 
 而 this 则是一个更为复杂的机制，JavaScript 标准定义了 [[thisMode]] 私有属性。

@@ -6,7 +6,7 @@
 现在我来分别介绍这三种组件该如何封装
 
 组件目录结构<br/>
-![hAblcD.png](https://z3.ax1x.com/2021/08/24/hAblcD.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/110a543422174c5b872ec95c63e31b6b~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 导入式组件
 组件代码：/src/components/import/BButton.vue
@@ -227,7 +227,7 @@ if (response?.status === 200) {
 ```
 
 项目截图：<br/>
-![hAOnNn.png](https://z3.ax1x.com/2021/08/25/hAOnNn.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4bd304c5249d4a9db4c79bd5ef1293e9~tplv-k3u1fbpfcp-watermark.image?)
 
 [项目地址](https://github.com/upJiang/jiangVue3Test)
 项目目前引入了: i18n vuex v-router less mock axios封装 ant-design（按需加载） srntry 构建分包 env ts的支持 三种封装组件的形式。赏个star~
