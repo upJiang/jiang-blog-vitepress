@@ -15,9 +15,9 @@ TCP：面向连接的可靠传输，安全的，可靠协议，三次握手等�
 为了防止已失效的连接请求报文段突然又传送到了服务端，因而产生错误
 
 ## http报文 
-![Image.png](https://i.loli.net/2021/08/02/zWkBwsFTLaE7Pqj.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4d99aaf10b8d49fd929bb7a4c19627a3~tplv-k3u1fbpfcp-watermark.image?)
 
-![Image.png](https://i.loli.net/2021/08/02/x3t5I8UkoucSKiB.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ceb0c744e8c44c29863eb0b1bb1985f8~tplv-k3u1fbpfcp-watermark.image?)
 
 ## get 和post的区别
 get:某些浏览器对请求地址的长度有限制，url暴露，不能发送文件， 表单查询，查询结果页面可以收藏，不能修改服务器数据（最重要）

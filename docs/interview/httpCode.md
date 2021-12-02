@@ -13,8 +13,8 @@
 
 get请求:
 
-![Image.png](https://i.loli.net/2021/08/01/KcdRuTm3oLQhGOZ.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3fd000cccb39446e849c1187ab1c837f~tplv-k3u1fbpfcp-watermark.image?)
 
 post请求：
 
-![Image.png](https://i.loli.net/2021/08/01/sBjHbmF7MXNALyq.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa126269ce4a4b8eb63fb3fa59467602~tplv-k3u1fbpfcp-watermark.image?)

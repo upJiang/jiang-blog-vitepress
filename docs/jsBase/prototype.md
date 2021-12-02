@@ -1,5 +1,7 @@
-![Image.png](https://i.loli.net/2021/08/01/ojERdvUwStL731m.png)
-![Image.png](https://i.loli.net/2021/08/01/ibBQTpKfek8NyVW.png)
+
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/663587c8bc574c1bb8016a3d96aedfba~tplv-k3u1fbpfcp-watermark.image?)
+
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/728443cbaefd4e0f849f9f846e89e583~tplv-k3u1fbpfcp-watermark.image?)
 var M = function(name){ this.name = name}  //构造函数
 
 var obj = new M("jiang")  //new一个实例
@@ -7,7 +9,7 @@ var obj = new M("jiang")  //new一个实例
 原型链的根就是Object.prototype
 
 那么：M.prototype  会输出
-![Image.png](https://i.loli.net/2021/08/01/USp7banAM3LDTNt.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0973a99a707940f990d488b510732d94~tplv-k3u1fbpfcp-watermark.image?)
 那么就有：M.prototype.constructor 就会等于 === M
 然后我们再new一个实例 <br/>
 var obj2 = new M('jun')<br/>

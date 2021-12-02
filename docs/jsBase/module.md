@@ -104,4 +104,4 @@ CMD | 只有真正需要才加载依赖 | 性能较差 | 直到使用的时候�
 1. es6的一个语法标准（浏览器不支持，本质是使用node中的babel将es6转码为es5再执行，import会被转码为require），es6模块不是对象
 2. 是编译时调用，确定模块的依赖关系，输入变量（es6模块不是对象，而是通过export命令指定输出代码，再通过import输入，只加载import中导的方法，其他方法不加载），import具有提升效果，会提升到模块的头部（编译时执行）
 3. import是解构过程（需要谁，加载谁）
-![Image.png](https://i.loli.net/2021/08/02/TbfUzNdI3qWFQ1Z.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3f9766ff131848279424d1af6ad0d269~tplv-k3u1fbpfcp-watermark.image?)

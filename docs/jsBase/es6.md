@@ -50,7 +50,7 @@ let str = "a"
 str.repeat(3)   输出aaa 
 ```
 ### 字符串填充
-![Image.png](https://i.loli.net/2021/08/08/82zRqiLNZepuFoY.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/712c4c52048b46b7bb6b0b1fd40698b6~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 函数变化
 ```
@@ -99,7 +99,7 @@ show("aaa")
 
 >使用箭头函数时，this指向定义函数的位置，而不是函数内部，故在写小程序请求时外面包了已成promise之后不需要let self= this ,它直接指向外层
 
-![Image.png](https://i.loli.net/2021/08/08/YVbCODG5rSRXP24.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cde7835210f64a33a59b86ec1cc0185e~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 数组方法
 ### forEach
@@ -110,55 +110,61 @@ arr.forEach(val,index) =>{
 ### map
 >map,必须return，return一个数组，对数据进行改造，返回改造后的数组
 
-![Image.png](https://i.loli.net/2021/08/08/MvoupeJlrNWEQ9d.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fcf06b61d19c49c6b3eab8e5f02c8248~tplv-k3u1fbpfcp-watermark.image?)
 
 ### filter
 >过滤不合格的条件，rutrun条件，符合的数组选项保留下来,返回符合条件的数组
 
-![Image.png](https://i.loli.net/2021/08/08/LbVS3cIDNmfpuzg.png)
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/583c205bc4a74d16bc53b88a63bf9c09~tplv-k3u1fbpfcp-watermark.image?)
 
 ### some
 >arr.some():类似查找，数组里面某一个元素符合条件，返回true
 
-![Image.png](https://i.loli.net/2021/08/08/z4vLb1MZIGw2mtk.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c8ea55ccf2814ddb986e97e936295faa~tplv-k3u1fbpfcp-watermark.image?)
 
 ### every
 >arr.every():数组里面所有的元素都要符合条件，才返回true
 
-![Image.png](https://i.loli.net/2021/08/08/xgkT6GjeKRs8UBQ.png)
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bf46a068e33c424288142909809e7cfa~tplv-k3u1fbpfcp-watermark.image?)
 
 ### reduce
 >可用于求和，操作后结果作为prev，再与cur操作，依此类推，reduceRight 从右往左
 
-![Image.png](https://i.loli.net/2021/08/08/HF4WvErh5SuC2DL.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5844735a6f8749f78cedf159bf3ef723~tplv-k3u1fbpfcp-watermark.image?)
 
 ### for...of...
 >arr.keys() 数组下标   arr.entries() 数组某一项
 
-![Image.png](https://i.loli.net/2021/08/08/d2qXu5MRDO3wLrp.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/754e9d1923694852b4d97c2ce4e32e1c~tplv-k3u1fbpfcp-watermark.image?)
 
 ### array.from
 
-![Image.png](https://i.loli.net/2021/08/08/2jJQTsbpgVrwGcd.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a51bc957f31c4422a59a2fb941993df9~tplv-k3u1fbpfcp-watermark.image?)
 
-![Image.png](https://i.loli.net/2021/08/08/yseMUFtPjZ3xd79.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/878ede2f6d8b4eb78efe688078329962~tplv-k3u1fbpfcp-watermark.image?)
 
 ### array.of
 >类似于... 将一组数据转成数组
 
-![Image.png](https://i.loli.net/2021/08/08/mtvEhY4qplKWfbL.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d474dc313c1d4956a02938a2748f24c6~tplv-k3u1fbpfcp-watermark.image?)
 
 ### arr.find()  arr.findIndex()
 
-![Image.png](https://i.loli.net/2021/08/08/M2YiCJgn6lhRUs8.png)
 
-![Image.png](https://i.loli.net/2021/08/08/oAOujarQKRE5zZY.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e883985517641a98adab338e769ffa6~tplv-k3u1fbpfcp-watermark.image?)
+
+
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/71663644c0e5449b8593ca53a16d1bb6~tplv-k3u1fbpfcp-watermark.image?)
 
 ### arr.fill()
 >arr.fill(填充的东西，开始位置，结束位置)
 
-![Image.png](https://i.loli.net/2021/08/08/snOiKAhRCLDZHI6.png)
-![Image.png](https://i.loli.net/2021/08/08/Jfcn4w6QvYtXKeV.png)
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/eb00777c174440fab050ab1dd3e9a450~tplv-k3u1fbpfcp-watermark.image?)
+
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/362505b0ca8e48ceb6f42f32513ec12e~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 对象Object
 ### Object.is()
@@ -171,21 +177,26 @@ Object.is(+0,-0))  //false
 ### Object.assign()
 >浅拷贝，Object.assign(目标源，数据，数据)  合并对象，将后面的对象合并到目标对象中，若有重复，后面的替换前面的
 
-![Image.png](https://i.loli.net/2021/08/09/7jkrbJ3ZUDI2PBW.png)
+
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae6c4b9336914ba7b0a73091da4cb0f2~tplv-k3u1fbpfcp-watermark.image?)
 输出: {a:2,b:2,c:3}
 
 ## Promise
-![Image.png](https://i.loli.net/2021/08/09/OIoPv5A8UwifCn7.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d863f64add6b46999b4ddcb36c9eda94~tplv-k3u1fbpfcp-watermark.image?)
 
-![Image.png](https://i.loli.net/2021/08/09/YsTfnadPcFSUIlx.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e1d83456f5f4e5b9d108c1683aae034~tplv-k3u1fbpfcp-watermark.image?)
 
-![Image.png](https://i.loli.net/2021/08/09/hn5zswHIe7KdJxE.png)
 
-![Image.png](https://i.loli.net/2021/08/09/v7LA6PW3icub9Er.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9ededed16e2e4e039f5cc1c0ff7cd4c7~tplv-k3u1fbpfcp-watermark.image?)
 
-![Image.png](https://i.loli.net/2021/08/09/XaVy3LzZ2csrm4P.png)
 
-![Image.png](https://i.loli.net/2021/08/09/Ohs85dnD1Bio9vL.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/24bc98f8d41d4d808559e2d656e5a949~tplv-k3u1fbpfcp-watermark.image?)
+
+
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7aa5e8f08dfa4b1c88e33be99e766f7e~tplv-k3u1fbpfcp-watermark.image?)
+
+
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/88e5af2520ca4554abf770fc994f937d~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 模块化
 >注意：1.要放在服务器环境才可以使用; 2.import './modules/1.js';
@@ -227,27 +238,31 @@ console.log(res.a + res.b);
 ### 优点
 1. 按需加载
 
-![Image.png](https://i.loli.net/2021/08/09/q3GpfY9lIQOHWVD.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/979cfde4246944d9ba292b26011a3940~tplv-k3u1fbpfcp-watermark.image?)
 
 2. 可以写到if中
 
 3. 路径也是可以动态的,可以结合 Promise.all来用
 
-![Image.png](https://i.loli.net/2021/08/09/RzU8kcsxAEnLFiM.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bc5976e9cb944770b3d137fb54aad6e0~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 类class
-![Image.png](https://i.loli.net/2021/08/09/ONs5JvQXZcidw8Y.png)
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a793e5d68b494b8fa8259d87963155aa~tplv-k3u1fbpfcp-watermark.image?)
 
 可以用变量定义方法名，加[]<br/>
-![Image.png](https://i.loli.net/2021/08/09/MtUr1xj8dhg2T5v.png)
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e9cd833241245d8b2fc096f6aef8814~tplv-k3u1fbpfcp-watermark.image?)
 
 ### get、set的使用
-![Image.png](https://i.loli.net/2021/08/09/zFxNyfMnXGWHcS5.png)
+
+![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3cda283637f6493c981e982e78ae06e9~tplv-k3u1fbpfcp-watermark.image?)
 
 ### 继承
-![Image.png](https://i.loli.net/2021/08/09/5eIyHb4BO6DkWNP.png)
 
-![Image.png](https://i.loli.net/2021/08/09/TI9LzUluA2gEhVw.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ecb736ae0887432695f584447ccf4fde~tplv-k3u1fbpfcp-watermark.image?)
+
+
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/50f7fdaa32d2471b8e312f977b858456~tplv-k3u1fbpfcp-watermark.image?)
 
 ## symbol
 ### 定义
@@ -262,7 +277,7 @@ let syml = Symbpl('aaa');
 ## generator
 >generator 函数 解决异步深度嵌套。手动调用，每执行一次next()，就执行一个yield的方法
 
-![Image.png](https://i.loli.net/2021/08/09/5FG9vlXm2VPQ6hY.png)
+![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b75aa4db3ee4c608b6501d79e3a8f78~tplv-k3u1fbpfcp-watermark.image?)
 
 ![Image.png](https://upload.cc/i1/2021/08/09/04oacP.png)
 

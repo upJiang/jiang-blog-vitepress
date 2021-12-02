@@ -36,7 +36,7 @@ const clickThrowError = ()=>{
 }
 ```
 
-![ff43hF.png](https://z3.ax1x.com/2021/08/16/ff43hF.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0479ca71932347b8a4fe97eb65142b07~tplv-k3u1fbpfcp-watermark.image?)
 
 [代码示例地址](https://github.com/upJiang/vue3-sentry-test)
 

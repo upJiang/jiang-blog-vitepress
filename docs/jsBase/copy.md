@@ -1,10 +1,10 @@
 浅拷贝：浅拷贝是创建一个新对象，这个对象有着原始对象属性值的一份精确拷贝。如果属性是基本类型，拷贝的就是基本类型的值，如果属性是引用类型，拷贝的就是内存地址 ，所以如果其中**一个对象改变了这个地址，就会影响到另一个对象**。
 
-![image.png](https://i.loli.net/2021/08/01/I3vq1y7AQzJikWF.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0a286afa3c40484099245852f4258a4a~tplv-k3u1fbpfcp-watermark.image?)
 
 深拷贝：深拷贝是将一个对象从内存中完整的拷贝一份出来,从堆内存中开辟一个新的区域存放新对象,且**修改新对象不会影响原对象**。
 
-![image.png](https://i.loli.net/2021/08/01/497LY5RNaDEVk3v.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a0408fb610734ceb8dbbbf7441a85992~tplv-k3u1fbpfcp-watermark.image?)
 
 ```
 var a1 = {b: {c: {}};
@@ -77,7 +77,7 @@ let arr4 = JSON.parse(JSON.stringify(arr));
 arr4[2].username = 'duncan'; 
 console.log(arr, arr4)
 ```
-![image.png](https://i.loli.net/2021/08/01/qC2FtYPfHEWDchT.png)
+![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fbfb74327856429f9844da11f691d103~tplv-k3u1fbpfcp-watermark.image?)
 
 这也是利用JSON.stringify将对象转成JSON字符串，再用JSON.parse把字符串解析成对象，一去一来，新的对象产生了，而且对象会开辟新的栈，实现深拷贝。
 
@@ -92,7 +92,7 @@ let arr4 = JSON.parse(JSON.stringify(arr));
 arr4[2].username = 'duncan'; 
 console.log(arr, arr4)
 ```
-![image.png](https://i.loli.net/2021/08/01/pLgrU8kBHijmw1K.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/88f99f16a4cb4eada1159cf3e7a9a299~tplv-k3u1fbpfcp-watermark.image?)
 
 2.函数库lodash的_.cloneDeep方法
 >该函数库也有提供_.cloneDeep用来做 Deep Copy

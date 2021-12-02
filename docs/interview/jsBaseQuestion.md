@@ -86,7 +86,7 @@ requestIdleCallback会在帧结束时并且有空闲时间。或者用户不与�
 ## 浏览器渲染页面的原理及流程
 >js会阻塞dom树的构建，因为js可能会改变dom树的结构，无法预知，所以只能停止dom树的构建，等待js完成。所以js一般要在最后写
 
-![Image.png](https://i.loli.net/2021/08/02/mhQ5A3iqaB9UdNI.png)
+![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3d03fc74582348268cceca5334ea4b6d~tplv-k3u1fbpfcp-watermark.image?)
 
 [参考](https://www.cnblogs.com/chenyoumei/p/9156849.html)
 
