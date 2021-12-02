@@ -62,7 +62,9 @@ async function getConfig() {
               { text: 'js_语法', link: '/docs/reStudy/js_grammar' },
               { text: 'html_标签', link: '/docs/reStudy/html_tag' },
               { text: 'html_元信息标签', link: '/docs/reStudy/html_head' },
-              { text: 'css_规则', link: '/docs/reStudy/css_rule' }
+              { text: 'css_规则', link: '/docs/reStudy/css_rule' },
+              { text: 'css_选择器', link: '/docs/reStudy/css_select' },
+              { text: 'css_链接', link: '/docs/reStudy/css_link' }
             ]
           }
         ],
