@@ -62,9 +62,14 @@ async function getConfig() {
               { text: 'js_语法', link: '/docs/reStudy/js_grammar' },
               { text: 'html_标签', link: '/docs/reStudy/html_tag' },
               { text: 'html_元信息标签', link: '/docs/reStudy/html_head' },
+              { text: 'html_替换型元素', link: '/docs/reStudy/html_tramslate' },
+              { text: 'html_标准', link: '/docs/reStudy/html_standard' },
+              { text: 'html_DTD', link: '/docs/reStudy/html_DTD' },
               { text: 'css_规则', link: '/docs/reStudy/css_rule' },
               { text: 'css_选择器', link: '/docs/reStudy/css_select' },
-              { text: 'css_链接', link: '/docs/reStudy/css_link' }
+              { text: 'css_链接', link: '/docs/reStudy/css_link' },
+              { text: 'css_排版', link: '/docs/reStudy/css_compose' },
+              { text: 'css_动画', link: '/docs/reStudy/css_animation' }
             ]
           }
         ],
