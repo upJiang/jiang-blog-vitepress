@@ -166,7 +166,7 @@ const clickAllLoading = () => {
 点击运行结果
 
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e6899cb3a82467aa4ea0db3c3b438ec~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e6899cb3a82467aa4ea0db3c3b438ec~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e6899cb3a82467aa4ea0db3c3b438ec~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 总结
 通过全局变量控制loading的显示隐藏，设置全局loading动画，在请求封装文件中通过控制请求数去实现多个请求的loading控制，在api文件中通过传参控制控制是否需要loading，以及是否需要延迟合并串行的下一个请求。这个弄好之后，以后需要页面loading的接口，只需要传参到api文件的接口接收即可，再也不用在页面级上一个个去写了，最关键的就是通过请求数去合并请求以及串行的延迟合并处理，其它都没啥~觉得可以点个赞

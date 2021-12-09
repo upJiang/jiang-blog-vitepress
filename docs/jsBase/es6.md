@@ -50,7 +50,7 @@ let str = "a"
 str.repeat(3)   输出aaa 
 ```
 ### 字符串填充
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/712c4c52048b46b7bb6b0b1fd40698b6~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/712c4c52048b46b7bb6b0b1fd40698b6~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/712c4c52048b46b7bb6b0b1fd40698b6~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 函数变化
 ```
@@ -99,7 +99,7 @@ show("aaa")
 
 >使用箭头函数时，this指向定义函数的位置，而不是函数内部，故在写小程序请求时外面包了已成promise之后不需要let self= this ,它直接指向外层
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cde7835210f64a33a59b86ec1cc0185e~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cde7835210f64a33a59b86ec1cc0185e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cde7835210f64a33a59b86ec1cc0185e~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 数组方法
 ### forEach
@@ -110,61 +110,61 @@ arr.forEach(val,index) =>{
 ### map
 >map,必须return，return一个数组，对数据进行改造，返回改造后的数组
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fcf06b61d19c49c6b3eab8e5f02c8248~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fcf06b61d19c49c6b3eab8e5f02c8248~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fcf06b61d19c49c6b3eab8e5f02c8248~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### filter
 >过滤不合格的条件，rutrun条件，符合的数组选项保留下来,返回符合条件的数组
 
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/583c205bc4a74d16bc53b88a63bf9c09~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/583c205bc4a74d16bc53b88a63bf9c09~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/583c205bc4a74d16bc53b88a63bf9c09~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### some
 >arr.some():类似查找，数组里面某一个元素符合条件，返回true
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c8ea55ccf2814ddb986e97e936295faa~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c8ea55ccf2814ddb986e97e936295faa~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c8ea55ccf2814ddb986e97e936295faa~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### every
 >arr.every():数组里面所有的元素都要符合条件，才返回true
 
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bf46a068e33c424288142909809e7cfa~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bf46a068e33c424288142909809e7cfa~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bf46a068e33c424288142909809e7cfa~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### reduce
 >可用于求和，操作后结果作为prev，再与cur操作，依此类推，reduceRight 从右往左
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5844735a6f8749f78cedf159bf3ef723~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5844735a6f8749f78cedf159bf3ef723~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5844735a6f8749f78cedf159bf3ef723~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### for...of...
 >arr.keys() 数组下标   arr.entries() 数组某一项
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/754e9d1923694852b4d97c2ce4e32e1c~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/754e9d1923694852b4d97c2ce4e32e1c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/754e9d1923694852b4d97c2ce4e32e1c~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### array.from
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a51bc957f31c4422a59a2fb941993df9~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a51bc957f31c4422a59a2fb941993df9~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a51bc957f31c4422a59a2fb941993df9~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/878ede2f6d8b4eb78efe688078329962~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/878ede2f6d8b4eb78efe688078329962~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/878ede2f6d8b4eb78efe688078329962~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### array.of
 >类似于... 将一组数据转成数组
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d474dc313c1d4956a02938a2748f24c6~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d474dc313c1d4956a02938a2748f24c6~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d474dc313c1d4956a02938a2748f24c6~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### arr.find()  arr.findIndex()
 
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e883985517641a98adab338e769ffa6~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e883985517641a98adab338e769ffa6~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e883985517641a98adab338e769ffa6~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/71663644c0e5449b8593ca53a16d1bb6~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/71663644c0e5449b8593ca53a16d1bb6~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/71663644c0e5449b8593ca53a16d1bb6~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### arr.fill()
 >arr.fill(填充的东西，开始位置，结束位置)
 
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/eb00777c174440fab050ab1dd3e9a450~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/eb00777c174440fab050ab1dd3e9a450~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/eb00777c174440fab050ab1dd3e9a450~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/362505b0ca8e48ceb6f42f32513ec12e~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/362505b0ca8e48ceb6f42f32513ec12e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/362505b0ca8e48ceb6f42f32513ec12e~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 对象Object
 ### Object.is()
@@ -178,25 +178,25 @@ Object.is(+0,-0))  //false
 >浅拷贝，Object.assign(目标源，数据，数据)  合并对象，将后面的对象合并到目标对象中，若有重复，后面的替换前面的
 
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae6c4b9336914ba7b0a73091da4cb0f2~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae6c4b9336914ba7b0a73091da4cb0f2~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae6c4b9336914ba7b0a73091da4cb0f2~tplv-k3u1fbpfcp-watermark.image?)</a>
 输出: {a:2,b:2,c:3}
 
 ## Promise
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d863f64add6b46999b4ddcb36c9eda94~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d863f64add6b46999b4ddcb36c9eda94~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d863f64add6b46999b4ddcb36c9eda94~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e1d83456f5f4e5b9d108c1683aae034~tplv-k3u1fbpfcp-watermark.image?)
-
-
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9ededed16e2e4e039f5cc1c0ff7cd4c7~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e1d83456f5f4e5b9d108c1683aae034~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e1d83456f5f4e5b9d108c1683aae034~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/24bc98f8d41d4d808559e2d656e5a949~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9ededed16e2e4e039f5cc1c0ff7cd4c7~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9ededed16e2e4e039f5cc1c0ff7cd4c7~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7aa5e8f08dfa4b1c88e33be99e766f7e~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/24bc98f8d41d4d808559e2d656e5a949~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/24bc98f8d41d4d808559e2d656e5a949~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/88e5af2520ca4554abf770fc994f937d~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7aa5e8f08dfa4b1c88e33be99e766f7e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7aa5e8f08dfa4b1c88e33be99e766f7e~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/88e5af2520ca4554abf770fc994f937d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/88e5af2520ca4554abf770fc994f937d~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 模块化
 >注意：1.要放在服务器环境才可以使用; 2.import './modules/1.js';
@@ -238,31 +238,31 @@ console.log(res.a + res.b);
 ### 优点
 1. 按需加载
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/979cfde4246944d9ba292b26011a3940~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/979cfde4246944d9ba292b26011a3940~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/979cfde4246944d9ba292b26011a3940~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 2. 可以写到if中
 
 3. 路径也是可以动态的,可以结合 Promise.all来用
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bc5976e9cb944770b3d137fb54aad6e0~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bc5976e9cb944770b3d137fb54aad6e0~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bc5976e9cb944770b3d137fb54aad6e0~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 类class
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a793e5d68b494b8fa8259d87963155aa~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a793e5d68b494b8fa8259d87963155aa~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a793e5d68b494b8fa8259d87963155aa~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 可以用变量定义方法名，加[]<br/>
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e9cd833241245d8b2fc096f6aef8814~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e9cd833241245d8b2fc096f6aef8814~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e9cd833241245d8b2fc096f6aef8814~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### get、set的使用
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3cda283637f6493c981e982e78ae06e9~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3cda283637f6493c981e982e78ae06e9~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3cda283637f6493c981e982e78ae06e9~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 继承
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ecb736ae0887432695f584447ccf4fde~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ecb736ae0887432695f584447ccf4fde~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ecb736ae0887432695f584447ccf4fde~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/50f7fdaa32d2471b8e312f977b858456~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/50f7fdaa32d2471b8e312f977b858456~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/50f7fdaa32d2471b8e312f977b858456~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## symbol
 ### 定义
@@ -277,12 +277,12 @@ let syml = Symbpl('aaa');
 ## generator
 >generator 函数 解决异步深度嵌套。手动调用，每执行一次next()，就执行一个yield的方法
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b75aa4db3ee4c608b6501d79e3a8f78~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b75aa4db3ee4c608b6501d79e3a8f78~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b75aa4db3ee4c608b6501d79e3a8f78~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 generator结合axios数据请求：
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3ce4a18ec5e44b8c921b62a8fe2ea7bb~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3ce4a18ec5e44b8c921b62a8fe2ea7bb~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3ce4a18ec5e44b8c921b62a8fe2ea7bb~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a79f0c54715d46339fce0f38f2e09977~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a79f0c54715d46339fce0f38f2e09977~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a79f0c54715d46339fce0f38f2e09977~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## Set
 >Set数据解构：类似数组，但是里面不能有重复值
@@ -293,7 +293,7 @@ let setArr = new Set(['a','a','b','c','c')
 ```
 
 ### 用法
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b996361a983143c6ac9bc35e1b5556c7~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b996361a983143c6ac9bc35e1b5556c7~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b996361a983143c6ac9bc35e1b5556c7~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 链式增加
 ```
@@ -381,35 +381,35 @@ Math.cbrt(27);//计算一个数的立方根3
 
 [详解 ES 2018 新特性](https://mp.weixin.qq.com/s/AfTLs4FJaeir6Lv3hk5UAg)
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/32b044ab6a774f15b2f9a1eea7318b16~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/32b044ab6a774f15b2f9a1eea7318b16~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/32b044ab6a774f15b2f9a1eea7318b16~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 命名捕获
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?)<br/>
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d3629bdf0f74c24a99ccce49fcfb827~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?)</a><br/>
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d3629bdf0f74c24a99ccce49fcfb827~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d3629bdf0f74c24a99ccce49fcfb827~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### replace 替换
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a0556dfba57d4607800b1f5ea25366e7~tplv-k3u1fbpfcp-watermark.image?)<br/>
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a0556dfba57d4607800b1f5ea25366e7~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a0556dfba57d4607800b1f5ea25366e7~tplv-k3u1fbpfcp-watermark.image?)</a><br/>
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a6239679ceaf4271a35c5bb7547e84c4~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a6239679ceaf4271a35c5bb7547e84c4~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a6239679ceaf4271a35c5bb7547e84c4~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### dotAll模式
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/274d33b7b59a441999fdb0944c35631c~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/274d33b7b59a441999fdb0944c35631c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/274d33b7b59a441999fdb0944c35631c~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 标签函数
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/49378e7aa520418da80c1c4fbabeef2a~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/49378e7aa520418da80c1c4fbabeef2a~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/49378e7aa520418da80c1c4fbabeef2a~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### Proxy
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2b7c4ffff5a3419ea3d7dfad1d42c8c8~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2b7c4ffff5a3419ea3d7dfad1d42c8c8~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2b7c4ffff5a3419ea3d7dfad1d42c8c8~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/494f69c61de140faa8a61744f0867cf3~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/494f69c61de140faa8a61744f0867cf3~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/494f69c61de140faa8a61744f0867cf3~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb512b7762fc4e328b822831e51b2613~tplv-k3u1fbpfcp-watermark.image?)<br/>
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2e630ee4b7894870b16da23ed74d1da0~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb512b7762fc4e328b822831e51b2613~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb512b7762fc4e328b822831e51b2613~tplv-k3u1fbpfcp-watermark.image?)</a><br/>
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2e630ee4b7894870b16da23ed74d1da0~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2e630ee4b7894870b16da23ed74d1da0~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 #### set():设置，拦截
 设置一个年龄，保证是整数，范围不能超过200。
@@ -481,10 +481,10 @@ Reflec反射的使用:
 ‘assign’ in Object -> Relect.has(Object,'assign');
 如delete json.a -> Relect.deleteProperty(json,'a');
 ```
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4d772b217d8147eab9ea88d60a8859b2~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4d772b217d8147eab9ea88d60a8859b2~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4d772b217d8147eab9ea88d60a8859b2~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bb928770bdbc4124ac6372a259afa23c~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bb928770bdbc4124ac6372a259afa23c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bb928770bdbc4124ac6372a259afa23c~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
 [es6入门教程](https://es6.ruanyifeng.com/)

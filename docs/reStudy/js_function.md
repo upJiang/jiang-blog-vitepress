@@ -99,7 +99,7 @@ o.showThis(); // o
 
 JavaScript 用一个栈来管理执行上下文，这个栈中的每一项又包含一个链表。如下图所示：
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cbf75c95a4cb4dfa85e589c5f1a12381~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cbf75c95a4cb4dfa85e589c5f1a12381~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cbf75c95a4cb4dfa85e589c5f1a12381~tplv-k3u1fbpfcp-watermark.image?)</a>
 当函数调用时，会入栈一个新的执行上下文，函数调用结束时，执行上下文被出栈
 
 而 this 则是一个更为复杂的机制，JavaScript 标准定义了 [[thisMode]] 私有属性。

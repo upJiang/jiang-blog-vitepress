@@ -15,7 +15,7 @@
 2.instanceof： 用来判断对象是不是某个构造函数的实例。会沿着原型链找的
 
 3.Object.prototype.toString.call() 判断某个对象属于哪种内置类型
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/20d73f4ba81649f89ad96bbf244b50c3~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/20d73f4ba81649f89ad96bbf244b50c3~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/20d73f4ba81649f89ad96bbf244b50c3~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 判断是否是数组：
 * Array.isArray(arr)

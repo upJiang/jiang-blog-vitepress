@@ -146,7 +146,7 @@ git remote rename origin new_origin
 ## 四个关键点
 
 git 的通用操作流程图
-![](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/513f0456d26a46808e72fcb40bdaff2a~tplv-k3u1fbpfcp-zoom-1.image)
+<a data-fancybox title="" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/513f0456d26a46808e72fcb40bdaff2a~tplv-k3u1fbpfcp-zoom-1.image">![](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/513f0456d26a46808e72fcb40bdaff2a~tplv-k3u1fbpfcp-zoom-1.image)</a>
 
 1.**工作区(workspace)**：就是你平时写代码的地方，是当前看到最新的内容，在开发的过程也就是对工作区的操作
 
@@ -178,7 +178,7 @@ HEAD～n 等于 HEAD~~~( n 个波浪) 等于 HEAD^^^(n个尖括号)
 HEAD^n 比较特殊，不需要管是不是同一个分支的提交
 
 比如我们有四个分支，分支树形图如下：
-![截屏2021-11-15 上午11.18.53.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa7b95dac93b4146be0261ebd4ee83fc~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="截屏2021-11-15 上午11.18.53.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa7b95dac93b4146be0261ebd4ee83fc~tplv-k3u1fbpfcp-watermark.image?">![截屏2021-11-15 上午11.18.53.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa7b95dac93b4146be0261ebd4ee83fc~tplv-k3u1fbpfcp-watermark.image?)</a>
 ```
 albert@home-pc MINGW64 /d/gitstart (dev1)
 $ git rev-parse --short HEAD~~ //退到第二个父提交
@@ -452,7 +452,7 @@ git reset --mixed (默认) HEAD (默认当前 HEAD，指定某个 HEAD ) brach (
 
 reset有三种模式 **soft mixed（默认） hard** 注意看图示红色线条部分
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b34c28f1284943eda41526b32109590d~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b34c28f1284943eda41526b32109590d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b34c28f1284943eda41526b32109590d~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
 - soft 让本地仓库与 Reset 节点的內容相同，那么我们的工作区代码就会跟本地仓库产生差异，会将这些差异放到暂存区中<br>
@@ -561,7 +561,7 @@ $ git merge dbd5b7e3ede83289ad64c62196d82baa81ec1a2d
 ### reset总结
 reset 的本质：移动 HEAD 以及它所指向的 branch，**reset** 这个指令虽然可以用来撤销 **commit** ，但它的实质行为并不是撤销，而是移动 **HEAD** ，并且「捎带」上 **HEAD** 所指向的 **branch**（如果有的话）。
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6398f96068734296ad3d9e15715e558d~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6398f96068734296ad3d9e15715e558d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6398f96068734296ad3d9e15715e558d~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## revert(撤销)
 撤销`某些` commit，并且把这次撤销，作为一次`最新`的提交,需要填写提交注释，会有 revert 信息。撤销的 commit 记录仍在，只是`追加`一个 commit ，撤销后产生的新节点代码有可能会跟上一个版本的代码产生`冲突`
@@ -628,14 +628,14 @@ $ git push -f origin 远程分支名
 > rebse 翻译为变基，就是能够改变基点，在合并分支的时候能够改变当前分支基点，保证当前 HEAD 不变，并且提交记录是线性的。除此之外还能对某一段线性提交历史进行编辑、删除、复制、粘贴。合理使用 rebase 命令可以使我们的提交历史干净、简洁！
 
 ### 合并
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c241190f28b04b739b23de00b1b85154~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c241190f28b04b739b23de00b1b85154~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c241190f28b04b739b23de00b1b85154~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 场景：现在有 master 跟 Feature 两个分支，Feature 是在 master 基础上拉出来的，它们的共同基点都是白色部分，Feature 做了三次 commit，master 做了两次 commit。现在在 Feature 上需要合并 master
 
 使用git rebase master 命令后，以它们的共同基点作为起点，先逐个应用 master 分支的更改，以 master 分支最后的提交作为基点，再逐个应用 Feature 分支的每个更改。看到这里你应该理解为什么要翻译成变基了吧，基点被改变了，并且你当前分支的HEAD仍旧没被破坏，还是线性的，是不是很棒。如果使用 merge 则会多出一个 commit
 
 `git merge` 在不是 fast-forward（快速合并）的情况下，会产生一条额外的合并记录，类似 `Merge branch 'xxx' into 'xxx'` 的一条提交信息
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5abd099ebda04c3d9c2d6b048ad217e3~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5abd099ebda04c3d9c2d6b048ad217e3~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5abd099ebda04c3d9c2d6b048ad217e3~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 rebase 的过程中会产生`冲突`的，此时，就需要手动解决冲突，然后使用依次 ` git add  `、` git rebase --continue  `的方式来处理冲突，完成 rebase 的过程，如果不想要某次 rebase 的结果，那么需要使用 ` git rebase --skip  `来跳过这次 rebase 操作。
 

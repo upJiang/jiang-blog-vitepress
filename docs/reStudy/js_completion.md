@@ -7,7 +7,7 @@ Completion Record 表示一个语句执行完之后的结果，它有三个字�
 * [[target]] 表示语句的目标，通常是一个 JavaScript 标签
 
 ## 语句分类
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a54f67efdd14d7fb0b99ab091c8a344~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a54f67efdd14d7fb0b99ab091c8a344~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a54f67efdd14d7fb0b99ab091c8a344~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 普通的语句
 在 JavaScript 中，我们把不带控制能力的语句称为普通语句。普通语句有下面几种。
@@ -49,7 +49,7 @@ Completion Record 表示一个语句执行完之后的结果，它有三个字�
 控制类语句分成两部分，一类是对其内部造成影响，如 if、switch、while/for、try。
 
 另一类是对外部造成影响如 break、continue、return、throw，这两类语句的配合，会产生控制代码执行顺序和执行逻辑的效果，这也是我们编程的主要工作。
-![img](https://static001.geekbang.org/resource/image/77/d3/7760027d7ee09bdc8ec140efa9caf1d3.png)
+<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/77/d3/7760027d7ee09bdc8ec140efa9caf1d3.png">![img](https://static001.geekbang.org/resource/image/77/d3/7760027d7ee09bdc8ec140efa9caf1d3.png)</a>
 
 ```
 function foo(){

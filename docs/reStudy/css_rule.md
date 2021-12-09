@@ -110,8 +110,8 @@ qualified rule 主要是由选择器和声明区块构成。声明区块又由�
             - 函数
 ### 选择器
 语法结构<br>
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3615a0fff44c479882a614b256dde600~tplv-k3u1fbpfcp-watermark.image?)<br>
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9294e2fdd7ca4bf8b3de9ae9fd25fca6~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3615a0fff44c479882a614b256dde600~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3615a0fff44c479882a614b256dde600~tplv-k3u1fbpfcp-watermark.image?)</a><br>
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9294e2fdd7ca4bf8b3de9ae9fd25fca6~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9294e2fdd7ca4bf8b3de9ae9fd25fca6~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 声明：属性和值
 >声明部分是一个由“属性: 值”组成的序列。

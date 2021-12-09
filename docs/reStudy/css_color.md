@@ -1,7 +1,7 @@
 ## RGB 颜色
 我们在计算机中，最常见的颜色表示法是 RGB 颜色，它符合光谱三原色理论：**红、绿、蓝**三种颜色的光可以构成所有的颜色。
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/afd4eb263df44169b15122dc9154337d~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/afd4eb263df44169b15122dc9154337d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/afd4eb263df44169b15122dc9154337d~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 为什么是这三种颜色呢？这跟人类的视神经系统相关，人类的视觉神经分别有对红、绿、蓝三种颜色敏感的类型。
 
@@ -11,7 +11,7 @@
 
 ## CMYK 颜色
 如果你上过小学美术课，应该听过“红黄蓝”三原色的说法，这好像跟我们说的不太一样。实际上是这样的，颜料显示颜色的原理是它吸收了所有别的颜色的光，只反射一种颜色，所以颜料三原色其实是红、绿、蓝的补色，也就是：品红、黄、青。因为它们跟红、黄、蓝相近，所以有了这样的说法。
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/07a43b0d3e604dafa384282ed5242c6d~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/07a43b0d3e604dafa384282ed5242c6d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/07a43b0d3e604dafa384282ed5242c6d~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 在印刷行业，使用的就是这样的三原色（品红、黄、青）来调配油墨，这种颜色的表示法叫做 CMYK，它用一个四元组来表示颜色。
 
@@ -24,7 +24,7 @@
 
 因此，HSL 这样的颜色模型被设计出来了，它用一个值来表示人类认知中的颜色，我们用专业的术语叫做色相（H）。加上颜色的纯度（S）和明度（L），就构成了一种颜色的表示。
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/90f7cfba72dc4644a9b11e29cb3c0590~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/90f7cfba72dc4644a9b11e29cb3c0590~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/90f7cfba72dc4644a9b11e29cb3c0590~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 其它颜色
 RGBA 是代表 Red（红色）、Green（绿色）、Blue（蓝色）和 Alpha 的色彩空间。RGBA 颜色被用来表示带**透明度**的颜色，实际上，Alpha 通道类似一种颜色值的保留字。在 CSS 中，Alpha 通道被用于透明度，所以我们的颜色表示被称作 RGBA，而不是 RGBO（Opacity）。

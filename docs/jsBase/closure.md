@@ -11,7 +11,7 @@
 
 ## 应用场景
 ### settmeout传入第一个参数
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0e345dc8604049f7beeb99384cc1180d~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0e345dc8604049f7beeb99384cc1180d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0e345dc8604049f7beeb99384cc1180d~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 创建独立的环境，保存变量
 

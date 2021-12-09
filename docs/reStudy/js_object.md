@@ -196,7 +196,7 @@ for(var i = 0; i < objects.length; i++) {
 
 我们把 JavaScript 中，能够通过语言本身的构造器创建的对象称作原生对象。在 JavaScript 标准中，提供了 30 多个构造器。按照我的理解，按照不同应用场景，我把原生对象分成了以下几个种类。
 
-![img](https://static001.geekbang.org/resource/image/6c/d0/6cb1df319bbc7c7f948acfdb9ffd99d0.png)
+<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/6c/d0/6cb1df319bbc7c7f948acfdb9ffd99d0.png">![img](https://static001.geekbang.org/resource/image/6c/d0/6cb1df319bbc7c7f948acfdb9ffd99d0.png)</a>
 
 通过这些构造器，我们可以用 new 运算创建新的对象，所以我们把这些对象称作原生对象。
 

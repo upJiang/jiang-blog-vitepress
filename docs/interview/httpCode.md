@@ -13,8 +13,8 @@
 
 get请求:
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3fd000cccb39446e849c1187ab1c837f~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3fd000cccb39446e849c1187ab1c837f~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3fd000cccb39446e849c1187ab1c837f~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 post请求：
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa126269ce4a4b8eb63fb3fa59467602~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa126269ce4a4b8eb63fb3fa59467602~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa126269ce4a4b8eb63fb3fa59467602~tplv-k3u1fbpfcp-watermark.image?)</a>

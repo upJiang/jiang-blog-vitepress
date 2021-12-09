@@ -103,7 +103,7 @@ Object 是 JavaScript 中最复杂的类型，也是 JavaScript 的核心机制�
 
 ## 类型转换
 
-![img](https://static001.geekbang.org/resource/image/71/20/71bafbd2404dc3ffa5ccf5d0ba077720.jpg)
+<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/71/20/71bafbd2404dc3ffa5ccf5d0ba077720.jpg">![img](https://static001.geekbang.org/resource/image/71/20/71bafbd2404dc3ffa5ccf5d0ba077720.jpg)</a>
 
 
 

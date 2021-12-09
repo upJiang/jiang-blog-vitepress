@@ -6,7 +6,7 @@
 首先，HTML 作为 SGML 的子集，它遵循 SGML 的基本语法：包括标签、转义等。
 
 SGML 还规定了一些特殊的节点类型，在我们之前的 DOM 课程中已经讲过几种节点类型，它们都有与之对应的 HTML 语法，我们这里复习一下：
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1ca32b4084e04be390acc7b92da2169f~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1ca32b4084e04be390acc7b92da2169f~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1ca32b4084e04be390acc7b92da2169f~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 标签语法
 标签语法产生元素，我们从语法的角度讲，就用“标签”这个术语，我们从运行时的角度讲，就用“元素”这个术语。

@@ -176,9 +176,9 @@ qs对vite打包后好像不兼容 ，最后使用qs-stringfy
 require模块不能使用，需要使用import.meta.glob
 ## vite插件
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0c0f005acb754a7eb2e8caaaabb145d9~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0c0f005acb754a7eb2e8caaaabb145d9~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0c0f005acb754a7eb2e8caaaabb145d9~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa4aedf1a52749c19fa7f08575896218~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa4aedf1a52749c19fa7f08575896218~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa4aedf1a52749c19fa7f08575896218~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 插件案例 
 ```

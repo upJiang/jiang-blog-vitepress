@@ -54,17 +54,17 @@ aria-label只有加在可被tab到的元素上，读屏才会读出其中的内�
 同时，ARIA 系统还提供了一系列 ARIA 属性给 checkbox 这个 role，这意味着，我们可以通过 HTML 属性变化来理解这个 JavaScript 组件的状态，读屏软件等三方客户端，就可以理解我们的 UI 变化，这正是 ARIA 标准的意义。
 
 role 的定义是一个树形的继承关系，我们先来理解一下它的整体结构：
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f00966c831d344259a379ee753cbafd5~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f00966c831d344259a379ee753cbafd5~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f00966c831d344259a379ee753cbafd5~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 其中，widget 表示一些可交互的组件，structure 表示文档中的结构，window 则代表窗体。
 
 ## Widget 角色
 这一类角色跟我们桌面开发中的控件类似，它表示一个可交互的组件，它们有：
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d9683de5be74b0d9a04c91fd07f871e~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d9683de5be74b0d9a04c91fd07f871e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d9683de5be74b0d9a04c91fd07f871e~tplv-k3u1fbpfcp-watermark.image?)</a>
 我们这里按照继承关系给出一份列表和简要说明：
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/08f6208df2b64874b07bcaf7d2502d47~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/08f6208df2b64874b07bcaf7d2502d47~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/08f6208df2b64874b07bcaf7d2502d47~tplv-k3u1fbpfcp-watermark.image?)</a>
 ARIA role 允许多继承，这里有些角色我没有重复写。
 
 注意，这些 role 可以出现在任何一个 HTML 元素之上，同时要注意，这些 ARIA 属性，不会真实地改变任何一个元素的行为，比如，我们刚才讲的 checkbox，即使我们给一个 span 添加了 Checkbox 角色，我们也需要用 JavaScript 编写相应的逻辑。
@@ -102,12 +102,12 @@ ARIA role 允许多继承，这里有些角色我没有重复写。
 
 这部分角色的作用类似于语义化标签，但是内容稍微有些不同，我们这里就不详细讲解了，仅仅给出一张图供你参考：
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0e9d437311b446aa961a16b164117580~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0e9d437311b446aa961a16b164117580~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0e9d437311b446aa961a16b164117580~tplv-k3u1fbpfcp-watermark.image?)</a>
 注：separator 在允许焦点时属于组件，在不允许焦点时属于文档结构。
 
 这里我们需要特别提出 Landmark 角色这个概念，Landmark 角色直接翻译是地标，它是 ARIA 标准中总结的 Web 网页中最常见的 8 个结构，Landmark 角色实际上是 section 的子类，这些角色在生成页面摘要时有很大可能性需要被保留，它们是：
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f0f73a421024c49b56e5149ddcf84a4~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f0f73a421024c49b56e5149ddcf84a4~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f0f73a421024c49b56e5149ddcf84a4~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## window 角色
 在我们的网页中，有些元素表示“新窗口”，这时候，会用到 window 角色。window 系角色非常少，只有三个角色：

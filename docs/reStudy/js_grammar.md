@@ -1,5 +1,5 @@
 ## 脚本和模块
-![img](https://static001.geekbang.org/resource/image/43/44/43fdb35c0300e73bb19c143431f50a44.jpg)
+<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/43/44/43fdb35c0300e73bb19c143431f50a44.jpg">![img](https://static001.geekbang.org/resource/image/43/44/43fdb35c0300e73bb19c143431f50a44.jpg)</a>
 ### 区别
 - 脚本是可以由浏览器或者 node 环境引入执行的，模块只能由 JavaScript 代码用 import 引入执行。
 - 从概念上，我们可以认为脚本具有主动性的 JavaScript 代码段，是控制宿主完成一定任务的代码；而模块是被动性的 JavaScript 代码段，是等待被调用的库。
@@ -115,7 +115,7 @@ async function *foo(){
 上面四种函数体的区别在于：能否使用 await 或者 yield 语句。
 
 关于函数体、模块和脚本能使用的语句
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/275821220335441d90fadce54c2700b5~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/275821220335441d90fadce54c2700b5~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/275821220335441d90fadce54c2700b5~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 预处理
 >JavaScript 执行前，会对脚本、模块和函数体中的语句进行预处理。预处理过程将会提前处理 var、函数声明、class、const 和 let 这些语句，以确定其中变量的意义。

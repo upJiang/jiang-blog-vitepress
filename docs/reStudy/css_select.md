@@ -6,7 +6,7 @@
 - 选择器列表：由逗号分隔的复杂选择器，表示“或”的关系。
 
 ## 简单选择器
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a845c432fe004641bc2dad01b8bd4e13~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a845c432fe004641bc2dad01b8bd4e13~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a845c432fe004641bc2dad01b8bd4e13~tplv-k3u1fbpfcp-watermark.image?)</a>
 ### 类型选择器和全体选择器
 >根据一个元素的标签名来选中元素
 ```
@@ -89,7 +89,7 @@ html|a {
 - :empty 伪类表示没有子节点的元素，这里有个例外就是子节点为空白文本节点的情况。
 - :nth-child 和 :nth-last-child 这是两个函数型的伪类，CSS 的 An+B 语法设计的是比较复杂的，我们这里仅仅介绍基本用法。我们还是看几个例子：
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/128f31c9db444593b8f264c42c771917~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/128f31c9db444593b8f264c42c771917~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/128f31c9db444593b8f264c42c771917~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 - :nth-last-child 的区别仅仅是从后往前数。
 - :first-child :last-child 分别表示第一个和最后一个元素。
@@ -263,7 +263,7 @@ p::first-letter {
 ```
 
 CSS 标准只要求 ::first-line 和 ::first-letter 实现有限的几个 CSS 属性，都是文本相关，这些属性是下面这些。<br>
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5bb6b72a446842bc969ff868e38b0836~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5bb6b72a446842bc969ff868e38b0836~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5bb6b72a446842bc969ff868e38b0836~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### ::before ::after
 ::before 表示在元素内容之前插入一个虚拟的元素，::after 则表示在元素内容之后插入。

@@ -9,10 +9,10 @@
 
 ### 知识架构图
 
-![img](https://static001.geekbang.org/resource/image/6a/9b/6aec0a09381a2f74014ec604ef99c19b.png)
+<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/6a/9b/6aec0a09381a2f74014ec604ef99c19b.png">![img](https://static001.geekbang.org/resource/image/6a/9b/6aec0a09381a2f74014ec604ef99c19b.png)</a>
 
-![img](https://static001.geekbang.org/resource/image/41/62/4153891927afac7f4c21ccf6a141f062.png)
+<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/41/62/4153891927afac7f4c21ccf6a141f062.png">![img](https://static001.geekbang.org/resource/image/41/62/4153891927afac7f4c21ccf6a141f062.png)</a>
 
-![img](https://static001.geekbang.org/resource/image/cb/cb/cbb6d198ccfb95af4906eeb0581333cb.png)
+<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/cb/cb/cbb6d198ccfb95af4906eeb0581333cb.png">![img](https://static001.geekbang.org/resource/image/cb/cb/cbb6d198ccfb95af4906eeb0581333cb.png)</a>
 
-![img](https://static001.geekbang.org/resource/image/d1/a8/d1cb4040d91207075e0591abffe1b9a8.jpg)
+<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/d1/a8/d1cb4040d91207075e0591abffe1b9a8.jpg">![img](https://static001.geekbang.org/resource/image/d1/a8/d1cb4040d91207075e0591abffe1b9a8.jpg)</a>

@@ -7,7 +7,7 @@
 * dom同源策略： 它限制了不同源页面不能获取DOM
 
 ## 解决方案
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8eba9cfb130a414fa7b9977bd9741676~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8eba9cfb130a414fa7b9977bd9741676~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8eba9cfb130a414fa7b9977bd9741676~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 预检请求
 >在发出跨域请求时，如果是非简单请求， 浏览器会自动帮你先发出一个OPTIONS查询请求，称为预检， 用于确认目标资源是否支持跨域，允许后才发送

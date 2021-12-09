@@ -58,7 +58,7 @@ package.json
 创建一个文件夹packages，该文件夹用于组件以及样式的编写，还有jest测试，每一个组件都是一个文件夹，组件文件夹下有src/xxx.vue，以及index.js用于注册组件，test用于jest测试(测试可以没有，我也不是很熟这玩意)
 
 目录结构：<br/>
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/48a40c3b01c441f48e37ce705912ad4a~tplv-k3u1fbpfcp-watermark.image)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/48a40c3b01c441f48e37ce705912ad4a~tplv-k3u1fbpfcp-watermark.image">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/48a40c3b01c441f48e37ce705912ad4a~tplv-k3u1fbpfcp-watermark.image)</a>
 
 依赖
 ```
@@ -448,7 +448,7 @@ export default createPackageConfigs()
 这个时候我们已经可以打包组件库啦！！！
 执行命令后，自动在根目录下生成文件夹lib,并且已经有我们的组件代码了。
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/daaa605fbb3b4ab7889aa3d62ce69267~tplv-k3u1fbpfcp-watermark.image)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/daaa605fbb3b4ab7889aa3d62ce69267~tplv-k3u1fbpfcp-watermark.image">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/daaa605fbb3b4ab7889aa3d62ce69267~tplv-k3u1fbpfcp-watermark.image)</a>
 
 ## 测试组件
 我们编写一个test.html来检查一下我们的组件是否能行吧
@@ -480,7 +480,7 @@ export default createPackageConfigs()
 </html>
 ```
 运行结果：<br/>
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7689c5fac60b46ad9c30a5a0b42293b0~tplv-k3u1fbpfcp-watermark.image)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7689c5fac60b46ad9c30a5a0b42293b0~tplv-k3u1fbpfcp-watermark.image">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7689c5fac60b46ad9c30a5a0b42293b0~tplv-k3u1fbpfcp-watermark.image)</a>
 
 因为没有引入样式，所以没有样式效果哦。那么接下来我们来打包样式！
 
@@ -550,7 +550,7 @@ pagckage.json
 ```
 执行命令后我们在lib目录可以看到：
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9fc3f74bef9d4cfcbecf35d494fa3c26~tplv-k3u1fbpfcp-watermark.image)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9fc3f74bef9d4cfcbecf35d494fa3c26~tplv-k3u1fbpfcp-watermark.image">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9fc3f74bef9d4cfcbecf35d494fa3c26~tplv-k3u1fbpfcp-watermark.image)</a>
 
 ## 发布组件库
 /scripts/publish.sh
@@ -592,7 +592,7 @@ import  "jiang-vui/lib/styles/index.css";
 }
 ```
 成功使用，并且样式，交互都没毛病，good!<br/>
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/723064023eea426cb0d42a95f48dc794~tplv-k3u1fbpfcp-watermark.image)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/723064023eea426cb0d42a95f48dc794~tplv-k3u1fbpfcp-watermark.image">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/723064023eea426cb0d42a95f48dc794~tplv-k3u1fbpfcp-watermark.image)</a>
 
 到此为止，其实最基础的组件库架子已经算是差不多做完了，后面会继续进行优化，添加组件！
 
@@ -766,7 +766,7 @@ module.exports = {
 >我们组件库是有了，但是也得有个文档吧，这里重点是使用markdown编写我们的文档项目。在根目录下新建docs文件夹
 
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7da58f3a53334c6f8df6feb87f68b5f4~tplv-k3u1fbpfcp-watermark.image)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7da58f3a53334c6f8df6feb87f68b5f4~tplv-k3u1fbpfcp-watermark.image">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7da58f3a53334c6f8df6feb87f68b5f4~tplv-k3u1fbpfcp-watermark.image)</a>
 
 /package.json
 ```
@@ -1100,7 +1100,7 @@ packge.json
 ## 编写组件库测试项目
 >组件库编写完，其实我们直接打包之前，是可以直接引入组件路径来看看效果的，我们来加一个测试项目吧。在根目录下新增play文件夹
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/89fbfc9fd80c4094bc30966c8b58896b~tplv-k3u1fbpfcp-watermark.image)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/89fbfc9fd80c4094bc30966c8b58896b~tplv-k3u1fbpfcp-watermark.image">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/89fbfc9fd80c4094bc30966c8b58896b~tplv-k3u1fbpfcp-watermark.image)</a>
 
 项目其实就是一个vue3.0 + vite的项目，没啥好说的，只是我们在页面中使用相对路径去测试我们编写的组件
 
