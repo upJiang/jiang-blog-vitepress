@@ -65,11 +65,13 @@ async function getConfig() {
               { text: 'html_替换型元素', link: '/docs/reStudy/html_tramslate' },
               { text: 'html_标准', link: '/docs/reStudy/html_standard' },
               { text: 'html_DTD', link: '/docs/reStudy/html_DTD' },
+              { text: 'html_ARIA', link: '/docs/reStudy/html_ARIA' },
               { text: 'css_规则', link: '/docs/reStudy/css_rule' },
               { text: 'css_选择器', link: '/docs/reStudy/css_select' },
               { text: 'css_链接', link: '/docs/reStudy/css_link' },
               { text: 'css_排版', link: '/docs/reStudy/css_compose' },
-              { text: 'css_动画', link: '/docs/reStudy/css_animation' }
+              { text: 'css_动画', link: '/docs/reStudy/css_animation' },
+              { text: 'css_颜色', link: '/docs/reStudy/css_color' }
             ]
           }
         ],
