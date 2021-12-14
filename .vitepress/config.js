@@ -75,7 +75,8 @@ async function getConfig() {
               { text: 'css_排版', link: '/docs/reStudy/css_compose' },
               { text: 'css_动画', link: '/docs/reStudy/css_animation' },
               { text: 'css_颜色', link: '/docs/reStudy/css_color' },
-              { text: 'browser_http', link: '/docs/reStudy/browser_http' }
+              { text: 'browser_http', link: '/docs/reStudy/browser_http' },
+              { text: 'browser_解析', link: '/docs/reStudy/browser_analyz' }
             ]
           }
         ],
