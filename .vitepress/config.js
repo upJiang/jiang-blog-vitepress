@@ -19,9 +19,26 @@ async function getConfig() {
         { rel: 'stylesheet', href: 'https://unpkg.com/gitalk/dist/gitalk.css' }
       ],
       ['script', { src: 'https://unpkg.com/gitalk/dist/gitalk.min.js' }],
-      ['script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js' }],
-      ['script', { src: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.js' }],
-      ['link', { rel: 'stylesheet', type: 'text/css', href: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.css' }]
+      [
+        'script',
+        {
+          src: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js'
+        }
+      ],
+      [
+        'script',
+        {
+          src: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.js'
+        }
+      ],
+      [
+        'link',
+        {
+          rel: 'stylesheet',
+          type: 'text/css',
+          href: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.css'
+        }
+      ]
     ],
     title: "Jiang's Blog",
     themeConfig: {
@@ -77,7 +94,9 @@ async function getConfig() {
               { text: 'css_颜色', link: '/docs/reStudy/css_color' },
               { text: 'browser_http', link: '/docs/reStudy/browser_http' },
               { text: 'browser_Dom构建', link: '/docs/reStudy/browser_dom' },
-              { text: 'browser_CSS计算', link: '/docs/reStudy/browser_css' }
+              { text: 'browser_CSS计算', link: '/docs/reStudy/browser_css' },
+              { text: 'browser_排版', link: '/docs/reStudy/browser_maker' },
+              { text: 'browser_渲染', link: '/docs/reStudy/browser_print' }
             ]
           }
         ],
