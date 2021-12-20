@@ -96,7 +96,8 @@ async function getConfig() {
               { text: 'browser_Dom构建', link: '/docs/reStudy/browser_dom' },
               { text: 'browser_CSS计算', link: '/docs/reStudy/browser_css' },
               { text: 'browser_排版', link: '/docs/reStudy/browser_maker' },
-              { text: 'browser_渲染', link: '/docs/reStudy/browser_print' }
+              { text: 'browser_渲染', link: '/docs/reStudy/browser_print' },
+              { text: 'browser_DOM_API', link: '/docs/reStudy/browser_domApi' }
             ]
           }
         ],
