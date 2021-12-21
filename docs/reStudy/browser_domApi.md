@@ -17,7 +17,7 @@ DOM API 大致会包含 4 个部分。
 DOM 的树形结构所有的节点有统一的接口 Node，我们按照继承关系，给你介绍一下节点的类型。
 
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d1147098ea2e4e909d4499f25bacf7b4~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d1147098ea2e4e909d4499f25bacf7b4~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d1147098ea2e4e909d4499f25bacf7b4~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 在这些节点中，除了 Document 和 DocumentFrangment，都有与之对应的 HTML 写法，我们可以看一下。
 ```

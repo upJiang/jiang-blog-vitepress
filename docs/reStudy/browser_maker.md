@@ -50,11 +50,11 @@
 
 我们一般会从某个字体文件中获取某个特定文字的相关信息。我们获取到的信息大概类似下面：
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5425657b74be4acc9b7e2b992027ab24~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5425657b74be4acc9b7e2b992027ab24~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5425657b74be4acc9b7e2b992027ab24~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 纵向版本：
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ec45bb7d82714c55ac146b45c2d2c14a~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ec45bb7d82714c55ac146b45c2d2c14a~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ec45bb7d82714c55ac146b45c2d2c14a~tplv-k3u1fbpfcp-watermark.image?)</a>
 
  这两张图片来自著名开源字体解析库 freetype，实际上，各个库对字体的理解大同小异，我们注意一下，advance 代表每一个文字排布后在主轴上的前进距离，它跟文字的宽 / 高不相等，是字体中最重要的属性。
 
