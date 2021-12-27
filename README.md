@@ -17,3 +17,5 @@ yarn dev
 # 构建静态文件 > .vitepress/dist
 yarn build
 ```
+
+博客地址: https://junfeng530.xyz

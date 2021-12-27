@@ -24,7 +24,7 @@
   <myHome v-else />
   <div class="beian-bottom">
     <p>
-      <a href="https://beian.miit.gov.cn/#/Integrated/index">
+      <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank">
         粤ICP备18079096号
       </a>
     </p>
