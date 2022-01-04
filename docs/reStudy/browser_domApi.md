@@ -63,4 +63,18 @@ Node 是 DOM 树继承关系的根节点，它定义了 DOM 节点在 DOM 树上
 - isSameNode 检查两个节点是否是同一个节点，实际上在 JavaScript 中可以用“===”。
 - cloneNode 复制一个节点，如果传入参数 true，则会连同子元素做深拷贝。
 
+DOM 标准规定了节点必须从文档的 create 方法创建出来，不能够使用原生的 JavaScript 的 new 运算。于是 document 对象有这些方法。
+- createElement
+- createTextNode
+- createCDATASection
+- createComment
+- createProcessingInstruction
+- createDocumentFragment
+- createDocumentType
+
+上面的这些方法都是用于创建对应的节点类型
+
+## Element 与 Attribute
+
+
 
