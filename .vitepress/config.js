@@ -97,7 +97,9 @@ async function getConfig() {
               { text: 'browser_CSS计算', link: '/docs/reStudy/browser_css' },
               { text: 'browser_排版', link: '/docs/reStudy/browser_maker' },
               { text: 'browser_渲染', link: '/docs/reStudy/browser_print' },
-              { text: 'browser_DOM_API', link: '/docs/reStudy/browser_domApi' }
+              { text: 'browser_DOM_API', link: '/docs/reStudy/browser_domApi' },
+              { text: 'browser_CSSDOM', link: '/docs/reStudy/browser_cssdom' },
+              { text: 'browser_事件', link: '/docs/reStudy/browser_event' }
             ]
           }
         ],
