@@ -99,7 +99,9 @@ async function getConfig() {
               { text: 'browser_渲染', link: '/docs/reStudy/browser_print' },
               { text: 'browser_DOM_API', link: '/docs/reStudy/browser_domApi' },
               { text: 'browser_CSSDOM', link: '/docs/reStudy/browser_cssdom' },
-              { text: 'browser_事件', link: '/docs/reStudy/browser_event' }
+              { text: 'browser_事件', link: '/docs/reStudy/browser_event' },
+              { text: 'sum_性能', link: '/docs/reStudy/sum_performance' },
+              { text: 'sum_工具', link: '/docs/reStudy/sum_tool' }
             ]
           }
         ],
