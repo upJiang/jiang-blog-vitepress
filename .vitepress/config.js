@@ -101,7 +101,10 @@ async function getConfig() {
               { text: 'browser_CSSDOM', link: '/docs/reStudy/browser_cssdom' },
               { text: 'browser_事件', link: '/docs/reStudy/browser_event' },
               { text: 'sum_性能', link: '/docs/reStudy/sum_performance' },
-              { text: 'sum_工具', link: '/docs/reStudy/sum_tool' }
+              { text: 'sum_工具链', link: '/docs/reStudy/sum_tool' },
+              { text: 'sum_持续集成', link: '/docs/reStudy/sum_continue' },
+              { text: 'sum_搭建系统', link: '/docs/reStudy/sum_system' },
+              { text: 'sum_架构', link: '/docs/reStudy/sum_architecture' }
             ]
           }
         ],
