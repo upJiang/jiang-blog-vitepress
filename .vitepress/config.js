@@ -104,7 +104,8 @@ async function getConfig() {
               { text: 'sum_工具链', link: '/docs/reStudy/sum_tool' },
               { text: 'sum_持续集成', link: '/docs/reStudy/sum_continue' },
               { text: 'sum_搭建系统', link: '/docs/reStudy/sum_system' },
-              { text: 'sum_架构', link: '/docs/reStudy/sum_architecture' }
+              { text: 'sum_架构', link: '/docs/reStudy/sum_architecture' },
+              { text: 'other_问题', link: '/docs/reStudy/other_question' }
             ]
           }
         ],
