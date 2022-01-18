@@ -5,9 +5,11 @@
     <span class="home-tips" style="margin-top: 0.4rem">
       今天的不开心就到此为止 明天依旧光芒万丈
     </span>
+    <span class="home-sum">遇到挫折也要勇于面对啊，加油吧，会好起来的！</span>
     <span class="home-sum">
       目标明确，坚持学习，善于总结，不积跬步无以至千里
     </span>
+
     <button class="home-learning" @click="toLearn">Start learning~</button>
   </div>
 </template>
