@@ -300,5 +300,19 @@ User 接口为 {
 **总结:一般来说，如果不清楚什么时候用interface/type，能用 interface 实现，就用 interface , 如果不能就用 type 。**
 
 ## 类型断言as
+类型断言（Type Assertion）就是手动指定一个值的类型。当你**确定这个值的类型**时才使用类型断言
+
+类型断言有两种形式：
+```
+let someValue: any = "this is a string";
+
+// 尖括号 语法
+let strLength: number = (<string>someValue).length;
+
+// as 语法
+let strLength: number = (someValue as string).length;
+```
+以上两种方式虽然没有任何区别，但是尖括号格式会与 react 中 JSX 产生语法冲突，因此我们更推荐使用 as 语法。
+
 ## 类型索引 [propName: string]:number
 
