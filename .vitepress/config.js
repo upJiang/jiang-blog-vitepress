@@ -197,6 +197,22 @@ async function getConfig() {
               {
                 text: '请求loading封装',
                 link: '/docs/jsAdvanced/loadingHandle'
+              },
+              {
+                text: '前端规范',
+                link: '/docs/jsAdvanced/standard'
+              },
+              {
+                text: 'changelog',
+                link: '/docs/jsAdvanced/changelog'
+              },
+              {
+                text: '监控与埋点',
+                link: '/docs/jsAdvanced/monitor'
+              },
+              {
+                text: 'gulp',
+                link: '/docs/jsAdvanced/gulp'
               }
             ]
           }
