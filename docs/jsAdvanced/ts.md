@@ -937,4 +937,686 @@ User 接口为 {
 
 为了更好的了解泛型的作用 我们可以看下面的一个例子
 ```
+function createArray(length: number, value: any): any[] {
+  let result = [];
+  for (let i = 0; i < length; i++) {
+    result[i] = value;
+  }
+  return result;
+}
+
+createArray(3, "x"); // ['x', 'x', 'x']
 ```
+上述这段代码用来生成一个长度为 length 值为 value 的数组
+但是我们其实可以发现一个问题 不管我们传入什么类型的 value 返回值的数组永远是 any 类型 如果我们想要的效果是 我们预先不知道会传入什么类型 但是我们希望不管我们传入什么类型 我们的返回的数组的指里面的类型应该和参数保持一致 那么这时候 泛型就登场了
+
+使用泛型改造
+```
+function createArray<T>(length: number, value: T): Array<T> {
+  let result: T[] = [];
+  for (let i = 0; i < length; i++) {
+    result[i] = value;
+  }
+  return result;
+}
+
+createArray<string>(3, "x"); // ['x', 'x', 'x']
+```
+我们可以使用<>的写法 然后再传入一个变量 T 用来表示后续函数需要用到的类型 当我们真正去调用函数的时候再传入 T 的类型就可以解决很多预先无法确定类型相关的问题
+
+### 多个类型参数
+```
+function swap<T, U>(tuple: [T, U]): [U, T] {
+  return [tuple[1], tuple[0]];
+}
+
+swap([7, "seven"]); // ['seven', 7]
+```
+### 泛型约束(T extends xx)
+在函数内部使用泛型变量的时候，由于事先不知道它是哪种类型，所以不能随意的操作它的属性或方法：
+```
+function loggingIdentity<T>(arg: T): T {
+  console.log(arg.length);
+  return arg;
+}
+
+// index.ts(2,19): error TS2339: Property 'length' does not exist on type 'T'.
+```
+上例中，泛型 T 不一定包含属性 length，所以编译的时候报错了。
+
+这时，我们可以对泛型进行约束，只允许这个函数传入那些包含 length 属性的变量。这就是泛型约束
+```
+interface Lengthwise {
+  length: number;
+}
+
+function loggingIdentity<T extends Lengthwise>(arg: T): T {
+  console.log(arg.length);
+  return arg;
+}
+```
+> 注意：我们在泛型里面使用 `extends` 关键字代表的是泛型约束 需要和类的继承区分开
+
+### 泛型接口
+定义接口的时候也可以指定泛型
+```
+interface Cart<T> {
+  list: T[];
+}
+let cart: Cart<{ name: string; price: number }> = {
+  list: [{ name: "hello", price: 10 }],
+};
+console.log(cart.list[0].name, cart.list[0].price);
+```
+我们定义了接口传入的类型 T 之后返回的对象数组里面 T 就是当时传入的参数类型
+
+### 泛型类
+```
+class MyArray<T> {
+  private list: T[] = [];
+  add(value: T) {
+    this.list.push(value);
+  }
+  getMax(): T {
+    let result = this.list[0];
+    for (let i = 0; i < this.list.length; i++) {
+      if (this.list[i] > result) {
+        result = this.list[i];
+      }
+    }
+    return result;
+  }
+}
+let arr = new MyArray();
+arr.add(1);
+arr.add(2);
+arr.add(3);
+let ret = arr.getMax();
+console.log(ret);
+```
+上诉例子我们实现了一个在数组里面添加数字并且获取最大值的泛型类
+
+### 泛型类型别名
+```
+type Cart<T> = { list: T[] } | T[];
+let c1: Cart<string> = { list: ["1"] };
+let c2: Cart<number> = [1];
+```
+### 泛型参数的默认类型
+我们可以为泛型中的类型参数指定默认类型。当使用泛型时没有在代码中直接指定类型参数，从实际值参数中也无法推测出时，这个默认类型就会起作用
+```
+function createArray<T = string>(length: number, value: T): Array<T> {
+  let result: T[] = [];
+  for (let i = 0; i < length; i++) {
+    result[i] = value;
+  }
+  return result;
+}
+```
+### typeof 关键词
+```
+//先定义变量，再定义类型
+let p1 = {
+  name: "hello",
+  age: 10,
+  gender: "male",
+};
+type People = typeof p1;
+function getName(p: People): string {
+  return p.name;
+}
+getName(p1);
+```
+上面的例子就是使用 typeof 获取一个变量的类型
+
+### keyof 关键词
+keyof 可以用来取得一个对象接口的所有 key 值
+```
+interface Person {
+  name: string;
+  age: number;
+  gender: "male" | "female";
+}
+//type PersonKey = 'name'|'age'|'gender';
+type PersonKey = keyof Person;
+
+function getValueByKey(p: Person, key: PersonKey) {
+  return p[key];
+}
+let val = getValueByKey({ name: "hello", age: 10, gender: "male" }, "name");
+console.log(val);
+```
+### 索引访问操作符
+使用 [] 操作符可以进行索引访问
+```
+interface Person {
+  name: string;
+  age: number;
+}
+
+type x = Person["name"]; // x is string
+```
+
+### 映射类型 in
+在定义的时候用 in 操作符去批量定义类型中的属性
+```
+interface Person {
+  name: string;
+  age: number;
+  gender: "male" | "female";
+}
+//批量把一个接口中的属性都变成可选的
+type PartPerson = {
+  [Key in keyof Person]?: Person[Key];
+};
+
+let p1: PartPerson = {};
+```
+### infer 关键字
+在条件类型语句中，可以用 infer 声明一个类型变量并且对它进行使用。
+```
+type ReturnType<T> = T extends (...args: any[]) => infer R ? R : any;
+```
+以上代码中 infer R 就是声明一个变量来承载传入函数签名的返回值类型，简单说就是用它取到函数返回值的类型方便之后使用。
+
+### 内置工具类型
+1. Exclude<T,U> 从 T 可分配给的类型中排除 U
+```
+type Exclude<T, U> = T extends U ? never : T;
+
+type E = Exclude<string | number, string>;
+let e: E = 10;
+```
+2. Extract<T,U> 从 T 可分配给的类型中提取 U
+```
+type Extract<T, U> = T extends U ? T : never;
+
+type E = Extract<string | number, string>;
+let e: E = "1";
+```
+3. NonNullable 从 T 中排除 null 和 undefined
+```
+type NonNullable<T> = T extends null | undefined ? never : T;
+
+type E = NonNullable<string | number | null | undefined>;
+let e: E = null;
+```
+4. ReturnType infer 最早出现在此 PR 中，表示在 extends 条件语句中待推断的类型变量
+```
+type ReturnType<T extends (...args: any[]) => any> = T extends (
+  ...args: any[]
+) => infer R
+  ? R
+  : any;
+function getUserInfo() {
+  return { name: "hello", age: 10 };
+}
+
+// 通过 ReturnType 将 getUserInfo 的返回值类型赋给了 UserInfo
+type UserInfo = ReturnType<typeof getUserInfo>;
+
+const userA: UserInfo = {
+  name: "hello",
+  age: 10,
+};
+```
+5. Parameters 该工具类型主要是获取函数类型的参数类型
+```
+type Parameters<T> = T extends (...args: infer R) => any ? R : any;
+
+type T0 = Parameters<() => string>; // []
+type T1 = Parameters<(s: string) => void>; // [string]
+type T2 = Parameters<<T>(arg: T) => T>; // [unknown]
+```
+6. Partial 可以将传入的属性由非可选变为可选
+```
+type Partial<T> = { [P in keyof T]?: T[P] };
+interface A {
+  a1: string;
+  a2: number;
+  a3: boolean;
+}
+type aPartial = Partial<A>;
+const a: aPartial = {}; // 不会报错
+```
+7. Required 可以将传入的属性中的可选项变为必选项，这里用了 -? 修饰符来实现。
+```
+interface Person {
+  name: string;
+  age: number;
+  gender?: "male" | "female";
+}
+/**
+ * type Required<T> = { [P in keyof T]-?: T[P] };
+ */
+let p: Required<Person> = {
+  name: "hello",
+  age: 10,
+  gender: "male",
+};
+```
+8. Readonly 通过为传入的属性每一项都加上 readonly 修饰符来实现
+```
+interface Person {
+  name: string;
+  age: number;
+  gender?: "male" | "female";
+}
+//type Readonly<T> = { readonly [P in keyof T]: T[P] };
+let p: Readonly<Person> = {
+  name: "hello",
+  age: 10,
+  gender: "male",
+};
+p.age = 11; //error
+```
+9. Pick<T,K> Pick 能够帮助我们从传入的属性中摘取某些返回
+```
+interface Todo {
+  title: string;
+  description: string;
+  done: boolean;
+}
+/**
+ * From T pick a set of properties K
+ * type Pick<T, K extends keyof T> = { [P in K]: T[P] };
+ */
+type TodoBase = Pick<Todo, "title" | "done">;
+
+// =
+type TodoBase = {
+  title: string;
+  done: boolean;
+};
+```
+10. Record<K,T> **构造一个类型，该类型具有一组属性 K，每个属性的类型为 T**。可用于将一个类型的属性映射为另一个类型。Record 后面的泛型就是对象键和值的类型。
+
+简单理解：K 对应对象的 key，T 对应对象的 value，返回的就是一个声明好的对象 但是 K 对应的泛型约束是keyof any 也就意味着只能传入 string|number|symbol
+```
+// type Record<K extends keyof any, T> = {
+// [P in K]: T;
+// };
+type Point = "x" | "y";
+type PointList = Record<Point, { value: number }>;
+const cars: PointList = {
+  x: { value: 10 },
+  y: { value: 20 },
+};
+```
+11. Omit<K,T> 基于已经声明的类型进行属性剔除获得新类型
+```
+// type Omit=Pick<T,Exclude<keyof T,K>>
+type User = {
+id: string;
+name: string;
+email: string;
+};
+type UserWithoutEmail = Omit<User, "email">;// UserWithoutEmail ={id: string;name: string;}
+};
+```
+## TypeScript 装饰器
+装饰器是一种特殊类型的声明，它能够被附加到类声明、方法、属性或参数上，可以修改类的行为
+
+常见的装饰器有类装饰器、属性装饰器、方法装饰器和参数装饰器
+
+装饰器的写法分为普通装饰器和装饰器工厂
+
+使用@装饰器的写法需要把 tsconfig.json 的 `experimentalDecorators` 字段设置为 true
+
+### 类装饰器
+类装饰器在类声明之前声明，用来监视、修改或替换类定义
+```
+namespace a {
+  //当装饰器作为修饰类的时候，会把构造器传递进去
+  function addNameEat(constructor: Function) {
+    constructor.prototype.name = "hello";
+    constructor.prototype.eat = function () {
+      console.log("eat");
+    };
+  }
+  @addNameEat
+  class Person {
+    name!: string;
+    eat!: Function;
+    constructor() {}
+  }
+  let p: Person = new Person();
+  console.log(p.name);
+  p.eat();
+}
+
+namespace b {
+  //还可以使用装饰器工厂 这样可以传递额外参数
+  function addNameEatFactory(name: string) {
+    return function (constructor: Function) {
+      constructor.prototype.name = name;
+      constructor.prototype.eat = function () {
+        console.log("eat");
+      };
+    };
+  }
+  @addNameEatFactory("hello")
+  class Person {
+    name!: string;
+    eat!: Function;
+    constructor() {}
+  }
+  let p: Person = new Person();
+  console.log(p.name);
+  p.eat();
+}
+
+namespace c {
+  //还可以替换类,不过替换的类要与原类结构相同
+  function enhancer(constructor: Function) {
+    return class {
+      name: string = "jiagou";
+      eat() {
+        console.log("吃饭饭");
+      }
+    };
+  }
+  @enhancer
+  class Person {
+    name!: string;
+    eat!: Function;
+    constructor() {}
+  }
+  let p: Person = new Person();
+  console.log(p.name);
+  p.eat();
+}
+```
+### 属性装饰器
+属性装饰器表达式会在运行时当作函数被调用，传入 2 个参数 第一个参数对于静态成员来说是类的构造函数，对于实例成员是类的原型对象 第二个参数是属性的名称
+```
+//修饰实例属性
+function upperCase(target: any, propertyKey: string) {
+  let value = target[propertyKey];
+  const getter = function () {
+    return value;
+  };
+  // 用来替换的setter
+  const setter = function (newVal: string) {
+    value = newVal.toUpperCase();
+  };
+  // 替换属性，先删除原先的属性，再重新定义属性
+  if (delete target[propertyKey]) {
+    Object.defineProperty(target, propertyKey, {
+      get: getter,
+      set: setter,
+      enumerable: true,
+      configurable: true,
+    });
+  }
+}
+
+class Person {
+  @upperCase
+  name!: string;
+}
+let p: Person = new Person();
+p.name = "world";
+console.log(p.name);
+```
+
+### 方法装饰器
+方法装饰器顾名思义，用来装饰类的方法。它接收三个参数：
+- target: Object - 对于静态成员来说是类的构造函数，对于实例成员是类的原型对象
+- propertyKey: string | symbol - 方法名
+- descriptor: TypePropertyDescript - 属性描述符
+```
+//修饰实例方法
+function noEnumerable(
+  target: any,
+  property: string,
+  descriptor: PropertyDescriptor
+) {
+  console.log("target.getName", target.getName);
+  console.log("target.getAge", target.getAge);
+  descriptor.enumerable = false;
+}
+//重写方法
+function toNumber(
+  target: any,
+  methodName: string,
+  descriptor: PropertyDescriptor
+) {
+  let oldMethod = descriptor.value;
+  descriptor.value = function (...args: any[]) {
+    args = args.map((item) => parseFloat(item));
+    return oldMethod.apply(this, args);
+  };
+}
+class Person {
+  name: string = "hello";
+  public static age: number = 10;
+  constructor() {}
+  @noEnumerable
+  getName() {
+    console.log(this.name);
+  }
+  @toNumber
+  sum(...args: any[]) {
+    return args.reduce((accu: number, item: number) => accu + item, 0);
+  }
+}
+let p: Person = new Person();
+for (let attr in p) {
+  console.log("attr=", attr);
+}
+p.getName();
+console.log(p.sum("1", "2", "3"));
+```
+### 参数装饰器
+参数装饰器顾名思义，是用来装饰函数参数，它接收三个参数：
+
+target: Object - 被装饰的类 propertyKey: string | symbol - 方法名 parameterIndex: number - 方法中参数的索引值
+```
+function Log(target: Function, key: string, parameterIndex: number) {
+  let functionLogged = key || target.prototype.constructor.name;
+  console.log(`The parameter in position ${parameterIndex} at ${functionLogged} has
+	been decorated`);
+}
+
+class Greeter {
+  greeting: string;
+  constructor(@Log phrase: string) {
+    this.greeting = phrase;
+  }
+}
+```
+以上代码成功运行后，控制台会输出以下结果： "The parameter in position 0 at Greeter has been decorated"
+
+### 装饰器执行顺序
+有多个参数装饰器时：从最后一个参数依次向前执行
+
+方法和方法参数中参数装饰器先执行。 方法和属性装饰器，谁在前面谁先执行。因为参数属于方法一部分，所以参数会一直紧紧挨着方法执行
+
+类装饰器总是最后执行
+```
+function Class1Decorator() {
+  return function (target: any) {
+    console.log("类1装饰器");
+  };
+}
+function Class2Decorator() {
+  return function (target: any) {
+    console.log("类2装饰器");
+  };
+}
+function MethodDecorator() {
+  return function (
+    target: any,
+    methodName: string,
+    descriptor: PropertyDescriptor
+  ) {
+    console.log("方法装饰器");
+  };
+}
+function Param1Decorator() {
+  return function (target: any, methodName: string, paramIndex: number) {
+    console.log("参数1装饰器");
+  };
+}
+function Param2Decorator() {
+  return function (target: any, methodName: string, paramIndex: number) {
+    console.log("参数2装饰器");
+  };
+}
+function PropertyDecorator(name: string) {
+  return function (target: any, propertyName: string) {
+    console.log(name + "属性装饰器");
+  };
+}
+
+@Class1Decorator()
+@Class2Decorator()
+class Person {
+  @PropertyDecorator("name")
+  name: string = "hello";
+  @PropertyDecorator("age")
+  age: number = 10;
+  @MethodDecorator()
+  greet(@Param1Decorator() p1: string, @Param2Decorator() p2: string) {}
+}
+
+/**
+name属性装饰器
+age属性装饰器
+参数2装饰器
+参数1装饰器
+方法装饰器
+类2装饰器
+类1装饰器
+ */
+```
+## 编译
+### tsconfig.json 的作用
+- 用于标识 TypeScript 项目的根路径；
+- 用于配置 TypeScript 编译器；
+- 用于指定编译的文件。
+
+### tsconfig.json 重要字段
+- files - 设置要编译的文件的名称；
+- include - 设置需要进行编译的文件，支持路径模式匹配；
+- exclude - 设置无需进行编译的文件，支持路径模式匹配；
+- compilerOptions - 设置与编译流程相关的选项。
+
+### compilerOptions 选项
+```
+{
+  "compilerOptions": {
+
+    /* 基本选项 */
+    "target": "es5",                       // 指定 ECMAScript 目标版本: 'ES3' (default), 'ES5', 'ES6'/'ES2015', 'ES2016', 'ES2017', or 'ESNEXT'
+    "module": "commonjs",                  // 指定使用模块: 'commonjs', 'amd', 'system', 'umd' or 'es2015'
+    "lib": [],                             // 指定要包含在编译中的库文件
+    "allowJs": true,                       // 允许编译 javascript 文件
+    "checkJs": true,                       // 报告 javascript 文件中的错误
+    "jsx": "preserve",                     // 指定 jsx 代码的生成: 'preserve', 'react-native', or 'react'
+    "declaration": true,                   // 生成相应的 '.d.ts' 文件
+    "sourceMap": true,                     // 生成相应的 '.map' 文件
+    "outFile": "./",                       // 将输出文件合并为一个文件
+    "outDir": "./",                        // 指定输出目录
+    "rootDir": "./",                       // 用来控制输出目录结构 --outDir.
+    "removeComments": true,                // 删除编译后的所有的注释
+    "noEmit": true,                        // 不生成输出文件
+    "importHelpers": true,                 // 从 tslib 导入辅助工具函数
+    "isolatedModules": true,               // 将每个文件做为单独的模块 （与 'ts.transpileModule' 类似）.
+
+    /* 严格的类型检查选项 */
+    "strict": true,                        // 启用所有严格类型检查选项
+    "noImplicitAny": true,                 // 在表达式和声明上有隐含的 any类型时报错
+    "strictNullChecks": true,              // 启用严格的 null 检查
+    "noImplicitThis": true,                // 当 this 表达式值为 any 类型的时候，生成一个错误
+    "alwaysStrict": true,                  // 以严格模式检查每个模块，并在每个文件里加入 'use strict'
+
+    /* 额外的检查 */
+    "noUnusedLocals": true,                // 有未使用的变量时，抛出错误
+    "noUnusedParameters": true,            // 有未使用的参数时，抛出错误
+    "noImplicitReturns": true,             // 并不是所有函数里的代码都有返回值时，抛出错误
+    "noFallthroughCasesInSwitch": true,    // 报告 switch 语句的 fallthrough 错误。（即，不允许 switch 的 case 语句贯穿）
+
+    /* 模块解析选项 */
+    "moduleResolution": "node",            // 选择模块解析策略： 'node' (Node.js) or 'classic' (TypeScript pre-1.6)
+    "baseUrl": "./",                       // 用于解析非相对模块名称的基目录
+    "paths": {},                           // 模块名到基于 baseUrl 的路径映射的列表
+    "rootDirs": [],                        // 根文件夹列表，其组合内容表示项目运行时的结构内容
+    "typeRoots": [],                       // 包含类型声明的文件列表
+    "types": [],                           // 需要包含的类型声明文件名列表
+    "allowSyntheticDefaultImports": true,  // 允许从没有设置默认导出的模块中默认导入。
+
+    /* Source Map Options */
+    "sourceRoot": "./",                    // 指定调试器应该找到 TypeScript 文件而不是源文件的位置
+    "mapRoot": "./",                       // 指定调试器应该找到映射文件而不是生成文件的位置
+    "inlineSourceMap": true,               // 生成单个 soucemaps 文件，而不是将 sourcemaps 生成不同的文件
+    "inlineSources": true,                 // 将代码与 sourcemaps 生成到一个文件中，要求同时设置了 --inlineSourceMap 或 --sourceMap 属性
+
+    /* 其他选项 */
+    "experimentalDecorators": true,        // 启用装饰器
+    "emitDecoratorMetadata": true          // 为装饰器提供元数据的支持
+  }
+}
+```
+
+## 模块和声明文件
+### 全局模块
+**在默认情况下，当你开始在一个新的 TypeScript 文件中写下代码时，它处于全局命名空间中**
+```
+# foo.ts
+const foo = 123;
+# bar.ts
+const bar = foo; // allowed
+```
+### 文件模块
+- **文件模块也被称为外部模块。如果在`你的 TypeScript 文件的根级别位置含有 import 或者 export`，那么它会在这个文件中创建一个本地的作用域**
+- 模块是 TS 中外部模块的简称，侧重于代码和复用
+- 模块在其自身的作用域里执行，而不是在全局作用域里
+- 一个模块里的变量、函数、类等在外部是不可见的，除非你把它导出
+- 如果想要使用一个模块里导出的变量，则需要导入
+```
+# foo.ts
+const foo = 123;
+export {};
+# bar.ts
+const bar = foo; // error
+```
+### 声明文件
+- 我们可以把类型声明放在一个单独的类型声明文件中
+- 文件命名规范为*.d.ts
+- 查看类型声明文件有助于了解库的使用方式
+
+typings\jquery.d.ts
+```
+declare const $: (selector: string) => {
+  click(): void;
+  width(length: number): void;
+};
+```
+
+### 第三方声明文件
+- 可以安装使用第三方的声明文件
+- `@types` 是一个约定的前缀，所有的第三方声明的类型库都会带有这样的前缀
+- JavaScript 中有很多内置对象，它们可以在 TypeScript 中被当做声明好了的类型
+- 内置对象是指根据标准在全局作用域（Global）上存在的对象。这里的标准是指 ECMAScript 和其他环境（比如 DOM）的标准
+- 这些内置对象的类型声明文件，就包含在 TypeScript 核心库的类型声明文件中,具体可以查看[ts核心声明文件](https://github.com/Microsoft/TypeScript/tree/main/src/lib)
+
+### 查找声明文件
+如果是手动写的声明文件，那么需要满足以下条件之一，才能被正确的识别
+- 给 package.json 中的 types 或 typings 字段指定一个类型声明文件地址
+- 在项目根目录下，编写一个 index.d.ts 文件
+- 针对入口文件（package.json 中的 main 字段指定的入口文件），编写一个同名不同后缀的 .d.ts 文件
+```
+{
+    "name": "myLib",
+    "version": "1.0.0",
+    "main": "lib/index.js",
+    "types": "myLib.d.ts",
+}
+```
+查找过程如下：
+1. 先找 myLib.d.ts
+2. 没有就再找 index.d.ts
+3. 还没有再找 lib/index.d.js
+4. 还找不到就认为没有类型声明了
