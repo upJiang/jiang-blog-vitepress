@@ -1,5 +1,11 @@
 [重学TypeScript系列教程](https://mp.weixin.qq.com/s/y6C4R04mpvBmyV80p5WOug)
 
+类型系统按照`「是否允许隐式类型转换」`来分类，可以分为强类型和弱类型。
+
+TypeScript 是完全兼容 JavaScript 的，它不会修改 JavaScript 运行时的特性，所以它们都是弱类型。
+
+TypeScript 的核心设计理念：在完整保留 JavaScript 运行时行为的基础上，通过引入静态类型系统来提高代码的可维护性，减少可能出现的 bug。
+
 ## TypeScript 基础类型
 ### Boolean 类型
 ```
@@ -1562,7 +1568,7 @@ age属性装饰器
 
 ## 模块和声明文件
 ### 全局模块
-**在默认情况下，当你开始在一个新的 TypeScript 文件中写下代码时，它处于全局命名空间中**
+**在默认情况下，当你开始在一个新的 TypeScript 文件中写下代码时，它处于全局命名空间中**，推荐使用文件模块
 ```
 # foo.ts
 const foo = 123;
