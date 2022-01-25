@@ -143,6 +143,7 @@ async function getConfig() {
             children: [
               { text: '面试指南', link: '/docs/interview/target' },
               { text: '22年初面试准备', link: '/docs/interview/22Ready' },
+              { text: '手写面试题', link: '/docs/interview/writeQuestion' },
               { text: 'js问题', link: '/docs/interview/jsBaseQuestion' },
               { text: 'vue问题', link: '/docs/interview/vueBaseQuestion' },
               { text: 'react问题', link: '/docs/interview/reactBaseQuestion' },
