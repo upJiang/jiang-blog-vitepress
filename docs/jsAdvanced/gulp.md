@@ -138,6 +138,149 @@ gulp 任务必须要有 return，返回方式有如下几种:
 
 ## gulp 实战
 ### 创建任务
-gulp.task(任务名，[先执行的任务],执行任务的函数)
+在项目根目录创建个 `gulpfile.js` 文件,执行 `gulp` 命令后，`gulp` 会去读取 `gulpfile.js` 文件，这是 `gulp` 的入口文件，所有的指令逻辑处理都在此文件中进行。
+
+当项目体量过大时，可以在根目录内创建个 `gulpfile.js` 文件夹，文件夹内部创建 `index.js`，可以在 `index.js` 中引入不同的处理模块.
+
+在以前的版本中都是通过 `gulp.task` 来创建不同的任务，新版本主要通过 `exports.xxx` 来导出任务
 ```
+function test(cb) {
+ cb()
+}
+
+exports.test = test;
 ```
+在控制台输入指令gulp test
+```
+[16:41:29] Using gulpfile F:\gulp\gulpfile.js
+[16:41:29] Starting 'test'...
+[16:41:29] Finished 'test' after 1.95 ms
+```
+如果将 `exports.test = test`改为 `exports.default=test`,在控制台直接输入 `gulp` 就可以直接构建了。
+
+### 处理js
+压缩js、创建sourcemap、重命名js
+```
+const {
+  src, //gulp的内置方法
+  dest
+} = require('gulp');
+//重命名js文件
+const rename = require('gulp-rename');
+const uglify = require('gulp-uglify');
+const sourcemaps = require('gulp-sourcemaps');
+
+function javascript() {
+  return src(['src/js/*.js', '!src/js/*.min.js']) //1.创建一个流，从src读取
+    //2.创建sourcemap
+    .pipe(sourcemaps.init()) 
+    //pipe为gulp内的一个方法
+    //用于流之间的链接
+    // 3. 压缩文件
+    .pipe(uglify())
+    //4.重命名，名称后加min.js
+    .pipe(rename({
+      extname: '.min.js'
+    }))
+    //5.将sourcemap写入
+    .pipe(sourcemaps.write('./'))
+    // 6.将文件写入build/js目录下
+    .pipe(dest('build/js'))
+}
+
+exports.javascript = javascript;
+```
+控制台输入指令 gulp javascript
+
+在build/js下会生成两个文件index.min.js 以及index.min.js.map
+
+### 处理css
+压缩css、创建sourcemap、重命名css
+```
+const {
+  src,
+  dest
+} = require('gulp');
+const minifyCSS = require('gulp-clean-css');
+const sourcemaps = require('gulp-sourcemaps');
+const autoprefixer = require('gulp-autoprefixer');
+
+function css() {
+  return src('src/css/*.css') //1.流入口文件
+    //2.创建sourcemap
+    .pipe(sourcemaps.init())
+    //3.自动添加浏览器前缀
+    .pipe(autoprefixer())
+    // 4.压缩css
+    .pipe(minifyCSS())
+    //5.写入sourcemap
+    .pipe(sourcemaps.write('./'))
+    //6.写入文件
+    .pipe(dest('build/css'))
+}
+
+exports.css = css;
+```
+控制台输入指令gulp css
+
+在build/js下会生成两个文件index.min.css 以及index.min.css.map
+
+### 处理图片
+```
+const {
+  src,
+  dest
+} = require('gulp');
+const imagemin = require('gulp-imagemin')
+
+function image() {
+  return src('src/images/*.*') // 1. 创建输入流
+    // 2. 压缩图片
+    .pipe(imagemin({
+      progressive: true
+    }))
+    // 3. 写入文件
+    .pipe(dest('build/images'))
+}
+
+exports.image = image;
+```
+控制台输入指令gulp image,可以看到图片的压缩比例
+```
+[17:00:07] Using gulpfile F:\gulp-demo\gulpfile.js
+[17:00:07] Starting 'image'...
+[17:00:19] gulp-imagemin: Minified 3 images (saved 449 kB - 35.5%)
+[17:00:19] Finished 'image' after 12 s
+```
+### 处理less
+```
+const {
+  src,
+  dest
+} = require('gulp');
+const gulpLess = require('gulp-less');
+const minifyCss = require('gulp-clean-css')
+const sourcemaps = require('gulp-sourcemaps');
+const rename = require('gulp-rename');
+
+function less() {
+  return src('src/less/**.less') //1.创建输入流
+    //2.创建sourcemap
+    .pipe(sourcemaps.init())
+    //3.less转为css
+    .pipe(gulpLess())
+    //4.压缩css
+    .pipe(minifyCss())
+    //5.修改名称
+    .pipe(rename({extname: '.min.css'}))
+    //6.写入sourcemap
+    .pipe(sourcemaps.write('./'))
+    //7.写入文件
+    .pipe(dest('build/less'))
+}
+
+exports.less = less;
+```
+控制台输入指令 gulp less 在 build/less 下会生成两个文件 index.min.css 以及 index.min.css.map
+
+[项目地址](https://github.com/upJiang/gulp-study)
