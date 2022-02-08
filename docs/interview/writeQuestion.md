@@ -469,30 +469,37 @@ Array.prototype.myReduce = function (callbackFn) {
 
 >可以看出节流的主要原理就是利用时间差（当前和上次执行）来过滤中间过程触发的函数执行。控制是否在开始时会立即触发一次，及最后一次触发是否执行,添加取消的功能
 ```
-function throttle(fn, wait, options = { leading: true, trailing: false }) {
-    let timer;
-    let previous = 0;
+// 节流： 多次触发同一个函数，同一段时间内只执行一次，所以节流会稀释函数的执行频率。触发后只在乎时间，时间到了才执行
+// 如果事件不停的触发，它会在规定的时间内一直触发
 
-    const { leading, trailing } = options;
+// fn：执行的方法，wait：等待的时间，immediate：第一次进入是否执行
+
+// 设置上次执行毫秒数初始值 0 ，设置 当前毫秒数 now，通过 now - previous 是否大于传入的等待毫秒数控制方法执行
+
+// 每次点击进入
+function throttle(fn, wait, immediate = false) {
+    let timer; // 定时器
+    let previous = 0; // 上次执行毫秒数初始化 0
 
     const throttled = function (...args) {
-        const now = +new Date();
+        // args 为执行函数传入的参数
 
-        if (leading === false && !previous) previous = now;
+        // 清除上一个 timer
         if (timer) clearTimeout(timer);
 
+        const now = +new Date();
+        // 如果第一次进来：previous === 0 并且不需要立即执行 immediate === false
+        // 设置当当前毫秒数等于上次执行毫秒数，相减等于0，肯定小于等待时间 wait，所以不能立即执行。
+        if (immediate === false && !previous) previous = now; // 控制不能立即执行
+
+        // now - previous 是否大于传入的等待毫秒数控制方法执行
         if (now - previous > wait) {
             fn.apply(this, args);
-            previous = now;
-        } else if (trailing) {
-            // 更新timer
-            timer = setTimeout(() => {
-                fn.apply(this, args);
-                previous = 0;
-                timer = null;
-            }, wait);
+            previous = now; // 执行完将上次执行毫秒数设置为当前毫秒数
         }
     }
+
+    // 提供马上停止的方法
     throttled.cancel = () => {
         clearTimeout(timer);
         timer = null;
@@ -507,37 +514,152 @@ function throttle(fn, wait, options = { leading: true, trailing: false }) {
 
 >可以看出debounce函数的实现原理就是通过计时器延迟函数执行，短时间内再次触发时重置并添加新计时器。
 ```
+// 防抖： 按最后一次算。比如说“停止输入5s后才发送请求”，防止多次点击  (比较常用)
+// 你尽管触发事件，但是我一定在事件触发 n 秒后才执行，如果你在一个事件触发的 n 秒内又触发了这个事件，那我就以新的事件的时间为准，n 秒后才执行
+// 总之，就是要等你触发完事件 n 秒内不再触发事件，我才执行。
+
+// 关键点就是，进来清除上一次的定时器，重新设置定时器
+
+// 可以看出debounce函数的实现原理就是通过计时器延迟函数执行，短时间内再次触发时重置并添加新计时器。
+
 //第一次触发可以立即执行，并且有取消功能
 function debounce(fn, wait = 1000, immediate = false) {
-  let timer = null;
+    let timer = null;
 
-  function debounced(...args) {
-    // 重置计时器
-    if (timer) clearTimeout(timer);
+    function debounced(...args) {
+        // 每次进来都重置计时器，当没有触发了，才真正执行，
+        // 或者是 延迟时间 比 触发间隔短 执行
+        timer && clearTimeout(timer);
 
-    // 首次立即执行
-    if (immediate && !timer) {
-      fn.apply(this, ...args);
+        // 首次立即执行
+        if (immediate && !timer) {
+            fn.apply(this, ...args);
+            // 立即执行完，再过 wait 就不执行了
+            timer = setTimeout(() => {
+                timer = null;
+            }, wait);
+            return;
+        }
 
-      timer = setTimeout(() => {
-        timer = null;
-      }, wait);
-
-      return;
+        // 新计时器
+        timer = setTimeout(() => {
+            fn.apply(this, ...args);
+            timer = null;
+        }, wait);
     }
 
-    // 新计时器
-    timer = setTimeout(() => {
-      fn.apply(this, ...args);
-      timer = null;
-    }, wait);
-  }
+    debounced.cancel = () => {
+        clearTimeout(timer);
+        timer = null;
+    };
 
-  debounced.cancel = () => {
-    clearTimeout(timer);
-    timer = null;
-  };
+    return debounced;
+}
+```
 
-  return debounced;
+## 深拷贝
+深拷贝，只拷贝内容，不拷贝地址，不会造成互相影响
+```
+const deepClone = (target) => {
+    // 判断是否是对象并且不为null
+    if (typeof target === 'object' && target !== null) {
+        const cloneTarget = Array.isArray(target) ? [] : {};
+        // 递归克隆
+        for (let prop in target) {
+            if (target.hasOwnProperty(prop)) {
+                cloneTarget[prop] = deepClone(target[prop]);
+            }
+        }
+        return cloneTarget;
+    } else {
+        return target;
+    }
+}
+
+const object1 = {
+    a: 1,
+    b: {
+        c: 2
+    },
+    d: ['1', '2']
+}
+
+const object2 = deepClone(object1) // 这里两个的a为1 和 3
+// const object2 = object1 // 这里两个的a都将输出3
+
+object2.a = 3
+console.log('object1', object1);
+console.log('object2', object2);
+```
+## 实现 new
+```
+function createObject(Con) {
+    // 创建新对象obj
+    // var obj = {};也可以
+    var obj = Object.create(null);
+
+    // 将obj.__proto__ -> 构造函数原型
+    // (不推荐)obj.__proto__ = Con.prototype
+    Object.setPrototypeOf(obj, Con.prototype);
+
+    // 执行构造函数，并接受构造函数返回值
+    const ret = Con.apply(obj, [].slice.call(arguments, 1));
+
+    // 若构造函数返回值为对象，直接返回该对象
+    // 否则返回obj
+    return typeof(ret) === 'object' ? ret: obj;
+}
+```
+## Function 篇
+### Call
+```
+Function.prototype.myCall = function (thisArg) {
+    thisArg = thisArg || window;
+    thisArg.func = this;
+    const args = []
+    for (let i = 1; i<arguments.length; i++) {
+        args.push('arguments['+ i + ']')
+    }
+    const result = eval('thisArg.func(' + args +')')
+    delete thisArg.func;
+    return result;
+}
+```
+### Apply
+```
+Function.prototype.myApply = function (thisArg, arr) {
+    thisArg = thisArg || window;
+    thisArg.func = this;
+    const args = []
+    for (let i = 0; i<arr.length; i++) {
+        args.push('arr['+ i + ']')
+    }
+    const result = eval('thisArg.func(' + args +')')
+    delete thisArg.func;
+    return result;
+}
+```
+### Bind
+```
+Function.prototype.sx_bind = function (obj, ...args) {
+    obj = obj || window
+
+    const fn = Symbol()
+    obj[fn] = this
+    const _this = this
+
+    const res = function (...innerArgs) {
+        console.log(this, _this)
+        if (this instanceof _this) {
+            this[fn] = _this
+            this[fn](...[...args, ...innerArgs])
+            delete this[fn]
+        } else {
+            obj[fn](...[...args, ...innerArgs])
+            delete obj[fn]
+        }
+    }
+    res.prototype = Object.create(this.prototype)
+    return res
 }
 ```
