@@ -4,6 +4,10 @@
 ## session
 session通过类似与Hashtable的数据结构来保存，能支持任何类型的对象(session中可含有多个对象)，若存在sessionId则直接从服务器中获取，若不存在则新建，大小没有限制，依赖于cookie（sessionID保存在cookie）,但保存的东西过多服务器会有压力，一般用于保存用户的登录信息，购物车之类等。
 
+浏览器第一次访问服务器会在服务器端生成一个session，有一个sessionid和它对应。它存储在服务器的内存中，tomcat的StandardManager类将session存储在内存中，也可以持久化到file，数据库，memcache，Redis等。
+
+客户端只保存sessionid到cookie中，而不会保存session，session销毁只能通过invalidate或超时，关掉浏览器并不会关闭session。
+
 ## webStorage
 保存在客户端，大小5M
 ## localStorage
