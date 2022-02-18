@@ -57,7 +57,8 @@ async function getConfig() {
         { text: '🙇进阶', link: '/docs/jsAdvanced/vue3' },
         { text: '🤭资源&工具', link: '/docs/resources/learning' },
         { text: '🧾github', link: 'https://github.com/upJiang' },
-        { text: '👍掘金', link: 'https://juejin.cn/user/862487522314366' }
+        { text: '👍掘金', link: 'https://juejin.cn/user/862487522314366' },
+        { text: '🍉工作问题', link: '/docs/work/h5' }
         // { text: '🧾文章', link: '/docs/article/index' }
         // { text: "归档", link: "/docs" },
         // { text: "分类", link: "/tags" },
@@ -226,6 +227,15 @@ async function getConfig() {
             children: [
               { text: '前端学习', link: '/docs/resources/learning' },
               { text: '在线工具', link: '/docs/resources/tool' }
+            ]
+          }
+        ],
+        '/docs/work/': [
+          {
+            text: '工作问题',
+            children: [
+              { text: 'h5', link: '/docs/work/h5' },
+              { text: 'vue', link: '/docs/work/vue' }
             ]
           }
         ]
