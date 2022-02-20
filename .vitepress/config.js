@@ -184,6 +184,7 @@ async function getConfig() {
             text: '进阶',
             children: [
               { text: 'TS', link: '/docs/jsAdvanced/ts' },
+              { text: '算法', link: '/docs/jsAdvanced/algorithm' },
               { text: 'vue3', link: '/docs/jsAdvanced/vue3' },
               { text: 'vite', link: '/docs/jsAdvanced/vite' },
               { text: '纯函数', link: '/docs/jsAdvanced/pureFuntion' },
