@@ -14,19 +14,19 @@ semantic-release 的大致工作流程如下：
 ### 创建 Personal access tokens 
 点击 github 头像 => settings => 左边 Developer settings => Personal access tokens
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4bc57e8a2d0743e7bec8f43dd6ce5d08~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4bc57e8a2d0743e7bec8f43dd6ce5d08~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4bc57e8a2d0743e7bec8f43dd6ce5d08~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3a87f3c4bfcf456da24859bc35082906~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3a87f3c4bfcf456da24859bc35082906~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3a87f3c4bfcf456da24859bc35082906~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 Expiration 我选择 no expiration 没有期限，Select scopes 自己看需要，我全勾了。提交后把 key 复制下来
 
 ### 给项目添加 Actions secrets
 在项目中的 settings => Secrets 创建一个 secret，把刚刚复制的 key 写入Value中，并记住你填写的 Name，后面的脚本需要用到，比如我的是 GH_TOKEN。如果在 Action 中需要发布 npm包，需要配置 NPM_TOKEN，这个自行查找方法。
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/612b49886cc14c01901de3d05d86fec0~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/612b49886cc14c01901de3d05d86fec0~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/612b49886cc14c01901de3d05d86fec0~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3bf146c2f51548c789a50f27c26f741c~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3bf146c2f51548c789a50f27c26f741c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3bf146c2f51548c789a50f27c26f741c~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 [可参考这篇文章](https://blog.csdn.net/weixin_45178716/article/details/106416925)
 
@@ -112,17 +112,17 @@ feat: <message>
 # 如果 feat 中包含 BREAKING CHANGE 则会更新主版本 x.0.0
 ```
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/dd2f51ad453e4d0c8d1874e569b684a3~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/dd2f51ad453e4d0c8d1874e569b684a3~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/dd2f51ad453e4d0c8d1874e569b684a3~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 在其它代码托管平台，比如 gitlab，大致思路都是相同的，比如 gitlab 是直接在项目根目录的 .gitlab-ci.yml 去配置，语法不同（gitlab 的是`stages`，github 的是 `jobs`），都大同小异。.releaserc 这个文件的配置基本上都相同，只是引用的插件不同。
 
 最后我们在项目中的readme.md，加上
 ```
-[![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release)
+[<a data-fancybox title="semantic-release" href="https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg">![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)</a>](https://github.com/semantic-release/semantic-release)
 ```
 会有这样的效果
 
-![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7f5d31052f43487fb0e61e9c9c26d50e~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7f5d31052f43487fb0e61e9c9c26d50e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7f5d31052f43487fb0e61e9c9c26d50e~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 [项目地址](https://github.com/upJiang/jiangVue3Test)
 

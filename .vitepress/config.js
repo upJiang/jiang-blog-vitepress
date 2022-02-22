@@ -55,6 +55,7 @@ async function getConfig() {
         { text: '📚基础', link: '/docs/jsBase/git' },
         { text: '🤵面试', link: '/docs/interview/center' },
         { text: '🙇进阶', link: '/docs/jsAdvanced/vue3' },
+        { text: '🍋算法', link: '/docs/algorithm/dataStructures' },
         { text: '🤭资源&工具', link: '/docs/resources/learning' },
         { text: '🧾github', link: 'https://github.com/upJiang' },
         { text: '👍掘金', link: 'https://juejin.cn/user/862487522314366' },
@@ -184,7 +185,6 @@ async function getConfig() {
             text: '进阶',
             children: [
               { text: 'TS', link: '/docs/jsAdvanced/ts' },
-              { text: '算法', link: '/docs/jsAdvanced/algorithm' },
               { text: 'vue3', link: '/docs/jsAdvanced/vue3' },
               { text: 'vite', link: '/docs/jsAdvanced/vite' },
               { text: '纯函数', link: '/docs/jsAdvanced/pureFuntion' },
@@ -237,6 +237,19 @@ async function getConfig() {
             children: [
               { text: 'h5', link: '/docs/work/h5' },
               { text: 'vue', link: '/docs/work/vue' }
+            ]
+          }
+        ],
+        '/docs/algorithm/': [
+          {
+            text: '算法',
+            children: [
+              { text: '数据结构', link: '/docs/algorithm/dataStructures' },
+              { text: '遍历二叉树', link: '/docs/algorithm/ergodicTree' },
+              { text: '复杂度', link: '/docs/algorithm/complexity' },
+              { text: '数组解题', link: '/docs/algorithm/array' },
+              { text: '字符串解题', link: '/docs/algorithm/string' },
+              { text: '链表解题', link: '/docs/algorithm/chain' }
             ]
           }
         ]
