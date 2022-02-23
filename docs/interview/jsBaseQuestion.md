@@ -100,3 +100,12 @@ JS代码在加载完之后是立即执行的，且JS代码执行时会阻塞页�
 
 ## 为什么说script标签会阻塞页面的渲染呢？渲染线程和js引擎线程不是分开的吗？
 JS属于单线程，当我们在加载script标签内容的时候，渲染线程会被暂停，因为script标签里可能会操作DOM的，所以如果你加载script标签又同时渲染页面肯定就冲突了，因此说渲染线程(GUI)和js引擎线程互斥。
+
+## null == undefined
+```
+console.log( undefined == null )  //true
+```
+undefined 和 null 都是 false ,所有他们是 true ? 错误
+<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e8c2c58d6009b~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e8c2c58d6009b~tplv-t2oaga2asx-watermark.awebp)</a>
+
+<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e8c4c6155aef8~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e8c4c6155aef8~tplv-t2oaga2asx-watermark.awebp)</a>
