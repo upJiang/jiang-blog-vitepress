@@ -249,7 +249,14 @@ async function getConfig() {
               { text: '复杂度', link: '/docs/algorithm/complexity' },
               { text: '数组解题', link: '/docs/algorithm/array' },
               { text: '字符串解题', link: '/docs/algorithm/string' },
-              { text: '链表解题', link: '/docs/algorithm/chain' }
+              { text: '链表解题', link: '/docs/algorithm/chain' },
+              {
+                text: '链表解题-快慢指针与多指针',
+                link: '/docs/algorithm/chainHead'
+              },
+              { text: '链表解题-环形链表', link: '/docs/algorithm/chainCicle' },
+              { text: '栈解题', link: '/docs/algorithm/stack' },
+              { text: '队列解题', link: '/docs/algorithm/queue' }
             ]
           }
         ]

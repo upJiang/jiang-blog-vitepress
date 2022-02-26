@@ -101,7 +101,7 @@ for(let i=0;i<outerLen;i++) {
 const arr = [1,2]
 arr.unshift(0) // arr结果：[0,1,2]
 ```
-- push 方法（直接返回的是数组结果的长度）-添加元素到数组的尾部
+- push 方法（直接返回的是push的内容）-添加元素到数组的尾部
 ```
 const arr = [1,2]
 arr.push(3) // arr结果：[1,2,3]
@@ -120,7 +120,7 @@ arr.splice(1,1) // arr结果：[1] 删除从索引为1开始的1个元素
 const arr = [1,2,3]
 arr.shift() // arr结果：[2,3]
 ```
-- pop 方法（直接返回的是数组结果的长度）-删除数组尾部的元素
+- pop 方法（直接返回的是pop掉的内容）-删除数组尾部的元素
 ```
 const arr = [1,2,3]
 arr.pop() // arr结果：[1,2]
