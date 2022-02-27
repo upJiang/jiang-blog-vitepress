@@ -68,7 +68,7 @@ cycle(0)
 我们这样去思考，题目中不变的是“坑位”，我们手里有三张牌，我们要把牌发到坑位中。第一个坑位有三张牌能选，第二个坑位有两张，第三个坑位没得选。<br>
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a215aa6c68~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a215aa6c68~tplv-t2oaga2asx-watermark.awebp)</a>
 
-我们把它装换成一棵树看看：<vr>
+我们把它装换成一棵树看看：<br>
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a21d81055e~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a21d81055e~tplv-t2oaga2asx-watermark.awebp)</a>
 
 现在来看，这个问题不就是一个 DFS 问题，解题思路就是递归。
