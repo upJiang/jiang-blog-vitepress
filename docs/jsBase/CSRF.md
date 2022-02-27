@@ -1,3 +1,5 @@
+<a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/752af7ea8ffd44d69608afaf289eb721~tplv-k3u1fbpfcp-watermark.awebp">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/752af7ea8ffd44d69608afaf289eb721~tplv-k3u1fbpfcp-watermark.awebp)</a>
+
 ## CSRF攻击
 >跨站请求伪造，攻击者盗用了你的身份，以你的名义发送恶意请求。CSRF能够做的事情包括：以你名义发送邮件，发消息，盗取你的账号，甚至于购买商品，虚拟货币转账......造成的问题包括：个人隐私泄露以及财产安全。
 

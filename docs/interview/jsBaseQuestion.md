@@ -109,3 +109,28 @@ undefined 和 null 都是 false ,所有他们是 true ? 错误
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e8c2c58d6009b~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e8c2c58d6009b~tplv-t2oaga2asx-watermark.awebp)</a>
 
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e8c4c6155aef8~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e8c4c6155aef8~tplv-t2oaga2asx-watermark.awebp)</a>
+
+## 当静态资源 cdn 挂掉怎么办？怎么切换另一个？
+```
+<script src="http://cdn.static.runoob.com/libs/jquery/1.10.2/jquery.min.js"></script>
+<script>window.jQuery || document.write('<script src="js/vendor/jquery-1.10.2.min.js"><\/script>')</script>
+```
+思路其实就是判断引入的资源是否存在，不存在使用 document.write 写入另一个 cdn或者本地资源
+
+## 如何中断请求？
+使用axios 的cancelToken,用法
+```
+const CancelToken = axios.CancelToken;
+const source = CancelToken.source();
+axios.get('/user/12345', {//get请求在第二个参数
+    cancelToken: source.token
+}).catch(function(thrown) {
+});
+axios.post('/user/12345', {//post请求在第三个参数
+    name: 'new name'
+}, {
+    cancelToken: source.token
+});
+source.cancel('不想请求了');
+用法二
+```

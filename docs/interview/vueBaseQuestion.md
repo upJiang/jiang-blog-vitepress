@@ -39,3 +39,6 @@ errorCaptured -> onErrorCaptured
 ## new vue执行了什么？
 执行了this._init(options)操作，在里面 合并配置 、初始化生命周期、初始化事件中心、初始化渲染、初始化data、初始化props、初始化computed、初始化watcher，在初始化的最后，检测到如果有el属性，则调用vm.$mount方法挂载vm，挂载的目标就是把模板渲染成最终的DOM。
 
+## vue3 有什么改进的或者不足之处？
+- 完全不兼容ie，因为使用的 proxy
+- 组合式 api，composition api。其实在代码结构上也会有一点乱

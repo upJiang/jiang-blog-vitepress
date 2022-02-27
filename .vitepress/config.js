@@ -218,6 +218,10 @@ async function getConfig() {
               {
                 text: 'gulp',
                 link: '/docs/jsAdvanced/gulp'
+              },
+              {
+                text: '性能优化',
+                link: '/docs/jsAdvanced/performance'
               }
             ]
           }
@@ -256,7 +260,9 @@ async function getConfig() {
               },
               { text: '链表解题-环形链表', link: '/docs/algorithm/chainCicle' },
               { text: '栈解题', link: '/docs/algorithm/stack' },
-              { text: '队列解题', link: '/docs/algorithm/queue' }
+              { text: '队列解题', link: '/docs/algorithm/queue' },
+              { text: '深度优先&广度优先', link: '/docs/algorithm/DFS' },
+              { text: '递归与回溯思想', link: '/docs/algorithm/thinking' }
             ]
           }
         ]
