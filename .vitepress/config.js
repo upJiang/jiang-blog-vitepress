@@ -176,7 +176,8 @@ async function getConfig() {
               { text: 'dns域名解析做了什么', link: '/docs/interview/dns' },
               { text: '长列表的优化', link: '/docs/interview/longList' },
               { text: '性能优化', link: '/docs/interview/performaceOpt' },
-              { text: '输入URL', link: '/docs/interview/URL' }
+              { text: '输入URL', link: '/docs/interview/URL' },
+              { text: 'css', link: '/docs/interview/css' }
             ]
           }
         ],
