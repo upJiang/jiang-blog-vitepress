@@ -264,7 +264,8 @@ async function getConfig() {
               { text: '队列解题', link: '/docs/algorithm/queue' },
               { text: '深度优先&广度优先', link: '/docs/algorithm/DFS' },
               { text: '递归与回溯思想', link: '/docs/algorithm/thinking' },
-              { text: '排序算法', link: '/docs/algorithm/sort' }
+              { text: '排序算法', link: '/docs/algorithm/sort' },
+              { text: '动态规划', link: '/docs/algorithm/dynamic' }
             ]
           }
         ]
