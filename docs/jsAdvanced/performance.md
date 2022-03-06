@@ -15,6 +15,60 @@ cdn:CDN(Content Delivery Network)是内容分发网络。基本思路就是在�
 
 CDN主要应用于站点加速，提高网站中静态数据的访问性能，比如图片、音频、视频、静态html网页等。网站静态数据以前一般是用文件存储的形式保存，现在则主要用对象存储。以图片存储为例，`简单说，对象存储是存图片的，CDN是加速下载图片的`。对象存储+CDN，已经成为互联网应用的一个必不可少的组成部分。
 
+## webp 的使用
+WebP 是由Google开发的一种新的图片格式，它支持有损压缩、无损压缩和透明度，压缩后的文件大小比JPEG、PNG等都要小。
+
+WebP为网络图片提供了无损和有损压缩能力，同时在有损条件下支持透明通道。据官方实验显示：无损WebP相比PNG减少26%大小；下相比JPEG减少25%~34%的大小；有损WebP也支持透明通道，大小通常约为对应PNG的1/3。
+
+使用方法1：<br>
+使用 `<picture>` 标签，`<picture>` 是 H5 中的一个新标签，类似 `<video>` 它也可以指定多个格式的资源，由浏览器选择自己支持的格式进行加载。<br>
+```
+<picture class="picture">
+  <source type="image/webp" srcset="image.webp">
+  <img class="image" src="image.jpg">
+</picture>
+```
+如果浏览器不支持 WebP 格式，那么会自动使用 img 标签，如果支持就会使用 WebP 图片。并且当浏览器不支持 <picture>标签时，也会默认使用 img 标签，图片仍然会正常展示。只不过 css 无法选取 <picture>标签，但是仍然会选取到 img 标签。<br>
+这种方式兼容性还算不错，不过依然有很大的局限性，如不能作用于 css 中的图片、背景图片。
+
+使用方法2：<br>
+使用JS替换图片的URL，类似图片懒加载的原理，根据浏览器是否支持 WebP 格式，给 img 的 src 赋不同的值。<br>
+具体的操作就是给浏览器一个 WebP 格式的图片，看浏览器是否能正确渲染，在这个异步的方法中根据渲染的成功与否，执行回调函数，然后将结果存储在localstorage中，避免重复检查。代码如下：
+```
+function checkWebp(callback) {
+  var img = new Image();
+  img.onload = function () {
+    var result = (img.width > 0) && (img.height > 0);
+    callback(result);
+  };
+  img.onerror = function () {
+    callback(false);
+  };
+  img.src = 'data:image/webp;base64,lAABSoBAQVXD+JaQAUkRAQCA4ADsJAAdAIBYAUAAlGRAwAA3AAEAA';
+}
+```
+然后根据 checkWebp 的回调函数参数判断是否支持webp格式来决定是否替换src
+```
+function showImage(supWebp){
+  var imgs = Array.from(document.querySelectorAll('img'));
+
+  imgs.forEach(function(i){
+    var src = i.attributes['data-src'].value;
+
+	// 如果支持则替换
+    if (supWebp){
+      src = src.replace(/\.jpg$/, '.webp');
+    }
+
+    i.src = src;
+  });
+}
+
+checkWebp(showImage);
+```
+
+[oss方式使用webp](https://www.zybuluo.com/hopefrontEnd/note/1317978)
+
 ## 性能优化的一些普通点
 - 减少http请求，将小文件合并成成大文件。
 - 使用http2。

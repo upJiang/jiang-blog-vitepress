@@ -42,3 +42,13 @@ errorCaptured -> onErrorCaptured
 ## vue3 有什么改进的或者不足之处？
 - 完全不兼容ie，因为使用的 proxy
 - 组合式 api，composition api。其实在代码结构上也会有一点乱
+
+## vuex 是如何判断是不是通过 commit 来修改 state 的？
+在严格模式下，我们可以通过commit以外的方式改变state里的状态的，但在严格模式下，Vuex中修改state的唯一渠道就是执行 commit('xx', payload) 方法。<br>
+
+其底层通过执行 this._withCommit(fn) 设置`_committing`标志变量为 true，然后才能修改 state，修改完毕还需要还原 `_committing` 变量。外部修改虽然能够直接修改 state，但是并没有修改 `_committing` 标志位，所以只要 watch 一下 state，state change 时判断是否 `_committing` 值为 true，即可判断修改的合法性，在严格模式下，任何 mutation 处理函数以外修改 Vuex state 都会抛出错误。）然后 getters 能够及时获取 state 中的状态并作出计算（实际上 getters 就是一个计算属性）
+
+## vue 是如何实现 keep-alive
+<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2019/5/5/16a85ce17285dce1~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2019/5/5/16a85ce17285dce1~tplv-t2oaga2asx-watermark.awebp)</a>
+
+keep-alive 根据设置的条件去缓存组件，执行的时候是在 patch 阶段的，所以并不会执行 mount 及其之前的钩子方法。根据组件ID和tag生成缓存Key，缓存vNode，销毁的时候遍历缓存组件数组执行组件的 destory 方法进行销毁。
