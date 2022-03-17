@@ -264,6 +264,7 @@ async function getConfig() {
               { text: '深度优先&广度优先', link: '/docs/algorithm/DFS' },
               { text: '递归与回溯思想', link: '/docs/algorithm/thinking' },
               { text: '二叉树', link: '/docs/algorithm/tree' },
+              { text: '二叉搜索树', link: '/docs/algorithm/bstTree' },
               { text: '排序算法', link: '/docs/algorithm/sort' },
               { text: '动态规划', link: '/docs/algorithm/dynamic' }
             ]

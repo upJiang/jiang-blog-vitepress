@@ -80,7 +80,7 @@ const validPalindrome = function(s) {
         }
         return true
     }
-    
+      
     // 默认返回 false
     return false 
 };
