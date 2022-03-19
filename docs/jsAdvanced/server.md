@@ -34,8 +34,8 @@ gitlab:<br>
 测试无效，暂无解决方案
 
 现在这一套下来：<br>
-宝塔地址： http://121.4.86.16:8888/tencentcloud <br>
-gitlab地址： http://121.4.86.16:8099 <br>
+宝塔地址(账号密码登录服务器查看)： http://121.4.86.16:8888/tencentcloud <br>
+gitlab地址(账号密码登录宝塔软件查看)： http://121.4.86.16:8099 <br>
 上传静态资源，在域名文件夹中，通过主域名 junfeng530.xyz 访问 <br>
 主域名首页是域名文件夹的 index.html
 github page 的博客访问地址 blog.junfeng530.xyz <br>
