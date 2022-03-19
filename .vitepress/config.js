@@ -222,6 +222,10 @@ async function getConfig() {
               {
                 text: '性能优化',
                 link: '/docs/jsAdvanced/performance'
+              },
+              {
+                text: '服务器知识',
+                link: '/docs/jsAdvanced/server'
               }
             ]
           }
