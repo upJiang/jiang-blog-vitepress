@@ -243,3 +243,129 @@ const sortedArrayToBST = function(nums) {
 **二叉搜索树的妙处就在于它把“二分”这种思想以数据结构的形式表达了出来**。在一个构造合理的二叉搜索树里，我们可以通过对比当前结点和目标值之间的大小关系，缩小下一步的搜索范围（比如只搜索左子树或者只搜索右子树），进而规避掉不必要的查找步骤，降低搜索过程的时间复杂度。
 
 为了保证二叉搜索树能够确实为查找操作带来效率上的提升，我们有必要在构造二叉搜索树的过程中维持其平衡度，这就是平衡二叉树的来由。
+
+平衡二叉树和二叉搜索树一样，都被归类为“特殊”的二叉树。对于这样的数据结构来说，其“特殊”之处也正是其考点所在，因此真题往往稳定地分布在以下两个方向：
+- 对特性的考察（以平衡二叉树的判定为例）
+- 对操作的考察（以平衡二叉树的构造为例）
+
+#### 平衡二叉树的判定
+>平衡二叉树的判定
+
+示例 1: <br>
+给定二叉树 [3,9,20,null,null,15,7]
+```
+    3
+   / \
+  9  20
+    /  \
+   15   7
+返回 true 。
+```
+示例 2: <br>
+给定二叉树 [1,2,2,3,3,null,null,4,4]
+```
+       1
+      / \
+     2   2
+    / \
+   3   3
+  / \
+ 4   4
+返回 false 。
+```
+思路分析<br>
+二叉树的定义：平衡二叉树是任意结点的左右子树高度差绝对值都不大于1的二叉搜索树。<br>
+抓住其中的三个关键字：
+- 任意结点
+- 左右子树高度差绝对值都不大于1
+- 二叉搜索树
+
+解题思路：<br>
+**从下往上递归遍历树中的每一个结点，计算其左右子树的高度并进行对比，只要有一个高度差的绝对值大于1，那么整棵树都会被判为不平衡。**
+
+编码实现
+```
+const isBalanced = function(root) {
+  // 立一个flag，只要有一个高度差绝对值大于1，这个flag就会被置为false
+  let flag = true
+  // 定义递归逻辑
+  function dfs(root) {
+      // 如果是空树，高度记为0；如果flag已经false了，那么就没必要往下走了，直接return
+      if(!root || !flag) {
+          return 0 
+      }
+      // 计算左子树的高度
+      const left = dfs(root.left)  
+      // 计算右子树的高度
+      const right = dfs(root.right)  
+      // 如果左右子树的高度差绝对值大于1，flag就破功了
+      if(Math.abs(left-right) > 1) {
+          flag = false
+          // 后面再发生什么已经不重要了，返回一个不影响回溯计算的值
+          return 0
+      }
+      // 返回当前子树的高度
+      return Math.max(left, right) + 1
+  }
+  
+  // 递归入口
+  dfs(root) 
+  // 返回flag的值
+  return flag
+};
+```
+
+#### 平衡二叉树的构造
+>题目描述：给你一棵二叉搜索树，请你返回一棵平衡后的二叉搜索树，新生成的树应该与原来的树有着相同的节点值。
+
+<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/4/171e046bc8287d8b~tplv-t2oaga2asx-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/4/171e046bc8287d8b~tplv-t2oaga2asx-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
+输入：root = [1,null,2,null,3,null,4,null,null] <br>
+输出：[2,1,3,null,null,null,4] <br>
+解释：这不是唯一的正确答案，[3,1,4,null,2,null,null] 也是一个可行的构造方案。 <br>
+
+思路：
+- 中序遍历求出有序数组
+- 逐个将二分出来的数组子序列“提”起来变成二叉搜索树
+
+```
+/**
+ * @param {TreeNode} root
+ * @return {TreeNode}
+ */
+const balanceBST = function(root) {
+    // 初始化中序遍历序列数组
+    const nums = []
+    // 定义中序遍历二叉树，得到有序数组
+    function inorder(root) {
+        if(!root) {
+            return 
+        }
+        inorder(root.left)  
+        nums.push(root.val)  
+        inorder(root.right)
+    }
+    
+    // 这坨代码的逻辑和上一节最后一题的代码一模一样
+    function buildAVL(low, high) {
+        // 若 low > high，则越界，说明当前索引范围对应的子树已经构建完毕
+        if(low>high) {
+            return null
+        }
+        // 取数组的中间值作为根结点值
+        const mid = Math.floor(low + (high -low)/2)
+        // 创造当前树的根结点
+        const cur = new TreeNode(nums[mid])  
+        // 构建左子树
+        cur.left = buildAVL(low, mid-1) 
+        // 构建右子树
+        cur.right = buildAVL(mid+1, high)  
+        // 返回当前树的根结点 
+        return cur
+    }
+    // 调用中序遍历方法，求出 nums
+    inorder(root)
+    // 基于 nums，构造平衡二叉树
+    return buildAVL(0, nums.length-1)
+};
+```
