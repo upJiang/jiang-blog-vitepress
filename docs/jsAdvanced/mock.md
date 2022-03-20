@@ -64,7 +64,7 @@ axios.create({
         rewrite: (path) => path.replace(/^\/gapi/, '')
       },
       '/gapi': {
-        target: 'https://junfeng530.xyz/',  //我的博客地址
+        target: 'https://blog.junfeng530.xyz/',  //我的博客地址
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/gapi/, '')
       },

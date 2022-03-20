@@ -7,7 +7,7 @@ set -e
 cd .vitepress/dist
 
 # 如果是发布到自定义域名
-echo 'junfeng530.xyz' > CNAME
+echo 'blog.junfeng530.xyz' > CNAME
 
 git init
 git add -A
