@@ -18,4 +18,4 @@ yarn dev
 yarn build
 ```
 
-博客地址: https://junfeng530.xyz
+博客地址: https://blog.junfeng530.xyz
