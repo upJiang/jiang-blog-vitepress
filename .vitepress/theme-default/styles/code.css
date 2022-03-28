@@ -2,7 +2,7 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, Courier New, monospace;
   font-size: 0.85em;
   color: var(--text-color-light);
-  background-color: rgba(27, 31, 35, 0.05);
+  /* background-color: rgba(27, 31, 35, 0.05); */
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
   margin: 0;
@@ -24,6 +24,21 @@ div[class*='language-'] {
   overflow-x: auto;
   position: relative;
   margin: 0.85rem 0;
+  box-shadow: rgb(0 0 0 / 55%) 0px 2px 10px;
+}
+div[class*='language-']:before {
+  content: '';
+  display: block;
+  background: url('https://junfeng530.xyz/macstar.svg');
+  height: 30px;
+  width: 100%;
+  background-size: 40px;
+  background-repeat: no-repeat;
+  background-color: #fafafa;
+  margin-bottom: -7px;
+  border-radius: 5px;
+  background-position: 10px 10px;
+  margin-left: -0.7rem;
 }
 
 [class*='language-'] pre {
@@ -33,7 +48,7 @@ div[class*='language-'] {
 }
 
 [class*='language-'] code {
-  color: #eee;
+  color: black;
   padding: 0;
 }
 
@@ -95,14 +110,14 @@ div[class*='language-'].line-numbers-mode {
 
 /* Language marker */
 
-[class*='language-']:before {
+/* [class*='language-']:before {
   position: absolute;
   z-index: 3;
   top: 0.6em;
   right: 1em;
   font-size: 0.8rem;
   color: #888;
-}
+} */
 
 [class~='language-html']:before,
 [class~='language-markup']:before {

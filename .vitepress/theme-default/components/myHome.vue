@@ -67,8 +67,8 @@ export default defineComponent({
 }
 .home-sum {
   margin-top: 0.5rem;
-  color: #6495ed;
   font-size: 0.7rem;
+  color: #773098;
   text-align: center;
 }
 @media screen and (max-width: 959px) {

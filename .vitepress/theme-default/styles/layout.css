@@ -32,6 +32,21 @@ body {
   padding: 1.5rem 2.5rem;
 }
 
+h1,h2,h3,h4,h5{
+  color:#773098;
+}
+p{
+  color: rgb(0,0,0,0.8);
+}
+a{
+  color: rgb(130, 127, 196);
+}
+li{
+  color: rgb(1,1,1);
+  font-weight: 500;
+  font-size: 15px;
+}
+
 @media screen and (max-width: 719px) {
   .theme .navbar {
     padding-left: 4rem;
@@ -224,10 +239,11 @@ td {
 
 blockquote {
   margin: 1rem 0;
-  border-left: 0.2rem solid #dfe2e5;
-  padding: 0.25rem 0 0.25rem 1rem;
+  border-left: 0.2rem solid #9654B5;
+  padding: 0.26rem 0 0.26rem 1rem;
   font-size: 1rem;
   color: #999;
+  background: #FBF9FD; 
 }
 
 blockquote > p {

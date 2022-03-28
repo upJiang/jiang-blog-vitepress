@@ -280,6 +280,12 @@ async function getConfig() {
               { text: '动态规划', link: '/docs/algorithm/dynamic' }
             ]
           }
+        ],
+        '/docs/babel/': [
+          {
+            text: 'babel 通关秘籍',
+            children: [{ text: '介绍', link: '/docs/babel/start' }]
+          }
         ]
       }
     },
