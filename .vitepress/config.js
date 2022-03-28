@@ -51,16 +51,23 @@ async function getConfig() {
       search: true,
       nav: [
         { text: '🏡首页', link: '/' },
-        { text: '📑重学前端', link: '/docs/reStudy/start' },
+        {
+          text: '📑学习之旅',
+          items: [
+            { text: '😘 重学前端', link: '/docs/reStudy/start' },
+            { text: '🤣 前端算法', link: '/docs/algorithm/dataStructures' },
+            { text: '😊 babel通关秘籍', link: '/docs/babel/start' },
+            { text: '😇 前端面试之道', link: '/docs/howReview/start' }
+          ]
+        },
         { text: '📚基础', link: '/docs/jsBase/git' },
         { text: '🤵面试', link: '/docs/interview/center' },
         { text: '🙇进阶', link: '/docs/jsAdvanced/vue3' },
-        { text: '🍋算法', link: '/docs/algorithm/dataStructures' },
         { text: '🤭资源&工具', link: '/docs/resources/learning' },
+        { text: '🍉工作问题', link: '/docs/work/h5' },
         { text: '🧾github', link: 'https://github.com/upJiang' },
-        { text: '👍掘金', link: 'https://juejin.cn/user/862487522314366' },
-        { text: '🍉工作问题', link: '/docs/work/h5' }
-        // { text: '🧾文章', link: '/docs/article/index' }
+        { text: '👍掘金', link: 'https://juejin.cn/user/862487522314366' }
+        // { text: '🧾文章', link: '/docs/article/index' },
         // { text: "归档", link: "/docs" },
         // { text: "分类", link: "/tags" },
       ],
