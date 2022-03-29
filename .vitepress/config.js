@@ -12,42 +12,42 @@ async function getConfig() {
         }
       ],
       ['meta', { name: 'keywords', content: 'Jiang的个人博客' }],
-      ['link', { rel: 'icon', href: '/favicon.ico' }],
+      ['link', { rel: 'icon', href: '/favicon.ico' }]
       // 引入 Gitalk
-      [
-        'link',
-        { rel: 'stylesheet', href: 'https://unpkg.com/gitalk/dist/gitalk.css' }
-      ],
-      ['script', { src: 'https://unpkg.com/gitalk/dist/gitalk.min.js' }],
-      [
-        'script',
-        {
-          src: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js'
-        }
-      ],
-      [
-        'script',
-        {
-          src: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.js'
-        }
-      ],
-      [
-        'link',
-        {
-          rel: 'stylesheet',
-          type: 'text/css',
-          href: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.css'
-        }
-      ]
+      // [
+      //   'link',
+      //   { rel: 'stylesheet', href: 'https://unpkg.com/gitalk/dist/gitalk.css' }
+      // ],
+      // ['script', { src: 'https://unpkg.com/gitalk/dist/gitalk.min.js' }],
+      // [
+      //   'script',
+      //   {
+      //     src: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js'
+      //   }
+      // ],
+      // [
+      //   'script',
+      //   {
+      //     src: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.js'
+      //   }
+      // ],
+      // [
+      //   'link',
+      //   {
+      //     rel: 'stylesheet',
+      //     type: 'text/css',
+      //     href: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.css'
+      //   }
+      // ]
     ],
     title: "Jiang's Blog",
     themeConfig: {
       pages: await getPages(),
       author: 'Jiang',
-      algolia: {
-        apiKey: '20a5e8ceef472b845b59bc164e9fae87',
-        indexName: 'jiang'
-      },
+      // algolia: {
+      //   apiKey: '20a5e8ceef472b845b59bc164e9fae87',
+      //   indexName: 'jiang'
+      // },
       search: true,
       nav: [
         { text: '🏡首页', link: '/' },

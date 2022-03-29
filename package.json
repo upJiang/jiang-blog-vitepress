@@ -16,14 +16,11 @@
     "husky": "^7.0.0",
     "lint-staged": "^11.0.0",
     "mz": "^2.7.0",
-    "prettier": "^2.3.2",
-    "vitepress": "^0.7.2"
+    "prettier": "^2.3.2"
+   
   },
   "dependencies": {
-    "gitalk": "^1.7.0",
-    "@docsearch/css": "^1.0.0-alpha.28",
-    "@docsearch/js": "^1.0.0-alpha.28",
-    "algoliasearch": "^4.8.1"
+    "vitepress": "^0.7.2"
   },
   "scripts": {
     "dev": "npx vitepress --port 9999",

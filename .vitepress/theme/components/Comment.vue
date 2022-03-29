@@ -1,5 +1,5 @@
 // Comment.vue
-<template>
+<!-- <template>
   <div id="gitalk-container"></div>
 </template>
 
@@ -18,4 +18,4 @@ export default {
     gitalk.render('gitalk-container')
   }
 }
-</script>
+</script> -->
