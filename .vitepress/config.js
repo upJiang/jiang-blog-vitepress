@@ -19,12 +19,12 @@ async function getConfig() {
       //   { rel: 'stylesheet', href: 'https://unpkg.com/gitalk/dist/gitalk.css' }
       // ],
       // ['script', { src: 'https://unpkg.com/gitalk/dist/gitalk.min.js' }],
-      // [
-      //   'script',
-      //   {
-      //     src: 'http://code.jquery.com/jquery-migrate-1.2.1.min.js'
-      //   }
-      // ],
+      [
+        'script',
+        {
+          src: 'https://cdn.staticfile.org/jquery/2.0.0/jquery.min.js'
+        }
+      ],
       [
         'script',
         {
