@@ -12,7 +12,7 @@ async function getConfig() {
         }
       ],
       ['meta', { name: 'keywords', content: 'Jiang的个人博客' }],
-      ['link', { rel: 'icon', href: '/favicon.ico' }]
+      ['link', { rel: 'icon', href: '/favicon.ico' }],
       // 引入 Gitalk
       // [
       //   'link',
@@ -22,23 +22,23 @@ async function getConfig() {
       // [
       //   'script',
       //   {
-      //     src: 'https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js'
+      //     src: 'http://code.jquery.com/jquery-migrate-1.2.1.min.js'
       //   }
       // ],
-      // [
-      //   'script',
-      //   {
-      //     src: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.js'
-      //   }
-      // ],
-      // [
-      //   'link',
-      //   {
-      //     rel: 'stylesheet',
-      //     type: 'text/css',
-      //     href: 'https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.2/jquery.fancybox.min.css'
-      //   }
-      // ]
+      [
+        'script',
+        {
+          src: 'https://cdn.jsdelivr.net/npm/@fancyapps/ui@4.0/dist/fancybox.umd.js'
+        }
+      ],
+      [
+        'link',
+        {
+          rel: 'stylesheet',
+          type: 'text/css',
+          href: 'https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css'
+        }
+      ]
     ],
     title: "Jiang's Blog",
     themeConfig: {
@@ -231,7 +231,7 @@ async function getConfig() {
                 link: '/docs/jsAdvanced/performance'
               },
               {
-                text: '服务器知识',
+                text: '服务器搭建',
                 link: '/docs/jsAdvanced/server'
               }
             ]

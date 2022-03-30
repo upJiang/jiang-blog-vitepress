@@ -50,5 +50,100 @@
 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/16a68c3ef0b64a02ae1e9b5d586a8984~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/16a68c3ef0b64a02ae1e9b5d586a8984~tplv-k3u1fbpfcp-watermark.image?)</a>
 至此，访问子域名就是博客地址了~
 
+## 将博客上传到服务器，不使用github page
+>github page 在国内有时候访问实在是太慢了，顶不住。现在直接把文件上传到服务器。思路就是创建一个 git 的用户，然后这个用户通过 ssh 的公钥免密登录，新建一个 git 仓库用户上传。
+
+注意：创建文件夹或者文件的时候尽量使用命令，否则会因为操作系统不同导致找不到该文件
+### 创建 git 用户
+观察 Github Clone 时的 SSH 地址，都是 git@xxx，其实就是以 git 用户的身份登录了 github.com。<br>
+ssh 语法
+```
+ssh [USER@]HOSTNAME
+```
+效仿这种做法，在我们的服务器上也创建一个 git 用户管理远程仓库
+```
+# 添加一个名为 git 的用户
+adduser git
+# 设置 git 用户的密码，先随便填，后面通过 ssh 免密登录
+passwd git
+# 提权
+sudo visudo
+# 在文件里写入
+git ALL=(ALL:ALL) ALL
+# 保存提出，然后切换到 git 用户
+su git
+```
+### git 用户免密登录
+>这时候登录是需要密码的 ssh -v git@8.141.xxx.xxx
+```
+# 保证是在 git 用户下
+su git
+# 进入用户主目录
+cd ~
+
+# 创建 .ssh 目录，可能已存在
+mkdir .ssh && cd .ssh
+
+# 创建 authorized_keys 文件，可能已存在
+touch authorized_keys
+
+# 在本地起一个终端，获取本地公钥
+cat ~/.ssh/id_rsa.pub
+
+# 登陆服务器，将获取的公钥写入服务器的 authorized_keys
+echo "这里修改为你的公钥内容" >> ~/.ssh/authorized_keys
+
+# 给相关文件添加执行权限
+chmod 600 ~/.ssh/authorized_keys
+chmod 700 ~/.ssh
+```
+注意宝塔要开启允许 ssh 登录，在安全那里
+
+### 创建远程仓库
+新增一个子域名网站: `blog.junfeng530.xyz`，注意域名解析，以及 ssl 证书
+```
+# 进入代码仓库目录
+cd /www/wwwroot/blog.junfeng530.xyz
+
+# 赋予 git 用户权限
+sudo chown git:git /www/wwwroot/blog.junfeng530.xyz
+
+# 创建代码目录
+mkdir blog.git
+
+# 进入代码目录
+cd blog.git
+
+# 初始化
+git init --bare 
+```
+至此，我们生成了一个远程仓库地址，它的 SSH 地址是：
+```
+git@121.4.86.16:/www/wwwroot/blog.junfeng530.xyz/blog.git
+```
+这里我们使用 git init --bare 初始化仓库，它与我们常使用的 git init 初始化的仓库不一样，你可以理解为它专门用来创建远程仓库，这种仓库只包括 git 版本控制相关的文件，不含项目源文件，所以我们需要借助一个 hooks，在有代码提交到该仓库的时候，将提交的代码迁移到其他目录，这里我们直接把代码提交到 /www/wwwroot/blog.junfeng530.xyz 目录中，这样也省去了 nginx 转发这些步骤：
+```
+# 进入 hooks 目录
+cd hooks
+
+# 创建并编辑 post-receive 文件
+vim post-receive
+
+# 这里是 post-receive 写入的内容
+
+#!/bin/bash
+git --work-tree=/www/wwwroot/blog.junfeng530.xyz checkout -f
+
+# 赋予执行权限
+chmod +x post-receive
+```
+### 修改博客脚本的提交地址
+```
+git push -f git@121.4.86.16:/www/wwwroot/blog.junfeng530.xyz/blog.git master
+```
+至此，执行脚本，就能将代码顺利推到 `/www/wwwroot/blog.junfeng530.xyz` 目录中，通过子域名也能正常访问博客，并且秒开，就很棒！
+
+[参考文档](https://github.com/mqyqingfeng/Blog/issues/243)
+
 
 
