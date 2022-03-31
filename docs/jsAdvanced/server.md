@@ -141,7 +141,7 @@ chmod +x post-receive
 ```
 git push -f git@121.4.86.16:/www/wwwroot/blog.junfeng530.xyz/blog.git master
 ```
-至此，执行脚本，就能将代码顺利推到 `/www/wwwroot/blog.junfeng530.xyz` 目录中，通过子域名也能正常访问博客，并且秒开，就很棒！
+至此，执行脚本，就能将代码顺利推到 `/www/wwwroot/blog.junfeng530.xyz` 目录中，通过子域名也能正常访问博客，并且秒开，就很棒！~
 
 [参考文档](https://github.com/mqyqingfeng/Blog/issues/243)
 
