@@ -57,7 +57,7 @@ async function getConfig() {
             { text: '😘 重学前端', link: '/docs/reStudy/start' },
             { text: '🤣 前端算法', link: '/docs/algorithm/dataStructures' },
             { text: '😊 babel通关秘籍', link: '/docs/babel/start' },
-            { text: '😇 前端面试之道', link: '/docs/howReview/start' }
+            { text: '😇 前端面试之道', link: '/docs/howReview/jsBase' }
           ]
         },
         { text: '📚基础', link: '/docs/jsBase/git' },
@@ -285,6 +285,12 @@ async function getConfig() {
           {
             text: 'babel 通关秘籍',
             children: [{ text: '介绍', link: '/docs/babel/start' }]
+          }
+        ],
+        '/docs/howReview': [
+          {
+            text: '前端面试之道',
+            children: [{ text: '介绍', link: '/docs/howReview/jsBase' }]
           }
         ]
       }
