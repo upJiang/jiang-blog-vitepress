@@ -287,10 +287,10 @@ async function getConfig() {
             children: [{ text: '介绍', link: '/docs/babel/start' }]
           }
         ],
-        '/docs/howReview': [
+        '/docs/howReview/': [
           {
             text: '前端面试之道',
-            children: [{ text: '介绍', link: '/docs/howReview/jsBase' }]
+            children: [{ text: 'js基础', link: '/docs/howReview/jsBase' }]
           }
         ]
       }
