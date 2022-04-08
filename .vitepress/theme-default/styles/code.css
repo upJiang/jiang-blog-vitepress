@@ -1,7 +1,9 @@
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, Courier New, monospace;
   font-size: 0.85em;
-  color: var(--text-color-light);
+  color: #ff502c;
+  background-color: #fff5f5;
+  border-radius: 2px;
   /* background-color: rgba(27, 31, 35, 0.05); */
   padding: 0.25rem 0.5rem;
   border-radius: 3px;
@@ -49,6 +51,7 @@ div[class*='language-']:before {
 
 [class*='language-'] code {
   color: black;
+  background: none !important;
   padding: 0;
 }
 

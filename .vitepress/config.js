@@ -57,7 +57,8 @@ async function getConfig() {
             { text: '😘 重学前端', link: '/docs/reStudy/start' },
             { text: '🤣 前端算法', link: '/docs/algorithm/dataStructures' },
             { text: '😊 babel通关秘籍', link: '/docs/babel/start' },
-            { text: '😇 前端面试之道', link: '/docs/howReview/jsBase' }
+            { text: '😇 前端面试之道', link: '/docs/howReview/jsBase' },
+            { text: '😲 深入浅出vite', link: '/docs/vite/start' }
           ]
         },
         { text: '📚基础', link: '/docs/jsBase/git' },
@@ -291,6 +292,16 @@ async function getConfig() {
           {
             text: '前端面试之道',
             children: [{ text: 'js基础', link: '/docs/howReview/jsBase' }]
+          }
+        ],
+        '/docs/vite/': [
+          {
+            text: '深入浅出vite',
+            children: [
+              { text: '开篇', link: '/docs/vite/start' },
+              { text: '前端模块化', link: '/docs/vite/module' },
+              { text: '搭建vite项目', link: '/docs/vite/init' }
+            ]
           }
         ]
       }
