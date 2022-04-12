@@ -15,6 +15,29 @@ cd vite-project
 pnpm install
 # 启动项目
 pnpm run dev
+# 删除自动生成的 tsconfig.node.json，并编辑 tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "baseUrl": "src",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["./src"]
+}
 ```
 ## 项目入口加载
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e77d3505dfb24a42b53c6c986fb83e71~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e77d3505dfb24a42b53c6c986fb83e71~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
@@ -263,30 +286,31 @@ module.exports = {
 ```
 ## Prettier
 虽然 ESLint 本身具备自动格式化代码的功能(`eslint --fix`)，但术业有专攻，ESLint 的主要优势在于`代码的风格检查并给出提示`，而在代码格式化这一块 Prettier 做的更加专业，因此我们经常将 ESLint 结合 Prettier 一起使用。
+#### 安装 Prettier
 ```
-# 安装 Prettier
 pnpm i prettier -D
 ```
-在项目根目录新建 `.prettierrc.js` 配置文件，填写如下的配置内容:
+#### 在项目根目录新建 `.prettierrc.js` 配置文件，填写如下的配置内容:
 ```
 // .prettierrc.js
 module.exports = {
   printWidth: 80, //一行的字符数，如果超过会进行换行，默认为80
   tabWidth: 2, // 一个 tab 代表几个空格数，默认为 2 个
   useTabs: false, //是否使用 tab 进行缩进，默认为false，表示用空格进行缩减
-  singleQuote: false, // 字符串是否使用单引号，默认为 false，使用双引号
+  singleQuote: true, // 字符串是否使用单引号，默认为 false，使用双引号
   semi: true, // 行尾是否使用分号，默认为true
   trailingComma: "none", // 是否使用尾逗号
   bracketSpacing: true // 对象大括号直接是否有空格，默认为 true，效果：{ a: 1 }
 };
 ```
-将Prettier集成到现有的ESLint工具中，安装两个工具包:
+#### 将Prettier集成到现有的ESLint工具中，安装两个工具包:
 - eslint-config-prettier：用来覆盖 ESLint 本身的规则配置
 - eslint-plugin-prettier：让 Prettier 来接管eslint --fix即修复代码的能力
 ```
 pnpm i eslint-config-prettier eslint-plugin-prettier -D
 ```
-在 .eslintrc.js 配置文件中接入 prettier 的相关工具链：
+
+#### 在 .eslintrc.js 配置文件中接入 prettier 的相关工具链：
 ```
 // .eslintrc.js
 module.exports = {
@@ -295,47 +319,60 @@ module.exports = {
     es2021: true
   },
   extends: [
-    "eslint:recommended",
-    "plugin:react/recommended",
-    "plugin:@typescript-eslint/recommended",
+    'eslint:recommended',
+    'plugin:react/recommended',
+    'plugin:@typescript-eslint/recommended',
     // 1. 接入 prettier 的规则
-    "prettier",
-    "plugin:prettier/recommended"
+    'prettier',
+    'plugin:prettier/recommended'
   ],
-  parser: "@typescript-eslint/parser",
+  parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaFeatures: {
       jsx: true
     },
-    ecmaVersion: "latest",
-    sourceType: "module"
+    ecmaVersion: 'latest',
+    sourceType: 'module'
   },
   // 2. 加入 prettier 的 eslint 插件
-  plugins: ["react", "@typescript-eslint", "prettier"],
+  plugins: ['react', '@typescript-eslint', 'prettier'],
   rules: {
     // 3. 注意要加上这一句，开启 prettier 自动修复的功能
-    "prettier/prettier": "error",
-    quotes: ["error", "single"],
-    semi: ["error", "always"],
-    "react/react-in-jsx-scope": "off"
+    'prettier/prettier': 'error',
+    quotes: ['error', 'single'],
+    semi: ['error', 'always'],
+    'react/react-in-jsx-scope': 'off'
+  },
+  // 指定 react 版本
+  settings: {
+    react: {
+      version: 'detect'
+    }
   }
 };
 ```
-在 package.json 添加脚本
+#### 在 package.json 添加脚本
 ```
 {
   "scripts": {
-    // 省略已有 script
     "lint:script": "eslint --ext .js,.jsx,.ts,.tsx --fix --quiet ./",
   }
 }
-``` 
+```
+#### 新建并编辑 .vscode/settings.json
+```
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode"  //支持 tsx 这些文件的 prettier 自动格式化
+}
+
+```
 ### 在 Vite 中接入 ESLint
-安装 Vite 中的 ESLint 插件:
+#### 安装 Vite 中的 ESLint 插件:
 ```
 pnpm i vite-plugin-eslint -D
 ```
-vite.config.ts 中接入:
+#### vite.config.ts 中接入:
 ```
 // vite.config.ts
 import viteEslint from 'vite-plugin-eslint';
@@ -348,3 +385,143 @@ import viteEslint from 'vite-plugin-eslint';
   ]
 }
 ```
+配置好后在项目运行时即可捕捉到 eslint 的错误并提示，并且及时修复它
+
+## styleLint
+#### 安装 styleLint
+```
+pnpm i stylelint stylelint-prettier stylelint-config-prettier stylelint-config-recess-order stylelint-config-standard stylelint-config-standard-scss -D
+```
+#### 新建并编辑 .stylelintrc.js
+```
+module.exports = {
+  // 注册 stylelint 的 prettier 插件
+  plugins: ['stylelint-prettier'],
+  // 继承一系列规则集合
+  extends: [
+    // standard 规则集合
+    'stylelint-config-standard',
+    // standard 规则集合的 scss 版本
+    'stylelint-config-standard-scss',
+    // 样式属性顺序规则
+    'stylelint-config-recess-order',
+    // 接入 Prettier 规则
+    'stylelint-config-prettier',
+    'stylelint-prettier/recommended'
+  ],
+  // 配置 rules
+  rules: {
+    // 开启 Prettier 自动格式化功能
+    'prettier/prettier': true
+  }
+};
+```
+
+#### 在 package.json 添加脚本
+```
+{
+  "scripts": {
+    // 整合 lint 命令
+    "lint": "npm run lint:script && npm run lint:style",
+    // stylelint 命令
+    "lint:style": "stylelint --fix \"src/**/*.{css,scss}\""
+  }
+}
+```
+### 在 Vite 中接入 styleLint
+#### 安装 stylelint
+```
+pnpm i @amatlash/vite-plugin-stylelint -D
+```
+#### 在 Vite 配置文件中添加如下的内容:
+```
+import viteStylelint from '@amatlash/vite-plugin-stylelint';
+
+{
+  plugins: [
+    // 省略其它插件
+    viteStylelint({
+      // 对某些文件排除检查
+      exclude: /windicss|node_modules/
+    }),
+  ]
+}
+```
+#### 编辑 .vscode/settings.json，添加 styleLint 配置
+```
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.stylelint": true
+  },
+  "stylelint.validate": ["css", "less", "scss"]
+}
+```
+配置好后，在运行阶段就能捕获 styleLint 错误，并及时修正。
+
+>stylelint 默认规则不能首字母大写，可自行修改配置或者忽略文件的验证
+
+## husky
+```
+# 安装依赖
+pnpm i husky -D
+```
+#### 初始化 Husky: npx husky install，并将 husky install作为项目启动前脚本，如:
+```
+{
+  "scripts": {
+    // 会在安装 npm 依赖后自动执行
+    "postinstall": "husky install"
+  }
+}
+
+要在终端执行  npx husky install 或者 pnpm run postinstall
+```
+#### 添加 Husky 钩子，在终端执行如下命令:
+```
+npx husky add .husky/pre-commit "npm run lint"
+
+# windows 10 需要执行才生效：
+npx husky add .husky/pre-commit "npm-run-test"
+```
+#### 配置 lint-staged，只检查暂存区
+```
+# 安装依赖
+pnpm i -D lint-staged
+
+# 在 package.json 写入
+"lint-staged": {
+    "**/*.{js,jsx,tsx,ts,json}": [
+      "npm run lint:script",
+      "git add --force"
+    ],
+    "**/*.{scss,css,less}": [
+      "npm run lint:style",
+      "git add --force"
+    ]
+}
+
+# 把 pre-commit 里的脚本改成
+npx --no -- lint-staged
+```
+#### 提交时的 commit 信息规范
+```
+# 安装依赖
+pnpm i commitlint @commitlint/cli @commitlint/config-conventional -D
+
+# 新建.commitlintrc.js：
+// .commitlintrc.js
+module.exports = {
+  extends: ["@commitlint/config-conventional"]
+};
+
+# 将commitlint的功能集成到 Husky 的钩子当中,windows 10 就改一下写入的内容为xxx，后面自己手动去改吧
+npx husky add .husky/commit-msg "npx --no-install commitlint -e $HUSKY_GIT_PARAMS"
+```
+常用规范如下:
+- feat: 添加新功能。
+- fix: 修复 Bug。
+- chore: 一些不影响功能的更改。
+- docs: 专指文档的修改。
+- perf: 性能方面的优化。
+- refactor: 代码重构。
+- test: 添加一些测试代码等等。

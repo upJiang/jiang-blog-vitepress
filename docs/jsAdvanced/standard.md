@@ -187,7 +187,6 @@ insert_final_newline = false
 
 ## 添加 stylelint
 **1. 安装依赖**
-stylelint 高版本可能会出问题，包括插件版本，我这套目前没问题，Stylelint 插件使用 0.87.6
 ```
 "stylelint": "^13.13.1",
 "stylelint-config-prettier": "^9.0.3",
@@ -436,6 +435,17 @@ public/*
 *.webp
 *.ttf
 *.woff
+```
+**4. 保存自动格式化，.vscode/settings.json**
+```
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.stylelint": true
+  },
+  "stylelint.validate": ["css", "less", "scss", "vue"]
+}
 ```
 至此，当您保存有样式的文件的时候，会自动帮您格式化样式，在提交代码时会检查eslint、stylelint、commit信息了。
 
