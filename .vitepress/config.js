@@ -293,7 +293,8 @@ async function getConfig() {
             text: '前端面试之道',
             children: [
               { text: 'js基础', link: '/docs/howReview/jsBase' },
-              { text: 'es6', link: '/docs/howReview/es6' }
+              { text: 'es6', link: '/docs/howReview/es6' },
+              { text: '异步编程', link: '/docs/howReview/async' }
             ]
           }
         ],
