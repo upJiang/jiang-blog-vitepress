@@ -252,7 +252,8 @@ async function getConfig() {
             text: '工作问题',
             children: [
               { text: 'h5', link: '/docs/work/h5' },
-              { text: 'vue', link: '/docs/work/vue' }
+              { text: 'vue', link: '/docs/work/vue' },
+              { text: '构建', link: '/docs/work/init' }
             ]
           }
         ],

@@ -14,3 +14,6 @@ vue-cropper 插件会根据设备的缩放比输出结果图片
 }"
 
 ```
+
+## 添加 keepalive 的页面偶然会出现 Node.insertBefore: Argument 1 is not an object
+解决方案：升级vite版本，vite 旧版本在打包模式在 production 会出现问题 
