@@ -17,3 +17,6 @@ vue-cropper 插件会根据设备的缩放比输出结果图片
 
 ## 添加 keepalive 的页面偶然会出现 Node.insertBefore: Argument 1 is not an object
 解决方案：升级vite版本，vite 旧版本在打包模式在 production 会出现问题 
+
+## unplugin-vue-components 自动导入导致开发加载缓慢，一直 dependencies updated, reloading page
+解决方案：安装 yarn add vite-plugin-optimize-persist vite-plugin-package-config -D。会自动在 package.json 生成好依赖，其实就是利用 `optimizeDeps: {include: ["xxx"];}`这个 vite 配置预构建

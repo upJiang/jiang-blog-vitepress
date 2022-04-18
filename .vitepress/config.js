@@ -306,7 +306,9 @@ async function getConfig() {
               { text: '开篇', link: '/docs/vite/start' },
               { text: '前端模块化', link: '/docs/vite/module' },
               { text: '搭建vite项目', link: '/docs/vite/init' },
-              { text: '处理静态资源', link: '/docs/vite/handleStatic' }
+              { text: '处理静态资源', link: '/docs/vite/handleStatic' },
+              { text: '预构建', link: '/docs/vite/construction' },
+              { text: 'vite 的实现', link: '/docs/vite/achieve' }
             ]
           }
         ]

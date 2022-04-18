@@ -339,7 +339,7 @@ export default function SvgIcon({
   const symbolId = `#${prefix}-${name}`;
 
   return (
-    <svg {...props} aria-hidden="true">
+    <svg {...props} aria-hidden="true">1
       <use href={symbolId} fill={color} />
     </svg>
   );
