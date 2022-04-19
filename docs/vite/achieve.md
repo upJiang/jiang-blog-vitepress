@@ -27,3 +27,41 @@ Esbuild 作为打包工具也有一些缺点:
 
 也就是说，Esbuild 转译 TS 或者 JSX 的能力通过 Vite 插件提供，这个 Vite 插件在开发环境和生产环境都会执行，因此，我们可以得出下面这个结论:
 >Vite 已经将 Esbuild 的 Transformer 能力用到了生产环境。
+
+### 三、代码压缩——作为压缩工具
+>Vite 从 2.6 版本开始，就官宣默认使用 Esbuild 来进行生产环境的代码压缩，包括 JS 代码和 CSS 代码。
+
+传统的方式都是使用 Terser 这种 JS 开发的压缩器来实现，在 Webpack 或者 Rollup 中作为一个 Plugin 来完成代码打包后的压缩混淆的工作。但 Terser 其实很慢，主要有 2 个原因。
+- 压缩这项工作涉及大量 AST 操作，并且在传统的构建流程中，AST 在各个工具之间无法共享，比如 Terser 就无法与 Babel 共享同一个 AST，造成了很多重复解析的过程。
+- JS 本身属于解释性 + JIT（即时编译） 的语言，对于压缩这种 CPU 密集型的工作，其性能远远比不上 Golang 这种原生语言。
+
+因此，Esbuild 这种`从头到尾共享 AST 以及原生语言编写`的 Minifier 在性能上能够甩开传统工具的好几十倍。
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/48a7b8bac5f54d84b33ab060c7df2299~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/48a7b8bac5f54d84b33ab060c7df2299~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
+压缩一个大小为3.2 MB的库，Terser 需要耗费8798 ms，而 Esbuild 仅仅需要361 ms，`压缩效率较 Terser 提升了二三十倍，并且产物的体积几乎没有劣化`，因此 Vite 果断将其内置为默认的压缩方案。
+
+## 构建基石——Rollup
+>Rollup 在 Vite 中的重要性一点也不亚于 Esbuild，`它既是 Vite 用作生产环境打包的核心工具，也直接决定了 Vite 插件机制的设计`。那么，Vite 到底基于 Rollup 做了哪些事情？
+### 生产环境 Bundle
+虽然 ESM 已经得到众多浏览器的原生支持，但生产环境做到完全 no-bundle 也不行，会有网络性能问题。为了在生产环境中也能取得优秀的产物性能，Vite 默认选择在生产环境中利用 `Rollup` 打包，并基于 Rollup 本身成熟的打包能力进行扩展和优化，主要包含 3 个方面:
+- `CSS 代码分割`。如果某个异步模块中引入了一些 CSS 代码，Vite 就会自动将这些 CSS 抽取出来生成单独的文件，`提高线上产物的缓存复用率`。
+- 自动预加载。Vite 会自动为入口 `chunk` 的依赖自动生成预加载标签 `<link rel="moduelpreload">` ，如:
+    ```
+        <head>
+        <!-- 省略其它内容 -->
+        <!-- 入口 chunk -->
+        <script type="module" crossorigin src="/assets/index.250e0340.js"></script>
+        <!--  自动预加载入口 chunk 所依赖的 chunk-->
+        <link rel="modulepreload" href="/assets/vendor.293dca09.js">
+        </head>
+    ```
+- 异步 Chunk 加载优化。在异步引入的 Chunk 中，通常会有一些公用的模块，如现有两个异步引入的 Chunk: A 和 B，而且两者有一个公共依赖 C，如下图:<br>
+<a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5adc9b7c9426424f99be3a7044e3469f~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5adc9b7c9426424f99be3a7044e3469f~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+一般情况下，Rollup 打包之后，会先请求 A，然后浏览器在加载 A 的过程中才决定请求和加载 C，但 Vite 进行优化之后，请求 A 的同时会自动预加载 C，通过优化 Rollup 产物依赖加载方式节省了不必要的网络开销。
+
+### 兼容插件机制
+无论是开发阶段还是生产环境，Vite 都根植于 Rollup 的插件机制和生态，如下面的架构图所示:<br>
+<a data-fancybox title="img" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/db5342d894e649ca8a953e3880fc96fb~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/db5342d894e649ca8a953e3880fc96fb~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+
+在开发阶段，Vite 借鉴了 [WMR](https://github.com/preactjs/wmr) 的思路，自己实现了一个 `Plugin Container`，用来模拟 Rollup 调度各个 Vite 插件的执行逻辑，而 Vite 的插件写法完全兼容 Rollup，因此在生产环境中将所有的 Vite 插件传入 Rollup 也没有问题，反过来说，Rollup 插件却不一定能完全兼容 Vite。
