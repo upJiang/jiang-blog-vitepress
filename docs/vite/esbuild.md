@@ -338,7 +338,7 @@ let examplePlugin = {
 - onStart 的执行时机是在每次 build 的时候，包括触发 `watch` 或者 `serve` 模式下的重新构建。
 - onEnd 钩子中如果要拿到 `metafile`，必须将 Esbuild 的构建配置中 `metafile` 属性设为 `true`。
 
-## 实战1: CDN 依赖拉取插件
+## 实战 1: CDN 依赖拉取插件
 Esbuild 原生不支持通过 HTTP 从 CDN 服务上拉取对应的第三方依赖资源，如下代码所示:
 ```
 // src/index.jsx
@@ -352,7 +352,7 @@ render(<Greet />, document.getElementById("root"));
 ```
 现在我们需要通过 Esbuild 插件来识别这样的 url 路径，然后从网络获取模块内容并让 Esbuild 进行加载，甚至不再需要npm install安装依赖了
 
-新建 plugin/http-import-plugin.js
+1. 新建 plugin/http-import-plugin.js
 ```
 // http-import-plugin.js
 module.exports = () => ({
@@ -361,13 +361,10 @@ module.exports = () => ({
     let https = require("https");
     let http = require("http");
 
-    // 1. 拦截 CDN 请求
-    // 拦截间接依赖的路径，并重写路径
-    // tip: 间接依赖同样会被自动带上 `http-url`的 namespace
-    build.onResolve({ filter: /.*/, namespace: "http-url" }, (args) => ({
-     // 重写路径
-     path: new URL(args.path, args.importer).toString(),
-     namespace: "http-url",
+      // 1. 拦截 CDN 请求
+    build.onResolve({ filter: /^https?:\/\// }, (args) => ({
+      path: args.path,
+      namespace: "http-url",
     }));
 
     // 2. 通过 fetch 请求加载 CDN 资源
@@ -402,14 +399,14 @@ module.exports = () => ({
   },
 });
 ```
-新建 esbuildTest/pluginBuild.js文件，内容如下:
+2. 新建 esbuildTest/pluginBuild.js文件，注意 entryPoints 的路径是相对于一级目录的：
 ```
 const { build } = require("esbuild");
 const httpImport = require("./http-import-plugin");
 async function runBuild() {
   build({
     absWorkingDir: process.cwd(),
-    entryPoints: ["./src/index.jsx"],
+    entryPoints: ["./esbuildTest/httpPlugin.jsx"],
     outdir: "dist",
     bundle: true,
     format: "esm",
@@ -424,7 +421,7 @@ async function runBuild() {
 
 runBuild();
 ```
-新建 esbuildTest/httpPlugin.jsx
+3. 新建 esbuildTest/httpPlugin.jsx
 ```
 // 这段代码目前是无法运行的
 import { render } from "https://cdn.skypack.dev/react-dom";
@@ -433,3 +430,144 @@ let Greet = () => <h1>Hello, juejin!</h1>;
 
 render(<Greet />, document.getElementById("root"));
 ```
+<a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/19c6f133b45e4b9f9dabfabad3d5c1e7~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/19c6f133b45e4b9f9dabfabad3d5c1e7~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+
+4. 除了要解析 react-dom 这种直接依赖的路径，还要解析它依赖的路径，也就是间接依赖的路径，处理间接依赖，改写 build.onResolve：
+```
+// 拦截间接依赖的路径，并重写路径
+// tip: 间接依赖同样会被自动带上 `http-url`的 namespace
+build.onResolve({ filter: /.*/, namespace: "http-url" }, (args) => ({
+  // 重写路径
+  path: new URL(args.path, args.importer).toString(),
+  namespace: "http-url",
+}));
+```
+5. 执行 `node pluginTest/pluginBuild.js`
+
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/dd506b163ab3454b9225ef2420c02130~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/dd506b163ab3454b9225ef2420c02130~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f9ddb2570b8f4c95a209807fbe5a7561~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f9ddb2570b8f4c95a209807fbe5a7561~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+### 实战 2: 实现 HTML 构建插件
+>通过 Esbuild 插件的方式来自动化地生成 HTML 
+
+在 Esbuild 插件的 onEnd 钩子中可以拿到 metafile 对象的信息:
+```
+{
+  "inputs": { /* 省略内容 */ },
+  "output": {
+    "dist/index.js": {
+      imports: [],
+      exports: [],
+      entryPoint: 'src/index.jsx',
+      inputs: {
+        'http-url:https://cdn.skypack.dev/-/object-assign@v4.1.1-LbCnB3r2y2yFmhmiCfPn/dist=es2019,mode=imports/optimized/object-assign.js': { bytesInOutput: 1792 },
+        'http-url:https://cdn.skypack.dev/-/react@v17.0.1-yH0aYV1FOvoIPeKBbHxg/dist=es2019,mode=imports/optimized/react.js': { bytesInOutput: 10396 },
+        'http-url:https://cdn.skypack.dev/-/scheduler@v0.20.2-PAU9F1YosUNPKr7V4s0j/dist=es2019,mode=imports/optimized/scheduler.js': { bytesInOutput: 9084 },
+        'http-url:https://cdn.skypack.dev/-/react-dom@v17.0.1-oZ1BXZ5opQ1DbTh7nu9r/dist=es2019,mode=imports/optimized/react-dom.js': { bytesInOutput: 183229 },
+        'http-url:https://cdn.skypack.dev/react-dom': { bytesInOutput: 0 },
+        'src/index.jsx': { bytesInOutput: 178 }
+      },
+      bytes: 205284
+    },
+    "dist/index.js.map": { /* 省略内容 */ }
+  }
+}
+```
+从outputs属性中我们可以看到产物的路径，这意味着我们可以在插件中拿到所有 js 和 css 产物，然后自己组装、生成一个 HTML，实现自动化生成 HTML 的效果。
+
+1. 新建 `plugin/html-plugin.js`
+```
+const fs = require("fs/promises");
+const path = require("path");
+const { createScript, createLink, generateHTML } = require('./util');
+
+module.exports = () => {
+  return {
+    name: "esbuild:html",
+    setup(build) {
+      build.onEnd(async (buildResult) => {
+        if (buildResult.errors.length) {
+          return;
+        }
+        const { metafile } = buildResult;
+        // 1. 拿到 metafile 后获取所有的 js 和 css 产物路径
+        const scripts = [];
+        const links = [];
+        if (metafile) {
+          const { outputs } = metafile;
+          const assets = Object.keys(outputs);
+
+          assets.forEach((asset) => {
+            if (asset.endsWith(".js")) {
+              scripts.push(createScript(asset));
+            } else if (asset.endsWith(".css")) {
+              links.push(createLink(asset));
+            }
+          });
+        }
+        // 2. 拼接 HTML 内容
+        const templateContent = generateHTML(scripts, links);
+        // 3. HTML 写入磁盘
+        const templatePath = path.join(process.cwd(), "index.html");
+        await fs.writeFile(templatePath, templateContent);
+      });
+    },
+  };
+};
+```
+2. 新建工具函数 `plugin/util.js`
+```
+const createScript = (src) => `<script type="module" src="${src}"></script>`;
+const createLink = (src) => `<link rel="stylesheet" href="${src}"></link>`;
+const generateHTML = (scripts, links) => `
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Esbuild App</title>
+  ${links.join("\n")}
+</head>
+
+<body>
+  <div id="root"></div>
+  ${scripts.join("\n")}
+</body>
+
+</html>
+`;
+
+module.exports = { createLink, createScript, generateHTML };
+```
+3. 新建 `pluginTest/htmlBuild.js`
+```
+const { build } = require("esbuild");
+const html = require("../plugin/html-plugin");
+async function runBuild() {
+  build({
+    absWorkingDir: process.cwd(),
+    entryPoints: ["./pluginTest/httpPlugin.jsx"],
+    outdir: "dist",
+    bundle: true,
+    format: "esm",
+    splitting: true,
+    sourcemap: true,
+    metafile: true,
+    plugins: [html()],
+  }).then(() => {
+    console.log("🚀 Build Finished!");
+  }).catch((error)=>{
+    console.log("error",error);
+  })
+}
+
+runBuild();
+```
+4. 执行 `node pluginTest/htmlBuild.js`
+5. 执行完就会在根目录自动生成 `index.html`
+
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f04903f888d4b37b3fec8a857f9569e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f04903f888d4b37b3fec8a857f9569e~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+当然，如果要做一个足够通用的 HTML 插件，还需要考虑诸多的因素，比如`自定义 HTML 内容、自定义公共前缀(publicPath)、自定义 script 标签类型以及 多入口打包`等等，大家感兴趣的话可以自行扩展。(可参考这个[开源插件](https://github.com/sanyuan0704/ewas/blob/main/packages/esbuild-plugin-html/src/index.ts))

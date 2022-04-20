@@ -309,7 +309,8 @@ async function getConfig() {
               { text: '处理静态资源', link: '/docs/vite/handleStatic' },
               { text: '预构建', link: '/docs/vite/construction' },
               { text: 'vite 的实现', link: '/docs/vite/achieve' },
-              { text: 'Esbuild', link: '/docs/vite/esbuild' }
+              { text: 'Esbuild', link: '/docs/vite/esbuild' },
+              { text: 'Rollup', link: '/docs/vite/rollup' }
             ]
           }
         ]
