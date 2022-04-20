@@ -295,7 +295,8 @@ async function getConfig() {
             children: [
               { text: 'js基础', link: '/docs/howReview/jsBase' },
               { text: 'es6', link: '/docs/howReview/es6' },
-              { text: '异步编程', link: '/docs/howReview/async' }
+              { text: '异步编程', link: '/docs/howReview/async' },
+              { text: '浏览器知识', link: '/docs/howReview/brower' }
             ]
           }
         ],
