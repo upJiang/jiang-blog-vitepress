@@ -136,5 +136,116 @@ export default [buildIndexOptions, buildUtilOptions];
 ### 3. 自定义output配置
 刚才我们提到了input的使用，主要用来声明入口，可以配置成字符串、数组或者对象，使用比较简单。而output与之相对，用来配置输出的相关信息，常用的配置项如下:
 ```
+output: {
+  // 产物输出目录
+  dir: path.resolve(__dirname, 'dist'),
+  // 以下三个配置项都可以使用这些占位符:
+  // 1. [name]: 去除文件后缀后的文件名
+  // 2. [hash]: 根据文件名和文件内容生成的 hash 值
+  // 3. [format]: 产物模块格式，如 es、cjs
+  // 4. [extname]: 产物后缀名(带`.`)
+  // 入口模块的输出文件名
+  entryFileNames: `[name].js`,
+  // 非入口模块(如动态 import)的输出文件名
+  chunkFileNames: 'chunk-[hash].js',
+  // 静态资源文件输出文件名
+  assetFileNames: 'assets/[name]-[hash][extname]',
+  // 产物输出格式，包括`amd`、`cjs`、`es`、`iife`、`umd`、`system`
+  format: 'cjs',
+  // 是否生成 sourcemap 文件
+  sourcemap: true,
+  // 如果是打包出 iife/umd 格式，需要对外暴露出一个全局变量，通过 name 配置变量名
+  name: 'MyBundle',
+  // 全局变量声明
+  globals: {
+    // 项目中可以直接用`$`代替`jquery`
+    jquery: '$'
+  }
+}
+```
+### 4. 依赖 external
+对于某些第三方包，有时候我们`不想让 Rollup 进行打包`，也可以通过 external 进行外部化:
+```
+{
+  external: ['react', 'react-dom']
+}
+```
+
+### 5. 接入插件能力
+>在 Rollup 的日常使用中，我们难免会遇到一些 Rollup 本身不支持的场景，比如`兼容 CommonJS 打包、注入环境变量、配置路径别名、压缩产物代码` 等等。这个时候就需要我们引入相应的 Rollup 插件了。
+
+虽然 Rollup 能够打包输出出 CommonJS 格式的产物，但对于输入给 Rollup 的代码并不支持 CommonJS，仅仅支持 ESM。
+
+我们需要引入额外的插件去解决这个问题。lodash 的第三方依赖只有 CommonJS 格式产物。
+
+1. 安装两个核心的插件包:
+- `@rollup/plugin-node-resolve` 是为了`允许我们加载第三方依赖`，否则像 import React from 'react' 的依赖导入语句将不会被 Rollup 识别。
+- `@rollup/plugin-commonjs` 的作用是`将 CommonJS 格式的代码转换为 ESM 格式`
 
 ```
+pnpm i @rollup/plugin-node-resolve @rollup/plugin-commonjs
+```
+
+2. 在配置文件中导入这些插件:
+```
+// rollup.config.js
+import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
+
+/**
+ * @type { import('rollup').RollupOptions }
+ */
+export default {
+  input: ["src/index.js"],
+  output: [
+    {
+      dir: "dist/es",
+      format: "esm",
+    },
+    {
+      dir: "dist/cjs",
+      format: "cjs",
+    },
+  ],
+  // 通过 plugins 参数添加插件
+  plugins: [resolve(), commonjs()],
+};
+```
+
+3. 安装 `lodash` 
+```
+pnpm i lodash
+```
+4. 在 src/index.js 加入如下的代码:
+```
+import { merge } from "lodash";
+console.log(merge);
+```
+然后执行 npm run build，你可以发现产物已经正常生成了:
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/93d76ca19ce941a5b803ad367bdffa54~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/93d76ca19ce941a5b803ad367bdffa54~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+
+在 Rollup 配置文件中，`plugins 除了可以与 output 配置在同一级，也可以配置在 output 参数里面`，需要注意的是，output.plugins中配置的插件是有一定限制的，只有使用Output 阶段相关钩子的插件才能够放到这个配置中。如:
+```
+// rollup.config.js
+import { terser } from 'rollup-plugin-terser'
+import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
+
+export default {
+  output: {
+    // 加入 terser 插件，用来压缩代码
+    plugins: [terser()]
+  },
+  plugins: [resolve(), commonjs()]
+}
+```
+一些比较常用的 Rollup 插件库:
+- [@rollup/plugin-json](https://github.com/rollup/plugins/tree/master/packages/json)： 支持.json的加载，并配合rollup的Tree Shaking机制去掉未使用的部分，进行按需打包。
+- [@rollup/plugin-babel](https://github.com/rollup/plugins/tree/master/packages/babel)：在 Rollup 中使用 Babel 进行 JS 代码的语法转译。
+- [@rollup/plugin-typescript](https://github.com/rollup/plugins/tree/master/packages/typescript): 支持使用 TypeScript 开发。
+- [@rollup/plugin-alias](https://github.com/rollup/plugins/tree/master/packages/alias)：支持别名配置。
+- [@rollup/plugin-replace](https://github.com/rollup/plugins/tree/master/packages/replace)：在 Rollup 进行变量字符串的替换。
+- [rollup-plugin-visualizer](https://github.com/btd/rollup-plugin-visualizer): 对 Rollup 打包产物进行分析，自动生成产物体积可视化分析图。
+
+## JavaScript API 方式调用
