@@ -249,3 +249,147 @@ export default {
 - [rollup-plugin-visualizer](https://github.com/btd/rollup-plugin-visualizer): 对 Rollup 打包产物进行分析，自动生成产物体积可视化分析图。
 
 ## JavaScript API 方式调用
+以上我们通过 `Rollup` 的配置文件结合 `rollup -c` 完成了 Rollup 的打包过程，但有些场景下我们需要基于 Rollup 定制一些打包过程，配置文件就不够灵活了，这时候我们需要用到对应 `JavaScript API` 来调用 Rollup，主要分为 `rollup.rollup` 和 `rollup.watch` 两个 API
+
+`rollup.rollup`，用来一次性地进行 Rollup 打包，新建build.js，内容如下:
+```
+// build.js
+const rollup = require("rollup");
+
+// 常用 inputOptions 配置
+const inputOptions = {
+  input: "./src/index.js",
+  external: []
+  plugins:[]
+};
+
+const outputOptionsList = [
+  // 常用 outputOptions 配置
+  {
+    dir: 'dist/es',
+    entryFileNames: `[name].[hash].js`,
+    chunkFileNames: 'chunk-[hash].js',
+    assetFileNames: 'assets/[name]-[hash][extname]'
+    format: 'es',
+    sourcemap: true,
+    globals: {
+      lodash: '_'
+    }
+  }
+  // 省略其它的输出配置
+];
+
+async function build() {
+  let bundle;
+  let buildFailed = false;
+  try {
+    // 1. 调用 rollup.rollup 生成 bundle 对象
+    const bundle = await rollup.rollup(inputOptions);
+    for (const outputOptions of outputOptionsList) {
+      // 2. 拿到 bundle 对象，根据每一份输出配置，调用 generate 和 write 方法分别生成和写入产物
+      const { output } = await bundle.generate(outputOptions);
+      await bundle.write(outputOptions);
+    }
+  } catch (error) {
+    buildFailed = true;
+    console.error(error);
+  }
+  if (bundle) {
+    // 最后调用 bundle.close 方法结束打包
+    await bundle.close();
+  }
+  process.exit(buildFailed ? 1 : 0);
+}
+
+build();
+```
+主要的执行步骤如下:
+- 通过 rollup.rollup方法，传入 inputOptions，生成 bundle 对象；
+- 调用 bundle 对象的 generate 和 write 方法，传入outputOptions，分别完成产物和生成和磁盘写入。
+- 调用 bundle 对象的 close 方法来结束打包。
+
+执行 `node build.js` 进行打包，这样，我们就可以完成了以编程的方式来调用 Rollup 打包的过程。
+
+通过 `rollup.watch` 来完成watch模式下的打包，即`每次源文件变动后自动进行重新打包`。新建 `watch.js` 文件，内容入下:
+```
+const rollup = require("rollup");
+
+const watcher = rollup.watch({
+  // 和 rollup 配置文件中的属性基本一致，只不过多了`watch`配置
+  input: "./src/index.js",
+  output: [
+    {
+      dir: "dist/es",
+      format: "esm",
+    },
+    {
+      dir: "dist/cjs",
+      format: "cjs",
+    },
+  ],
+  watch: {
+    exclude: ["node_modules/**"],
+    include: ["src/**"],
+  },
+});
+
+// 监听 watch 各种事件
+watcher.on("restart", () => {
+  console.log("重新构建...");
+});
+
+watcher.on("change", (id) => {
+  console.log("发生变动的模块id: ", id);
+});
+
+watcher.on("event", (e) => {
+  if (e.code === "BUNDLE_END") {
+    console.log("打包信息:", e);
+  }
+});
+```
+执行 `node watch.js` 开启 Rollup 的 watch 打包模式，当你改动一个文件后可以看到如下的日志，说明 Rollup 自动进行了重新打包，`产物实时变更`，并触发相应的事件回调函数:
+```
+发生生变动的模块id: /xxx/src/index.js
+重新构建...
+打包信息: {
+  code: 'BUNDLE_END',
+  duration: 10,
+  input: './src/index.js',
+  output: [
+    // 输出产物路径
+  ],
+  result: {
+    cache: { /* 产物具体信息 */ },
+    close: [AsyncFunction: close],
+    closed: false,
+    generate: [AsyncFunction: generate],
+    watchFiles: [
+      // 监听文件列表
+    ],
+    write: [AsyncFunction: write]
+  }
+}
+```
+基于如上的两个 JavaScript API 我们可以很方便地在代码中调用 Rollup 的打包流程，相比于配置文件有了更多的操作空间，你可以在代码中通过这些 API 对 Rollup 打包过程进行定制，甚至是二次开发。
+
+## Rollup 插件机制
+Rollup 设计出了一套完整的插件机制，`将自身的核心逻辑与插件逻辑分离，让你能按需引入插件功能，提高了 Rollup 自身的可扩展性`。
+
+Rollup 的打包过程中，会定义一套完整的构建生命周期，从开始打包到产物输出，中途会经历一些标志性的阶段，并且`在不同阶段会自动执行对应的插件钩子函数(Hook)`。对 Rollup 插件来讲，最重要的部分是钩子函数，一方面它定义了插件的执行逻辑，也就是"做什么"；另一方面也声明了插件的作用阶段，即"什么时候做"，这与 Rollup 本身的构建生命周期息息相关。
+
+## Rollup 整体构建阶段
+在执行 `rollup` 命令之后，在 cli 内部的主要逻辑简化如下:
+```
+// Build 阶段
+const bundle = await rollup.rollup(inputOptions);
+
+// Output 阶段
+await Promise.all(outputOptions.map(bundle.write));
+
+// 构建结束
+await bundle.close();
+```
+Rollup 内部主要经历了 `Build` 和 `Output` 两大阶段：
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/67d0f8c753ed4eb29ac513439ac198ad~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/67d0f8c753ed4eb29ac513439ac198ad~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
