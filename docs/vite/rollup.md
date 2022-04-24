@@ -136,5 +136,349 @@ export default [buildIndexOptions, buildUtilOptions];
 ### 3. 自定义output配置
 刚才我们提到了input的使用，主要用来声明入口，可以配置成字符串、数组或者对象，使用比较简单。而output与之相对，用来配置输出的相关信息，常用的配置项如下:
 ```
+output: {
+  // 产物输出目录
+  dir: path.resolve(__dirname, 'dist'),
+  // 以下三个配置项都可以使用这些占位符:
+  // 1. [name]: 去除文件后缀后的文件名
+  // 2. [hash]: 根据文件名和文件内容生成的 hash 值
+  // 3. [format]: 产物模块格式，如 es、cjs
+  // 4. [extname]: 产物后缀名(带`.`)
+  // 入口模块的输出文件名
+  entryFileNames: `[name].js`,
+  // 非入口模块(如动态 import)的输出文件名
+  chunkFileNames: 'chunk-[hash].js',
+  // 静态资源文件输出文件名
+  assetFileNames: 'assets/[name]-[hash][extname]',
+  // 产物输出格式，包括`amd`、`cjs`、`es`、`iife`、`umd`、`system`
+  format: 'cjs',
+  // 是否生成 sourcemap 文件
+  sourcemap: true,
+  // 如果是打包出 iife/umd 格式，需要对外暴露出一个全局变量，通过 name 配置变量名
+  name: 'MyBundle',
+  // 全局变量声明
+  globals: {
+    // 项目中可以直接用`$`代替`jquery`
+    jquery: '$'
+  }
+}
+```
+### 4. 依赖 external
+对于某些第三方包，有时候我们`不想让 Rollup 进行打包`，也可以通过 external 进行外部化:
+```
+{
+  external: ['react', 'react-dom']
+}
+```
+
+### 5. 接入插件能力
+>在 Rollup 的日常使用中，我们难免会遇到一些 Rollup 本身不支持的场景，比如`兼容 CommonJS 打包、注入环境变量、配置路径别名、压缩产物代码` 等等。这个时候就需要我们引入相应的 Rollup 插件了。
+
+虽然 Rollup 能够打包输出出 CommonJS 格式的产物，但对于输入给 Rollup 的代码并不支持 CommonJS，仅仅支持 ESM。
+
+我们需要引入额外的插件去解决这个问题。lodash 的第三方依赖只有 CommonJS 格式产物。
+
+1. 安装两个核心的插件包:
+- `@rollup/plugin-node-resolve` 是为了`允许我们加载第三方依赖`，否则像 import React from 'react' 的依赖导入语句将不会被 Rollup 识别。
+- `@rollup/plugin-commonjs` 的作用是`将 CommonJS 格式的代码转换为 ESM 格式`
 
 ```
+pnpm i @rollup/plugin-node-resolve @rollup/plugin-commonjs
+```
+
+2. 在配置文件中导入这些插件:
+```
+// rollup.config.js
+import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
+
+/**
+ * @type { import('rollup').RollupOptions }
+ */
+export default {
+  input: ["src/index.js"],
+  output: [
+    {
+      dir: "dist/es",
+      format: "esm",
+    },
+    {
+      dir: "dist/cjs",
+      format: "cjs",
+    },
+  ],
+  // 通过 plugins 参数添加插件
+  plugins: [resolve(), commonjs()],
+};
+```
+
+3. 安装 `lodash` 
+```
+pnpm i lodash
+```
+4. 在 src/index.js 加入如下的代码:
+```
+import { merge } from "lodash";
+console.log(merge);
+```
+然后执行 npm run build，你可以发现产物已经正常生成了:
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/93d76ca19ce941a5b803ad367bdffa54~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/93d76ca19ce941a5b803ad367bdffa54~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+
+在 Rollup 配置文件中，`plugins 除了可以与 output 配置在同一级，也可以配置在 output 参数里面`，需要注意的是，output.plugins中配置的插件是有一定限制的，只有使用Output 阶段相关钩子的插件才能够放到这个配置中。如:
+```
+// rollup.config.js
+import { terser } from 'rollup-plugin-terser'
+import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
+
+export default {
+  output: {
+    // 加入 terser 插件，用来压缩代码
+    plugins: [terser()]
+  },
+  plugins: [resolve(), commonjs()]
+}
+```
+一些比较常用的 Rollup 插件库:
+- [@rollup/plugin-json](https://github.com/rollup/plugins/tree/master/packages/json)： 支持.json的加载，并配合rollup的Tree Shaking机制去掉未使用的部分，进行按需打包。
+- [@rollup/plugin-babel](https://github.com/rollup/plugins/tree/master/packages/babel)：在 Rollup 中使用 Babel 进行 JS 代码的语法转译。
+- [@rollup/plugin-typescript](https://github.com/rollup/plugins/tree/master/packages/typescript): 支持使用 TypeScript 开发。
+- [@rollup/plugin-alias](https://github.com/rollup/plugins/tree/master/packages/alias)：支持别名配置。
+- [@rollup/plugin-replace](https://github.com/rollup/plugins/tree/master/packages/replace)：在 Rollup 进行变量字符串的替换。
+- [rollup-plugin-visualizer](https://github.com/btd/rollup-plugin-visualizer): 对 Rollup 打包产物进行分析，自动生成产物体积可视化分析图。
+
+## JavaScript API 方式调用
+以上我们通过 `Rollup` 的配置文件结合 `rollup -c` 完成了 Rollup 的打包过程，但有些场景下我们需要基于 Rollup 定制一些打包过程，配置文件就不够灵活了，这时候我们需要用到对应 `JavaScript API` 来调用 Rollup，主要分为 `rollup.rollup` 和 `rollup.watch` 两个 API
+
+`rollup.rollup`，用来一次性地进行 Rollup 打包，新建build.js，内容如下:
+```
+// build.js
+const rollup = require("rollup");
+
+// 常用 inputOptions 配置
+const inputOptions = {
+  input: "./src/index.js",
+  external: []
+  plugins:[]
+};
+
+const outputOptionsList = [
+  // 常用 outputOptions 配置
+  {
+    dir: 'dist/es',
+    entryFileNames: `[name].[hash].js`,
+    chunkFileNames: 'chunk-[hash].js',
+    assetFileNames: 'assets/[name]-[hash][extname]'
+    format: 'es',
+    sourcemap: true,
+    globals: {
+      lodash: '_'
+    }
+  }
+  // 省略其它的输出配置
+];
+
+async function build() {
+  let bundle;
+  let buildFailed = false;
+  try {
+    // 1. 调用 rollup.rollup 生成 bundle 对象
+    const bundle = await rollup.rollup(inputOptions);
+    for (const outputOptions of outputOptionsList) {
+      // 2. 拿到 bundle 对象，根据每一份输出配置，调用 generate 和 write 方法分别生成和写入产物
+      const { output } = await bundle.generate(outputOptions);
+      await bundle.write(outputOptions);
+    }
+  } catch (error) {
+    buildFailed = true;
+    console.error(error);
+  }
+  if (bundle) {
+    // 最后调用 bundle.close 方法结束打包
+    await bundle.close();
+  }
+  process.exit(buildFailed ? 1 : 0);
+}
+
+build();
+```
+主要的执行步骤如下:
+- 通过 rollup.rollup方法，传入 inputOptions，生成 bundle 对象；
+- 调用 bundle 对象的 generate 和 write 方法，传入outputOptions，分别完成产物和生成和磁盘写入。
+- 调用 bundle 对象的 close 方法来结束打包。
+
+执行 `node build.js` 进行打包，这样，我们就可以完成了以编程的方式来调用 Rollup 打包的过程。
+
+通过 `rollup.watch` 来完成watch模式下的打包，即`每次源文件变动后自动进行重新打包`。新建 `watch.js` 文件，内容入下:
+```
+const rollup = require("rollup");
+
+const watcher = rollup.watch({
+  // 和 rollup 配置文件中的属性基本一致，只不过多了`watch`配置
+  input: "./src/index.js",
+  output: [
+    {
+      dir: "dist/es",
+      format: "esm",
+    },
+    {
+      dir: "dist/cjs",
+      format: "cjs",
+    },
+  ],
+  watch: {
+    exclude: ["node_modules/**"],
+    include: ["src/**"],
+  },
+});
+
+// 监听 watch 各种事件
+watcher.on("restart", () => {
+  console.log("重新构建...");
+});
+
+watcher.on("change", (id) => {
+  console.log("发生变动的模块id: ", id);
+});
+
+watcher.on("event", (e) => {
+  if (e.code === "BUNDLE_END") {
+    console.log("打包信息:", e);
+  }
+});
+```
+执行 `node watch.js` 开启 Rollup 的 watch 打包模式，当你改动一个文件后可以看到如下的日志，说明 Rollup 自动进行了重新打包，`产物实时变更`，并触发相应的事件回调函数:
+```
+发生生变动的模块id: /xxx/src/index.js
+重新构建...
+打包信息: {
+  code: 'BUNDLE_END',
+  duration: 10,
+  input: './src/index.js',
+  output: [
+    // 输出产物路径
+  ],
+  result: {
+    cache: { /* 产物具体信息 */ },
+    close: [AsyncFunction: close],
+    closed: false,
+    generate: [AsyncFunction: generate],
+    watchFiles: [
+      // 监听文件列表
+    ],
+    write: [AsyncFunction: write]
+  }
+}
+```
+基于如上的两个 JavaScript API 我们可以很方便地在代码中调用 Rollup 的打包流程，相比于配置文件有了更多的操作空间，你可以在代码中通过这些 API 对 Rollup 打包过程进行定制，甚至是二次开发。
+
+## Rollup 插件机制
+Rollup 设计出了一套完整的插件机制，`将自身的核心逻辑与插件逻辑分离，让你能按需引入插件功能，提高了 Rollup 自身的可扩展性`。
+
+Rollup 的打包过程中，会定义一套完整的构建生命周期，从开始打包到产物输出，中途会经历一些标志性的阶段，并且`在不同阶段会自动执行对应的插件钩子函数(Hook)`。对 Rollup 插件来讲，最重要的部分是钩子函数，一方面它定义了插件的执行逻辑，也就是"做什么"；另一方面也声明了插件的作用阶段，即"什么时候做"，这与 Rollup 本身的构建生命周期息息相关。
+
+## Rollup 整体构建阶段
+在执行 `rollup` 命令之后，在 cli 内部的主要逻辑简化如下:
+```
+// Build 阶段
+const bundle = await rollup.rollup(inputOptions);
+
+// Output 阶段
+const result = await bundle.generate(); 
+const result = await bundle.write(); 
+await Promise.all(outputOptions.map(bundle.write));
+
+// 构建结束
+await bundle.close();
+```
+Rollup 内部主要经历了 `Build` 和 `Output` 两大阶段：
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/67d0f8c753ed4eb29ac513439ac198ad~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/67d0f8c753ed4eb29ac513439ac198ad~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
+**对于一次完整的构建过程而言， Rollup 会先进入到 Build 阶段，解析各模块的内容及依赖关系，然后进入Output阶段，完成打包及输出的过程。**
+
+```
+const rollup = require('rollup');
+async function build() {
+  // build 阶段
+  const bundle = await rollup.rollup({
+    input: ['./src/index.js'],
+  });
+
+  // output 阶段
+  const result = await bundle.generate({
+    format: 'es',
+  });
+  console.log('result:', result);
+}
+
+build();
+```
+- `Build 阶段`：主要负责创建模块依赖图，初始化各个模块的 AST 以及模块之间的依赖关系。
+  - ```
+    const rollup = require('rollup');
+    const util = require('util');
+    async function build() {
+      const bundle = await rollup.rollup({
+        input: ['./src/index.js'],
+      });
+      console.log(util.inspect(bundle));
+    }
+    build();
+    // 只执行 build 会输出：
+        {
+      cache: {
+        modules: [
+          {
+            ast: 'AST 节点信息，具体内容省略',
+            code: 'export const a = 1;',
+            dependencies: [],
+            id: '/Users/code/rollup-demo/src/data.js',
+            // 其它属性省略
+          },
+          {
+            ast: 'AST 节点信息，具体内容省略',
+            code: "import { a } from './data';\n\nconsole.log(a);",
+            dependencies: [
+              '/Users/code/rollup-demo/src/data.js'
+            ],
+            id: '/Users/code/rollup-demo/src/index.js',
+            // 其它属性省略
+          }
+        ],
+        plugins: {}
+      },
+      closed: false,
+      // 挂载后续阶段会执行的方法
+      close: [AsyncFunction: close],
+      generate: [AsyncFunction: generate],
+      write: [AsyncFunction: write]
+    }
+    ```
+- `Output 阶段`：真正进行打包的过程会在 Output 阶段进行，即在bundle对象的 generate或者write方法中进行。
+  - ```
+    // 添加执行 bundle.generate
+    输出：
+
+    {
+      output: [
+        {
+          exports: [],
+          facadeModuleId: '/Users/code/rollup-demo/src/index.js',
+          isEntry: true,
+          isImplicitEntry: false,
+          type: 'chunk',
+          code: 'const a = 1;\n\nconsole.log(a);\n',
+          dynamicImports: [],
+          fileName: 'index.js',
+          // 其余属性省略
+        }
+      ]
+    }
+
+    生成的output数组即为打包完成的结果。当然，如果使用 bundle.write 会根据配置将最后的产物写入到指定的磁盘目录中。
+    ```
+
+## 拆解插件工作流
+### 谈谈插件 Hook 类型
