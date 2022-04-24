@@ -385,6 +385,8 @@ Rollup 的打包过程中，会定义一套完整的构建生命周期，从开�
 const bundle = await rollup.rollup(inputOptions);
 
 // Output 阶段
+const result = await bundle.generate(); 
+const result = await bundle.write(); 
 await Promise.all(outputOptions.map(bundle.write));
 
 // 构建结束
@@ -393,3 +395,90 @@ await bundle.close();
 Rollup 内部主要经历了 `Build` 和 `Output` 两大阶段：
 
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/67d0f8c753ed4eb29ac513439ac198ad~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/67d0f8c753ed4eb29ac513439ac198ad~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
+**对于一次完整的构建过程而言， Rollup 会先进入到 Build 阶段，解析各模块的内容及依赖关系，然后进入Output阶段，完成打包及输出的过程。**
+
+```
+const rollup = require('rollup');
+async function build() {
+  // build 阶段
+  const bundle = await rollup.rollup({
+    input: ['./src/index.js'],
+  });
+
+  // output 阶段
+  const result = await bundle.generate({
+    format: 'es',
+  });
+  console.log('result:', result);
+}
+
+build();
+```
+- `Build 阶段`：主要负责创建模块依赖图，初始化各个模块的 AST 以及模块之间的依赖关系。
+  - ```
+    const rollup = require('rollup');
+    const util = require('util');
+    async function build() {
+      const bundle = await rollup.rollup({
+        input: ['./src/index.js'],
+      });
+      console.log(util.inspect(bundle));
+    }
+    build();
+    // 只执行 build 会输出：
+        {
+      cache: {
+        modules: [
+          {
+            ast: 'AST 节点信息，具体内容省略',
+            code: 'export const a = 1;',
+            dependencies: [],
+            id: '/Users/code/rollup-demo/src/data.js',
+            // 其它属性省略
+          },
+          {
+            ast: 'AST 节点信息，具体内容省略',
+            code: "import { a } from './data';\n\nconsole.log(a);",
+            dependencies: [
+              '/Users/code/rollup-demo/src/data.js'
+            ],
+            id: '/Users/code/rollup-demo/src/index.js',
+            // 其它属性省略
+          }
+        ],
+        plugins: {}
+      },
+      closed: false,
+      // 挂载后续阶段会执行的方法
+      close: [AsyncFunction: close],
+      generate: [AsyncFunction: generate],
+      write: [AsyncFunction: write]
+    }
+    ```
+- `Output 阶段`：真正进行打包的过程会在 Output 阶段进行，即在bundle对象的 generate或者write方法中进行。
+  - ```
+    // 添加执行 bundle.generate
+    输出：
+
+    {
+      output: [
+        {
+          exports: [],
+          facadeModuleId: '/Users/code/rollup-demo/src/index.js',
+          isEntry: true,
+          isImplicitEntry: false,
+          type: 'chunk',
+          code: 'const a = 1;\n\nconsole.log(a);\n',
+          dynamicImports: [],
+          fileName: 'index.js',
+          // 其余属性省略
+        }
+      ]
+    }
+
+    生成的output数组即为打包完成的结果。当然，如果使用 bundle.write 会根据配置将最后的产物写入到指定的磁盘目录中。
+    ```
+
+## 拆解插件工作流
+### 谈谈插件 Hook 类型
