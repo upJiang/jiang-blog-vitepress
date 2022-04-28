@@ -573,3 +573,26 @@ runBuild();
 当然，如果要做一个足够通用的 HTML 插件，还需要考虑诸多的因素，比如`自定义 HTML 内容、自定义公共前缀(publicPath)、自定义 script 标签类型以及 多入口打包`等等，大家感兴趣的话可以自行扩展。(可参考这个[开源插件](https://github.com/sanyuan0704/ewas/blob/main/packages/esbuild-plugin-html/src/index.ts))
 
 ## 拆解插件工作流
+不同插件 Hook 的类型代表了不同插件的执行特点，是我们理解 Rollup 插件工作流的基础。实际上，插件的各种 Hook 可以根据这两个构建阶段分为两类: `Build Hook` 与 `Output Hook`。
+- `Build Hook` 即在 `Build 阶段执行的钩子函数`，在这个阶段主要进行模块代码的转换、AST 解析以及模块依赖的解析，那么这个阶段的 Hook 对于代码的操作粒度一般为`模块`级别，也就是单文件级别。
+- `Ouput Hook`(官方称为Output Generation Hook)，则主要进行代码的打包，对于代码而言，操作粒度一般为 `chunk` 级别(一个 chunk 通常指很多文件打包到一起的产物)。
+
+除了根据构建阶段可以将 Rollup 插件进行分类，根据不同的 Hook 执行方式也会有不同的分类，主要包括 `Async、Sync、Parallel、Squential、First` 这五种。
+
+### 1. Async & Sync
+首先是 `Async` 和 `Sync` 钩子函数，两者其实是相对的，分别代表`异步和同步的钩子函数`，两者最大的区别在于同步钩子里面不能有异步逻辑，而异步钩子可以有。
+
+### 2. Parallel
+这里指并行的钩子函数。如果有多个插件实现了这个钩子的逻辑，一旦有钩子函数是异步逻辑，则并发执行钩子函数，不会等待当前钩子完成(底层使用 Promise.all)。
+
+比如对于 `Build` 阶段的 `buildStart` 钩子，它的执行时机其实是在构建刚开始的时候，各个插件可以在这个钩子当中做一些状态的初始化操作，但其实插件之间的操作并不是相互依赖的，也就是可以并发执行，从而提升构建性能。反之，对于需要依赖其他插件处理结果的情况就不适合用 `Parallel` 钩子了，比如 `transform`。
+
+### 3. Sequential
+`Sequential` 指串行的钩子函数。这种 `Hook` 往往适用于插件间处理结果相互依赖的情况，前一个插件 `Hook` 的返回值作为后续插件的入参，这种情况就需要等待前一个插件执行完 `Hook`，获得其执行结果，然后才能进行下一个插件相应 `Hook` 的调用，如 `transform`。
+
+### 4. First
+如果有多个插件实现了这个 `Hook`，那么 `Hook` 将依次运行，直到返回一个`非 null` 或`非 undefined` 的值为止。比较典型的 `Hook` 是 `resolveId`，一旦有插件的 `resolveId` 返回了一个路径，将停止执行后续插件的 `resolveId` 逻辑。
+
+实际上不同的 `Hook` 类型是可以叠加的，`Async/Sync` 可以搭配后面三种类型中的任意一种，比如一个 `Hook` 既可以是 `Async` 也可以是 `First` 类型
+
+## Build 阶段工作流
