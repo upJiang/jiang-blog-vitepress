@@ -571,3 +571,5 @@ runBuild();
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f04903f888d4b37b3fec8a857f9569e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f04903f888d4b37b3fec8a857f9569e~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 当然，如果要做一个足够通用的 HTML 插件，还需要考虑诸多的因素，比如`自定义 HTML 内容、自定义公共前缀(publicPath)、自定义 script 标签类型以及 多入口打包`等等，大家感兴趣的话可以自行扩展。(可参考这个[开源插件](https://github.com/sanyuan0704/ewas/blob/main/packages/esbuild-plugin-html/src/index.ts))
+
+## 拆解插件工作流
