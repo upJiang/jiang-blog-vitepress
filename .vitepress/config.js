@@ -312,7 +312,8 @@ async function getConfig() {
               { text: '预构建', link: '/docs/vite/construction' },
               { text: 'vite 的实现', link: '/docs/vite/achieve' },
               { text: 'Esbuild', link: '/docs/vite/esbuild' },
-              { text: 'Rollup', link: '/docs/vite/rollup' }
+              { text: 'Rollup', link: '/docs/vite/rollup' },
+              { text: '开发 vite 插件', link: '/docs/vite/vitePlugin' }
             ]
           }
         ]

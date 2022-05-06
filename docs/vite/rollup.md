@@ -702,3 +702,59 @@ function executeReplacement(code, id) {
 
 ### 4. Chunk 级代码修改: renderChunk
 这里我们继续以 replace插件举例，在这个插件中，也同样实现了 renderChunk 钩子函数:
+```
+export default function replace(options = {}) {
+  return {
+    name: 'replace',
+    transform(code, id) {
+      // transform 代码省略
+    },
+    renderChunk(code, chunk) {
+      const id = chunk.fileName;
+      // 省略一些边界情况的处理
+      // 拿到 chunk 的代码及文件名，执行替换逻辑
+      return executeReplacement(code, id);
+    },
+  }
+}
+```
+可以看到这里 replace 插件为了替换结果更加准确，在 renderChunk 钩子中又进行了一次替换，因为后续的插件仍然可能在 transform 中进行模块内容转换，进而可能出现符合替换规则的字符串。
+
+这里我们把关注点放到 renderChunk 函数本身，可以看到有两个入参，分别为 `chunk 代码内容`、[chunk 元信息](https://rollupjs.org/guide/en/#generatebundle)，返回值跟 `transform` 钩子类似，既可以返回包含 code 和 map 属性的对象，也可以通过返回 null 来跳过当前钩子的处理。
+
+### 5. 产物生成最后一步: generateBundle
+`generateBundle` 也是`异步串行`的钩子，你可以在这个钩子里面自定义删除一些无用的 chunk 或者静态资源，或者自己添加一些文件。这里我们以 Rollup 官方的html插件来具体说明，这个插件的作用是通过拿到 Rollup 打包后的资源来生成包含这些资源的 HTML 文件，源码简化后如下所示:
+```
+export default function html(opts: RollupHtmlOptions = {}): Plugin {
+  // 初始化配置
+  return {
+    name: 'html',
+    async generateBundle(output: NormalizedOutputOptions, bundle: OutputBundle) {
+      // 省略一些边界情况的处理
+      // 1. 获取打包后的文件
+      const files = getFiles(bundle);
+      // 2. 组装 HTML，插入相应 meta、link 和 script 标签
+      const source = await template({ attributes, bundle, files, meta, publicPath, title});
+      // 3. 通过上下文对象的 emitFile 方法，输出 html 文件
+      const htmlFile: EmittedAsset = {
+        type: 'asset',
+        source,
+        name: 'Rollup HTML Asset',
+        fileName
+      };
+      this.emitFile(htmlFile);
+    }
+  }
+}
+```
+相信从插件的具体实现中，你也能感受到这个钩子的强大作用了。入参分别为`output 配置`、[所有打包产物的元信息对象](https://rollupjs.org/guide/en/#generatebundle)，通过操作元信息对象你可以删除一些不需要的 chunk 或者静态资源，也可以通过 插件上下文对象的 `emitFile` 方法输出自定义文件。
+
+## 总结
+我们首先认识到 Rollup 为了追求扩展性和可维护性，引入了插件机制，而后给你介绍了 Rollup 的 Build 和Output 两大构建阶段，接着给你详细地分析了两大构建阶段的插件工作流，最后通过几个实际的官方插件带你熟悉了一些常见的 Hook。
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a353a4349c124b108a223f29bf8fc9e8~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a353a4349c124b108a223f29bf8fc9e8~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
+Rollup 的插件开发整体上是非常简洁和灵活的，总结为以下几个方面:
+- **插件逻辑集中管理**。各个阶段的 Hook 都可以放在一个插件中编写，比如上述两个 Webpack 的 Loader 和 Plugin 功能在 Rollup 只需要用一个插件，分别通过 transform 和 renderChunk 两个 Hook 来实现。
+- **插件 API 简洁，符合直觉**。Rollup 插件基本上只需要返回一个包含 name 和各种钩子函数的对象即可，也就是声明一个 name 属性，然后写几个钩子函数即可。
+- **插件间的互相调用**。比如刚刚介绍的alias插件，可以通过插件上下文对象的resolve方法，继续调用其它插件的 resolveId钩子，类似的还有load方法，这就大大增加了插件的灵活性。
