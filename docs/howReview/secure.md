@@ -41,7 +41,7 @@ function escape(str) {
   return str
 }
 ```
-通过转义可以将攻击代码 <script>alert(1)</script> 变成
+通过转义可以将攻击代码 `<script>alert(1)</script>` 变成
 ```
 escape('<script>alert(1)</script>')  
 // -> &lt;script&gt;alert(1)&lt;&#x2F;script&gt;
