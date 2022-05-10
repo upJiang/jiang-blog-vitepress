@@ -299,7 +299,8 @@ async function getConfig() {
               { text: '异步编程', link: '/docs/howReview/async' },
               { text: '浏览器知识', link: '/docs/howReview/brower' },
               { text: '安全防范知识', link: '/docs/howReview/secure' },
-              { text: '性能优化', link: '/docs/howReview/performance' }
+              { text: '性能优化', link: '/docs/howReview/performance' },
+              { text: '网络协议', link: '/docs/howReview/internet' }
             ]
           }
         ],
