@@ -180,4 +180,7 @@ Get 多用于无副作用，幂等的场景，例如搜索关键字。Post 多�
 #### 响应首部
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/dbb304b102db4ae99978c3ed729daa8b~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/dbb304b102db4ae99978c3ed729daa8b~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-#### 
+#### 实体首部
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f44057c244cf46c7abaf9635eb99ce8c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f44057c244cf46c7abaf9635eb99ce8c~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+### 常见状态码
