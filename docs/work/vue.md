@@ -21,3 +21,26 @@ vue-cropper 插件会根据设备的缩放比输出结果图片
 
 ## unplugin-vue-components 自动导入导致开发加载缓慢，一直 dependencies updated, reloading page
 解决方案：安装 yarn add vite-plugin-optimize-persist vite-plugin-package-config -D。会自动在 package.json 生成好依赖，其实就是利用 `optimizeDeps: {include: ["xxx"];}`这个 vite 配置预构建
+
+## 原生复制功能 navigator.clipboard Cannot read property 'writeText' of undefined
+直接使用这个方式
+```
+const copyToClipboard = (textToCopy: string) => {
+  // 创建text area
+  let textArea = document.createElement("textarea");
+  textArea.value = textToCopy;
+  // 使text area不在viewport，同时设置不可见
+  textArea.style.position = "absolute";
+  textArea.style.opacity = "0";
+  textArea.style.left = "-999999px";
+  textArea.style.top = "-999999px";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  return new Promise((res, rej) => {
+    // 执行复制命令并移除文本框
+    document.execCommand("copy") ? res("success") : rej();
+    textArea.remove();
+  });
+};
+```

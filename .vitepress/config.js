@@ -318,7 +318,7 @@ async function getConfig() {
               { text: '开发 vite 插件', link: '/docs/vite/vitePlugin' },
               { text: 'HMR 热更新', link: '/docs/vite/hmr' },
               {
-                text: 'Code Splitting 热更新',
+                text: 'Code Splitting 代码分割',
                 link: '/docs/vite/codeSplitting'
               }
             ]
