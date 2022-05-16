@@ -578,8 +578,15 @@ console.log(typeStr1, typeStr2, heightStr1, heightStr2)
 ```
 const effectNameStr1 = () => { nameStr1 = `${person.name}是个大菜鸟` }
 ```
+**activeEffect**：当前执行的 effect 函数
+
+**weakMap**：用来存储所有的对象
+**depsMap**：就是对象(new Map())
+**dep**：就是对象的属性(去重 new Set())，每一个属性都应该有一个 dep,这个 dep 用来存储该属性对应的所有 effect 方法
+
 **track方法**：将当前执行的 effect 函数添加到对应的 dep 中，全部存储在 weakMap 中
 **trigger方法**：当变量改变时，在存储的 weakMap 中找到该变量对应的 dep，并执行 dep 中的所有 effect 函数，即更新
+
 **Proxy**：
 - 当 effect 函数执行时，即读取变量内容时，调用 get 方法并执行 track 方法。
 - 当变量改变时，调用 set 方法并执行 trigger 方法
