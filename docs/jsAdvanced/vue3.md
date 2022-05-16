@@ -55,3 +55,537 @@ vue3 ==> 基于Proxy的数据响应式<br/>
 
 ## 响应系统的实现
 >Vue2: Object.defineProperty。Vue3：Proxy
+#### Object.defineProperty
+```
+// 响应式函数
+function reactive(obj, key, value) {
+  Object.defineProperty(data, key, {
+    get() {
+      console.log(`访问了${key}属性`)
+      return value
+    },
+    set(val) {
+      console.log(`将${key}由->${value}->设置成->${val}`)
+      if (value !== val) {
+        value = val
+      }
+    }
+  })
+}
+
+
+const data = {
+  name: 'xxx',
+  age: 22
+}
+Object.keys(data).forEach(key => reactive(data, key, data[key]))
+console.log(data.name)
+// 访问了name属性
+// xxx
+data.name = 'yyy' // 将name由->xxx->设置成->yyy
+console.log(data.name)
+// 访问了name属性
+// yyy
+```
+弊端：新增一个属性后，并不会重新触发 get 和 set
+```
+data.hobby = '打篮球'
+console.log(data.hobby) // 打篮球
+data.hobby = '打游戏'
+console.log(data.hobby) // 打游戏
+```
+Object.defineProperty**只对初始对象里的属性有监听作用，而对新增的属性无效**。这也是为什么Vue2中对象新增属性的修改需要使用Vue.$set来设值的原因。
+
+#### Proxy
+```
+function reactive(target) {
+  const handler = {
+    get(target, key, receiver) {
+      console.log(`访问了${key}属性`)
+      return Reflect.get(target, key, receiver)
+    },
+    set(target, key, value, receiver) {
+      console.log(`将${key}由->${target[key]}->设置成->${value}`)
+      Reflect.set(target, key, value, receiver)
+    }
+  }
+
+  return new Proxy(target, handler)
+}
+
+const data = {
+  name: 'xxx',
+  age: 22
+}
+
+const proxyData = reactive(data)
+
+console.log(proxyData.name)
+// 访问了name属性
+// 林三心
+proxyData.name = 'yyy'
+// 将name由->xxx->设置成->yyy
+console.log(proxyData.name)
+// 访问了name属性
+// yyy
+```
+效果与上面的Object.defineProperty没什么差别，新增属性时会重新触发 get 和 set
+```
+proxyData.hobby = '打篮球'
+console.log(proxyData.hobby)
+// 访问了hobby属性
+// 打篮球
+proxyData.hobby = '打游戏'
+// 将hobby由->打篮球->设置成->打游戏
+console.log(proxyData.hobby)
+// 访问了hobby属性
+// 打游戏
+```
+
+### 响应式渐入佳境
+例子：
+```
+let name = '林三心', age = 22, money = 20
+let myself = `${name}今年${age}岁，存款${money}元`
+
+console.log(myself) // 林三心今年22岁，存款20元
+
+money = 300
+
+// 预期：林三心今年22岁，存款300元
+console.log(myself) // 实际：林三心今年22岁，存款20元
+```
+
+问题思考：如何让 myself 跟着 money 变?
+#### 封装 effect 函数，重新执行一遍 myself
+```
+let name = '林三心', age = 22, money = 20
+let myself = ''
+const effect = () => myself = `${name}今年${age}岁，存款${money}元`
+
+effect() // 先执行一次
+console.log(myself) // 林三心今年22岁，存款20元
+money = 300
+
+effect() // 再执行一次
+
+console.log(myself) // 林三心今年22岁，存款300元
+```
+
+问题思考：如果有很多个 effect 函数，难道要写很多个吗？
+#### 用 `track函数` 把所有依赖于`变量`的 `effect函数` 都收集起来，放在 `dep` 里
+dep 为什么用 `Set` 呢？因为 `Set` 可以自动去重。搜集起来之后，以后**只要 money 变量一改变，就执行 trigger 函数通知 dep 里所有依赖 money 变量的 effect 函数执行，实现依赖变量的更新**。
+```
+let name = '林三心', age = 22, money = 20
+let myself = '', ohtherMyself = ''
+const effect1 = () => myself = `${name}今年${age}岁，存款${money}元`
+const effect2 = () => ohtherMyself = `${age}岁的${name}居然有${money}元`
+
+const dep = new Set()
+function track () {
+    dep.add(effect1)
+    dep.add(effect2)
+}
+function trigger() {
+    dep.forEach(effect => effect())
+}
+track() //收集依赖
+effect1() // 先执行一次
+effect2() // 先执行一次
+console.log(myself) // 林三心今年22岁，存款20元
+console.log(ohtherMyself) // 22岁的林三心居然有20元
+money = 300
+
+trigger() // 通知变量myself和otherMyself进行更新
+
+console.log(myself) // 林三心今年22岁，存款300元
+console.log(ohtherMyself) // 22岁的林三心居然有300元
+```
+问题思考：如果变量是对象怎么办？它的每一个属性都应该有对应的 dep？如果是多个对象又怎么办？
+#### 单个对象：使用 Map 存储对象里属性的 dep。多个对象：使用 WeakMap 存储多个对象里属性的 dep。
+单个对象：Map
+```
+const person = { name: '林三心', age: 22 }
+
+const depsMap = new Map()
+function track(key) {
+    let dep = depsMap.get(key)
+    if (!dep) {
+        depsMap.set(key, dep = new Set())
+    }
+    // 这里先暂且写死
+    if (key === 'name') {
+        dep.add(effectNameStr1)
+        dep.add(effectNameStr2)
+    } else {
+        dep.add(effectAgeStr1)
+        dep.add(effectAgeStr2)
+    }
+}
+function trigger (key) {
+    const dep = depsMap.get(key)
+    if (dep) {
+        dep.forEach(effect => effect())
+    }
+}
+```
+多个对象：weakMap
+```
+const person = { name: '林三心', age: 22 }
+const animal = { type: 'dog', height: 50 }
+
+const targetMap = new WeakMap()
+function track(target, key) {
+    let depsMap = targetMap.get(target)
+    if (!depsMap) {
+        targetMap.set(target, depsMap = new Map())
+    }
+
+    let dep = depsMap.get(key)
+    if (!dep) {
+        depsMap.set(key, dep = new Set())
+    }
+    // 这里先暂且写死
+    if (target === person) {
+        if (key === 'name') {
+            dep.add(effectNameStr1)
+            dep.add(effectNameStr2)
+        } else {
+            dep.add(effectAgeStr1)
+            dep.add(effectAgeStr2)
+        }
+    } else if (target === animal) {
+        if (key === 'type') {
+            dep.add(effectTypeStr1)
+            dep.add(effectTypeStr2)
+        } else {
+            dep.add(effectHeightStr1)
+            dep.add(effectHeightStr2)
+        }
+    }
+}
+
+function trigger(target, key) {
+    let depsMap = targetMap.get(target)
+    if (depsMap) {
+        const dep = depsMap.get(key)
+        if (dep) {
+            dep.forEach(effect => effect())
+        }
+    }
+}
+```
+使用
+```
+const person = { name: '林三心', age: 22 }
+const animal = { type: 'dog', height: 50 }
+let nameStr1 = ''
+let nameStr2 = ''
+let ageStr1 = ''
+let ageStr2 = ''
+let typeStr1 = ''
+let typeStr2 = ''
+let heightStr1 = ''
+let heightStr2 = ''
+
+const effectNameStr1 = () => { nameStr1 = `${person.name}是个大菜鸟` }
+const effectNameStr2 = () => { nameStr2 = `${person.name}是个小天才` }
+const effectAgeStr1 = () => { ageStr1 = `${person.age}岁已经算很老了` }
+const effectAgeStr2 = () => { ageStr2 = `${person.age}岁还算很年轻啊` }
+const effectTypeStr1 = () => { typeStr1 = `${animal.type}是个大菜鸟` }
+const effectTypeStr2 = () => { typeStr2 = `${animal.type}是个小天才` }
+const effectHeightStr1 = () => { heightStr1 = `${animal.height}已经算很高了` }
+const effectHeightStr2 = () => { heightStr2 = `${animal.height}还算很矮啊` }
+
+track(person, 'name') // 收集person.name的依赖
+track(person, 'age') // 收集person.age的依赖
+track(animal, 'type') // animal.type的依赖
+track(animal, 'height') // 收集animal.height的依赖
+
+
+
+effectNameStr1()
+effectNameStr2()
+effectAgeStr1()
+effectAgeStr2()
+effectTypeStr1()
+effectTypeStr2()
+effectHeightStr1()
+effectHeightStr2()
+
+console.log(nameStr1, nameStr2, ageStr1, ageStr2)
+// 林三心是个大菜鸟 林三心是个小天才 22岁已经算很老了 22岁还算很年轻啊
+
+console.log(typeStr1, typeStr2, heightStr1, heightStr2)
+// dog是个大菜鸟 dog是个小天才 50已经算很高了 50还算很矮啊
+
+person.name = 'sunshine_lin'
+person.age = 18
+animal.type = '猫'
+animal.height = 20
+
+trigger(person, 'name')
+trigger(person, 'age')
+trigger(animal, 'type')
+trigger(animal, 'height')
+
+console.log(nameStr1, nameStr2, ageStr1, ageStr2)
+// sunshine_lin是个大菜鸟 sunshine_lin是个小天才 18岁已经算很老了 18岁还算很年轻啊
+
+console.log(typeStr1, typeStr2, heightStr1, heightStr2)
+// 猫是个大菜鸟 猫是个小天才 20已经算很高了 20还算很矮啊
+```
+
+问题思考：总是手动去执行track函数进行依赖收集，并且当数据改变时手动执行 trigger 函数去进行通知更新。如何自动通知更新？
+#### 使用 Proxy 搭配 Reflect 实现自动通知更新
+```
+function reactive(target) {
+    const handler = {
+        get(target, key, receiver) {
+            track(receiver, key) // 访问时收集依赖
+            return Reflect.get(target, key, receiver)
+        },
+        set(target, key, value, receiver) {
+            Reflect.set(target, key, value, receiver)
+            trigger(receiver, key) // 设值时自动通知更新
+        }
+    }
+
+    return new Proxy(target, handler)
+}
+
+function track(target, key) {
+    let depsMap = targetMap.get(target)
+    if (!depsMap) {
+        targetMap.set(target, depsMap = new Map())
+    }
+
+    let dep = depsMap.get(key)
+    if (!dep) {
+        depsMap.set(key, dep = new Set())
+    }
+    // 这里先暂且写死
+    if (target === person) {
+        if (key === 'name') {
+            dep.add(effectNameStr1)
+            dep.add(effectNameStr2)
+        } else {
+            dep.add(effectAgeStr1)
+            dep.add(effectAgeStr2)
+        }
+    } else if (target === animal) {
+        if (key === 'type') {
+            dep.add(effectTypeStr1)
+            dep.add(effectTypeStr2)
+        } else {
+            dep.add(effectHeightStr1)
+            dep.add(effectHeightStr2)
+        }
+    }
+}
+
+function trigger(target, key) {
+    let depsMap = targetMap.get(target)
+    if (depsMap) {
+        const dep = depsMap.get(key)
+        if (dep) {
+            dep.forEach(effect => effect())
+        }
+    }
+}
+```
+使用时无需再手动调用 `track` 和 `trigger`。在执行 `effect 函数`时会自动调用 `Proxy 的 get 方法`，`修改对象属性值`时会自动调用 `Proxy 的 set 方法`
+```
+const person = reactive({ name: '林三心', age: 22 }) // 传入reactive
+const animal = reactive({ type: 'dog', height: 50 }) // 传入reactive
+
+// 自动调用 get
+effectNameStr1()
+effectNameStr2()
+effectAgeStr1()
+effectAgeStr2()
+effectTypeStr1()
+effectTypeStr2()
+effectHeightStr1()
+effectHeightStr2()
+
+console.log(nameStr1, nameStr2, ageStr1, ageStr2)
+// 林三心是个大菜鸟 林三心是个小天才 22岁已经算很老了 22岁还算很年轻啊
+
+console.log(typeStr1, typeStr2, heightStr1, heightStr2)
+// dog是个大菜鸟 dog是个小天才 50已经算很高了 50还算很矮啊
+
+// 自动调用 set
+person.name = 'sunshine_lin'
+person.age = 18
+animal.type = '猫'
+animal.height = 20
+
+console.log(nameStr1, nameStr2, ageStr1, ageStr2)
+// sunshine_lin是个大菜鸟 sunshine_lin是个小天才 18岁已经算很老了 18岁还算很年轻啊
+
+console.log(typeStr1, typeStr2, heightStr1, heightStr2)
+// 猫是个大菜鸟 猫是个小天才 20已经算很高了 20还算很矮啊
+```
+<a data-fancybox title="img" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/413bd2e621004d0c9838c200bd658f05~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/413bd2e621004d0c9838c200bd658f05~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
+问题思考：在 track 方法中，我们是写死对象属性的判断，并讲 effect 方法添加到对应的 dep。如何让其自动添加？
+#### 当 effect 执行的时候会触发 Proxy 的 get方法， 执行 track 将其放入到对应的 dep 中
+使用一个全局变量 activeEffect 存储当前的 effect 函数，执行完 effect 函数后，重置回 null
+```
+let activeEffect = null
+function effect(fn) {
+    activeEffect = fn
+    activeEffect()
+    activeEffect = null // 执行后立马变成null
+}
+function track(target, key) {
+    // 如果此时activeEffect为null则不执行下面
+    // 这里判断是为了避免例如console.log(person.name)而触发track
+    if (!activeEffect) return
+    let depsMap = targetMap.get(target)
+    if (!depsMap) {
+        targetMap.set(target, depsMap = new Map())
+    }
+
+    let dep = depsMap.get(key)
+    if (!dep) {
+        depsMap.set(key, dep = new Set())
+    }
+    dep.add(activeEffect) // 把此时的activeEffect添加进去
+}
+
+// 每个effect函数改成这么执行，当执行时，会先执行 effect 方法，然后在 Proxy 中触发 get 方法执行 track
+effect(effectNameStr1)
+effect(effectNameStr2)
+effect(effectAgeStr1)
+effect(effectAgeStr2)
+effect(effectTypeStr1)
+effect(effectTypeStr2)
+effect(effectHeightStr1)
+effect(effectHeightStr2)
+```
+<a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/397c1c8c167f4837b641e560b84d17d0~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/397c1c8c167f4837b641e560b84d17d0~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
+### 总结
+最后的代码
+```
+// 使用 proxy 实现自动触发 track 和 trigger
+function reactive(target) {
+    const handler = {
+        get(target, key, receiver) {
+            track(receiver, key) // 访问时收集依赖
+            return Reflect.get(target, key, receiver)
+        },
+        set(target, key, value, receiver) {
+            Reflect.set(target, key, value, receiver)
+            trigger(receiver, key) // 设值时自动通知更新
+        }
+    }
+
+    return new Proxy(target, handler)
+}
+
+// 使用 activeEffect 存储当前触发的 effect
+let activeEffect = null
+function effect(fn) {
+    activeEffect = fn
+    activeEffect()
+    activeEffect = null // 执行后立马变成null
+}
+
+//  当 effect 方法初始化时触发 Proxy 的 get 方法，将 effect函数分发到对应的 dep 中
+function track(target, key) {
+    // 如果此时activeEffect为null则不执行下面
+    // 这里判断是为了避免例如console.log(person.name)而触发track
+    if (!activeEffect) return
+    let depsMap = targetMap.get(target)
+    if (!depsMap) {
+        targetMap.set(target, depsMap = new Map())
+    }
+
+    let dep = depsMap.get(key)
+    if (!dep) {
+        depsMap.set(key, dep = new Set())
+    }
+    dep.add(activeEffect) // 把此时的activeEffect添加进去
+}
+
+// 当变量改变，触发 Proxy 的 set 方法，然后执行对应 dep 中的所有 effect 函数
+function trigger(target, key) {
+    let depsMap = targetMap.get(target)
+    if (depsMap) {
+        const dep = depsMap.get(key)
+        if (dep) {
+            dep.forEach(effect => effect())
+        }
+    }
+}
+```
+使用
+```
+const person = reactive({ name: '林三心', age: 22 }) // 传入reactive
+const animal = reactive({ type: 'dog', height: 50 }) // 传入reactive
+
+let nameStr1 = ''
+let nameStr2 = ''
+let ageStr1 = ''
+let ageStr2 = ''
+let typeStr1 = ''
+let typeStr2 = ''
+let heightStr1 = ''
+let heightStr2 = ''
+
+const effectNameStr1 = () => { nameStr1 = `${person.name}是个大菜鸟` }
+const effectNameStr2 = () => { nameStr2 = `${person.name}是个小天才` }
+const effectAgeStr1 = () => { ageStr1 = `${person.age}岁已经算很老了` }
+const effectAgeStr2 = () => { ageStr2 = `${person.age}岁还算很年轻啊` }
+const effectTypeStr1 = () => { typeStr1 = `${animal.type}是个大菜鸟` }
+const effectTypeStr2 = () => { typeStr2 = `${animal.type}是个小天才` }
+const effectHeightStr1 = () => { heightStr1 = `${animal.height}已经算很高了` }
+const effectHeightStr2 = () => { heightStr2 = `${animal.height}还算很矮啊` }
+
+// 自动调用 get
+effectNameStr1()
+effectNameStr2()
+effectAgeStr1()
+effectAgeStr2()
+effectTypeStr1()
+effectTypeStr2()
+effectHeightStr1()
+effectHeightStr2()
+
+console.log(nameStr1, nameStr2, ageStr1, ageStr2)
+// 林三心是个大菜鸟 林三心是个小天才 22岁已经算很老了 22岁还算很年轻啊
+
+console.log(typeStr1, typeStr2, heightStr1, heightStr2)
+// dog是个大菜鸟 dog是个小天才 50已经算很高了 50还算很矮啊
+
+// 自动调用 set
+person.name = 'sunshine_lin'
+person.age = 18
+animal.type = '猫'
+animal.height = 20
+
+console.log(nameStr1, nameStr2, ageStr1, ageStr2)
+// sunshine_lin是个大菜鸟 sunshine_lin是个小天才 18岁已经算很老了 18岁还算很年轻啊
+
+console.log(typeStr1, typeStr2, heightStr1, heightStr2)
+// 猫是个大菜鸟 猫是个小天才 20已经算很高了 20还算很矮啊
+```
+#### 明白概念以及作用
+**effect函数**：当变量改变时，需要执行的方法
+```
+const effectNameStr1 = () => { nameStr1 = `${person.name}是个大菜鸟` }
+```
+**track方法**：将当前执行的 effect 函数添加到对应的 dep 中，全部存储在 weakMap 中
+**trigger方法**：当变量改变时，在存储的 weakMap 中找到该变量对应的 dep，并执行 dep 中的所有 effect 函数，即更新
+**Proxy**：
+- 当 effect 函数执行时，即读取变量内容时，调用 get 方法并执行 track 方法。
+- 当变量改变时，调用 set 方法并执行 trigger 方法
+
+#### 总结过程
+- 将对象传入到封装的 Proxy 中，get 方法中执行 track，set 方法中执行 trigger
+- 编写 track 方法分发 effect 函数到 对应dep 中，并全部存储到 weakMap 中，即收集
+- 编写 trigger 方法执行当前改变的变量对应的 dep 中的所有 effect 函数，即更新
+- 定义对象，定义 effect 函数自动触发 track 收集依赖；当对象属性值改变时，自动触发 trigger 执行属性对应的 dep 中的所有 effect 方法，更新视图。
