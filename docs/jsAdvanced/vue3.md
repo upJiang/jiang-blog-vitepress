@@ -52,3 +52,6 @@ vue3 ==> 基于Proxy的数据响应式<br/>
 2. 补丁标记和动态属性记录
 3. 缓存事件处理程序
 4. 块block，把静态的内容剔除，将需要更新的节点取出来作为块
+
+## 响应系统的实现
+>Vue2: Object.defineProperty。Vue3：Proxy
