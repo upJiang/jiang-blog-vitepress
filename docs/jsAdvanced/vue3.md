@@ -596,3 +596,147 @@ const effectNameStr1 = () => { nameStr1 = `${person.name}是个大菜鸟` }
 - 编写 track 方法分发 effect 函数到 对应dep 中，并全部存储到 weakMap 中，即收集
 - 编写 trigger 方法执行当前改变的变量对应的 dep 中的所有 effect 函数，即更新
 - 定义对象，定义 effect 函数自动触发 track 收集依赖；当对象属性值改变时，自动触发 trigger 执行属性对应的 dep 中的所有 effect 方法，更新视图。
+
+## 实现 ref
+上面的过程已经实现了 reactive,ref 其实就是一个 `reactive 下有一个属性叫 value`
+```
+function ref (initValue) {
+    return reactive({
+        value: initValue
+    })
+}
+```
+
+## 实现 computed
+computed 的实现就是通过 ref 的响应式，在 effect 里面将 fn执行函数赋值给 ref，返回这个 ref。这样当 fn 中的变量发生改变，就会自动触发 Proxy 的 set 方法，更新 ref。
+```
+function computed(fn) {
+    const result = ref()
+    effect(() => result.value = fn()) // 执行computed传入函数
+    return result
+}
+```
+
+## 最终代码
+```
+const targetMap = new WeakMap()
+function track(target, key) {
+    // 如果此时activeEffect为null则不执行下面
+    // 这里判断是为了避免例如console.log(person.name)而触发track
+    if (!activeEffect) return
+    let depsMap = targetMap.get(target)
+    if (!depsMap) {
+        targetMap.set(target, depsMap = new Map())
+    }
+
+    let dep = depsMap.get(key)
+    if (!dep) {
+        depsMap.set(key, dep = new Set())
+    }
+    dep.add(activeEffect) // 把此时的activeEffect添加进去
+}
+function trigger(target, key) {
+    let depsMap = targetMap.get(target)
+    if (depsMap) {
+        const dep = depsMap.get(key)
+        if (dep) {
+            dep.forEach(effect => effect())
+        }
+    }
+}
+function reactive(target) {
+    const handler = {
+        get(target, key, receiver) {
+            track(receiver, key) // 访问时收集依赖
+            return Reflect.get(target, key, receiver)
+        },
+        set(target, key, value, receiver) {
+            Reflect.set(target, key, value, receiver)
+            trigger(receiver, key) // 设值时自动通知更新
+        }
+    }
+
+    return new Proxy(target, handler)
+}
+let activeEffect = null
+function effect(fn) {
+    activeEffect = fn
+    activeEffect()
+    activeEffect = null
+}
+function ref(initValue) {
+    return reactive({
+        value: initValue
+    })
+}
+function computed(fn) {
+    const result = ref()
+    effect(() => result.value = fn())
+    return result
+}
+```
+
+## Proxy和Reflect
+### Proxy
+```
+const person = { name: '林三心', age: 22 }
+
+const proxyPerson = new Proxy(person, {
+    get(target, key, receiver) {
+        console.log(target) // 原来的person
+        console.log(key) // 属性名
+        console.log(receiver) // 代理后的proxyPerson
+    },
+    set(target, key, value, receiver) {
+        console.log(target) // 原来的person
+        console.log(key) // 属性名
+        console.log(value) // 设置的值
+        console.log(receiver) // 代理后的proxyPerson
+    }
+})
+
+proxyPerson.name // 访问属性触发get方法
+
+proxyPerson.name = 'sunshine_lin' // 设置属性值触发set方法
+```
+
+### Reflect
+Reflect的两个方法
+- `get(target, key, receiver)`：个人理解就是，访问`target`的`key`属性，但是`this`是指向`receiver`，所以实际是访问的值是`receiver`的`key`的值，但是这可不是直接访问`receiver[key]`属性，大家要区分一下
+- `set(target, key, value, receiver)`：个人理解就是，设置`target`的`key`属性为`value`，但是`this`是指向`receiver`，所以实际是是设置`receiver`的`key`的值为`value`，但这可不是直接`receiver[key] = value`，大家要区分一下
+
+正确的做法：
+```
+const person = { name: '林三心', age: 22 }
+
+const proxyPerson = new Proxy(person, {
+    get(target, key, receiver) {
+        return Reflect.get(target, key, receiver)
+    },
+    set(target, key, value, receiver) {
+        Reflect.set(target, key, value, receiver)
+    }
+})
+
+console.log(proxyPerson.name) // 林三心
+
+proxyPerson.name = 'sunshine_lin'
+
+console.log(proxyPerson.name) // sunshine_lin
+```
+不能直接 `receiver[key]` 的原因是因为会导致无限循环。
+
+其实Proxy不搭配Reflect也是可以的
+```
+const proxyPerson = new Proxy(person, {
+    get(target, key, receiver) {
+        return target[key]
+    },
+    set(target, key, value, receiver) {
+        target[key] = value
+    }
+})
+```
+那为什么建议Proxy和Reflect一起使用呢？因为Proxy和Reflect的方法都是一一对应的，在Proxy里使用Reflect会`提高语义化`
+- `Proxy`的`get`对应`Reflect.get`
+- `Proxy`的`set`对应`Reflect.set`

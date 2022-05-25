@@ -11,5 +11,5 @@
 #   exit 1;
 # fi;
 
-yarn lint-staged
+# yarn lint-staged
 echo '检查lint规范'

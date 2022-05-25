@@ -22,13 +22,13 @@ async function getConfig() {
       [
         'script',
         {
-          src: 'https://cdn.staticfile.org/jquery/2.0.0/jquery.min.js'
+          src: '/jquery.min.js'
         }
       ],
       [
         'script',
         {
-          src: 'https://cdn.jsdelivr.net/npm/@fancyapps/ui@4.0/dist/fancybox.umd.js'
+          src: '/jquery.fancybox.min.js'
         }
       ],
       [
@@ -36,7 +36,7 @@ async function getConfig() {
         {
           rel: 'stylesheet',
           type: 'text/css',
-          href: 'https://cdn.jsdelivr.net/npm/@fancyapps/ui/dist/fancybox.css'
+          href: '/jquery.fancybox.min.css'
         }
       ]
     ],

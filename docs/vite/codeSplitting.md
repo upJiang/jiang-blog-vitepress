@@ -117,7 +117,7 @@ manualChunks(id) {
 这也就是函数配置的坑点所在了，虽然灵活而方便，但稍不注意就陷入此类的产物错误问题当中。那上面的这个报错究竟是什么原因导致的呢？
 
 ## 解决循环引用问题
-从报错信息追溯到产物中，可以发现react-vendor.js与index.js发生了循环引用:
+从报错信息追溯到产物中，可以发现 `react-vendor.js` 与 `index.js` 发生了循环引用:
 ```
 // react-vendor.e2c4883f.js
 import { q as objectAssign } from "./index.37a7b2eb.js";
@@ -125,3 +125,42 @@ import { q as objectAssign } from "./index.37a7b2eb.js";
 // index.37a7b2eb.js
 import { R as React } from "./react-vendor.e2c4883f.js";
 ```
+用一个最基本的例子来复原这个场景:
+```
+// a.js
+import { funcB } from './b.js';
+
+funcB();
+
+export var funcA = () => {
+  console.log('a');
+} 
+// b.js
+import { funcA } from './a.js';
+
+funcA();
+
+export var funcB = () => {
+  console.log('b')
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+</head>
+<body>
+  <script type="module" src="/a.js"></script>
+</body>
+</html>
+```
+在浏览器中打开会出现类似的报错:<br>
+<a data-fancybox title="img" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f71a39e22848419aac513906df7d39bb~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f71a39e22848419aac513906df7d39bb~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+
+代码的执行原理如下:
+- JS 引擎执行 `a.js` 时，发现引入了 `b.js`，于是去执行 `b.js`
+- 引擎执行 `b.js`，发现里面引入了 `a.js` (出现循环引用)，认为 `a.js` 已经加载完成，继续往下执行
+- 执行到 `funcA()` 语句时发现 `funcA` 并没有定义，于是报错。
+
+
