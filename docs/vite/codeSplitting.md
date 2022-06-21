@@ -163,4 +163,27 @@ export var funcB = () => {
 - 引擎执行 `b.js`，发现里面引入了 `a.js` (出现循环引用)，认为 `a.js` 已经加载完成，继续往下执行
 - 执行到 `funcA()` 语句时发现 `funcA` 并没有定义，于是报错。
 
+## 解决方案 --- vite-plugin-chunk-split
+安装依赖
+```
+pnpm i vite-plugin-chunk-split -D
+```
+在项目中引入并使用:
+```
+// vite.config.ts
+import { chunkSplitPlugin } from 'vite-plugin-chunk-split';
+
+export default {
+  chunkSplitPlugin({
+    // 指定拆包策略
+    customSplitting: {
+      // 1. 支持填包名。`react` 和 `react-dom` 会被打包到一个名为`render-vendor`的 chunk 里面(包括它们的依赖，如 object-assign)
+      'react-vendor': ['react', 'react-dom'],
+      // 2. 支持填正则表达式。src 中 components 和 utils 下的所有文件被会被打包为`component-util`的 chunk 中
+      'components-util': [/src\/components/, /src\/utils/]
+    }
+  })
+}
+```
+相比于手动操作依赖关系，使用插件只需几行配置就能完成，非常方便。当然，这个插件还可以支持多种打包策略，包括 unbundle 模式打包，你可以去 [使用文档](https://github.com/sanyuan0704/vite-plugin-chunk-split/blob/master/README-CN.md) 探索更多使用姿势。
 

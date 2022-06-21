@@ -321,6 +321,10 @@ async function getConfig() {
               {
                 text: 'Code Splitting 代码分割',
                 link: '/docs/vite/codeSplitting'
+              },
+              {
+                text: 'polyfill语法降级',
+                link: '/docs/vite/polyfill'
               }
             ]
           }
