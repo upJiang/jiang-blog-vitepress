@@ -184,3 +184,103 @@ Get 多用于无副作用，幂等的场景，例如搜索关键字。Post 多�
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f44057c244cf46c7abaf9635eb99ce8c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f44057c244cf46c7abaf9635eb99ce8c~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 常见状态码
+#### 2XX 成功
+- 200 OK，表示从客户端发来的请求在服务器端被正确处理
+- 204 No content，表示请求成功，但响应报文不含实体的主体部分
+- 205 Reset Content，表示请求成功，但响应报文不含实体的主体部分，但是与 204 响应不同在于要求请求方重置内容
+- 206 Partial Content，进行范围请求
+
+#### 3XX 重定向
+- 301 moved permanently，永久性重定向，表示资源已被分配了新的 URL
+- 302 found，临时性重定向，表示资源临时被分配了新的 URL
+- 303 see other，表示资源存在着另一个 URL，应使用 GET 方法获取资源
+- 304 not modified，表示服务器允许访问资源，但因发生请求未满足条件的情况
+- 307 temporary redirect，临时重定向，和302含义类似，但是期望客户端保持请求方法不变向新的地址发出请求
+
+#### 4XX 客户端错误
+- 400 bad request，请求报文存在语法错误
+- 401 unauthorized，表示发送的请求需要有通过 HTTP 认证的认证信息
+- 403 forbidden，表示对请求资源的访问被服务器拒绝
+- 404 not found，表示在服务器上没有找到请求的资源
+
+#### 5XX 服务器错误
+- 500 internal sever error，表示服务器端在执行请求时发生了错误
+- 501 Not Implemented，表示服务器不支持当前请求所需要的某个功能
+- 503 service unavailable，表明服务器暂时处于超负载或正在停机维护，无法处理请求
+
+## TLS
+HTTPS 还是通过了 `HTTP 来传输信息`，但是信息通过 `TLS 协议进行了加密`。
+
+TLS 协议位于传输层之上，应用层之下。首次进行 TLS 协议传输需要两个 RTT ，接下来可以通过 Session Resumption 减少到一个 RTT。
+
+在 TLS 中使用了两种加密技术，分别为：`对称加密`和`非对称加密`。
+
+### 对称加密
+对称加密就是两边拥有相同的秘钥，两边都知道如何将密文加密解密。
+
+这种加密方式固然很好，但是问题就在于如何让双方知道秘钥。因为传输数据都是走的网络，如果将秘钥通过网络的方式传递的话，一旦秘钥被截获就没有加密的意义的。
+
+### 非对称加密
+有公钥私钥之分，公钥所有人都可以知道，可以将数据用公钥加密，但是将数据解密必须使用私钥解密，私钥只有分发公钥的一方才知道。
+
+这种加密方式就可以完美解决对称加密存在的问题。假设现在两端需要使用对称加密，那么在这之前，可以先使用非对称加密交换秘钥。
+
+简单流程如下：首先服务端将公钥公布出去，那么客户端也就知道公钥了。接下来客户端创建一个秘钥，然后通过公钥加密并发送给服务端，服务端接收到密文以后通过私钥解密出正确的秘钥，这时候两端就都知道秘钥是什么了。
+
+## HTTP/2
+相较于http1
+### 多路复用
+在 HTTP/2 中，有两个非常重要的概念，分别是`帧（frame`）和`流（stream）`。帧代表着最小的数据单位，每个帧会标识出该帧属于哪个流，流也就是多个帧组成的数据流。
+
+`多路复用，就是在一个 TCP 连接中可以存在多条流。`换句话说，也就是**可以发送多个请求**，对端可以通过帧中的标识知道属于哪个请求。通过这个技术，可以避免 HTTP 旧版本中的队头阻塞问题，极大的提高传输性能。
+
+<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/12/1635442531d3e5ee~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/12/1635442531d3e5ee~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
+
+在 HTTP/1 中，因为队头阻塞的原因，你会发现发送请求是长这样的
+
+<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/12/163542c96df8563d~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/12/163542c96df8563d~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
+
+在 HTTP/2 中，因为可以复用同一个 TCP 连接，你会发现发送请求是长这样的
+
+<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/12/163542c9d3128c7a~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/12/163542c9d3128c7a~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
+
+### 二进制传输
+HTTP/2 中所有加强性能的核心点在于此。在之前的 HTTP 版本中，我们是通过文本的方式传输数据。在 HTTP/2 中引入了新的编码机制，`所有传输的数据都会被分割，并采用二进制格式编码`。
+
+<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/12/163543c25e5e9f23~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/12/163543c25e5e9f23~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
+
+### Header 压缩
+在 HTTP/1 中，我们使用文本的形式传输 header，在 header 携带 cookie 的情况下，可能每次都需要重复传输几百到几千的字节。
+
+在 HTTP /2 中，使用了 HPACK 压缩格式对传输的 header 进行编码，减少了 header 的大小。并在两端维护了`索引表`，用于记录出现过的 header ，后面在传输过程中就可以传输已经记录过的 header 的键名，对端收到数据后就可以通过键名找到对应的值。
+
+### 服务端 Push
+在 HTTP/2 中，服务端可以在客户端某个请求后，主动推送其他资源。
+
+可以想象以下情况，某些资源客户端是一定会请求的，这时就可以采取服务端 push 的技术，`提前给客户端推送必要的资源`，这样就可以相对减少一点延迟时间。当然在浏览器兼容的情况下你也可以使用 `prefetch` 。
+
+## HTTP/3
+ HTTP/2 使用了多路复用，一般来说同一域名下只需要使用一个 TCP 连接。当这个`连接中出现了丢包的情况`，那就会导致 HTTP/2 的表现情况反倒不如 HTTP/1 了。
+
+ 在出现丢包的情况下，`整个 TCP 都要开始等待重传，也就导致了后面的所有数据都被阻塞`了。但是对于 HTTP/1 来说，可以开启多个 TCP 连接，出现这种情况反到只会影响其中一个连接，剩余的 TCP 连接还可以正常传输数据。
+
+ 基于这个原因，Google 就更起炉灶搞了一个**基于 UDP 协议的 QUIC 协议**，并且使用在了 HTTP/3 上，当然 HTTP/3 之前名为 HTTP-over-QUIC，从这个名字中我们也可以发现，HTTP/3 最大的改造就是使用了 QUIC
+
+ ### QUIC
+ QUIC 虽然基于 UDP，但是在原本的基础上新增了很多功能，比如`多路复用、0-RTT、使用 TLS1.3 加密、流量控制、有序交付、重传`等等功能
+
+ 虽然 HTTP/2 支持了多路复用，但是 TCP 协议终究是没有这个功能的。QUIC 原生就实现了这个功能，并且`传输的单个数据流可以保证有序交付且不会影响其他的数据流`，这样的技术就解决了之前 TCP 存在的问题。
+
+ 并且 QUIC 在移动端的表现也会比 TCP 好。因为 TCP 是基于 IP 和端口去识别连接的，这种方式在多变的移动端网络环境下是很脆弱的。但是 QUIC 是通过 ID 的方式去识别一个连接，不管你网络环境如何变化，`只要 ID 不变，就能迅速重连上`。
+
+ ### 0-RTT
+ 通过使用类似 TCP 快速打开的技术，缓存当前会话的上下文，在下次恢复会话的时候，只需要将之前的缓存传递给服务端验证通过就可以进行传输了。
+
+ ### 纠错机制
+ 假如说这次我要发送三个包，那么协议会算出这三个包的异或值并单独发出一个校验包，也就是总共发出了四个包。
+
+ 当出现其中的非校验包丢包的情况时，可以通过另外三个包计算出丢失的数据包的内容。
+
+ 当然这种技术只能使用在丢失一个包的情况下，如果出现丢失多个包就不能使用纠错机制了，只能使用重传的方式了。
+
+ [更清晰的对于http的讲解](https://baijiahao.baidu.com/s?id=1627163778419611487&wfr=spider&for=pc)
