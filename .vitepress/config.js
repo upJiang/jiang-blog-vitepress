@@ -58,7 +58,9 @@ async function getConfig() {
             { text: '🤣 前端算法', link: '/docs/algorithm/dataStructures' },
             { text: '😊 babel通关秘籍', link: '/docs/babel/start' },
             { text: '😇 前端面试之道', link: '/docs/howReview/jsBase' },
-            { text: '😲 深入浅出vite', link: '/docs/vite/start' }
+            { text: '😲 深入浅出vite', link: '/docs/vite/start' },
+            { text: '🧑🏻 玩转vue3', link: '/docs/vue3/start' },
+            { text: '🚩 Vue.js设计与实现 ', link: '/docs/vueJs/start' }
           ]
         },
         { text: '📚基础', link: '/docs/jsBase/git' },
@@ -326,6 +328,22 @@ async function getConfig() {
                 text: 'polyfill语法降级',
                 link: '/docs/vite/polyfill'
               }
+            ]
+          }
+        ],
+        '/docs/vue3/': [
+          {
+            text: '玩转vue3',
+            children: [
+              { text: '开篇', link: '/docs/vue3/start' }
+            ]
+          }
+        ],
+        '/docs/vueJs/': [
+          {
+            text: 'Vue.js设计与实现',
+            children: [
+              { text: '开篇', link: '/docs/vueJs/start' }
             ]
           }
         ]
