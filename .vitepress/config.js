@@ -60,7 +60,8 @@ async function getConfig() {
             { text: '😇 前端面试之道', link: '/docs/howReview/jsBase' },
             { text: '😲 深入浅出vite', link: '/docs/vite/start' },
             { text: '🧑🏻 玩转vue3', link: '/docs/vue3/start' },
-            { text: '🚩 Vue.js设计与实现 ', link: '/docs/vueJs/start' }
+            { text: '🚩 Vue.js设计与实现 ', link: '/docs/vueJs/start' },
+            { text: '🤖 落地前端工程化 ', link: '/docs/engineering/start' }
           ]
         },
         { text: '📚基础', link: '/docs/jsBase/git' },
@@ -344,6 +345,15 @@ async function getConfig() {
             text: 'Vue.js设计与实现',
             children: [
               { text: '开篇', link: '/docs/vueJs/start' }
+            ]
+          }
+        ],
+        '/docs/engineering/': [
+          {
+            text: '落地前端工程化',
+            children: [
+              { text: '开篇', link: '/docs/engineering/start' },
+              { text: '模块化', link: '/docs/engineering/modularity' }
             ]
           }
         ]
