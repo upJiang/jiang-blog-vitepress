@@ -61,7 +61,8 @@ async function getConfig() {
             { text: '😲 深入浅出vite', link: '/docs/vite/start' },
             { text: '🧑🏻 玩转vue3', link: '/docs/vue3/start' },
             { text: '🚩 Vue.js设计与实现 ', link: '/docs/vueJs/start' },
-            { text: '🤖 落地前端工程化 ', link: '/docs/engineering/start' }
+            { text: '🤖 落地前端工程化 ', link: '/docs/engineering/start' },
+            { text: '😾 基于 Vite 的组件库工程化实战 ', link: '/docs/viteComponentActual/start' }
           ]
         },
         { text: '📚基础', link: '/docs/jsBase/git' },
@@ -354,6 +355,14 @@ async function getConfig() {
             children: [
               { text: '开篇', link: '/docs/engineering/start' },
               { text: '模块化', link: '/docs/engineering/modularity' }
+            ]
+          }
+        ],
+        '/docs/viteComponentActual/': [
+          {
+            text: '基于 vite 的组件库工程化实战',
+            children: [
+              { text: '开篇', link: '/docs/viteComponentActual/start' }
             ]
           }
         ]
