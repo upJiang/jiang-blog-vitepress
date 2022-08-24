@@ -362,7 +362,8 @@ async function getConfig() {
           {
             text: '基于 vite 的组件库工程化实战',
             children: [
-              { text: '开篇', link: '/docs/viteComponentActual/start' }
+              { text: '开篇', link: '/docs/viteComponentActual/start' },
+              { text: '创建项目', link: '/docs/viteComponentActual/create' }
             ]
           }
         ]
