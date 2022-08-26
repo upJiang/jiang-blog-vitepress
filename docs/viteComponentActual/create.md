@@ -161,14 +161,16 @@ Vue.component(Button.name, Button)
 /src/entry.ts
 ```
 import { App } from "vue";
+import MyButton from "./button";
 import SFCButton from "./button/SFCButton.vue";
 
 // 导出单独组件
-export { SFCButton };
+export { MyButton,SFCButton };
 
 // 编写一个插件，实现一个install方法
 export default {
   install(app: App): void {
+    app.component(MyButton.name, MyButton);
     app.component(SFCButton.name, SFCButton);
   }
 };
@@ -257,5 +259,8 @@ package.json
         .mount("#app");
 </script>
 ```
-访问url： http://localhost:5173/demo/esm/index.html
+
+项目跑起来：pnpm run dev，访问url： http://localhost:5173/demo/esm/index.html
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c119f99ecca74214b394bf1cc06f6675~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c119f99ecca74214b394bf1cc06f6675~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?)</a>
+
+
