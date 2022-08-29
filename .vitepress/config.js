@@ -364,7 +364,8 @@ async function getConfig() {
             children: [
               { text: '开篇', link: '/docs/viteComponentActual/start' },
               { text: '创建项目', link: '/docs/viteComponentActual/create' },
-              { text: '添加样式', link: '/docs/viteComponentActual/addCss' }
+              { text: '添加样式', link: '/docs/viteComponentActual/addCss' },
+              { text: '添加文档', link: '/docs/viteComponentActual/addDoc' }
             ]
           }
         ]
