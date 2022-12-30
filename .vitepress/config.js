@@ -60,9 +60,10 @@ async function getConfig() {
             { text: '😇 前端面试之道', link: '/docs/howReview/jsBase' },
             { text: '😲 深入浅出vite', link: '/docs/vite/start' },
             { text: '🧑🏻 玩转vue3', link: '/docs/vue3/start' },
-            { text: '🚩 Vue.js设计与实现 ', link: '/docs/vueJs/start' },
-            { text: '🤖 落地前端工程化 ', link: '/docs/engineering/start' },
-            { text: '😾 基于 Vite 的组件库工程化实战 ', link: '/docs/viteComponentActual/start' }
+            { text: '🚩 Vue.js设计与实现', link: '/docs/vueJs/start' },
+            { text: '🤖 落地前端工程化', link: '/docs/engineering/start' },
+            { text: '😾 基于 Vite 的组件库工程化实战', link: '/docs/viteComponentActual/start' },
+            { text: '😤 前端调试通关秘籍', link: '/docs/devTools/start' }
           ]
         },
         { text: '📚基础', link: '/docs/jsBase/git' },
@@ -366,6 +367,14 @@ async function getConfig() {
               { text: '创建项目', link: '/docs/viteComponentActual/create' },
               { text: '添加样式', link: '/docs/viteComponentActual/addCss' },
               { text: '添加文档', link: '/docs/viteComponentActual/addDoc' }
+            ]
+          }
+        ],
+        '/docs/devTools/': [
+          {
+            text: '前端调试通关秘籍',
+            children: [
+              { text: '开篇', link: '/docs/devTools/start' },
             ]
           }
         ]
