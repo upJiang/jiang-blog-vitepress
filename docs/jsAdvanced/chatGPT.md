@@ -75,7 +75,8 @@ cp config.dev.json config.json
 ```
 nohup go run main.go
 ```
-运行后即可关闭，不用理会警告，目录下会生成 `nohup.out` 文件，打开<br>
+运行后即可关闭，不用理会警告，目录下会生成 `nohup.out` 文件，打开
+
 ![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b1c8b529333d42db9f50aa9afe2af7df~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp)
 
 使用微信扫码登录，登录后你的这个微信就变成了 chatGPT 微信机器人，可以把它拉进群玩耍互动，私聊等。
