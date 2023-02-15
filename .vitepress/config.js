@@ -63,7 +63,8 @@ async function getConfig() {
             { text: '🚩 Vue.js设计与实现', link: '/docs/vueJs/start' },
             { text: '🤖 落地前端工程化', link: '/docs/engineering/start' },
             { text: '😾 基于 Vite 的组件库工程化实战', link: '/docs/viteComponentActual/start' },
-            { text: '😤 前端调试通关秘籍', link: '/docs/devTools/start' }
+            { text: '😤 前端调试通关秘籍', link: '/docs/devTools/start' },
+            { text: '😮 nextJs 官网 SSR 实战', link: '/docs/SSR/start' }
           ]
         },
         { text: '📚基础', link: '/docs/jsBase/git' },
@@ -379,6 +380,16 @@ async function getConfig() {
             text: '前端调试通关秘籍',
             children: [
               { text: '开篇', link: '/docs/devTools/start' },
+            ]
+          }
+        ],
+        '/docs/SSR/': [
+          {
+            text: 'nextJs 官网 SSR 实战',
+            children: [
+              { text: '开篇', link: '/docs/SSR/start' },
+              { text: '项目搭建', link: '/docs/SSR/init' },
+              { text: '规范搭建', link: '/docs/SSR/standard' },
             ]
           }
         ]
