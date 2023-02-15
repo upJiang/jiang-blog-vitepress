@@ -197,6 +197,10 @@ async function getConfig() {
           {
             text: '进阶',
             children: [
+              {
+                text: 'chatGPT微信机器人搭建',
+                link: '/docs/jsAdvanced/chatGPT'
+              },
               { text: 'TS', link: '/docs/jsAdvanced/ts' },
               { text: 'vue3', link: '/docs/jsAdvanced/vue3' },
               { text: 'vite', link: '/docs/jsAdvanced/vite' },
