@@ -1,6 +1,6 @@
 > 在我的掘金文章上有许多关于项目规范的文章，这里不详细介绍了，直接贴上具体代码，实操
 
-## eslint 规范 (此步骤可省略，nextjs 已经内置了开箱的 eslint 能力)
+## eslint 规范 
 ssr项目考虑以下几点
 - 技术栈：React，相对于大项目，React 具备更高的上限和可定制化能力，对函数式编程的思想也更容易领悟，所以针对大型项目，我更推荐大家用 React。
 - 是否使用 TypeScript：是，可以有效解决 JS 弱类型导致的相关隐性 Bug。
@@ -107,10 +107,17 @@ yarn add -D prettier eslint-plugin-prettier
 ```
 {
   "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true,
     "source.fixAll.stylelint": true
+  },
+  "stylelint.validate": ["css", "less", "scss", "vue"],
+  "[scss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }
+
 ```
 #### 添加 .editorconfig 定义编码风格
 ```
