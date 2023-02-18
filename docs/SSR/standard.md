@@ -91,17 +91,14 @@ vscode 安装 Prettier - Code formatter
 ```
 yarn add -D prettier eslint-plugin-prettier
 ```
-#### 新增 .prettierrc
+#### 新增 .prettierrc.js
 ```
-{
-  "tabWidth": 2,
-  "singleQuote": true,
-  "semi": false,
-  "trailingComma": "es5",
-  "arrowParens": "avoid",
-  "endOfLine": "auto",
-  "printWidth": 100
-}
+module.exports = {
+  singleQuote: false,
+  trailingComma: "all",
+  printWidth: 80,
+  htmlWhitespaceSensitivity: "ignore",
+};
 ```
 #### 添加 vscode 的配置，添加 .Vscode 文件夹，在文件夹下新建 settings.json
 ```
@@ -135,15 +132,20 @@ insert_final_newline = false
 
 ## stylelint 规范
 ```
-yarn add -D stylelint stylelint-config-prettier stylelint-config-standard stylelint-order stylelint-scss
+yarn add -D stylelint stylelint-config-clean-order stylelint-config-prettier stylelint-config-standard stylelint-config-standard-scss stylelint-prettier
 ```
 #### 添加 stylelint.config.js
 ```
 module.exports = {
-  root: true,
-  plugins: ['stylelint-order'],
-  extends: ['stylelint-config-standard', 'stylelint-config-prettier'],
-   rules: {
+  processors: [],
+  extends: [
+    "stylelint-config-standard-scss",
+    "stylelint-config-standard",
+    "stylelint-prettier/recommended",
+    "stylelint-config-prettier",
+    "stylelint-config-clean-order",
+  ],
+  rules: {
     "prettier/prettier": true,
     "at-rule-no-unknown": null,
     "no-empty-source": null,
@@ -155,8 +157,13 @@ module.exports = {
     "block-no-empty": null,
     "font-family-no-missing-generic-family-keyword": null,
     "declaration-block-no-shorthand-property-overrides": null,
+    "selector-class-pattern": null,
+    "no-duplicate-selectors": null,
+    "selector-pseudo-class-parentheses-space-inside": null,
+    "selector-combinator-space-before": null,
   },
-}
+};
+
 ```
 **至此，项目规范就算搭建好了**
 
