@@ -37,7 +37,6 @@ module.exports = {
   },
   plugins: ["react", "@typescript-eslint", "eslint-plugin-simple-import-sort"],
   rules: {
-    "prettier/prettier": "error",
     "react/jsx-uses-react": "off", // 必须增加对import React from 'react',jsx 的页面已经不再需要引入 React了，所以我们去掉这条 lint 规则
     "react/react-in-jsx-scope": "off", // 同上
     "@typescript-eslint/no-var-requires": "off", // 关闭 禁用使用 require 来定义
