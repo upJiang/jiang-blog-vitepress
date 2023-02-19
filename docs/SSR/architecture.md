@@ -1,4 +1,26 @@
 >一步步带领大家搭建整个项目架构
+
+## 部署打包、导出静态页面
+>在开发中，为了减少上线后遇到的并发问题或者在开发中并没发现的奇葩问题，我们可以时不时打包出静态文件，在本地看一下效果。在引入组件库之前，这一步其实尤为重要。
+### 安装 cross-env，区分环境变量
+>cross-env：运行跨平台设置和使用环境变量的脚本
+- 安装
+```
+yarn add -D cross-env
+```
+- 添加打包脚本
+```
+"build": "cross-env NODE_ENV=test next build",
+"export:test": "cross-env NODE_ENV=test next build && next export", // antdV5 在 test 环境打包样式丢失，暂未找到原因
+"export:prod": "cross-env NODE_ENV=production next build && next export",
+```
+- 安装 http-server
+
+全局安装 http-server，如果对 npm [管理安装依赖](https://juejin.cn/post/6998884224073744414)不熟悉的可以参考我的文章
+```
+npm install -g http-server
+```
+
 ## 样式、模块化代码提示
 Nextjs 已经提供了对 css 和 sass 的支持，只需要安装一下 `sass` 的依赖即可。
 
@@ -24,7 +46,7 @@ module.exports = {
   },
 }
 ```
-- 我们把 `index.ts` 文件名换成 `index.page.tsx` ,`_app.tsx` 改成 `_app.page.tsx` 并修改为
+- 我们把 `index.ts` 文件名换成 `index.page.tsx` ,`_app.tsx` 改成 `_app.page.tsx` 。修改 `index.page.tsx` 文件 
 ```
 // @/pages/index.page.tsx
 import styles from './home/index.module.scss'
@@ -94,7 +116,7 @@ module.exports = nextConfig;
 ```
 这样，我们在页面中引入样式.module.scss 后，使用 styls. 就会有代码提示
 
-![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/01e2e784951645008034dbf34055624f~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/01e2e784951645008034dbf34055624f~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/01e2e784951645008034dbf34055624f~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 响应式布局，适配双端，引入 antd、antd-mobilt
 >使用 `px 转 vw` 加`媒体查询` 的方式实现响应式布局，引入 antd、antd-mobile` 实现双端的页面组件布局
@@ -129,7 +151,7 @@ module.exports = {
 ```
 可以看到单位已经被转换成 vw
 
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4e20e7c80ec34586af4488ae48d311b2~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4e20e7c80ec34586af4488ae48d311b2~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4e20e7c80ec34586af4488ae48d311b2~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 媒体查询适配移动端
 在 px 端的适配，我们有一些弹窗它本身就很小，并不需要响应式布局，我们可以通过 postcss 的  `mediaQuery` 特性，我们给样式添加一个媒体查询即可避开 vw 的转换
@@ -142,15 +164,16 @@ module.exports = {
 其它适配移动端媒体查询就是常规用法~
 
 ### 引入pc端组件库 antd
-最新版 antd5.0，采用 CSS-in-JS，，CSS-in-JS 本身具有按需加载的能力，不再需要插件支持，`不再支持 babel-plugin-import`,
-因此只需下载依赖，引入使用即可
+最新版 antd5.0，采用 CSS-in-JS，CSS-in-JS 本身具有按需加载的能力，不再需要插件支持，`不再支持 babel-plugin-import`,
+因此只需下载依赖，引入使用即可。[antd引入官网文档](https://ant.design/docs/react/use-with-create-react-app-cn)
+- 安装
 ```
 yarn add antd
 ```
-为了兼容旧浏览器，比如在安卓微信中打开某些样式会失效，可以通过 @ant-design/cssinjs 的 StyleProvider 去除降权操作。修改 `_app.page.tsx`
+- 为了兼容旧浏览器，比如在安卓微信中打开某些样式会失效，可以通过 @ant-design/cssinjs 的 StyleProvider 去除降权操作。修改 `_app.page.tsx`
 ```
-import "@/styles/globals.scss";
 import type { AppProps } from "next/app";
+import "@/styles/globals.scss";
 import { StyleProvider } from "@ant-design/cssinjs";
 import { ConfigProvider } from "antd";
 import zhCN from "antd/locale/zh_CN";
@@ -165,6 +188,23 @@ export default function App({ Component, pageProps }: AppProps) {
   );
 }
 ```
+- 可以在 `@/_app.page.tsx` 引入antd默认样式文件
+```
+import 'antd/dist/reset.css';
+```
+- 在 `@/index.page.tsx`引入看下效果
+```
+import { Button } from "antd";
+<Button type="primary">antd 按钮</Button>
+```
+
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/852872c338014c1fa40525996f43f9db~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/852872c338014c1fa40525996f43f9db~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+- 这里可以打包看下打包的静态文件对 antd 的引入
+```
+yarn export:prod  // 执行yarn export:test 样式丢失
+```
+执行后在根目录会生成 out 文件夹，使用 http-server 查看一下，之后可以时不时打包看下模拟线上效果，避免上线爆发一些坑。
 ## 引入 axios，配置 mock 以及本地代理
 ```
 yarn add axios

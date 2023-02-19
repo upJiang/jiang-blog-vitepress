@@ -7,8 +7,8 @@ ssr项目考虑以下几点
 - 运行环境：SSR 项目同时包括客户端和服务端，所以我们选用浏览器 + node 的环境。
 - 模块导入类型：因为包含客户端和服务端，node 层很难避免使用 require,，所以建议选用 ES Modules + Commonjs，没必要对这部分进行 lint 了。
 ```
-yarn add -D eslint eslint-plugin-react @typescript-eslint/eslint-plugin @typescript-eslint/parser  
-
+yarn add -D eslint eslint-plugin-react @typescript-eslint/eslint-plugin @typescript-eslint/parser eslint-plugin-simple-import-sort
+ 
 npx eslint --init
 ```
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ccf187e721034454a1b4cb6408aaddaf~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ccf187e721034454a1b4cb6408aaddaf~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?)</a>
@@ -35,11 +35,16 @@ module.exports = {
     },
     ecmaVersion: "latest",
   },
-  plugins: ["react", "@typescript-eslint"],
+  plugins: ["react", "@typescript-eslint", "eslint-plugin-simple-import-sort"],
   rules: {
-    "react/jsx-uses-react": "off",
-    "react/react-in-jsx-scope": "off",
-    "@typescript-eslint/no-var-requires": "off", 
+    "prettier/prettier": "error",
+    "react/jsx-uses-react": "off", // 必须增加对import React from 'react',jsx 的页面已经不再需要引入 React了，所以我们去掉这条 lint 规则
+    "react/react-in-jsx-scope": "off", // 同上
+    "@typescript-eslint/no-var-requires": "off", // 关闭 禁用使用 require 来定义
+    "react/display-name": "off", // 关闭组件定义缺少显示名称
+    "simple-import-sort/imports": "error", // import 自动排序，eslint-plugin-simple-import-sort 自动修正
+    "simple-import-sort/exports": "error",
+    "no-duplicate-imports": ["error", { includeExports: true }],
   },
 };
 ```
