@@ -44,7 +44,7 @@ module.exports = {
     "react/display-name": "off", // 关闭组件定义缺少显示名称
     "simple-import-sort/imports": "error", // import 自动排序，eslint-plugin-simple-import-sort 自动修正
     "simple-import-sort/exports": "error",
-    "no-duplicate-imports": ["error", { includeExports: true }], // import不能重复重复，自动合并插件 eslint-plugin-import，添加extends：plugin:import/recommended
+    "no-duplicate-imports": ["off", { includeExports: true }], // import不能重复重复，自动合并插件 eslint-plugin-import，添加extends：plugin:import/recommended
     "import/no-unresolved": "off",  // 关闭 eslint 无法解析的导入
   },
 };

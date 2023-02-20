@@ -8,6 +8,12 @@
 ```
 yarn add -D cross-env
 ```
+- 常规添加 `.env.development、.env.test、.env.production`,并写入配置。
+
+**注意：nextjs 如果想在浏览器环境访问变量，意思就是除了构建时调用，还想在平时调用接口啥的使用，就必须添加前缀 `NEXT_PUBLIC_`，否则打包后将无法访问该变量**
+```
+NEXT_PUBLIC_HOST = https://junfeng530.xyz
+```
 - 添加打包脚本
 ```
 "build": "cross-env NODE_ENV=test next build",
@@ -233,6 +239,10 @@ module.exports = withTM({
   // 你项目中其他的 Next.js 配置
 });
 ```
+- antd-mobile 应该避免使用 postcss-px-to-viewport 的转换，修改 `postcss.config.js`，将 node_modules 下的 antd-mobile 整个目录排除掉
+```
+exclude: [/antd-mobile/]
+```
 - antd-mobile 会自动按需加载，只需引入使用即可，在 `@/index.page.tsx`引入看下效果
 ```
 import { Button as ButtonMobile } from "antd-mobile";
@@ -240,14 +250,20 @@ import { Button as ButtonMobile } from "antd-mobile";
         antd-mobile 按钮
 </ButtonMobile>
 ```
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a628e38507014173bcd5918a46d51dee~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a628e38507014173bcd5918a46d51dee~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+至此完成样式与组件库的引入。
+
 ## 引入 axios，配置 mock 以及本地代理
+### 封装 axios
 ```
 yarn add axios
 ```
 - 新增工具文件夹，添加文件：`@/utils/request.ts`，写入
 ```
-import axios, { AxiosError, AxiosRequestConfig } from 'axios'
-import { notification } from 'antd'
+import { notification } from "antd";
+import type { AxiosError, AxiosRequestConfig } from "axios";
+import axios from "axios";
 
 const instance = axios.create({
   timeout: 30 * 1000,
@@ -299,3 +315,276 @@ type Request = <T = unknown>(
 
 export const request = instance.request as Request
 ```
+### 搭建 mock 环境
+- 根目录下新增 mock 文件夹，新增如下两个文件
+
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9f9c2263cdbf4ec4b7d14ee7b99e9c64~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9f9c2263cdbf4ec4b7d14ee7b99e9c64~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+```
+// mock/data.json
+{
+    "indexStore": {
+        "store": {
+            "深圳": [
+                {
+                    "name": "坂田店",
+                    "address": "福田街道xxx",
+                    "marker": [
+                        114.294773,
+                        22.587251
+                    ]
+                },
+                {
+                    "name": "坂田店",
+                    "address": "福田街道xxx",
+                    "marker": [
+                        114.294773,
+                        22.587251
+                    ]
+                }
+            ],
+            "广州": [
+                {
+                    "name": "天河店",
+                    "address": "天河街道xxx",
+                    "marker": [
+                        114.294773,
+                        22.587251
+                    ]
+                },
+                {
+                    "name": "天河店",
+                    "address": "天河街道xxx",
+                    "marker": [
+                        114.294773,
+                        22.587251
+                    ]
+                }
+            ],
+            "佛山": [
+                {
+                    "name": "好地方店",
+                    "address": "而得到街道xxx",
+                    "marker": [
+                        114.294773,
+                        22.587251
+                    ]
+                },
+                {
+                    "name": "好地方店",
+                    "address": "而得到街道xxx",
+                    "marker": [
+                        114.294773,
+                        22.587251
+                    ]
+                }
+            ]
+        },
+        "seo": {
+            "content": "坂田店、福田街道xxx、天河店、天河街道xxx、好地方店、而得到街道xxx"
+        }
+    }
+}
+``` 
+```
+// mock/routes.json
+{
+    "/api/*": "/$1"
+}
+```
+- 安装 json-server
+```
+yarn add -D json-server
+```
+- 为了同时运行 mock 终端以及 next dev，我们安装 concurrently
+```
+yarn add -D concurrently
+```
+- 添加命令
+```
+dev:mock": "concurrently  \"yarn mock\" \"next dev\"",
+"mock": "cd ./mock && json-server --watch data.json --routes routes.json --port 4000"
+```
+## 服务端获取接口数据
+nextjs 提供 `getStaticProps` 方法让我们在项目构建时获取服务器的静态数据，注意该方法只在 build 时执行一次，数据必须是发布时更新的才使用这个，且必须是在页面级别上使用。
+- 添加 `@/home/api.ts`
+```
+// @/home/api.ts
+import { request } from "@/utils/request";
+
+export interface IMockData {
+  store: {
+    [key: string]: {
+      name: string;
+      address: string;
+      marker: number[];
+    }[];
+  };
+  seo: string;
+}
+
+// 获取mock数据
+export function fetchMockData() {
+  return request<IMockData>({
+    url: `${process.env.NEXT_PUBLIC_HOST}/api/indexStore`,
+    method: "GET",
+  });
+}
+```
+- 修改 `index.page.tsx`
+```
+import { Button } from "antd";
+import { Button as ButtonMobile } from "antd-mobile";
+
+import { fetchMockData, IMockData } from "./home/api";
+import styles from "./home/index.module.scss";
+
+export default function (props: { mockData: IMockData }) {
+  console.log("mockData", props.mockData);
+  return (
+    <div>
+      <Button type="primary">antd 按钮</Button>
+      <ButtonMobile color="primary">antd-mobile 按钮</ButtonMobile>
+      <div className={styles["home-container"]}>官网实战</div>;
+    </div>
+  );
+}
+
+export async function getStaticProps() {
+  // 获取门店列表
+  const res = await fetchMockData();
+  const mockData = res;
+
+  return {
+    props: { mockData },
+  };
+}
+```
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d62305aad1a9471ba67e8b437f2de272~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d62305aad1a9471ba67e8b437f2de272~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+我们在终端控制台可以看到 mock 数据已被打印出来，之后我们就能在页面组件中通过 props 拿到它返回的数据，并可以传递给组件使用。
+
+## 封装通用 Layout、SEOHEAD
+### 新增组件
+新增如下组件文件：
+
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a1c914f3d624e1b9e4f52017b0f3a75~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a1c914f3d624e1b9e4f52017b0f3a75~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+- `@/components/footer/index.tsx`
+```
+import styles from "./index.module.scss";
+
+export default function () {
+  return (
+    <div id="footer" className={styles["footer-container"]}>
+      底部
+    </div>
+  );
+}
+```
+- `@/components/headSeo/index.tsx`
+```
+import Head from "next/head";
+
+export default function (seo: {
+  content: {
+    keywords: string;
+    description: string;
+    title: string;
+  };
+}) {
+  return (
+    <Head>
+      <meta charSet="UTF-8" />
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0;"
+      />
+      <meta name="keywords" content={seo.content.keywords} />
+      <meta name="description" content={seo.content.description} />
+      <meta name="robots" content="index, follow" />
+      <meta name="applicable-device" content="pc,mobile" />
+      <meta name="format-detection" content="telephone=no" />
+      <title>{seo.content.title}</title>
+    </Head>
+  );
+}
+```
+- `@/components/layout/index.tsx`
+```
+import Footer from "../footer";
+import HeadSeo from "../headSeo";
+import Navbar from "../navbar";
+
+export default function Layout(props: {
+  children: React.ReactNode;
+  seo: {
+    keywords: string;
+    description: string;
+    title: string;
+  };
+}) {
+  return (
+    <>
+      <HeadSeo content={props.seo} />
+      <Navbar />
+      <main>{props.children}</main>
+      <Footer />
+    </>
+  );
+}
+```
+- `@/components/navbar/index.tsx`
+```
+import styles from "./index.module.scss";
+
+export default function () {
+  return (
+    <div id="footer" className={styles["navbar-container"]}>
+      头部
+    </div>
+  );
+}
+```
+样式文件就不贴了，自行编写。
+
+### 在页面级文件使用
+- `@/index.page.tsx`，我们可以为每个页面都传入不同的 `headseo`，加到 `description` 标签中
+```
+import { Button } from "antd";
+import { Button as ButtonMobile } from "antd-mobile";
+
+import Layout from "../components/layout";
+import type { IMockData } from "./home/api";
+import { fetchMockData } from "./home/api";
+import styles from "./home/index.module.scss";
+
+export default function (props: { mockData: IMockData }) {
+  console.log("mockData", props.mockData);
+  const headSeo = {
+    keywords: "sso、nextjs、antd、jiang",
+    description: `seo实践 ${props.mockData.seo}`,
+    title: "nextJs 官网 SSR 实战",
+  };
+  return (
+    <Layout seo={headSeo}>
+      <div>
+        <Button type="primary">antd 按钮</Button>
+        <ButtonMobile color="primary">antd-mobile 按钮</ButtonMobile>
+        <div className={styles["home-container"]}>官网实战</div>;
+      </div>
+    </Layout>
+  );
+}
+
+export async function getStaticProps() {
+  // 获取mock数据
+  const res = await fetchMockData();
+  const mockData = res;
+
+  return {
+    props: { mockData },
+  };
+}
+```
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/77505b71c369414b82547dfbcd88b140~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/77505b71c369414b82547dfbcd88b140~tplv-k3u1fbpfcp-watermark.image?)</a>
