@@ -205,6 +205,41 @@ import { Button } from "antd";
 yarn export:prod  // 执行yarn export:test 样式丢失
 ```
 执行后在根目录会生成 out 文件夹，使用 http-server 查看一下，之后可以时不时打包看下模拟线上效果，避免上线爆发一些坑。
+
+### 引入移动端组件库 antd-mobile
+[antd-mobile ssr 引入文档地址](https://mobile.ant.design/zh/guide/ssr/)，
+- 安装
+```
+yarn add antd-mobile
+```
+- 配置 next.config.js
+
+方式一：此方式会有一堆警告
+```
+experimental: {
+  transpilePackages: ["antd-mobile"],
+},
+
+```
+方式二：建议用这个
+```
+yarn add -D next-transpile-modules
+
+// 修改 next.config.js
+const withTM = require('next-transpile-modules')([
+  'antd-mobile',
+]);
+module.exports = withTM({
+  // 你项目中其他的 Next.js 配置
+});
+```
+- antd-mobile 会自动按需加载，只需引入使用即可，在 `@/index.page.tsx`引入看下效果
+```
+import { Button as ButtonMobile } from "antd-mobile";
+<ButtonMobile size="large" color="primary">
+        antd-mobile 按钮
+</ButtonMobile>
+```
 ## 引入 axios，配置 mock 以及本地代理
 ```
 yarn add axios

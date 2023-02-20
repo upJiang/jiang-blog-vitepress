@@ -27,6 +27,7 @@ module.exports = {
     "eslint:recommended",
     "plugin:react/recommended",
     "plugin:@typescript-eslint/recommended",
+    "plugin:import/recommended",
   ],
   parser: "@typescript-eslint/parser",
   parserOptions: {
@@ -43,7 +44,8 @@ module.exports = {
     "react/display-name": "off", // 关闭组件定义缺少显示名称
     "simple-import-sort/imports": "error", // import 自动排序，eslint-plugin-simple-import-sort 自动修正
     "simple-import-sort/exports": "error",
-    "no-duplicate-imports": ["error", { includeExports: true }],
+    "no-duplicate-imports": ["error", { includeExports: true }], // import不能重复重复，自动合并插件 eslint-plugin-import，添加extends：plugin:import/recommended
+    "import/no-unresolved": "off",  // 关闭 eslint 无法解析的导入
   },
 };
 ```
@@ -51,7 +53,10 @@ module.exports = {
 - react/jsx-uses-react：必须增加对 `import React from 'react';` 的引入，在 React 17 之后，jsx 的页面已经不再需要引入 React了，所以我们去掉这条 lint 规则。
 - react/react-in-jsx-scope：同上。
 - @typescript-eslint/no-var-requires：禁用使用 require 来定义，node 很多相关的依赖没有对 es module 的定义，所以我们也去掉这条 lint 规则。
-
+- react/display-name：关闭组件定义缺少显示名称
+- simple-import-sort/imports：import 自动排序，安装 eslint-plugin-simple-import-sort 自动修正
+- no-duplicate-imports：import 重复导入，自动修正：安装 eslint-plugin-import，并加入extends： plugin:import/recommended
+- import/no-unresolved：关闭 eslint 无法解析的导入
 ## commit 规范
 ```
 yarn add -D @commitlint/config-conventional @commitlint/cli
