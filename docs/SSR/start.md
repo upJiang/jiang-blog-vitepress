@@ -1,12 +1,3 @@
-## 官网开发的技术核心
-<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ed40a0e1bc1f4e058fc70014dd41ea15~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ed40a0e1bc1f4e058fc70014dd41ea15~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?)</a>
-- 项目开发：官网与大部分 C 端网站一样，通常采用 SSR 来进行项目的开发，与 B 端应用的客户端渲染（简称：CSR）不同，原理上，更多的数据请求等逻辑需要放在服务器端完成，来保证 SEO 可以获取到站点的完整信息，进行更精准的引擎匹配和排行。
-- 用户体验：官网是对外的形象站点，用户的体验和口碑会决定到外部对公司和团队的印象和信任程度，所以需要对性能有更多的要求。官网开发需要尽可能去优化站点首屏等指标，并且考虑到低网速，多媒体访问站点的情况，保证体验可以在多个场景下保持正常。
-- 运营维护：一个站点上线后，运营会对站点进行后续的维护，尤其对于官网项目，经常会有实时的数据或是政策更新，所以针对官网应用我们需要保证官网数据的可灵活配置，最好可以提供一个额外的后台系统来协助运营。但是官网数据层相对比较简单，直接开发一个后台对于开发的成本是不小的，怎么平衡开发成本和配置效果，也是官网开发需要重点思考的问题。
-- 部署流程：一个对外应用，有严格的备案流程，包括国家站点备案、公安备案等。同时我们还需要考虑集群相关资源的选择，合理地分配集群资源来达到成本和用户访问的平衡。不仅如此，还需要考虑 SEO 站点排行。给予对外站点足够的曝光和流量，才算是实现了官网开发的需求和初衷。
-
-<a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2f21387dea0d41e6ad7b2279adcd1b7a~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2f21387dea0d41e6ad7b2279adcd1b7a~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?)</a>
-
 ## 浏览器是怎么渲染一个页面的？
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f9d54b5db9484e0ca987580fec16f2c4~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f9d54b5db9484e0ca987580fec16f2c4~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?)</a>
 

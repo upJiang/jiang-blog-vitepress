@@ -385,7 +385,7 @@ async function getConfig() {
         ],
         '/docs/SSR/': [
           {
-            text: 'nextJs 官网 SSR 实战',
+            text: 'nextJs SSR 实战',
             children: [
               { text: '开篇', link: '/docs/SSR/start' },
               { text: '项目init', link: '/docs/SSR/init' },
