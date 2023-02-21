@@ -1,4 +1,5 @@
 >一步步带领大家搭建整个项目架构
+如果有看不懂，或者搭建有报错的，请参考我的仓库代码，[仓库地址](https://github.com/upJiang/next-ssr-website)
 
 ## 部署打包、导出静态页面
 >在开发中，为了减少上线后遇到的并发问题或者在开发中并没发现的奇葩问题，我们可以时不时打包出静态文件，在本地看一下效果。在引入组件库之前，这一步其实尤为重要。
@@ -169,6 +170,46 @@ module.exports = {
 ```
 其它适配移动端媒体查询就是常规用法~
 
+### 设备判断
+>如果根据服务器请求的 user-agent 请求头去判断设备，如果我们打开客户端没有请求那么打包后将无法正确判断设备，所以我们使用以下方式：
+- 安装 `react-use`
+```
+yarn add react-use
+```
+- 封装 hooks 方法，`@/components/useDevice.ts`
+```
+import { useEffect, useState } from "react";
+import { useWindowSize } from "react-use";
+
+export const useDevice = () => {
+  const [isMobile, setMobile] = useState(true);
+  const size = useWindowSize();
+
+  useEffect(() => {
+    const userAgent =
+      typeof window.navigator === "undefined" ? "" : navigator.userAgent;
+    const mobile =
+      /Android|BlackBerry|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(
+        userAgent,
+      );
+    setMobile(size.width <= 750 || mobile);
+  }, [size.width]);
+
+  return {
+    isMobile,
+  };
+};
+```
+- 在页面中引入使用 `index.page.tsx`
+```
+import { useDevice } from "@/hooks/useDevice";
+
+const { isMobile } = useDevice();
+
+{!isMobile && <div>pc端布局</div>}
+{isMobile && <div>移动端布局</div>}
+```
+
 ### 引入pc端组件库 antd
 最新版 antd5.0，采用 CSS-in-JS，CSS-in-JS 本身具有按需加载的能力，不再需要插件支持，`不再支持 babel-plugin-import`,
 因此只需下载依赖，引入使用即可。[antd引入官网文档](https://ant.design/docs/react/use-with-create-react-app-cn)
@@ -208,9 +249,64 @@ import { Button } from "antd";
 
 - 这里可以打包看下打包的静态文件对 antd 的引入
 ```
-yarn export:prod  // 执行yarn export:test 样式丢失
+yarn export:prod  
 ```
 执行后在根目录会生成 out 文件夹，使用 http-server 查看一下，之后可以时不时打包看下模拟线上效果，避免上线爆发一些坑。
+
+- antdV5 打包 test 环境样式丢失，修改 `_document.page.tsx` ,[问题解决参考地址](https://github.com/ant-design/create-next-app-antd/blob/main/pages/_document.tsx)
+```
+import { createCache, extractStyle, StyleProvider } from "@ant-design/cssinjs";
+import Document, {
+  DocumentContext,
+  Head,
+  Html,
+  Main,
+  NextScript,
+} from "next/document";
+
+export default class MyDocument extends Document {
+  static async getInitialProps(ctx: DocumentContext) {
+    const cache = createCache();
+    const originalRenderPage = ctx.renderPage;
+
+    ctx.renderPage = () =>
+      originalRenderPage({
+        enhanceApp: (App) => (props) =>
+          (
+            <StyleProvider cache={cache}>
+              <App {...props} />
+            </StyleProvider>
+          ),
+      });
+
+    const initialProps = await Document.getInitialProps(ctx);
+    return {
+      ...initialProps,
+      styles: (
+        <>
+          {initialProps.styles}
+          <style
+            data-test="extract"
+            dangerouslySetInnerHTML={{ __html: extractStyle(cache) }}
+          />
+        </>
+      ),
+    };
+  }
+
+  render() {
+    return (
+      <Html lang="en">
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    );
+  }
+}
+```
 
 ### 引入移动端组件库 antd-mobile
 [antd-mobile ssr 引入文档地址](https://mobile.ant.design/zh/guide/ssr/)，
@@ -407,6 +503,8 @@ dev:mock": "concurrently  \"yarn mock\" \"next dev\"",
 ```
 ## 服务端获取接口数据
 nextjs 提供 `getStaticProps` 方法让我们在项目构建时获取服务器的静态数据，注意该方法只在 build 时执行一次，数据必须是发布时更新的才使用这个，且必须是在页面级别上使用。
+
+mock 数据只能在本地调试使用，打包构建时记得切换
 - 添加 `@/home/api.ts`
 ```
 // @/home/api.ts
@@ -430,6 +528,23 @@ export function fetchMockData() {
     method: "GET",
   });
 }
+
+// export function fetchMockData() {
+//   return new Promise<IMockData>((resolve) => {
+//     resolve({
+//       store: {
+//         深圳: [
+//           {
+//             name: "111",
+//             address: "222",
+//             marker: [11, 22],
+//           },
+//         ],
+//       },
+//       seo: "333",
+//     });
+//   });
+// }
 ```
 - 修改 `index.page.tsx`
 ```
@@ -450,6 +565,7 @@ export default function (props: { mockData: IMockData }) {
   );
 }
 
+// 静态生成 SSG ，往下会介绍  getStaticProps
 export async function getStaticProps() {
   // 获取门店列表
   const res = await fetchMockData();
@@ -549,7 +665,7 @@ export default function () {
 样式文件就不贴了，自行编写。
 
 ### 在页面级文件使用
-- `@/index.page.tsx`，我们可以为每个页面都传入不同的 `headseo`，加到 `description` 标签中
+- `@/index.page.tsx`，我们可以为每个页面都传入不同的 `headseo`，加到 `description` 标签中，这样搜索引擎就可以爬取到我们这些信息。
 ```
 import { Button } from "antd";
 import { Button as ButtonMobile } from "antd-mobile";
@@ -588,3 +704,224 @@ export async function getStaticProps() {
 }
 ```
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/77505b71c369414b82547dfbcd88b140~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/77505b71c369414b82547dfbcd88b140~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+## 图片优化 `webp + cdn`
+- 封装是否支持 webp hooks，`@/hooks/useWebp.ts`
+```
+import { useEffect, useState } from "react";
+
+export const useWebp = () => {
+  const [isSupportWebp, setIsSupportWebp] = useState(true);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const supportWebp =
+        window.document
+          .createElement("canvas")
+          .toDataURL("image/webp")
+          .indexOf("data:image/webp") > -1;
+      setIsSupportWebp(supportWebp);
+    }
+  }, []);
+
+  return {
+    isSupportWebp,
+  };
+};
+```
+- 封装是否支持 oss hooks，`@/hooks/useOss.ts`
+```
+import { useCallback } from "react";
+
+import { useWebp } from "./useWebp";
+
+export const useOSS = () => {
+  const { isSupportWebp } = useWebp();
+  const getOssImage = useCallback(
+    (option: {
+      originUrl: string;
+      /**
+       * @description 不支持 webp，降级处理宽度
+       * @type {number}
+       */
+      notSupportWebpWidth?: number;
+      /**
+       * @description 不支持 webp，降级处理高度
+       * @type {number}
+       */
+      notSupportWebpHeight?: number;
+      width?: number; // 不使用 oss，正常传即可
+      height?: number;
+    }) => {
+      let process = "";
+      if ((option.notSupportWebpWidth && !isSupportWebp) || option.width) {
+        process = `w_${option.notSupportWebpWidth || option.width},`;
+      }
+      if ((option.notSupportWebpHeight && !isSupportWebp) || option.height) {
+        process = `${process}h_${
+          option.notSupportWebpHeight || option.height
+        },`;
+      }
+      if (process) {
+        process = `x-oss-process=image/resize,m_fill,limit_0,${process},`;
+      }
+
+      if (isSupportWebp && process) {
+        process = `${process}/format,webp`;
+      }
+      if (isSupportWebp && !process) {
+        process = `x-oss-process=image/format,webp`;
+      }
+      return `${option.originUrl}?${process}`;
+    },
+    [isSupportWebp],
+  );
+
+  return { getOssImage };
+};
+```
+-  封装 ossImage 组件，`@/components/OssImage/index.tsx`
+```
+/* eslint-disable react/require-default-props */
+import { useOSS } from "@/hooks/useOss";
+
+type Props = React.DetailedHTMLProps<
+  React.ImgHTMLAttributes<HTMLImageElement>,
+  HTMLImageElement
+> & {
+  notSupportWebpWidth?: number;
+  notSupportWebpHeight?: number;
+  ossWidth?: number;
+  ossHeight?: number;
+};
+
+export default function (props: Props) {
+  const { getOssImage } = useOSS();
+  return (
+    <img
+      {...props}
+      src={getOssImage({
+        originUrl: props.src || "",
+        notSupportWebpWidth: props.notSupportWebpWidth,
+        notSupportWebpHeight: props.notSupportWebpHeight,
+        width: props.ossWidth,
+        height: props.ossHeight,
+      })}
+      loading="lazy"
+    />
+  );
+}
+```
+- 在页面中引入使用
+```
+import OssImage from "@/components/OssImage";
+
+ {/* 使用 oss，自动判断是否支持 webp*/}
+<OssImage
+  style={{
+    background: "beige",
+  }}
+  src="https://img.alicdn.com/tfs/TB11B9iM7voK1RjSZPfXXXPKFXa-338-80.png"
+  notSupportWebpWidth={338}
+  notSupportWebpHeight={80}
+></OssImage>
+{/* 不使用 oss,正常传宽高*/}
+<OssImage
+  style={{
+    background: "beige",
+  }}
+  src="https://img.alicdn.com/tfs/TB11B9iM7voK1RjSZPfXXXPKFXa-338-80.png"
+  width={338}
+  height={80}
+></OssImage>
+```
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b2ebad92cd5247488c207e6daf7076fe~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b2ebad92cd5247488c207e6daf7076fe~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+## nextJs 获取数据渲染的方式 
+- next 会根据导出的函数来区分这个页面是哪种渲染，这两个函数（`getStaticProps`、`getServerSideProps`）**只能存在一个**
+- 调用时机都是在浏览器渲染之前，也就是说没有 `document、window` 之类的对象，开发时，请在终端查看数据
+### getStaticProps SSG (静态生成)
+- 项目构建打包时调用，并生成 html（开发时是每次请求都更新），理解为写死了传到服务器上，想要更新请重新打包。
+- 适用于不变的数据，能够做 seo
+- 在页面中使用，`index.page.tsx`
+```
+// 静态 SSG
+export async function getStaticProps() {
+  // 获取mock数据
+  const res = await fetchMockData();
+  const mockData = res;
+
+  return {
+    props: { mockData },
+  };
+}
+```
+
+### getServerSideProps SSR (服务端渲染)
+- 每次在服务器接收到请求时更新
+- 适用于经常改变的数据，无法做 seo
+- getServerSideProps 返回值除了可以设置 props 外还可以使用 `notFound` 来强制页面跳转到 404，或者是使用 `redirect` 来将页面重定向。
+```
+export async function getServerSideProps() {
+  const data = await fetchMockData();
+  console.log("data", data);
+
+  if (!data) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    // return {
+    //   notFound: true
+    // };
+    };
+  }
+
+  return {
+    props: { data },
+  };
+}
+```
+## 单文件生成多页面 getStaticPaths
+>比如我们的项目有一个新闻页面，它需要做 seo，这样一个页面肯定无法满足，我们可以通过 getStaticPaths 去生成多个页面，搭配 getStaticProps 去构造每个页面不同的页面数据，文件名只需要使用 `[变量名].page.tsx`
+- 新建 `@/static-path/[id].page.tsx`
+```
+export default function ({ post }: { post: string }) {
+  return (
+    <div>
+      <h1>Post: {post}</h1>
+    </div>
+  );
+}
+
+export async function getStaticPaths() {
+  const paths = new Array(10).fill(0).map((_, i) => ({
+    params: { id: i + 1 + "" },
+  }));
+
+  console.log("paths", paths);
+  return { paths, fallback: false };
+}
+
+export async function getStaticProps({ params }: { params: { id: string } }) {
+  // 在这里我们可以获取需要的数据，然后根据不同的 id 去返回到页面上
+  console.log("params", params);
+  return { props: { post: `post ${params.id}` } };
+}
+```
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a6f6f4e5ab5e4eb09e06e12bc87234d9~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a6f6f4e5ab5e4eb09e06e12bc87234d9~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+## 打包部署
+服务器部署自动上传可以参考[我的文章](https://juejin.cn/post/7077484161660878856)
+可以通过打包生成静态文件，将生成的 out 文件夹上传到服务器上即可。
+
+## 优化
+- 这里做的主要优化是对大图的 `cdn + webp` 处理
+- 数据的获取根据要求选择不同的渲染方式
+- 组件库都支持按需加载
+- seo 的优化
+  - 做了 headSeo 组件，每个页面都能传入不同 title、keywords、description
+  - 使用 getStaticProps 支持后端数据拉取后的 seo
+  - Sitemap 方案可以根据项目业务去加一下
+
+将持续更新，后面将加入埋点、监控系统、后台管理系统等，同时也将尝试将自己的博客换成ssr方式。
