@@ -64,3 +64,5 @@ tsconfig.json 中我们也需要加一下对应的别名解析识别（baseurl ,
 
 接下来一步步把整个项目完善起来！！！
 
+可下载我的项目代码参考，[项目代码地址](https://github.com/upJiang/next-ssr-website)
+
