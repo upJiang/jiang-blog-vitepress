@@ -913,6 +913,7 @@ export async function getStaticProps({ params }: { params: { id: string } }) {
 
 ## 打包部署
 服务器部署自动上传可以参考[我的文章](https://juejin.cn/post/7077484161660878856)
+
 可以通过打包生成静态文件，将生成的 out 文件夹上传到服务器上即可。
 
 ## 优化
