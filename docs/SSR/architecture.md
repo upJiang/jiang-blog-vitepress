@@ -1,15 +1,13 @@
->一步步带领大家搭建整个项目架构
-如果有看不懂，或者搭建有报错的，请参考我的仓库代码，[仓库地址](https://github.com/upJiang/next-ssr-website)
+[仓库地址](https://github.com/upJiang/next-ssr-website)
 
-## 部署打包、导出静态页面
+## 部署打包环境
 >在开发中，为了减少上线后遇到的并发问题或者在开发中并没发现的奇葩问题，我们可以时不时打包出静态文件，在本地看一下效果。在引入组件库之前，这一步其实尤为重要。
-### 安装 cross-env，区分环境变量
->cross-env：运行跨平台设置和使用环境变量的脚本
-- 安装
+- 安装 `cross-env`，区分环境变量，cross-env：运行跨平台设置和使用环境变量的脚本
+- 安装依赖
 ```
 yarn add -D cross-env
 ```
-- 常规添加 `.env.development、.env.test、.env.production`,并写入配置。
+- 常规添加 `.env.development、.env.test、.env.production`，并写入配置。
 
 **注意：nextjs 如果想在浏览器环境访问变量，意思就是除了构建时调用，还想在平时调用接口啥的使用，就必须添加前缀 `NEXT_PUBLIC_`，否则打包后将无法访问该变量**
 ```
@@ -18,17 +16,23 @@ NEXT_PUBLIC_HOST = https://junfeng530.xyz
 - 添加打包脚本
 ```
 "build": "cross-env NODE_ENV=test next build",
-"export:test": "cross-env NODE_ENV=test next build && next export", // antdV5 在 test 环境打包样式丢失，暂未找到原因
+"export:test": "cross-env NODE_ENV=test next build && next export", 
 "export:prod": "cross-env NODE_ENV=production next build && next export",
 ```
 - 安装 http-server
 
-全局安装 http-server，如果对 npm [管理安装依赖](https://juejin.cn/post/6998884224073744414)不熟悉的可以参考我的文章
+全局安装 http-server，[npm管理安装依赖教程地址](https://juejin.cn/post/6998884224073744414)
 ```
 npm install -g http-server
 ```
-
+- 查看静态文件
+```
+yarn export:test
+cd out 
+http-server
+```
 ## 样式、模块化代码提示
+- 安装依赖
 Nextjs 已经提供了对 css 和 sass 的支持，只需要安装一下 `sass` 的依赖即可。
 
 **这里 next 有个坑，如果版本超过 13.1.1 ，将会报错 unhandledRejection: Error: Cannot find module 'D:\nextjs\node_modules\next\dist\compiled\sass-loader/fibers.js'**
@@ -36,7 +40,7 @@ Nextjs 已经提供了对 css 和 sass 的支持，只需要安装一下 `sass` 
 ```
 yarn add -D sass
 ```
-- 修改 `next.config.js` 配置，自定义页面扩展名，项目将会打包指定后缀的文件为页面
+- `next.config.js` 配置，自定义页面扩展名，项目将会打包指定后缀的文件为页面
 ```
 const path = require('path')
 
@@ -53,7 +57,9 @@ module.exports = {
   },
 }
 ```
-- 我们把 `index.ts` 文件名换成 `index.page.tsx` ,`_app.tsx` 改成 `_app.page.tsx` 。修改 `index.page.tsx` 文件 
+- `index.ts` 文件名换成 `index.page.tsx` ,`_app.tsx` 改成 `_app.page.tsx` 。
+
+修改 `index.page.tsx` 
 ```
 // @/pages/index.page.tsx
 import styles from './home/index.module.scss'
@@ -70,11 +76,10 @@ export default function () {
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/df28268a9a354a29aeb7a0f055a81b61~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/df28268a9a354a29aeb7a0f055a81b61~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-首页还是 index.page.tsx ，使用的是 home 目录下的文件，每个页面都有类似：`api.ts、index.module.scss、index.page.tsx、components` 等文件
-
+首页还是 `index.page.tsx` ，使用的是 home 目录下的文件，每个页面都有类似：`api.ts、index.module.scss、index.page.tsx、components` 等文件
 
 - 添加样式代码提示
-在页面我们只能使用 `模块化 .module.scss` 的方式去写样式，全局样式则放到 `@/styles` 文件目录下，并在 `_app.tsx` 中引入
+页面中只能使用 cssModule 的方式，全局样式放到 `@/styles` 文件目录下，并在 `_app.tsx` 中引入
 
 - 安装 vscode 插件添加代码提示 [CSS Modules](https://marketplace.visualstudio.com/items?itemName=clinyong.vscode-css-modules )
 
@@ -123,18 +128,16 @@ const nextConfig = {
 
 module.exports = nextConfig;
 ```
-这样，我们在页面中引入样式.module.scss 后，使用 styls. 就会有代码提示
+在页面中引入样式.module.scss 后，使用 styls. 就会有代码提示
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/01e2e784951645008034dbf34055624f~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/01e2e784951645008034dbf34055624f~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-## 响应式布局，适配双端，引入 antd、antd-mobilt
->使用 `px 转 vw` 加`媒体查询` 的方式实现响应式布局，引入 antd、antd-mobile` 实现双端的页面组件布局
-### 响应式布局 px-vw
+## 响应式布局
 - 安装 postcss-px-to-viewport 
 ```
 yarn add -D postcss-px-to-viewport
 ```
-- 添加文件 postcss.config.js
+- postcss.config.js
 ```
 module.exports = {
   plugins: {
@@ -158,11 +161,9 @@ module.exports = {
   },
 };
 ```
-可以看到单位已经被转换成 vw
-
 <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4e20e7c80ec34586af4488ae48d311b2~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4e20e7c80ec34586af4488ae48d311b2~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-### 媒体查询适配移动端
+## 媒体查询
 在 px 端的适配，我们有一些弹窗它本身就很小，并不需要响应式布局，我们可以通过 postcss 的  `mediaQuery` 特性，我们给样式添加一个媒体查询即可避开 vw 的转换
 
 比如：
@@ -173,7 +174,7 @@ module.exports = {
 其它适配移动端媒体查询就是常规用法~
 
 ### 设备判断
->如果根据服务器请求的 user-agent 请求头去判断设备，如果我们打开客户端没有请求那么打包后将无法正确判断设备，所以我们使用以下方式：
+>如果根据服务器请求的 user-agent 请求头去判断设备，如果我们打开客户端没有请求那么打包后将无法正确判断设备，推荐使用以下方式：
 - 安装 `react-use`
 ```
 yarn add react-use
@@ -202,7 +203,7 @@ export const useDevice = () => {
   };
 };
 ```
-- 在页面中引入使用 `index.page.tsx`
+- `index.page.tsx`
 ```
 import { useDevice } from "@/hooks/useDevice";
 
@@ -212,14 +213,16 @@ const { isMobile } = useDevice();
 {isMobile && <div>移动端布局</div>}
 ```
 
-### 引入pc端组件库 antd
-最新版 antd5.0，采用 CSS-in-JS，CSS-in-JS 本身具有按需加载的能力，不再需要插件支持，`不再支持 babel-plugin-import`,
+## 引入antd
+>最新版 antd5.0，采用 CSS-in-JS，CSS-in-JS 本身具有按需加载的能力，不再需要插件支持，`不再支持 babel-plugin-import`,
 因此只需下载依赖，引入使用即可。[antd引入官网文档](https://ant.design/docs/react/use-with-create-react-app-cn)
-- 安装
+- 安装依赖
 ```
 yarn add antd
 ```
-- 为了兼容旧浏览器，比如在安卓微信中打开某些样式会失效，可以通过 @ant-design/cssinjs 的 StyleProvider 去除降权操作。修改 `_app.page.tsx`
+- 为了兼容旧浏览器，比如在安卓微信中打开某些样式会失效，可以通过 @ant-design/cssinjs 的 StyleProvider 去除降权操作。
+
+`_app.page.tsx`
 ```
 import type { AppProps } from "next/app";
 import "@/styles/globals.scss";
@@ -237,11 +240,11 @@ export default function App({ Component, pageProps }: AppProps) {
   );
 }
 ```
-- 可以在 `@/_app.page.tsx` 引入antd默认样式文件
+- `@/_app.page.tsx` 引入antd默认样式文件（可选）
 ```
 import 'antd/dist/reset.css';
 ```
-- 在 `@/index.page.tsx`引入看下效果
+- `@/index.page.tsx`
 ```
 import { Button } from "antd";
 <Button type="primary">antd 按钮</Button>
@@ -249,13 +252,7 @@ import { Button } from "antd";
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/852872c338014c1fa40525996f43f9db~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/852872c338014c1fa40525996f43f9db~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-- 这里可以打包看下打包的静态文件对 antd 的引入
-```
-yarn export:prod  
-```
-执行后在根目录会生成 out 文件夹，使用 http-server 查看一下，之后可以时不时打包看下模拟线上效果，避免上线爆发一些坑。
-
-- antdV5 打包 test 环境样式丢失，修改 `_document.page.tsx` ,[问题解决参考地址](https://github.com/ant-design/create-next-app-antd/blob/main/pages/_document.tsx)
+- antdV5 打包 test 环境样式丢失，修改 `_document.page.tsx` ，[问题解决参考地址](https://github.com/ant-design/create-next-app-antd/blob/main/pages/_document.tsx)
 ```
 import { createCache, extractStyle, StyleProvider } from "@ant-design/cssinjs";
 import Document, {
@@ -310,13 +307,13 @@ export default class MyDocument extends Document {
 }
 ```
 
-### 引入移动端组件库 antd-mobile
+## 引入 antd-mobile
 [antd-mobile ssr 引入文档地址](https://mobile.ant.design/zh/guide/ssr/)，
-- 安装
+- 安装依赖
 ```
 yarn add antd-mobile
 ```
-- 配置 next.config.js
+- next.config.js
 
 方式一：此方式会有一堆警告
 ```
@@ -337,11 +334,15 @@ module.exports = withTM({
   // 你项目中其他的 Next.js 配置
 });
 ```
-- antd-mobile 应该避免使用 postcss-px-to-viewport 的转换，修改 `postcss.config.js`，将 node_modules 下的 antd-mobile 整个目录排除掉
+- antd-mobile 去除 `postcss-px-to-viewport` 的转换
+
+`postcss.config.js`
 ```
 exclude: [/antd-mobile/]
 ```
-- antd-mobile 会自动按需加载，只需引入使用即可，在 `@/index.page.tsx`引入看下效果
+- antd-mobile 会自动按需加载，只需引入使用即可
+
+`@/index.page.tsx`
 ```
 import { Button as ButtonMobile } from "antd-mobile";
 <ButtonMobile size="large" color="primary">
@@ -350,14 +351,12 @@ import { Button as ButtonMobile } from "antd-mobile";
 ```
 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a628e38507014173bcd5918a46d51dee~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a628e38507014173bcd5918a46d51dee~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-至此完成样式与组件库的引入。
-
-## 引入 axios，配置 mock 以及本地代理
-### 封装 axios
+## 封装 axios
+- 安装依赖
 ```
 yarn add axios
 ```
-- 新增工具文件夹，添加文件：`@/utils/request.ts`，写入
+- `@/utils/request.ts`
 ```
 import { notification } from "antd";
 import type { AxiosError, AxiosRequestConfig } from "axios";
@@ -413,7 +412,7 @@ type Request = <T = unknown>(
 
 export const request = instance.request as Request
 ```
-### 搭建 mock 环境
+## 搭建 mock 环境
 - 根目录下新增 mock 文件夹，新增如下两个文件
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9f9c2263cdbf4ec4b7d14ee7b99e9c64~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9f9c2263cdbf4ec4b7d14ee7b99e9c64~tplv-k3u1fbpfcp-watermark.image?)</a>
@@ -494,7 +493,7 @@ export const request = instance.request as Request
 ```
 yarn add -D json-server
 ```
-- 为了同时运行 mock 终端以及 next dev，我们安装 concurrently
+- 同时运行 mock 以及 next dev 两个终端，安装 concurrently
 ```
 yarn add -D concurrently
 ```
@@ -504,12 +503,11 @@ dev:mock": "concurrently  \"yarn mock\" \"next dev\"",
 "mock": "cd ./mock && json-server --watch data.json --routes routes.json --port 4000"
 ```
 ## 服务端获取接口数据
-nextjs 提供 `getStaticProps` 方法让我们在项目构建时获取服务器的静态数据，注意该方法只在 build 时执行一次，数据必须是发布时更新的才使用这个，且必须是在页面级别上使用。
+>nextjs 提供 `getStaticProps` 方法让我们在项目构建时获取服务器的静态数据，注意该方法只在 build 时执行一次，数据必须是发布时更新的才使用这个，且必须是在页面级别上使用。
 
-mock 数据只能在本地调试使用，打包构建时记得切换
-- 添加 `@/home/api.ts`
+**mock 数据只能在本地调试使用，打包构建时记得切换**
+- `@/home/api.ts`
 ```
-// @/home/api.ts
 import { request } from "@/utils/request";
 
 export interface IMockData {
@@ -548,7 +546,7 @@ export function fetchMockData() {
 //   });
 // }
 ```
-- 修改 `index.page.tsx`
+- `index.page.tsx`
 ```
 import { Button } from "antd";
 import { Button as ButtonMobile } from "antd-mobile";
@@ -582,10 +580,8 @@ export async function getStaticProps() {
 
 我们在终端控制台可以看到 mock 数据已被打印出来，之后我们就能在页面组件中通过 props 拿到它返回的数据，并可以传递给组件使用。
 
-## 封装通用 Layout、SEOHEAD
-### 新增组件
-新增如下组件文件：
-
+## 封装通用 Layout
+- 组件封装
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a1c914f3d624e1b9e4f52017b0f3a75~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a1c914f3d624e1b9e4f52017b0f3a75~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 - `@/components/footer/index.tsx`
@@ -664,10 +660,12 @@ export default function () {
   );
 }
 ```
-样式文件就不贴了，自行编写。
 
-### 在页面级文件使用
-- `@/index.page.tsx`，我们可以为每个页面都传入不同的 `headseo`，加到 `description` 标签中，这样搜索引擎就可以爬取到我们这些信息。
+
+
+- 我们可以为每个页面都传入不同的 `headseo`，加到 `description` 标签中，这样搜索引擎就可以爬取到我们这些信息。
+
+`@/index.page.tsx
 ```
 import { Button } from "antd";
 import { Button as ButtonMobile } from "antd-mobile";
@@ -708,7 +706,7 @@ export async function getStaticProps() {
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/77505b71c369414b82547dfbcd88b140~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/77505b71c369414b82547dfbcd88b140~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 图片优化 `webp + cdn`
-- 封装是否支持 webp hooks，`@/hooks/useWebp.ts`
+- 封装 useWebp hooks，`@/hooks/useWebp.ts`
 ```
 import { useEffect, useState } from "react";
 
@@ -730,7 +728,7 @@ export const useWebp = () => {
   };
 };
 ```
-- 封装是否支持 oss hooks，`@/hooks/useOss.ts`
+- 封装 useOss hooks ，`@/hooks/useOss.ts`
 ```
 import { useCallback } from "react";
 
@@ -813,7 +811,8 @@ export default function (props: Props) {
   );
 }
 ```
-- 在页面中引入使用
+- 在页面中使用
+`index.page.tsx`
 ```
 import OssImage from "@/components/OssImage";
 
@@ -838,7 +837,7 @@ import OssImage from "@/components/OssImage";
 ```
 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b2ebad92cd5247488c207e6daf7076fe~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b2ebad92cd5247488c207e6daf7076fe~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-## nextJs 获取数据渲染的方式 
+## 数据渲染
 - next 会根据导出的函数来区分这个页面是哪种渲染，这两个函数（`getStaticProps`、`getServerSideProps`）**只能存在一个**
 - 调用时机都是在浏览器渲染之前，也就是说没有 `document、window` 之类的对象，开发时，请在终端查看数据
 ### getStaticProps SSG (静态生成)
@@ -884,9 +883,9 @@ export async function getServerSideProps() {
   };
 }
 ```
-## 单文件生成多页面 getStaticPaths
+## getStaticPaths 生成多页面
 >比如我们的项目有一个新闻页面，它需要做 seo，这样一个页面肯定无法满足，我们可以通过 getStaticPaths 去生成多个页面，搭配 getStaticProps 去构造每个页面不同的页面数据，文件名只需要使用 `[变量名].page.tsx`
-- 新建 `@/static-path/[id].page.tsx`
+- `@/static-path/[id].page.tsx`
 ```
 export default function ({ post }: { post: string }) {
   return (
@@ -913,18 +912,7 @@ export async function getStaticProps({ params }: { params: { id: string } }) {
 ```
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a6f6f4e5ab5e4eb09e06e12bc87234d9~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a6f6f4e5ab5e4eb09e06e12bc87234d9~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-## 打包部署
+## 总结
 服务器部署自动上传可以参考[我的文章](https://juejin.cn/post/7077484161660878856)
 
-可以通过打包生成静态文件，将生成的 out 文件夹上传到服务器上即可。
-
-## 优化
-- 这里做的主要优化是对大图的 `cdn + webp` 处理
-- 数据的获取根据要求选择不同的渲染方式
-- 组件库都支持按需加载
-- seo 的优化
-  - 做了 headSeo 组件，每个页面都能传入不同 title、keywords、description
-  - 使用 getStaticProps 支持后端数据拉取后的 seo
-  - Sitemap 方案可以根据项目业务去加一下
-
-将持续更新，后面将加入埋点、监控系统、后台管理系统等，同时也将尝试将自己的博客换成ssr方式。
+至此初步的项目结构已经完成，本文将持续更新，后面将加入埋点、监控系统、后台管理系统等，同时也会将尝试将自己的博客换成 ssr 方式。

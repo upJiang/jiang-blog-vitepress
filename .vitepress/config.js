@@ -64,7 +64,8 @@ async function getConfig() {
             { text: '🤖 落地前端工程化', link: '/docs/engineering/start' },
             { text: '😾 基于 Vite 的组件库工程化实战', link: '/docs/viteComponentActual/start' },
             { text: '😤 前端调试通关秘籍', link: '/docs/devTools/start' },
-            { text: '😮 nextJs 官网 SSR 实战', link: '/docs/SSR/start' }
+            { text: '😮 nextJs 官网 SSR 实战', link: '/docs/SSR/start' },
+            { text: '⛳ 前端大师课笔记', link: '/docs/master/start' }
           ]
         },
         { text: '📚基础', link: '/docs/jsBase/git' },
@@ -391,6 +392,15 @@ async function getConfig() {
               { text: '项目init', link: '/docs/SSR/init' },
               { text: '规范搭建', link: '/docs/SSR/standard' },
               { text: '架构搭建', link: '/docs/SSR/architecture' },
+            ]
+          }
+        ],
+        '/docs/master/': [
+          {
+            text: '前端大师课笔记',
+            children: [
+              { text: '开篇', link: '/docs/master/start' },
+              { text: '事件循环', link: '/docs/master/eventLoop' }
             ]
           }
         ]
