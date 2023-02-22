@@ -76,7 +76,9 @@ export default function () {
 - 添加样式代码提示
 在页面我们只能使用 `模块化 .module.scss` 的方式去写样式，全局样式则放到 `@/styles` 文件目录下，并在 `_app.tsx` 中引入
 
-修改配置 `next.config.js`
+- 安装 vscode 插件添加代码提示 [CSS Modules](https://marketplace.visualstudio.com/items?itemName=clinyong.vscode-css-modules )
+
+- 修改配置 `next.config.js`，[兼容驼峰风格](https://stackoverflow.com/questions/74038400/convert-css-module-kebab-case-class-names-to-camelcase-in-next-js)
 ```
 const path = require("path");
 
