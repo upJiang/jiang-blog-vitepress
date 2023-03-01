@@ -400,7 +400,8 @@ async function getConfig() {
             text: '前端大师课笔记',
             children: [
               { text: '开篇', link: '/docs/master/start' },
-              { text: '事件循环', link: '/docs/master/eventLoop' }
+              { text: '事件循环', link: '/docs/master/eventLoop' },
+              { text: '渲染原理', link: '/docs/master/rendering' }
             ]
           }
         ]
