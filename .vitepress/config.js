@@ -401,7 +401,9 @@ async function getConfig() {
             children: [
               { text: '开篇', link: '/docs/master/start' },
               { text: '事件循环', link: '/docs/master/eventLoop' },
-              { text: '渲染原理', link: '/docs/master/rendering' }
+              { text: '渲染原理', link: '/docs/master/rendering' },
+              { text: '实战', link: '/docs/master/projectStudy' },
+              { text: '属性描述符', link: '/docs/master/property' }
             ]
           }
         ]

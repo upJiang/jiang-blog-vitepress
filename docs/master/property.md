@@ -1,0 +1,43 @@
+## 概念
+```
+{
+    configurable: false,
+    enumberable: false,
+    value: 'value',
+    writable: false,
+    get: function() {
+        console.log('get')
+    },
+    set: function(val) {
+        console.log('set')
+    }
+}
+```
+- `configurable`：当且仅当该属性的 configurable 为 true 时，该`属性描述符才能够被改变`，同时该属性也能从对应的对象上被删除。
+- `enumerable`：当且仅当该属性的enumerable为true时，该属性`才能够出现在对象的枚举属性中`。
+- `value`：该属性对应的值。可以是任何有效的 JavaScript 值（数值，对象，函数等）。
+- `writable`：当且仅当该属性的writable为true时，value才能被赋值运算符`改变`。
+- `get`：一个给属性提供 getter 的方法，如果没有 getter 则为 undefined。当访问该属性时，该方法会被执行，方法执行时没有参数传入，但是会传入this对象（由于继承关系，这里的this并不一定是定义该属性的对象）。
+- `set`：一个给属性提供 setter 的方法，如果没有 setter 则为 undefined。当属性值修改时，触发执行该方法。该方法将接受唯一参数，即该属性新的参数值。
+
+## 获取属性描述符
+```
+const obj = {
+    a:1
+}
+Object.getOwnPropertyDescriptor(obj,'a')
+```
+## 获取属性描述符
+```
+const obj = {
+    a:1
+}
+
+Object.defineProperty(obj,'a',{
+    value:10,
+    writable:false, // 不可重写
+    enumerable:false, // 不可遍历
+    configurable:false, // 属性描述符不可更改
+})
+```
+

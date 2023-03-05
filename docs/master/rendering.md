@@ -155,7 +155,7 @@ GPU:
 
 - reflow 的本质就是改变了 CSSOM 树，进而改变了Computed DOM 树(样式计算后生成的树)，导致需要重新计算 layout 树。
 - 为了避免连续的多次操作导致布局树的反复计算，浏览器会合并这些操作，当 JS 代码全部完成后再进行统一计算。所以，**改动属性造成的 reflow 是异步完成的**。
-- 为了避免 JS 获取布局信息无法及时获取最新的布局信息，浏览器会在**获取属性立即 reflow**
+- 为了避免 JS 获取布局信息无法及时获取最新的布局信息，浏览器会在**获取属性时立即 reflow**
 
 ### 什么是 repaint (重绘)？
 <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/08df54b4a7e14b788bad68d2293f1813~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/08df54b4a7e14b788bad68d2293f1813~tplv-k3u1fbpfcp-watermark.image?)</a>
