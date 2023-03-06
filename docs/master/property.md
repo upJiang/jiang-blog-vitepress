@@ -40,4 +40,60 @@ Object.defineProperty(obj,'a',{
     configurable:false, // 属性描述符不可更改
 })
 ```
+## 巧用 get、set
+可以使用 get、set 控制变量的读写，在 set 中抛出异常提示
+```
+class UIGodds {
+    constructor(g) {
+        this.num = 1
+        this.price = 5
+        this.data = g
+    }
+}
+===========> 改成
+
+class UIGodds {
+    constructor(g) {
+       Object.defineProperty(this,'data',{
+            get:function(){
+                return g;
+            }
+            set:function(){
+                throw new error("data 属性只读，不能被重新赋值")
+            }
+       })
+
+       // 在 set 中控制变量的赋值
+       let internalNum = 1
+        Object.defineProperty(this,'num',{
+            get:function(){
+                return internalNum;
+            }
+            set:function(val){
+                if(val < 10){
+                    throw new error("num 变量不能小于10")
+                }
+                let temp = parseInt(val)
+                if(temp !== val){
+                    throw new error("num 变量必须是整数")
+                }
+                internalNum = val
+            }
+       })
+
+       // 在 get 中控制输出，或者计算输出
+       Object.defineProperty(this,'total',{
+            get:function(){
+                return this.num * this.price;
+            }
+       })
+
+       const agood = {
+        a:1
+       }
+       const goods = new UIgoods(agood)
+       console.log(goods.total) // 5
+    }
+}
+```
 
