@@ -403,7 +403,8 @@ async function getConfig() {
               { text: '事件循环', link: '/docs/master/eventLoop' },
               { text: '渲染原理', link: '/docs/master/rendering' },
               { text: '实战', link: '/docs/master/projectStudy' },
-              { text: '属性描述符', link: '/docs/master/property' }
+              { text: '属性描述符', link: '/docs/master/property' },
+              { text: '手撕vue', link: '/docs/master/miniVue' }
             ]
           }
         ]
