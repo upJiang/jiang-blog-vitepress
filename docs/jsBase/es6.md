@@ -1,3 +1,10 @@
+---
+frontmatter: {
+  prev: 'git',
+  next: 'jquery'
+}
+---
+
 >es6 即为 es2015,之后的版本均为es2016之类，或者是es6.1
 
 ## let,var,const

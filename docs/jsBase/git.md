@@ -1,3 +1,9 @@
+---
+frontmatter: {
+  next: 'es6',
+}
+---
+
 ## git 的配置
 
 1.下载 Git [下载地址](https://git-scm.com/downloads) 

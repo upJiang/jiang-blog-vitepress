@@ -1,20 +1,102 @@
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/663587c8bc574c1bb8016a3d96aedfba~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/663587c8bc574c1bb8016a3d96aedfba~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/728443cbaefd4e0f849f9f846e89e583~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/728443cbaefd4e0f849f9f846e89e583~tplv-k3u1fbpfcp-watermark.image?)</a>
-var M = function(name){ this.name = name}  //构造函数
+### es5 类与继承
+```
+// 父类
+class Person {
+    construtor(name, age){
+        this.name = name
+        this.age = age
+    }
+    sayHello(){
+        console.log("父类")
+    }
+}
 
-var obj = new M("jiang")  //new一个实例
+// 子类，会继承父类的变量与方法；construtor 中必须传入父类有的变量，并执行 super
+class Student extends Person {
+     construtor(name, age, sex){
+        super()
+        this.sex = sex
+    }
+    learn(){
+         console.log("子类")
+    }
+}
 
-原型链的根就是Object.prototype
+const zhangsan = new Student('张三',16,'男')
+zhangsan.sayHello() // 父类
+zhangsan.learn() // 子类
+```
+继承
+-  子类，会继承父类的变量与方法；
+- `construtor` 中必须传入父类有的变量，并执行 `super()`
 
-那么：M.prototype  会输出
-<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0973a99a707940f990d488b510732d94~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0973a99a707940f990d488b510732d94~tplv-k3u1fbpfcp-watermark.image?)</a>
-那么就有：M.prototype.constructor 就会等于 === M
-然后我们再new一个实例 <br/>
-var obj2 = new M('jun')<br/>
-此时 obj2._proto_ === M.prototype <br/>
+### instanceof
+判断两个对象是否在同一条原型链上
+```
+zhangsan instanceof Student // true
+zhangsan instanceof Person // true
+zhangsan instanceof Object // true
+zhangsan instanceof Array // false
+```
+### 原型
+把上面的类例子改成原始的写法，可以参考上一个学习篇章大师课中实战栏目的内容
+```
+function Student(name,age){
+    this.name = name
+    this.age = age
+}
+Student.prototype.learn = function(){
+    console.log("子类")
+}
 
-从一个实例对象向上找有一个构造实例的原型对象，这个原型对象又有构造它的上一级原型对象，如此一级一级的关系链，就构成了原型链。原型链的最顶端就是Object.prototype
+const zhangsan = new Student('张三',18)
+console.log(zhangsan)
+```
+- 打印 `zhangsan 对象`：
 
-原型链最重要的作用就是继承，实例来继承上一级的属性或方法。此外，如果有多个实例，而多个实例存在共同方法，或共同属性，我们不想每一个实例都创建一份这些属性或方法，就可以将这些属性存在原型对象上，实例一样可以使用这些属性或方法
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/68f2d7e32d35430dbc603dd89422fac8~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/68f2d7e32d35430dbc603dd89422fac8~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+- 打印 `zhangsan.__proto__`
+
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/742a22b08e15437a9f45ac4e034dc8b1~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/742a22b08e15437a9f45ac4e034dc8b1~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+- 打印 `Student.prototype`
+
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/840bc1b222984b9bbe5f022f6d621319~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/840bc1b222984b9bbe5f022f6d621319~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+`zhangsan.__proto__` 与 `Student.prototype` 的打印是一样的，为什么呢？
+- 我们在一个类或者 function下定义方法就是使用 `Student.prototype.learn` 的形式
+- 创建实例，即 new 的时候到底做了什么
+    - 首先创建一个新的空对象
+    - **然后将空对象的 `__proto__` 指向构造函数的原型**即：`obj.__proto__ = Student.prototype`
+    - 将 this 指向这个空对象并执行构造函数，apply
+    - 构造函数有返回值则返回返回值，否则返回这个空对象
+    ```
+    // 代码实现
+    function myNew(Con, ...args) {
+        // 创建一个新的空对象
+        let obj = {};
+
+        // 将这个空对象的__proto__指向构造函数的原型，即 obj.__proto__ = Con.prototype;
+        Object.setPrototypeOf(obj, Con.prototype);
+
+        // 将this指向空对象
+        let res = Con.apply(obj, args);
+
+        // 对构造函数返回值做判断，然后返回对应的值
+        return res instanceof Object ? res : obj;
+    }
+    ```
+- 为什么 `obj.__proto__ = Student.prototype`，因为 new 做了这件事情，并且我们在类/function 中定义中就是这样去声明一个方法的
+
+#### 仔细看前面的打印
+Function 是所有函数的构造函数，图解：
+
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/27fd01a341f6419a85d4af05fad84b12~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/27fd01a341f6419a85d4af05fad84b12~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/64c04aa9014040a581994941394c236d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/64c04aa9014040a581994941394c236d~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f5bd8e2ac4e74c26b479fcd381b8a80c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f5bd8e2ac4e74c26b479fcd381b8a80c~tplv-k3u1fbpfcp-watermark.image?)</a>
