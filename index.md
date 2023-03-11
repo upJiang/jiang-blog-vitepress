@@ -1,10 +1,5 @@
----
-page: true
-home: true
-title: 
-myHome: true
----
+<script setup>
+import home from './.vitepress/theme/home.vue'
+</script>
 
-
-
-
+<home />

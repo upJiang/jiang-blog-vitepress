@@ -17,10 +17,9 @@
     "lint-staged": "^11.0.0",
     "mz": "^2.7.0",
     "prettier": "^2.3.2"
-   
   },
   "dependencies": {
-    "vitepress": "^0.7.2"
+    "vitepress": "^1.0.0-alpha.51"
   },
   "scripts": {
     "dev": "npx vitepress --port 9999",
@@ -28,7 +27,10 @@
     "gh": "npx vitepress build && bash scripts/deploy-gh.sh",
     "lint-staged": "lint-staged",
     "commitlint": "commitlint --config commitlint.config.js -e -V",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
   },
   "husky": {
     "hooks": {
