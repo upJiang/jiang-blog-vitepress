@@ -225,8 +225,10 @@ package.json
 ## 测试
 新增 demo 目录测试
 
-测试加载全部组件：demo/esm/index.html
+测试加载全部组件：
 ```
+// demo/esm/index.html
+
 <h1>Demo</h1>
 <div id="app"></div>
 <script type="module">
@@ -240,8 +242,10 @@ package.json
 
 </script>
 ```
-加载单独组件：demo/esm/button.html
+加载单独组件：
 ```
+// demo/esm/button.html
+
 <h1>Demo</h1>
 <div id="app"></div>
 <script type="module">
@@ -260,7 +264,11 @@ package.json
 </script>
 ```
 
-项目跑起来：pnpm run dev，访问url： http://localhost:5173/demo/esm/index.html
+项目跑起来：`pnpm run dev`，打开
+```
+http://localhost:5173/demo/esm/index.html
+```
+
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c119f99ecca74214b394bf1cc06f6675~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c119f99ecca74214b394bf1cc06f6675~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?)</a>
 
 
