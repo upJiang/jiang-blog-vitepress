@@ -3,10 +3,13 @@
       <span class="home-title">
         时间不在于拥有多少 
       </span>
-       <div class="home-title">
+       <span class="home-title">
         而在于你怎样使用
-      </div>
-      <button class="home-learning" @click="toLearn">Start learning~</button>
+      </span>
+      <span class="home-tips">
+        前端 | 学习
+      </span>
+     
     </div>
   </template>
   
@@ -17,7 +20,7 @@
     setup() {
       const router = useRouter()
       const toLearn = () => {
-        router.go('/docs/jsBase/git')
+        router.go('/docs/前端/start')
       }
       return {
         toLearn
@@ -47,7 +50,7 @@
   }
   .home-tips {
     margin-top: 1.6rem;
-    color: var(--accent-color);
+
     font-weight: bold;
     font-size: 1rem;
   }

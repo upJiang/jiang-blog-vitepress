@@ -1,9 +1,5 @@
----
-prev: '/docs/jsBase/git'
-next: '/docs/jsBase/jquery'
----
-
 >es6 即为 es2015,之后的版本均为es2016之类，或者是es6.1
+
 
 ## let,var,const
 ```
@@ -176,7 +172,7 @@ arr.forEach(val,index) =>{
 >比较两个对象，只要肉眼看到相同就相等
 ```
 Object.is(NaN,NaN)  //true
-Object.is(+0,-0))  //false
+Object.is(+0,-0)  //false
 ```
 
 ### Object.assign()
@@ -184,7 +180,10 @@ Object.is(+0,-0))  //false
 
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae6c4b9336914ba7b0a73091da4cb0f2~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae6c4b9336914ba7b0a73091da4cb0f2~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+```
 输出: {a:2,b:2,c:3}
+```
 
 ## Promise
 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d863f64add6b46999b4ddcb36c9eda94~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d863f64add6b46999b4ddcb36c9eda94~tplv-k3u1fbpfcp-watermark.image?)</a>
@@ -293,7 +292,7 @@ generator结合axios数据请求：
 >Set数据解构：类似数组，但是里面不能有重复值
 
 ```
-let setArr = new Set(['a','a','b','c','c')
+let setArr = new Set(['a','a','b','c','c'])
 输出 Set(3) {'a','b','c'}
 ```
 

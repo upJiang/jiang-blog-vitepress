@@ -169,3 +169,67 @@ JS 动画是逐帧动画，在时间帧上绘制内容，一帧一帧的，所�
              .box {will-change: transform, opacity;}
           ```
 
+## 判断数据类型
+方式：typeof()，instanceof，Object.prototype.toString.call()
+
+1.typeof()：只能区分基本类型即：number、string、undefined、boolean、object。
+
+```
+* 1."undefined"——如果这个值未定义;
+* 2."boolean"——如果这个值是布尔值;
+* 3."string"——如果这个值是字符串;
+* 4."number"——如果这个值是数值;
+* 5."object"——如果这个值是对象或 null;
+* 6."function"——如果这个值是函数。
+* 7."symbol"——es6新增的symbol类型
+```
+
+2.instanceof： 用来判断对象是不是某个构造函数的实例。会沿着原型链找的
+
+3.Object.prototype.toString.call() 判断某个对象属于哪种内置类型
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/20d73f4ba81649f89ad96bbf244b50c3~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/20d73f4ba81649f89ad96bbf244b50c3~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+判断是否是数组：
+* Array.isArray(arr)
+* Object.prototype.toString.call(arr) === '[Object Array]'
+* arr instanceof Array
+* array.constructor === Arra
+
+## Promise 链式调用
+后面的输出其实都是看前面then返回的什么状态，如果没返回任何东西则默认走then，
+如果抛出异常或者reject，看后面是否有处理reject的err，如果有则先执行，然后继续看返回的状态继续操作，当然reject的err只能处理上一个promise的返回，如果没有则往下找catch，catch是可以处理它上面所有未被处理的异常。
+
+总结：处理完上一个状态后，看当前返回的状态继续执行，没有返回默认then，然后继续回调回调，chath处理上面所有未被处理，reject的err仅处理上一个promise的返回
+
+```
+return new Promise((resolve,reject)=>{
+    reject("reject")
+  }).then((res)=>{
+     console.log("resolve",res)
+  },err=>{
+     console.log("reject",err)
+     //resolve("resolve")  输出resolve1然后下一个then
+    //  return Promise.reject("reject") 输出reject1然后下一个then
+    // throw new Error('nono')  输出reject1然后下一个then
+    //  return 100 输出resolve1 100然后下一个then
+  }).then((res)=>{
+     console.log("resolve1",res)
+  },err=>{
+     console.log("reject1",err)
+  }).catch(err=>{
+    console.log("catch1",err)
+  })
+  .then((res)=>{
+     console.log("resolve2",res)
+  },err=>{
+     console.log("reject2",err)
+  }).catch(err=>{
+    console.log("catch2",err)
+  })
+```
+
+## 纯函数
+
+1. 相同输入永远会获得相同输出
+2. 自包含（不会使用外部变量）
+3. 无副作用
