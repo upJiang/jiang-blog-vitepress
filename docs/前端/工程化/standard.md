@@ -1,4 +1,4 @@
->vscode 插件安装 Eslint Volar (vue3.0) Prettier Stylelint (0.78.6 高版本无法识别，有问题)
+[也可参考基于 next 项目写的规范](https://blog.junfeng530.xyz/docs/%E8%BF%9B%E9%98%B6%E5%AD%A6%E4%B9%A0/nextJs%E5%AE%98%E7%BD%91SSR%E5%AE%9E%E6%88%98/standard.html)
 
 目的：
 - 保存时自动 eslint 修正、prettier 格式化、stylelint 格式化
@@ -80,10 +80,10 @@ babel-eslint
 @typescript-eslint/eslint-plugin 
 @typescript-eslint/parser 
 eslint 
-eslint-plugin-vue 
 eslint-plugin-prettier
 
 //vue专有
+eslint-plugin-vue 
 @vue/eslint-config-prettier 
 @vue/eslint-config-typescript
 
@@ -144,24 +144,27 @@ module.exports = {
   },
 }
 ```
-**3. 添加配置文件 .prettierrc 文件，vscode 记得设置默认的格式化程序为prettier**
+**3. 添加配置文件 .prettierrc.js 文件，vscode 记得设置默认的格式化程序为prettier**
 ```
-{
-  "tabWidth": 2,
-  "singleQuote": true,
-  "semi": false,
-  "trailingComma": "es5",
-  "arrowParens": "avoid",
-  "endOfLine": "auto",
-  "printWidth": 100
-}
+module.exports = {
+  singleQuote: false,
+  trailingComma: "all",
+  printWidth: 80,
+  htmlWhitespaceSensitivity: "ignore",
+};
 ```
 **4. 添加 vscode 的配置，添加 .Vscode 文件夹，在文件夹下新建 settings.json**
 ```
 {
   "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true,
     "source.fixAll.stylelint": true
+  },
+  "stylelint.validate": ["css", "less", "scss", "vue"],
+  "[scss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }
 
@@ -188,240 +191,37 @@ insert_final_newline = false
 ## 添加 stylelint
 **1. 安装依赖**
 ```
-"stylelint": "^13.13.1",
-"stylelint-config-prettier": "^9.0.3",
-"stylelint-config-standard": "^22.0.0",
-"stylelint-order": "^5.0.0",
-"stylelint-scss": "^3.21.0"
+yarn add -D stylelint stylelint-config-clean-order stylelint-config-prettier stylelint-config-standard stylelint-config-standard-scss stylelint-prettier
 ```
 **2. 添加 stylelint.config.js 配置文件**
 ```
 module.exports = {
-  root: true,
-  plugins: ['stylelint-order'],
-  extends: ['stylelint-config-standard', 'stylelint-config-prettier'],
+  processors: [],
+  extends: [
+    "stylelint-config-standard-scss",
+    "stylelint-config-standard",
+    "stylelint-prettier/recommended",
+    "stylelint-config-prettier",
+    "stylelint-config-clean-order",
+  ],
   rules: {
-    'selector-pseudo-class-no-unknown': [
-      true,
-      {
-        ignorePseudoClasses: ['global']
-      }
-    ],
-    'selector-pseudo-element-no-unknown': [
-      true,
-      {
-        ignorePseudoElements: ['v-deep']
-      }
-    ],
-    'at-rule-no-unknown': [
-      true,
-      {
-        ignoreAtRules: [
-          'tailwind',
-          'apply',
-          'variants',
-          'responsive',
-          'screen',
-          'function',
-          'if',
-          'each',
-          'include',
-          'mixin'
-        ]
-      }
-    ],
-    'no-empty-source': null,
-    'named-grid-areas-no-invalid': null,
-    'unicode-bom': 'never',
-    'no-descending-specificity': null,
-    'font-family-no-missing-generic-family-keyword': null,
-    'declaration-colon-space-after': 'always-single-line',
-    'declaration-colon-space-before': 'never',
-    // 'declaration-block-trailing-semicolon': 'always',
-    'rule-empty-line-before': [
-      'always',
-      {
-        ignore: ['after-comment', 'first-nested']
-      }
-    ],
-    'unit-no-unknown': [
-      true,
-      {
-        ignoreUnits: ['rpx']
-      }
-    ],
-    'order/order': [
-      [
-        'dollar-variables',
-        'custom-properties',
-        'at-rules',
-        'declarations',
-        {
-          type: 'at-rule',
-          name: 'supports'
-        },
-        {
-          type: 'at-rule',
-          name: 'media'
-        },
-        'rules'
-      ],
-      {
-        severity: 'warning'
-      }
-    ],
-    // 按照指定顺序排列
-    'order/properties-order': [
-      'position',
-      'content',
-      'top',
-      'right',
-      'bottom',
-      'left',
-      'z-index',
-      'display',
-      'float',
-      'width',
-      'height',
-      'max-width',
-      'max-height',
-      'min-width',
-      'min-height',
-      'padding',
-      'padding-top',
-      'padding-right',
-      'padding-bottom',
-      'padding-left',
-      'margin',
-      'margin-top',
-      'margin-right',
-      'margin-bottom',
-      'margin-left',
-      'margin-collapse',
-      'margin-top-collapse',
-      'margin-right-collapse',
-      'margin-bottom-collapse',
-      'margin-left-collapse',
-      'overflow',
-      'overflow-x',
-      'overflow-y',
-      'clip',
-      'clear',
-      'font',
-      'font-family',
-      'font-size',
-      'font-smoothing',
-      'osx-font-smoothing',
-      'font-style',
-      'font-weight',
-      'hyphens',
-      'src',
-      'line-height',
-      'letter-spacing',
-      'word-spacing',
-      'color',
-      'text-align',
-      'text-decoration',
-      'text-indent',
-      'text-overflow',
-      'text-rendering',
-      'text-size-adjust',
-      'text-shadow',
-      'text-transform',
-      'word-break',
-      'word-wrap',
-      'white-space',
-      'vertical-align',
-      'list-style',
-      'list-style-type',
-      'list-style-position',
-      'list-style-image',
-      'pointer-events',
-      'cursor',
-      'background',
-      'background-attachment',
-      'background-color',
-      'background-image',
-      'background-position',
-      'background-repeat',
-      'background-size',
-      'border',
-      'border-collapse',
-      'border-top',
-      'border-right',
-      'border-bottom',
-      'border-left',
-      'border-color',
-      'border-image',
-      'border-top-color',
-      'border-right-color',
-      'border-bottom-color',
-      'border-left-color',
-      'border-spacing',
-      'border-style',
-      'border-top-style',
-      'border-right-style',
-      'border-bottom-style',
-      'border-left-style',
-      'border-width',
-      'border-top-width',
-      'border-right-width',
-      'border-bottom-width',
-      'border-left-width',
-      'border-radius',
-      'border-top-right-radius',
-      'border-bottom-right-radius',
-      'border-bottom-left-radius',
-      'border-top-left-radius',
-      'border-radius-topright',
-      'border-radius-bottomright',
-      'border-radius-bottomleft',
-      'border-radius-topleft',
-      'quotes',
-      'outline',
-      'outline-offset',
-      'opacity',
-      'filter',
-      'visibility',
-      'size',
-      'zoom',
-      'transform',
-      'box-align',
-      'box-flex',
-      'box-orient',
-      'box-pack',
-      'box-shadow',
-      'box-sizing',
-      'table-layout',
-      'animation',
-      'animation-delay',
-      'animation-duration',
-      'animation-iteration-count',
-      'animation-name',
-      'animation-play-state',
-      'animation-timing-function',
-      'animation-fill-mode',
-      'transition',
-      'transition-delay',
-      'transition-duration',
-      'transition-property',
-      'transition-timing-function',
-      'background-clip',
-      'backface-visibility',
-      'resize',
-      'appearance',
-      'user-select',
-      'interpolation-mode',
-      'direction',
-      'marks',
-      'page',
-      'set-link-source',
-      'unicode-bidi',
-      'speak'
-    ]
+    "prettier/prettier": true,
+    "at-rule-no-unknown": null,
+    "no-empty-source": null,
+    "unit-no-unknown": null,
+    "no-descending-specificity": null,
+    "selector-pseudo-class-no-unknown": null,
+    "declaration-block-no-duplicate-properties": null,
+    "selector-type-no-unknown": null,
+    "block-no-empty": null,
+    "font-family-no-missing-generic-family-keyword": null,
+    "declaration-block-no-shorthand-property-overrides": null,
+    "selector-class-pattern": null,
+    "no-duplicate-selectors": null,
+    "selector-pseudo-class-parentheses-space-inside": null,
+    "selector-combinator-space-before": null,
   },
-  ignoreFiles: ['**/*.js', '**/*.jsx', '**/*.tsx', '**/*.ts']
-}
+};
 ```
 **3. 添加 .stylelintignore 忽略文件**
 ```

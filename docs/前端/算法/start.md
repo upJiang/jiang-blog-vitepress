@@ -1,1 +1,1 @@
-参考进阶学习 --- 前端算法
+- [前端算法](https://blog.junfeng530.xyz/docs/%E8%BF%9B%E9%98%B6%E5%AD%A6%E4%B9%A0/%E5%89%8D%E7%AB%AF%E7%AE%97%E6%B3%95/dataStructures.html)

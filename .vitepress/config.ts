@@ -122,6 +122,7 @@ export default{
           text: '📒 浏览器', 
           collapsed: true,
           items:[
+            { text: '🚩 开篇', link: '/docs/前端/浏览器/start' },
             { text: '🚩 dns域名解析做了什么', link: '/docs/前端/浏览器/dns' },
             { text: '🚩 输入URL', link: '/docs/前端/浏览器/URL' },
             { text: '🚩 HTTP状态码', link: '/docs/前端/浏览器/httpCode' },
@@ -207,11 +208,11 @@ export default{
           text: '📔 性能优化', 
           collapsed: true,
           items:[
-            { text: '🚩 长列表的优化', link: '/docs/前端/性能优化/longList' },
             {
               text: '🚩 性能优化',
               link: '/docs/前端/性能优化/performance'
             },
+            { text: '🚩 长列表的优化', link: '/docs/前端/性能优化/longList' },
           ]
         },
         { 
@@ -230,10 +231,6 @@ export default{
               collapsed: true, 
               items:[
                 {
-                  text: '🏴 vue中的hash跟history',
-                  link: '/docs/前端/框架/Vue/hashMode'
-                },
-                {
                   text: '🏴 vue3',
                   link: '/docs/前端/框架/Vue/vue3'
                 },
@@ -244,6 +241,10 @@ export default{
                 {
                   text: '🏴 请求loading封装',
                   link: '/docs/前端/框架/Vue/loadingHandle'
+                },
+                {
+                  text: '🏴 vue中的hash跟history',
+                  link: '/docs/前端/框架/Vue/hashMode'
                 },
               ]
             },
@@ -262,13 +263,13 @@ export default{
           text: '📇 面试', 
           collapsed: true,
           items: [
-            { text: '🚩 手写面试题', link: '/docs/前端/interview/writeQuestion' },
-            { text: '🚩 js问题', link: '/docs/前端/interview/jsBaseQuestion' },
-            { text: '🚩 vue问题', link: '/docs/前端/interview/vueBaseQuestion' },
-            { text: '🚩 react问题', link: '/docs/前端/interview/reactBaseQuestion' },
+            { text: '🚩 手写面试题', link: '/docs/前端/面试/writeQuestion' },
+            { text: '🚩 js问题', link: '/docs/前端/面试/jsBaseQuestion' },
+            { text: '🚩 vue问题', link: '/docs/前端/面试/vueBaseQuestion' },
+            { text: '🚩 react问题', link: '/docs/前端/面试/reactBaseQuestion' },
             {
               text: '🚩 计算机网络问题',
-              link: '/docs/前端/interview/networkBaseQuestion'
+              link: '/docs/前端/面试/networkBaseQuestion'
             },
           ] 
         },
