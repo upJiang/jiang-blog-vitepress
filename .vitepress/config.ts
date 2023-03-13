@@ -71,7 +71,6 @@ export default{
           { text: '😤 前端调试通关秘籍', link: '/docs/进阶学习/前端调试通关秘籍/start' },
           { text: '😮 nextJs 官网 SSR 实战', link: '/docs/进阶学习/nextJs官网SSR实战/start' },
           { text: '⛳ 前端大师课笔记', link: '/docs/进阶学习/前端大师课笔记/start' },
-          { text: '🕰 前端面试指南与高频考题解析', link: '/docs/进阶学习/前端面试指南与高频考题解析/base' }
         ]
       },
       { text: '🍉工作问题', link: '/docs/工作问题/h5' },
@@ -86,33 +85,43 @@ export default{
           text: '📓 前端基础', 
           collapsed: true,
           items:[
-            { text: '🚩 html', link: '/docs/前端/前端基础/html/start' },
+            { 
+              text: '🚩 html', 
+              link: '/docs/前端/前端基础/html/start',
+              items:[
+                { text: '🏴 开篇', link: '/docs/前端/前端基础/html/开篇' },
+              ]
+
+            },
             { 
               text: '🚩 css', 
               collapsed: true,
               items:[
-                { text: '🏴 垂直居中', link: '/docs/前端/前端基础/css/center' },
-                { text: '🏴 盒模型及如何转换', link: '/docs/前端/前端基础/css/boxsizing' },
-                { text: '🏴 块盒', link: '/docs/前端/前端基础/css/block' }
+                { text: '🏴 开篇', link: '/docs/前端/前端基础/css/开篇' },
+                { text: '🏴 垂直居中', link: '/docs/前端/前端基础/css/垂直居中' },
+                { text: '🏴 盒模型', link: '/docs/前端/前端基础/css/盒模型' },
+                { text: '🏴 块盒', link: '/docs/前端/前端基础/css/块盒' }
               ]
             },
             { 
               text: '🚩 js', 
               collapsed: true,
               items:[
-                { text: '🏴 js中的五种绑定', link: '/docs/前端/前端基础/js/bind' },
+                { text: '🏴 开篇', link: '/docs/前端/前端基础/js/开篇' },
+                { text: '🏴 变量类型', link: '/docs/前端/前端基础/js/变量类型' },
+                { text: '🏴 原型/原型链', link: '/docs/前端/前端基础/js/原型' },
+                { text: '🏴 闭包', link: '/docs/前端/前端基础/js/闭包' },
+                { text: '🏴 js中的五种绑定', link: '/docs/前端/前端基础/js/js中的五种绑定' },
                 { text: '🏴 es6', link: '/docs/前端/前端基础/js/es6' },
-                { text: '🏴 闭包', link: '/docs/前端/前端基础/js/closure' },
                 { text: '🏴 jquery', link: '/docs/前端/前端基础/js/jquery' },
                 { text: '🏴 this指向', link: '/docs/前端/前端基础/js/this' },
-                { text: '🏴 JavaScript上下文', link: '/docs/前端/前端基础/js/context' },
-                { text: '🏴 垃圾回收机制方式', link: '/docs/前端/前端基础/js/garbage' },
-                { text: '🏴 内存管理', link: '/docs/前端/前端基础/js/memory' },
-                { text: '🏴 原型/原型链', link: '/docs/前端/前端基础/js/prototype' },
-                { text: '🏴 js中的new', link: '/docs/前端/前端基础/js/new' },
+                { text: '🏴 JavaScript上下文', link: '/docs/前端/前端基础/js/JavaScript上下文' },
+                { text: '🏴 垃圾回收机制方式', link: '/docs/前端/前端基础/js/垃圾回收机制方式' },
+                { text: '🏴 内存管理', link: '/docs/前端/前端基础/js/内存管理' },
+                { text: '🏴 js中的new', link: '/docs/前端/前端基础/js/js中的new' },
                 { text: '🏴 event loop', link: '/docs/前端/前端基础/js/eventLoop' },
-                { text: '🏴 深拷贝与浅拷贝', link: '/docs/前端/前端基础/js/copy' },
-                { text: '🏴前端模块化', link: '/docs/前端/前端基础/js/module' },
+                { text: '🏴 深拷贝与浅拷贝', link: '/docs/前端/前端基础/js/深拷贝与浅拷贝' },
+                { text: '🏴 前端模块化', link: '/docs/前端/前端基础/js/前端模块化' },
               ]
             },
             { text: '🚩 git', link: '/docs/前端/前端基础/git/start' },
@@ -123,12 +132,12 @@ export default{
           collapsed: true,
           items:[
             { text: '🚩 开篇', link: '/docs/前端/浏览器/start' },
-            { text: '🚩 dns域名解析做了什么', link: '/docs/前端/浏览器/dns' },
-            { text: '🚩 输入URL', link: '/docs/前端/浏览器/URL' },
-            { text: '🚩 HTTP状态码', link: '/docs/前端/浏览器/httpCode' },
+            { text: '🚩 dns域名解析做了什么', link: '/docs/前端/浏览器/dns域名解析' },
+            { text: '🚩 输入URL', link: '/docs/前端/浏览器/输入URL' },
+            { text: '🚩 HTTP状态码', link: '/docs/前端/浏览器/HTTP状态码' },
             { text: '🚩 https', link: '/docs/前端/浏览器/https' },
-            { text: '🚩 浏览器缓存', link: '/docs/前端/浏览器/storage' },
-            { text: '🚩 跨域', link: '/docs/前端/浏览器/cors' },
+            { text: '🚩 浏览器缓存', link: '/docs/前端/浏览器/浏览器缓存' },
+            { text: '🚩 跨域', link: '/docs/前端/浏览器/跨域' },
             { text: '🚩 CSRF/XSS', link: '/docs/前端/浏览器/CSRF' },
             { text: '🚩 websocket', link: '/docs/前端/浏览器/websocket' },
           ]
@@ -165,7 +174,7 @@ export default{
           text: '📗 算法', 
           collapsed: true, 
           items:[
-            { text: '🚩 前端算法', link: '/docs/前端/算法/start' },
+            { text: '🚩 开篇', link: '/docs/前端/算法/开篇' },
           ]
         },
         { 
@@ -177,14 +186,14 @@ export default{
               link: '/docs/前端/工程化/standard'
             },
             { text: '🚩 mock', link: '/docs/前端/工程化/mock' },
-            { text: '🚩 组件库开发', link: '/docs/前端/工程化/jiangVui' },
+            { text: '🚩 组件库开发', link: '/docs/前端/工程化/组件库开发' },
             {
               text: '🚩 changelog',
               link: '/docs/前端/工程化/changelog'
             },
             {
               text: '🚩 服务器搭建',
-              link: '/docs/前端/工程化/server'
+              link: '/docs/前端/工程化/服务器搭建'
             },
             {
               text: '🚩 chatGPT微信机器人搭建',
@@ -263,20 +272,20 @@ export default{
           text: '📇 面试', 
           collapsed: true,
           items: [
-            { text: '🚩 手写面试题', link: '/docs/前端/面试/writeQuestion' },
-            { text: '🚩 js问题', link: '/docs/前端/面试/jsBaseQuestion' },
-            { text: '🚩 vue问题', link: '/docs/前端/面试/vueBaseQuestion' },
-            { text: '🚩 react问题', link: '/docs/前端/面试/reactBaseQuestion' },
+            { text: '🚩 手写面试题', link: '/docs/前端/面试/手写面试题' },
+            { text: '🚩 js问题', link: '/docs/前端/面试/js问题' },
+            { text: '🚩 vue问题', link: '/docs/前端/面试/vue问题' },
+            { text: '🚩 react问题', link: '/docs/前端/面试/react问题' },
             {
               text: '🚩 计算机网络问题',
-              link: '/docs/前端/面试/networkBaseQuestion'
+              link: '/docs/前端/面试/计算机网络问题'
             },
           ] 
         },
       ],
       '/docs/学习资源/': [
         {
-          text: '🍈 学习资源',
+          text: '学习资源',
           items: [
             { text: '🍎 前端学习', link: '/docs/学习资源/learning' },
             { text: '🍏 在线工具', link: '/docs/学习资源/tool' }
@@ -285,7 +294,7 @@ export default{
       ],
       '/docs/工作问题/': [
         {
-          text: '🍓 工作问题',
+          text: '工作问题',
           items: [
             { text: '🍅 h5', link: '/docs/工作问题/h5' },
             { text: '🥝 vue', link: '/docs/工作问题/vue' },
@@ -422,14 +431,6 @@ export default{
             { text: '实战', link: '/docs/进阶学习/前端大师课笔记/projectStudy' },
             { text: '属性描述符', link: '/docs/进阶学习/前端大师课笔记/property' },
             { text: '手撕vue', link: '/docs/进阶学习/前端大师课笔记/miniVue' }
-          ]
-        }
-      ],
-      '/docs/进阶学习/前端面试指南与高频考题解析/': [
-        {
-          text: '前端面试指南与高频考题解析',
-          items: [
-            { text: '基础知识点', link: '/docs/进阶学习/前端面试指南与高频考题解析/base' }
           ]
         }
       ],
