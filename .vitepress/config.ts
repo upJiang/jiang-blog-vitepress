@@ -45,9 +45,9 @@ export default{
     returnToTopLabel:'回到顶部',
     author: 'Jiang',
     algolia: {
-      appId: 'OVH9IJQ0F5',
-      apiKey: '29d06b7879c37d2324170a5411da92d6',
-      indexName: 'junfeng'
+      appId: '6O9LAT3AQ0',
+      apiKey: 'b190dd5932dd6b365be5d1dcf87257ec',
+      indexName: 'junfeng530'
     },
     docFooter: { 
       prev: '上一篇',
