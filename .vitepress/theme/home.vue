@@ -1,7 +1,7 @@
 <template>
     <div class="home-container">
       <span class="home-title">
-        时间不在于拥有多少 
+        时间不在你于拥有多少 
       </span>
        <span class="home-title">
         而在于你怎样使用
