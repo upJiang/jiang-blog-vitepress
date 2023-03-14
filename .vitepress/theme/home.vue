@@ -44,14 +44,14 @@
     color: var(--vp-c-text-1);
     text-align: center;
     font-size: 40px;
-    font-weight: bold;
+    font-weight: 600;
     line-height: 48px;
-    font-style: italic !important
+    font-style: italic;
   }
   .home-tips {
     margin-top: 1.6rem;
 
-    font-weight: bold;
+    font-weight: 600;
     font-size: 1rem;
   }
   .home-learning {
