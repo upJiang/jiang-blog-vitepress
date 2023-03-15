@@ -44,9 +44,10 @@
     color: var(--vp-c-text-1);
     text-align: center;
     font-size: 40px;
-    font-weight: 600;
+    font-weight: 800;
     line-height: 48px;
     font-style: italic;
+    font-family: serif;
   }
   .home-tips {
     margin-top: 1.6rem;
