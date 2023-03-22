@@ -98,8 +98,8 @@ export default{
               collapsed: true,
               items:[
                 { text: '🏴 开篇', link: '/docs/前端/前端基础/css/开篇' },
+                { text: '🏴 浮动与BFC', link: '/docs/前端/前端基础/css/浮动与BFC' },
                 { text: '🏴 垂直居中', link: '/docs/前端/前端基础/css/垂直居中' },
-                { text: '🏴 盒模型', link: '/docs/前端/前端基础/css/盒模型' },
                 { text: '🏴 块盒', link: '/docs/前端/前端基础/css/块盒' }
               ]
             },
@@ -117,7 +117,6 @@ export default{
                 { text: '🏴 this指向', link: '/docs/前端/前端基础/js/this' },
                 { text: '🏴 垃圾回收机制方式', link: '/docs/前端/前端基础/js/垃圾回收机制方式' },
                 { text: '🏴 内存管理', link: '/docs/前端/前端基础/js/内存管理' },
-                { text: '🏴 js中的new', link: '/docs/前端/前端基础/js/js中的new' },
                 { text: '🏴 event loop', link: '/docs/前端/前端基础/js/eventLoop' },
                 { text: '🏴 深拷贝与浅拷贝', link: '/docs/前端/前端基础/js/深拷贝与浅拷贝' },
                 { text: '🏴 前端模块化', link: '/docs/前端/前端基础/js/前端模块化' },
@@ -133,8 +132,7 @@ export default{
             { text: '🚩 开篇', link: '/docs/前端/浏览器/start' },
             { text: '🚩 dns域名解析做了什么', link: '/docs/前端/浏览器/dns域名解析' },
             { text: '🚩 输入URL', link: '/docs/前端/浏览器/输入URL' },
-            { text: '🚩 HTTP状态码', link: '/docs/前端/浏览器/HTTP状态码' },
-            { text: '🚩 https', link: '/docs/前端/浏览器/https' },
+            { text: '🚩 http', link: '/docs/前端/浏览器/http' },
             { text: '🚩 浏览器缓存', link: '/docs/前端/浏览器/浏览器缓存' },
             { text: '🚩 跨域', link: '/docs/前端/浏览器/跨域' },
             { text: '🚩 CSRF/XSS', link: '/docs/前端/浏览器/CSRF' },
@@ -184,21 +182,22 @@ export default{
               text: '🚩 前端规范',
               link: '/docs/前端/工程化/standard'
             },
-            { text: '🚩 mock', link: '/docs/前端/工程化/mock' },
+           
             { text: '🚩 组件库开发', link: '/docs/前端/工程化/组件库开发' },
-            {
-              text: '🚩 changelog',
-              link: '/docs/前端/工程化/changelog'
-            },
             {
               text: '🚩 服务器搭建',
               link: '/docs/前端/工程化/服务器搭建'
+            },
+            {
+              text: '🚩 changelog',
+              link: '/docs/前端/工程化/changelog'
             },
             {
               text: '🚩 chatGPT微信机器人搭建',
               link: '/docs/前端/工程化/chatGPT'
             },
             { text: '🚩 cURL', link: '/docs/前端/工程化/cURL' }, 
+            { text: '🚩 mock', link: '/docs/前端/工程化/mock' },
           ]
         },
         { 
