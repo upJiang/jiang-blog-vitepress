@@ -48,7 +48,7 @@
 
 为何只能有一个渲染主线程？比如正在执行一个js函数去修改页面，定时器的任务也到达了时间，那么应该执行哪个？同时执行的话，修改了同一个地方如何选择。
 
-**一个渲染进程只能一个渲染主进程，使用消息队列来调度任务*，
+**一个渲染进程只能一个渲染主进程，使用消息队列来调度任务**
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2718cea5f34545b5a58a9db7d3e80a42~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2718cea5f34545b5a58a9db7d3e80a42~tplv-k3u1fbpfcp-watermark.image?)</a>
 - 在最开始的时候、渲染主线程会进入一个无限循环
