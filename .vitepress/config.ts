@@ -287,6 +287,13 @@ export default{
             },
           ] 
         },
+        { 
+          text: '🐂 web3', 
+          collapsed: true,
+          items: [
+            { text: '🚩 开篇', link: '/docs/前端/web3/开篇' },
+          ] 
+        },
       ],
       '/docs/学习资源/': [
         {
