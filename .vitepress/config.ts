@@ -390,7 +390,8 @@ export default{
         {
           text: '玩转vue3',
           items: [
-            { text: '开篇', link: '/docs/进阶学习/玩转vue3/start' }
+            { text: '开篇', link: '/docs/进阶学习/玩转vue3/start' },
+            { text: '渲染器', link: '/docs/进阶学习/玩转vue3/渲染器' }
           ]
         }
       ],
