@@ -292,6 +292,7 @@ export default{
           collapsed: true,
           items: [
             { text: '🚩 开篇', link: '/docs/前端/web3/开篇' },
+            { text: '🚩 Solidity', link: '/docs/前端/web3/Solidity' },
           ] 
         },
       ],
