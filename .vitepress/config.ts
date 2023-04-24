@@ -136,8 +136,7 @@ export default{
             { text: '🚩 输入URL', link: '/docs/前端/浏览器/输入URL' },
             { text: '🚩 http', link: '/docs/前端/浏览器/http' },
             { text: '🚩 浏览器缓存', link: '/docs/前端/浏览器/浏览器缓存' },
-            { text: '🚩 跨域', link: '/docs/前端/浏览器/跨域' },
-            { text: '🚩 CSRF/XSS', link: '/docs/前端/浏览器/CSRF' },
+            { text: '🚩 浏览器安全', link: '/docs/前端/浏览器/浏览器安全' },
             { text: '🚩 websocket', link: '/docs/前端/浏览器/websocket' },
           ]
         },
