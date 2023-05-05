@@ -261,6 +261,10 @@ export default{
                   text: '🏴 vue中的hash跟history',
                   link: '/docs/前端/框架/Vue/hashMode'
                 },
+                {
+                  text: '🏴 vue的优化手段',
+                  link: '/docs/前端/框架/Vue/vue的优化手段'
+                },
               ]
             },
             { text: '🚩 React', link: '/docs/前端/框架/React/start' },
