@@ -233,3 +233,32 @@ return new Promise((resolve,reject)=>{
 1. 相同输入永远会获得相同输出
 2. 自包含（不会使用外部变量）
 3. 无副作用
+
+## null和undefined的区别
+```
+1. 作者在设计js的都是先设计的null（为什么设计了null：最初设计js的时候借鉴了java的语言）
+2. null会被隐式转换成0，很不容易发现错误。
+3. 先有null后有undefined，出来undefined是为了填补之前的坑。
+
+具体区别：JavaScript的最初版本是这样区分的：null是一个表示"无"的对象（空对象指针），转为数值时为0；undefined是一个表示"无"的原始值，转为数值时为NaN。
+```
+
+## JS判断变量是不是数组，你能写出哪些方法？
+var arr = [1,2,3];
+```
+Array.isArray( arr )
+arr instanceof Array
+Object.prototype.toString.call(arr).indexOf('Array') > -1
+Array.prototype.isPrototypeOf(arr)
+arr.constructor.toString().indexOf('Array') > -1
+```
+
+## slice是干嘛的、splice是否会改变原数组
+```
+1. slice是来截取的
+	参数可以写slice(3)、slice(1,3)、slice(-3)
+	返回的是一个新的数组
+2. splice 功能有：插入、删除、替换
+	返回：删除的元素
+	该方法会改变原数组
+```
