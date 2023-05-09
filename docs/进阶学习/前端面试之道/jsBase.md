@@ -150,15 +150,19 @@ fn2()
 
 ## 闭包
 闭包的定义其实很简单：`函数 A 内部有一个函数 B，函数 B 可以访问到函数 A 中的变量，那么函数 B 就是闭包。`。在 JS 中，闭包存在的意义就是让我们可以`间接访问函数内部的变量`。
+
+可以在另一个作用域中调用一个函数的内部函数并访问到该函数的作用域中的成员：
+在
 ```
-function A() {
-  let a = 1
-  window.B = function () {
-      console.log(a)
+function makeFn(){
+  let msg = 'jiang'
+  return function(){
+    console.log(msg)
   }
 }
-A()
-B() // 1
+
+const fn = makeFn()
+fn() 在fn这个作用域中可以访问到makeFn中的内部函数(return 的函数),以及 makeFn 的变量 msg
 ```
 深入研究可以看重学前端的闭包模块
 
