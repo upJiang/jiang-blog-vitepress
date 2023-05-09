@@ -88,3 +88,14 @@ html,body{
 	-webkit-user-select:none;
 }
 ```
+## CSS的盒模型
+```
+在HTML页面中的所有元素都可以看成是一个盒子
+盒子的组成：内容content、内边距padding、边框border、外边距margin
+盒模型的类型：
+    标准盒模型
+        margin + border + padding + content
+    IE盒模型
+        margin + content(border + padding)
+控制盒模型的模式：box-sizing:content-box（默认值，标准盒模型）、border-box（IE盒模型）;
+```

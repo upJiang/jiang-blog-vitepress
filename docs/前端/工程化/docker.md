@@ -1,10 +1,11 @@
-wsl2 概念： 适用于 Linux 的 Windows 子系统
+[wsl2 概念： 适用于 Linux 的 Windows 子系统](https://juejin.cn/post/6844904051088293896)
 
 [wsl2 解释与 Docker Desktop 安装](https://zhuanlan.zhihu.com/p/224753478)
 
 在WSL中创建docker容器，在windows下使用docker desktop进行可视化管理
 
 ## Docker Desktop 安装
+[比较详细的教程地址](https://blog.csdn.net/qq_39611230/article/details/108641842)
 ## 下载安装
 [下载地址](https://docs.docker.com/desktop/windows/install/)<br>
 - 安装时会自动安装 `wsl2`
