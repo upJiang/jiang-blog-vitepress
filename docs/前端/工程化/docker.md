@@ -21,4 +21,4 @@ An unexpected error was encountered while executing a WSL command. Common causes
 
 ## 配置
 #### 修改安装目录
-右上角设置找到 Resources，修改下安装目录
+右上角设置找到 Resources，修改下安装目录即可
