@@ -234,6 +234,8 @@ return new Promise((resolve,reject)=>{
 2. 自包含（不会使用外部变量）
 3. 无副作用
 
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5ddebc9223334dbba96f009cd0c0008b~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5ddebc9223334dbba96f009cd0c0008b~tplv-k3u1fbpfcp-watermark.image?)</a>
+
 ## null和undefined的区别
 ```
 1. 作者在设计js的都是先设计的null（为什么设计了null：最初设计js的时候借鉴了java的语言）
