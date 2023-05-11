@@ -87,7 +87,7 @@ export default{
           items:[
             { 
               text: '🚩 html', 
-              link: '/docs/前端/前端基础/html/start',
+              collapsed: true,
               items:[
                 { text: '🏴 开篇', link: '/docs/前端/前端基础/html/开篇' },
               ]
@@ -131,7 +131,7 @@ export default{
           text: '📒 浏览器', 
           collapsed: true,
           items:[
-            { text: '🚩 开篇', link: '/docs/前端/浏览器/start' },
+            { text: '🚩 开篇', link: '/docs/前端/浏览器/开篇' },
             { text: '🚩 dns域名解析做了什么', link: '/docs/前端/浏览器/dns域名解析' },
             { text: '🚩 输入URL', link: '/docs/前端/浏览器/输入URL' },
             { text: '🚩 http', link: '/docs/前端/浏览器/http' },
@@ -298,6 +298,10 @@ export default{
             {
               text: '🚩 css问题',
               link: '/docs/前端/面试/css问题'
+            },
+            {
+              text: '🚩 口述',
+              link: '/docs/前端/面试/口述'
             },
           ] 
         },
