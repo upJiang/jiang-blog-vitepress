@@ -330,7 +330,8 @@ export default{
             { text: '🍅 h5', link: '/docs/工作问题/h5' },
             { text: '🥝 vue', link: '/docs/工作问题/vue' },
             { text: '🍐 构建', link: '/docs/工作问题/init' },
-            { text: '🍌 git', link: '/docs/工作问题/git' }
+            { text: '🍌 git', link: '/docs/工作问题/git' },
+            { text: '🍌 mac', link: '/docs/工作问题/mac' }
           ]
         }
       ],
