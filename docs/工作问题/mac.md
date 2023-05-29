@@ -27,4 +27,13 @@ source $(brew --prefix nvm)/nvm.sh
 source ~/.bash_profile
 
 安装 yarn 跟 window 一致
+
+## 安装 zsh
+先安装 curl: brew install curl
+
+再安装，安装即可使用
+
+export REMOTE=https://gitee.com/imirror/ohmyzsh.git
+sh -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/ohmyzsh/ohmyzsh/tools/install.sh)"
+
 ```
