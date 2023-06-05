@@ -36,4 +36,9 @@ source ~/.bash_profile
 export REMOTE=https://gitee.com/imirror/ohmyzsh.git
 sh -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/ohmyzsh/ohmyzsh/tools/install.sh)"
 
+## 安装完后，之前的配置的 node 环境会失效
+1. 终端输入 cd ~ 进入主目录
+2. ls -a 查看隐藏文件，找到 .zshrc 文件（如果没有可以直接创建一个）
+3. 编辑文件 vim .zshrc 按i进入编辑模式，加入 source ~/.bash_profile 后，esc，再输入 :wq 保存退出。（也可以open方式打开编辑）
+4. 最后输入命令 source ~/.zshrc 刷新刚刚的配置
 ```
