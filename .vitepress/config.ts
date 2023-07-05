@@ -448,6 +448,7 @@ export default{
           text: '前端调试通关秘籍',
           items: [
             { text: '开篇', link: '/docs/课程学习/前端调试通关秘籍/start' },
+            { text: 'sourcemap', link: '/docs/课程学习/前端调试通关秘籍/sourcemap' },
           ]
         }
       ],
