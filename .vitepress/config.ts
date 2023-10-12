@@ -216,6 +216,7 @@ export default{
             { text: '🚩 cURL', link: '/docs/前端/工程化/cURL' }, 
             { text: '🚩 mock', link: '/docs/前端/工程化/mock' },
             { text: '🚩 docker', link: '/docs/前端/工程化/docker' },
+            { text: '🚩 vsCode插件开发', link: '/docs/前端/工程化/vsCode插件开发' },
           ]
         },
         { 
@@ -449,6 +450,7 @@ export default{
           items: [
             { text: '开篇', link: '/docs/课程学习/前端调试通关秘籍/start' },
             { text: 'sourcemap', link: '/docs/课程学习/前端调试通关秘籍/sourcemap' },
+            { text: '断点', link: '/docs/课程学习/前端调试通关秘籍/断点' },
           ]
         }
       ],
@@ -525,6 +527,21 @@ export default{
           text: '面试',
           items: [
             { text: '开始', link: '/docs/进阶学习/面试/start' },
+            { text: '浏览器', link: '/docs/进阶学习/面试/浏览器' },
+          ]
+        }
+      ],
+      '/docs/进阶学习/中枢/': [
+        {
+          text: '中枢',
+          items: [
+            { 
+              text: 'html',  
+              items: [
+                 { text: 'seo', link: '/docs/进阶学习/中枢/面试/html/seo' },
+                 { text: '文档声明', link: '/docs/进阶学习/中枢/面试/html/文档声明' },
+              ] 
+            },
             { text: '浏览器', link: '/docs/进阶学习/面试/浏览器' },
           ]
         }
