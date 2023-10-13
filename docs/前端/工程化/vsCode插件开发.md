@@ -52,4 +52,76 @@ vsce package
 ```
 会在根目录生成一个 `.vsix` 文件，然后直接在扩展那里选择 `从 VSLX 安装` 即可
 
+## 常规配置
+[参考文章](https://juejin.cn/post/7051512232374435847#heading-0)，配置一下 `eslint` 跟 `prettier`
 
+## 插件入手编辑
+- 每个命令都要在 `package.json` 中添加 `command`
+```
+"contributes": {
+    "commands": [
+      {
+        "command": "jiangvscodeplugin.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "catCoding.start",
+        "title": "Start new cat coding session",
+        "category": "Cat Coding"
+      }
+    ]
+  },
+```
+- 然后在 `extension.ts` 中写入
+```
+import * as vscode from "vscode";
+
+// 一旦你的插件激活，vscode会立刻调用下述方法
+export function activate(context: vscode.ExtensionContext) {
+  // 命令中输入弹出信息
+  let disposable = vscode.commands.registerCommand(
+    "jiangvscodeplugin.helloWorld",
+    () => {
+      // 给用户显示一个消息提示
+      vscode.window.showInformationMessage(
+        "Hello World from jiangVsCodePlugin!!!!>>>>",
+      );
+    },
+  );
+
+  const webviewTest = vscode.commands.registerCommand("catCoding.start", () => {
+    // 创建并显示新的webview
+    const panel = vscode.window.createWebviewPanel(
+      "catCoding", // 只供内部使用，这个webview的标识
+      "Cat Coding", // 给用户显示的面板标题
+      vscode.ViewColumn.One, // 给新的webview面板一个编辑器视图
+      {}, // Webview选项。我们稍后会用上
+    );
+    // 设置HTML内容
+    panel.webview.html = getWebviewContent();
+  });
+
+  function getWebviewContent() {
+    return `
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Cat Coding</title>
+	</head>
+	<body>
+		<img src="https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif" width="300" />
+	</body>
+	</html>
+	`;
+  }
+
+  context.subscriptions.push(disposable);
+  context.subscriptions.push(webviewTest);
+}
+
+// 插件关闭前执行清理工作
+export function deactivate() {}
+```
+重新运行，然后在新窗口输入 `Hello World` 或者 `Cat Coding`，就能看到效果
