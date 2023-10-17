@@ -216,6 +216,7 @@ export default{
             { text: '🚩 cURL', link: '/docs/前端/工程化/cURL' }, 
             { text: '🚩 mock', link: '/docs/前端/工程化/mock' },
             { text: '🚩 docker', link: '/docs/前端/工程化/docker' },
+            { text: '🚩 构建脚手架CLI', link: '/docs/前端/工程化/构建脚手架CLI' },
             { text: '🚩 vsCode插件开发', link: '/docs/前端/工程化/vsCode插件开发' },
           ]
         },
