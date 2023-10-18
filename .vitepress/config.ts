@@ -10,6 +10,7 @@ export default{
       }
     ],
     ['meta', { name: 'keywords', content: 'Jiang的个人博客' }],
+    ['meta', { name: 'referrer', content: 'never' }], // 掘金图片加了防盗链，这里表示当前页面中发起的请求将不会携带 referer
     ['link', { rel: 'icon', href: '/favicon.ico' }],
     // 引入 Gitalk
     // [
