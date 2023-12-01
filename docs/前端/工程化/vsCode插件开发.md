@@ -62,7 +62,7 @@ vsce publish -p <token>
 
 然后过几分钟，再搜索一下自己的插件名称，就能搜到啦
 
-### 本地打包并安装
+- 本地打包并安装
 ```
 vsce package
 ```
@@ -72,7 +72,7 @@ vsce package
 [参考我的文章](https://juejin.cn/post/7051512232374435847)
 
 ## Hello World 初尝试
-### 插件的开发过程：
+**插件的开发过程：**
 - 在 `package.json` 中注册 `command`，设置 `command` 出现的位置、`title`，菜单、子菜单 等
 - 在生成的插件项目中，`src` 下的 `extension.ts` 是插件的入口文件，所有的 `command`，都要在这里注册，并且命令 (`command`) 必须与`package.json` 中注册的 `command`一致。
 
@@ -577,7 +577,7 @@ const taskMap: Record<string, any> = {
   addSnippets: snippet.addSnippets,
 };
 ```
-### 解读一下上面代码
+### 解读代码
 在平时开发时，需要先执行 `yarn dev`，此时会直接运行 `webview-vue` 项目，在 webview-vue 项目中需要指定运行端口号为 `7979`。因为在上面设置中，我们在开发环境中是直接打开 `http://127.0.0.1:7979/src/main.ts`，而生产发布插件后，我们先自动打包一次，这个打包的文件必须是将所有的文件都打包到一个 `js` 中，包括 css 这些。下面先介绍如何在 `webview-vue` 项目设置打包.
 
 我们使用 `vite-plugin-css-injected-by-js` 将所有文件都打包一个文件中，[打包参考文章](https://juejin.cn/post/7277804250024902693)
