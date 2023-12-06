@@ -2,6 +2,10 @@
 [前端万字面经](https://juejin.cn/post/6992767550543265829)
 
 [37个JavaScript基本面试问题和解答](https://mp.weixin.qq.com/s/STRtbYjyPO7dQWRDtiQOlQ)
+
+## 倒计时用 setTimeout 还是 setInterval
+setInterval 是每隔n秒加一个任务执行，只要执行内容的延迟时间没超过n秒，那么必然准确执行，不受影响。setTimeout 每次执行则会消耗执行内容的时间。所以倒计时用 setInterval 比较好 
+
 ## js如何获取元素顶部距离浏览器的距离
 document.documentElement.scrollTop
 
