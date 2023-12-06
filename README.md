@@ -5,7 +5,7 @@ title: 项目概述
 describe: 项目概述
 ---
 
-## 基于「VitePress」搭建的博客
+## 基于「VitePress」搭建的个人博客
 ## 安装
 
 ```bash
