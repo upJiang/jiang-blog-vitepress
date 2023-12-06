@@ -1,3 +1,9 @@
+## Failed to connect to github.com port 443 after 21036 ms: Couldn't connect to server
+代码一直提交不上，看下是不是开了代理，设置成代理的端口即可
+```
+git config --global http.proxy http://127.0.0.1:10080  
+```
+
 ## OpenSSL SSL_read Connection was reset, errno 10054
 解决方案：执行一下 `git init`，或者 执行一下 `git config --global http.sslVerify "false"`，又或者 `ipconfig /flushdns`
 
