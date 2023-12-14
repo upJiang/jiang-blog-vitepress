@@ -1,9 +1,10 @@
 {
-    "singleQuote": true,
-    "semi": false,
-    "bracketSpacing": true,
-    "htmlWhitespaceSensitivity": "ignore",
-    "endOfLine": "auto",
-    "trailingComma": "none",
-    "tabWidth": 2
+  "singleQuote": true,
+  "semi": false,
+  "bracketSpacing": true,
+  "htmlWhitespaceSensitivity": "ignore",
+  "endOfLine": "auto",
+  "trailingComma": "none",
+  "tabWidth": 2,
+  "proseWrap": "always"
 }

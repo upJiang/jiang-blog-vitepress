@@ -3,9 +3,10 @@
 建立知识架构、追本溯源
 
 ## 基础
-* JavaScript
-* CSS 和 HTML
-* 浏览器的实现原理和 API
+
+- JavaScript
+- CSS 和 HTML
+- 浏览器的实现原理和 API
 
 ### 知识架构图
 

@@ -1,13 +1,17 @@
-使用 [UnoCSS](https://github.com/unocss/unocss) 实现 AtomicCSS(可复用的行内样式，原子样式)
+使用 [UnoCSS](https://github.com/unocss/unocss) 实现 AtomicCSS(可复用的行内样式
+，原子样式)
 
-## 引入UnoCSS
+## 引入 UnoCSS
 
 #### 安装 UnoCSS 库
+
 ```
 pnpm i -D unocss@"0.45.6"
 pnpm i -D @iconify-json/ic@"1.1.4"
 ```
+
 #### 在 Vite 中添加 UnoCSS 插件
+
 ```
 import { presetUno, presetAttributify, presetIcons } from "unocss";
 import Unocss from "unocss/vite";
@@ -21,35 +25,39 @@ export default defineConfig({
   ],
 });
 ```
+
 #### 在 Button 组件中引入 UnoCSS
->注意: 这个地方文件名已经从 index.ts变为 index.tsx
-/src/button/index.tsx
+
+> 注意: 这个地方文件名已经从 index.ts 变为 index.tsx /src/button/index.tsx
+
 ```
 import { defineComponent,PropType,toRefs} from "vue";
 import "uno.css";
 export default defineComponent({
   name: "SButton",
   setup(props, {slots}) {
-    return () => <button 
+    return () => <button
       class={`
-      py-2 
-      px-4 
-      font-semibold 
-      rounded-lg 
-      shadow-md 
-      text-white 
-      bg-green-500 
-      hover:bg-green-700 
-      border-none 
-      cursor-pointer 
+      py-2
+      px-4
+      font-semibold
+      rounded-lg
+      shadow-md
+      text-white
+      bg-green-500
+      hover:bg-green-700
+      border-none
+      cursor-pointer
       `}
-        > 
+        >
         {slots.default ? slots.default() : ''}
      </button>
   }
 });
 ```
-#### 修改 src/index.ts 
+
+#### 修改 src/index.ts
+
 ```
 import { createApp } from "vue/dist/vue.esm-browser";
 import SmartyUI from './entry'
@@ -64,13 +72,16 @@ createApp({
 .use(SmartyUI)
 .mount("#app");
 ```
+
 跑起来后：
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e03b40ea6a534252afa17c4ec61f0515~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e03b40ea6a534252afa17c4ec61f0515~tplv-k3u1fbpfcp-watermark.image?)</a>
 到此为止，说明 UnoCSS 已经正常引入了。
 
 ## 实现组件属性定制按钮样式
-通过color属性定制颜色，src/index.ts
+
+通过 color 属性定制颜色，src/index.ts
+
 ```
 import { createApp } from "vue/dist/vue.esm-browser";
 import SmartyUI from './entry'
@@ -97,7 +108,9 @@ createApp({
 ```
 
 #### 改造一下组件代码
+
 src/button/index.tsx
+
 ```
 import { defineComponent,PropType,toRefs} from "vue";
 import "uno.css";
@@ -113,30 +126,34 @@ export default defineComponent({
   name: "SButton",
   props,
   setup(props, {slots}) {
-    return () => <button 
+    return () => <button
         class={`
-          py-2 
-          px-4 
-          font-semibold 
-          rounded-lg 
-          shadow-md 
-          text-white 
-          bg-${props.color}-500 
-          hover:bg-${props.color}-700 
-          border-none 
-          cursor-pointer 
+          py-2
+          px-4
+          font-semibold
+          rounded-lg
+          shadow-md
+          text-white
+          bg-${props.color}-500
+          hover:bg-${props.color}-700
+          border-none
+          cursor-pointer
           m-1
           `}
-        > 
+        >
         {slots.default ? slots.default() : ''}
      </button>
   }
 });
 ```
-####  封装 UnoCSS 安全列表
-UnoCSS 提供了安全列表选项。也就是说，把样式定义中变量的取值添加到 Safelist 中去。这样 UnoCSS 就会根据 Safelist 生成样式了。
+
+#### 封装 UnoCSS 安全列表
+
+UnoCSS 提供了安全列表选项。也就是说，把样式定义中变量的取值添加到 Safelist 中去
+。这样 UnoCSS 就会根据 Safelist 生成样式了。
 
 新建 config/unocss.ts
+
 ```
 import { presetUno, presetAttributify, presetIcons } from "unocss";
 import Unocss from "unocss/vite";
@@ -166,7 +183,9 @@ export default () =>
     presets: [presetUno(), presetAttributify(), presetIcons()],
   });
 ```
+
 #### vite.config.ts 加入配置
+
 ```
 import Unocss from "./config/unocss";
 
@@ -179,17 +198,22 @@ export default defineConfig({
 
 })
 ```
+
 效果图<br>
 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2a00fc62202c42babe71dc4cf9e4bbcd~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2a00fc62202c42babe71dc4cf9e4bbcd~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 【 Icon 图标按钮】实现
-在 UnoCSS 中引入图标，直接使用 [iconfy 网站](https://icones.js.org/)的图标代码即可，跟 iconFont 使用方法类似
+
+在 UnoCSS 中引入图标，直接使用 [iconfy 网站](https://icones.js.org/)的图标代码即
+可，跟 iconFont 使用方法类似
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b3c1022116a48a78ca902a78cf3b774~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b3c1022116a48a78ca902a78cf3b774~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
 
-例子：Uno中使用 class="i-ic-baseline-search"，系统就会自动引用这个图标
+例子：Uno 中使用 class="i-ic-baseline-search"，系统就会自动引用这个图标
 
 #### 在 Unocss 插件中添加 presetIcons 预设
+
 config/unocss.ts
+
 ```
 import { presetUno, presetAttributify, presetIcons } from "unocss";
 import Unocss from "unocss/vite";
@@ -222,7 +246,7 @@ const safelist = [
       "add",
       "share",
     ].map((v) => `i-ic-baseline-${v}`)
-  
+
 ];
 
 export default () =>
@@ -231,8 +255,11 @@ export default () =>
     presets: [presetUno(), presetAttributify(), presetIcons()],
   });
 ```
+
 #### 在 Button 中添加字体图标
+
 src/button/index.tsx
+
 ```
 import { defineComponent,PropType,toRefs} from "vue";
 import "uno.css";
@@ -253,31 +280,34 @@ export default defineComponent({
   name: "SButton",
   props,
   setup(props, {slots}) {
-    return () => <button 
+    return () => <button
         class={`
-          py-2 
-          px-4 
-          font-semibold 
-          rounded-lg 
-          shadow-md 
-          text-white 
-          bg-${props.color}-500 
-          hover:bg-${props.color}-700 
-          border-none 
-          cursor-pointer 
+          py-2
+          px-4
+          font-semibold
+          rounded-lg
+          shadow-md
+          text-white
+          bg-${props.color}-500
+          hover:bg-${props.color}-700
+          border-none
+          cursor-pointer
           m-1
           `}
-        > 
+        >
         {/* 新增icon */}
-        { props.icon !== "" ? <i class={`i-ic-baseline-${props.icon} p-3`}></i> : ""}  
-        
+        { props.icon !== "" ? <i class={`i-ic-baseline-${props.icon} p-3`}></i> : ""}
+
         {slots.default ? slots.default() : ''}
      </button>
   }
 });
 ```
+
 #### 测试代码实验一下效果
+
 src/index.ts
+
 ```
 import { createApp } from "vue/dist/vue.esm-browser";
 import SmartyUI from './entry'
@@ -306,10 +336,12 @@ createApp({
 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c29ea56522dd493b8d8277e7789766ff~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c29ea56522dd493b8d8277e7789766ff~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## Build 时单独导出 CSS
+
 使用 unocss 后，如果运行 pnpm build 的时候会报错。<br>
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/13c2a76382fc4517ba4023db0b45ae6c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/13c2a76382fc4517ba4023db0b45ae6c~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 解决办法是根据提示增加编译选项 cssCodeSplit vite.config.ts
+
 ```
   build: {
     ...
@@ -319,6 +351,7 @@ createApp({
 ```
 
 #### 在调用组件库的时候需要引入 style.css 才可以让样式生效
+
 <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c5122a914a764fbd87940c24aa77374f~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c5122a914a764fbd87940c24aa77374f~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?)</a>
 
 <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2ef0a151099545f897f47e005a507d62~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2ef0a151099545f897f47e005a507d62~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp?)</a>

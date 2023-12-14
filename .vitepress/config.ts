@@ -1,5 +1,4 @@
-
-export default{
+export default {
   head: [
     [
       'meta',
@@ -43,14 +42,14 @@ export default{
 
   themeConfig: {
     lang: 'zh-CH',
-    returnToTopLabel:'回到顶部',
+    returnToTopLabel: '回到顶部',
     author: 'Jiang',
     algolia: {
       appId: '6O9LAT3AQ0',
       apiKey: 'b190dd5932dd6b365be5d1dcf87257ec',
       indexName: 'junfeng530'
     },
-    docFooter: { 
+    docFooter: {
       prev: '上一篇',
       next: '下一篇'
     },
@@ -62,26 +61,53 @@ export default{
         text: '📑课程学习',
         items: [
           { text: '😘 重学前端', link: '/docs/课程学习/重学前端/start' },
-          { text: '🤣 前端算法', link: '/docs/程学习/前端算法/dataStructures' },
-          { text: '😊 babel通关秘籍', link: '/docs/课程学习/babel通关秘籍/start' },
-          { text: '😇 前端面试之道', link: '/docs/课程学习/前端面试之道/jsBase' },
-          { text: '😲 深入浅出vite', link: '/docs/课程学习/深入浅出vite/start' },
+          {
+            text: '🤣 前端算法',
+            link: '/docs/课程学习/前端算法/dataStructures'
+          },
+          {
+            text: '😊 babel通关秘籍',
+            link: '/docs/课程学习/babel通关秘籍/start'
+          },
+          {
+            text: '😇 前端面试之道',
+            link: '/docs/课程学习/前端面试之道/jsBase'
+          },
+          {
+            text: '😲 深入浅出vite',
+            link: '/docs/课程学习/深入浅出vite/start'
+          },
           { text: '🧑🏻 玩转vue3', link: '/docs/课程学习/玩转vue3/start' },
-          { text: '🤖 落地前端工程化', link: '/docs/课程学习/落地前端工程化/start' },
-          { text: '😾 基于 Vite 的组件库工程化实战', link: '/docs/课程学习/基于Vite的组件库工程化实战/start' },
-          { text: '😤 前端调试通关秘籍', link: '/docs/课程学习/前端调试通关秘籍/start' },
-          { text: '😮 nextJs 官网 SSR 实战', link: '/docs/课程学习/nextJs官网SSR实战/start' },
-          { text: '⛳ 前端大师课笔记', link: '/docs/课程学习/前端大师课笔记/start' },
+          {
+            text: '🤖 落地前端工程化',
+            link: '/docs/课程学习/落地前端工程化/start'
+          },
+          {
+            text: '😾 基于 Vite 的组件库工程化实战',
+            link: '/docs/课程学习/基于Vite的组件库工程化实战/start'
+          },
+          {
+            text: '😤 前端调试通关秘籍',
+            link: '/docs/课程学习/前端调试通关秘籍/start'
+          },
+          {
+            text: '😮 nextJs 官网 SSR 实战',
+            link: '/docs/课程学习/nextJs官网SSR实战/start'
+          },
+          {
+            text: '⛳ 前端大师课笔记',
+            link: '/docs/课程学习/前端大师课笔记/start'
+          }
         ]
       },
-      { 
-        text: '🍎进阶学习',  
+      {
+        text: '🍎进阶学习',
         items: [
           { text: '😘 语言基础', link: '/docs/进阶学习/语言基础/start' },
           { text: '😘 强化', link: '/docs/进阶学习/强化/start' },
           { text: '😘 中枢', link: '/docs/进阶学习/中枢/start' },
-          { text: '😘 面试', link: '/docs/进阶学习/面试/start' },
-        ] 
+          { text: '😘 面试', link: '/docs/进阶学习/面试/start' }
+        ]
       },
       { text: '🍉工作问题', link: '/docs/工作问题/h5' },
       { text: '🤭学习资源', link: '/docs/学习资源/learning' },
@@ -91,116 +117,153 @@ export default{
     sidebar: {
       '/docs/前端/': [
         { text: '🕮 知识结构', link: '/docs/前端/start' },
-        { 
-          text: '📓 前端基础', 
+        {
+          text: '📓 前端基础',
           collapsed: true,
-          items:[
-            { 
-              text: '🚩 html', 
+          items: [
+            {
+              text: '🚩 html',
               collapsed: true,
-              items:[
-                { text: '🏴 开篇', link: '/docs/前端/前端基础/html/开篇' },
+              items: [
+                { text: '🏴 开篇', link: '/docs/前端/前端基础/html/开篇' }
               ]
-
             },
-            { 
-              text: '🚩 css', 
+            {
+              text: '🚩 css',
               collapsed: true,
-              items:[
+              items: [
                 { text: '🏴 开篇', link: '/docs/前端/前端基础/css/开篇' },
-                { text: '🏴 浮动与BFC', link: '/docs/前端/前端基础/css/浮动与BFC' },
-                { text: '🏴 垂直居中', link: '/docs/前端/前端基础/css/垂直居中' },
+                {
+                  text: '🏴 浮动与BFC',
+                  link: '/docs/前端/前端基础/css/浮动与BFC'
+                },
+                {
+                  text: '🏴 垂直居中',
+                  link: '/docs/前端/前端基础/css/垂直居中'
+                },
                 { text: '🏴 块盒', link: '/docs/前端/前端基础/css/块盒' },
-                { text: '🏴 常见问题', link: '/docs/前端/前端基础/css/常见问题' },
+                {
+                  text: '🏴 常见问题',
+                  link: '/docs/前端/前端基础/css/常见问题'
+                }
               ]
             },
-            { 
-              text: '🚩 js', 
+            {
+              text: '🚩 js',
               collapsed: true,
-              items:[
+              items: [
                 { text: '🏴 开篇', link: '/docs/前端/前端基础/js/开篇' },
-                { text: '🏴 变量类型', link: '/docs/前端/前端基础/js/变量类型' },
-                { text: '🏴 词法分析-预编译-作用域-执行上下文-闭包', link: '/docs/前端/前端基础/js/词法分析-预编译-作用域-执行上下文-闭包' },
+                {
+                  text: '🏴 变量类型',
+                  link: '/docs/前端/前端基础/js/变量类型'
+                },
+                {
+                  text: '🏴 词法分析-预编译-作用域-执行上下文-闭包',
+                  link: '/docs/前端/前端基础/js/词法分析-预编译-作用域-执行上下文-闭包'
+                },
                 { text: '🏴 原型/原型链', link: '/docs/前端/前端基础/js/原型' },
-                { text: '🏴 js中的五种绑定', link: '/docs/前端/前端基础/js/js中的五种绑定' },
+                {
+                  text: '🏴 js中的五种绑定',
+                  link: '/docs/前端/前端基础/js/js中的五种绑定'
+                },
                 { text: '🏴 es6', link: '/docs/前端/前端基础/js/es6' },
                 { text: '🏴 jquery', link: '/docs/前端/前端基础/js/jquery' },
                 { text: '🏴 this指向', link: '/docs/前端/前端基础/js/this' },
-                { text: '🏴 垃圾回收机制方式', link: '/docs/前端/前端基础/js/垃圾回收机制方式' },
-                { text: '🏴 内存管理', link: '/docs/前端/前端基础/js/内存管理' },
-                { text: '🏴 event loop', link: '/docs/前端/前端基础/js/eventLoop' },
-                { text: '🏴 深拷贝与浅拷贝', link: '/docs/前端/前端基础/js/深拷贝与浅拷贝' },
-                { text: '🏴 前端模块化', link: '/docs/前端/前端基础/js/前端模块化' },
-                { text: '🏴 前端模块化', link: '/docs/前端/前端基础/js/常见问题' },
+                {
+                  text: '🏴 垃圾回收机制方式',
+                  link: '/docs/前端/前端基础/js/垃圾回收机制方式'
+                },
+                {
+                  text: '🏴 内存管理',
+                  link: '/docs/前端/前端基础/js/内存管理'
+                },
+                {
+                  text: '🏴 event loop',
+                  link: '/docs/前端/前端基础/js/eventLoop'
+                },
+                {
+                  text: '🏴 深拷贝与浅拷贝',
+                  link: '/docs/前端/前端基础/js/深拷贝与浅拷贝'
+                },
+                {
+                  text: '🏴 前端模块化',
+                  link: '/docs/前端/前端基础/js/前端模块化'
+                },
+                {
+                  text: '🏴 前端模块化',
+                  link: '/docs/前端/前端基础/js/常见问题'
+                }
               ]
             },
-            { text: '🚩 git', link: '/docs/前端/前端基础/git/start' },
+            { text: '🚩 git', link: '/docs/前端/前端基础/git/start' }
           ]
         },
-        { 
-          text: '📒 浏览器', 
+        {
+          text: '📒 浏览器',
           collapsed: true,
-          items:[
+          items: [
             { text: '🚩 开篇', link: '/docs/前端/浏览器/开篇' },
-            { text: '🚩 dns域名解析做了什么', link: '/docs/前端/浏览器/dns域名解析' },
+            {
+              text: '🚩 dns域名解析做了什么',
+              link: '/docs/前端/浏览器/dns域名解析'
+            },
             { text: '🚩 输入URL', link: '/docs/前端/浏览器/输入URL' },
             { text: '🚩 http', link: '/docs/前端/浏览器/http' },
             { text: '🚩 浏览器缓存', link: '/docs/前端/浏览器/浏览器缓存' },
             { text: '🚩 浏览器安全', link: '/docs/前端/浏览器/浏览器安全' },
-            { text: '🚩 websocket', link: '/docs/前端/浏览器/websocket' },
+            { text: '🚩 websocket', link: '/docs/前端/浏览器/websocket' }
           ]
         },
-        { 
-          text: '📒 计算机网络', 
+        {
+          text: '📒 计算机网络',
           collapsed: true,
-          items:[
-            { text: '🚩 开篇', link: '/docs/前端/计算机网络/start' },
-          ]
+          items: [{ text: '🚩 开篇', link: '/docs/前端/计算机网络/start' }]
         },
-        { 
-          text: '📘 构建工具', 
+        {
+          text: '📘 构建工具',
           collapsed: true,
-          items:[
-            { 
-              text: '🚩 vite', 
-              collapsed: true, 
-              items:[
+          items: [
+            {
+              text: '🚩 vite',
+              collapsed: true,
+              items: [
                 { text: '🏴 开篇', link: '/docs/前端/构建工具/vite/start' },
-                { text: 'mini-vite', link: '/docs/前端/构建工具/vite/mini-vite' },
+                {
+                  text: 'mini-vite',
+                  link: '/docs/前端/构建工具/vite/mini-vite'
+                }
               ]
             },
-            { 
-              text: '🚩 webpack', 
-              collapsed: true, 
-              items:[
-                { text: '🏴 开篇', link: '/docs/前端/构建工具/webpack/start' },
+            {
+              text: '🚩 webpack',
+              collapsed: true,
+              items: [
+                { text: '🏴 开篇', link: '/docs/前端/构建工具/webpack/start' }
               ]
             },
-            { 
-              text: '🚩 gulp', 
-              collapsed: true, 
-              items:[
-                { text: '🏴 开篇', link: '/docs/前端/构建工具/gulp/start' },
+            {
+              text: '🚩 gulp',
+              collapsed: true,
+              items: [
+                { text: '🏴 开篇', link: '/docs/前端/构建工具/gulp/start' }
               ]
-            },
+            }
           ]
         },
-        { 
-          text: '📗 算法', 
-          collapsed: true, 
-          items:[
-            { text: '🚩 开篇', link: '/docs/前端/算法/开篇' },
-          ]
-        },
-        { 
-          text: '📙 工程化', 
+        {
+          text: '📗 算法',
           collapsed: true,
-          items:[
+          items: [{ text: '🚩 开篇', link: '/docs/前端/算法/开篇' }]
+        },
+        {
+          text: '📙 工程化',
+          collapsed: true,
+          items: [
             {
               text: '🚩 前端规范',
               link: '/docs/前端/工程化/standard'
             },
-           
+
             { text: '🚩 组件库开发', link: '/docs/前端/工程化/组件库开发' },
             {
               text: '🚩 服务器搭建',
@@ -214,50 +277,54 @@ export default{
               text: '🚩 chatGPT微信机器人搭建',
               link: '/docs/前端/工程化/chatGPT'
             },
-            { text: '🚩 cURL', link: '/docs/前端/工程化/cURL' }, 
+            { text: '🚩 cURL', link: '/docs/前端/工程化/cURL' },
             { text: '🚩 mock', link: '/docs/前端/工程化/mock' },
             { text: '🚩 docker', link: '/docs/前端/工程化/docker' },
-            { text: '🚩 构建脚手架CLI', link: '/docs/前端/工程化/构建脚手架CLI' },
-            { text: '🚩 vsCode插件开发', link: '/docs/前端/工程化/vsCode插件开发' },
+            {
+              text: '🚩 构建脚手架CLI',
+              link: '/docs/前端/工程化/构建脚手架CLI'
+            },
+            {
+              text: '🚩 vsCode插件开发',
+              link: '/docs/前端/工程化/vsCode插件开发'
+            }
           ]
         },
-        { 
-          text: '📕 性能监控', 
+        {
+          text: '📕 性能监控',
           collapsed: true,
-          items:[
+          items: [
             { text: '🚩 sentry', link: '/docs/前端/性能监控/sentry' },
             {
               text: '🚩 监控与埋点',
               link: '/docs/前端/性能监控/monitor'
-            },
+            }
           ]
         },
-        { 
-          text: '📔 性能优化', 
+        {
+          text: '📔 性能优化',
           collapsed: true,
-          items:[
+          items: [
             {
               text: '🚩 性能优化',
               link: '/docs/前端/性能优化/performance'
             },
-            { text: '🚩 长列表的优化', link: '/docs/前端/性能优化/longList' },
+            { text: '🚩 长列表的优化', link: '/docs/前端/性能优化/longList' }
           ]
         },
-        { 
-          text: '🗒️ node', 
+        {
+          text: '🗒️ node',
           collapsed: true,
-          items:[
-            { text: '🚩 nvm管理node', link: '/docs/前端/node/nvm' },
-          ]
+          items: [{ text: '🚩 nvm管理node', link: '/docs/前端/node/nvm' }]
         },
-        { 
-          text: '📋 框架', 
+        {
+          text: '📋 框架',
           collapsed: true,
-          items:[
-            { 
-              text: '🚩 Vue',  
-              collapsed: true, 
-              items:[
+          items: [
+            {
+              text: '🚩 Vue',
+              collapsed: true,
+              items: [
                 {
                   text: '🏴 vue3',
                   link: '/docs/前端/框架/Vue/vue3'
@@ -277,22 +344,19 @@ export default{
                 {
                   text: '🏴 vue的优化手段',
                   link: '/docs/前端/框架/Vue/vue的优化手段'
-                },
+                }
               ]
             },
-            { text: '🚩 React', link: '/docs/前端/框架/React/start' },
+            { text: '🚩 React', link: '/docs/前端/框架/React/start' }
           ]
-          
         },
-        { 
-          text: '🛢️ TypeScript', 
+        {
+          text: '🛢️ TypeScript',
           collapsed: true,
-          items:[
-            { text: '🚩 TS', link: '/docs/前端/TypeScript/ts' },
-          ]
+          items: [{ text: '🚩 TS', link: '/docs/前端/TypeScript/ts' }]
         },
-        { 
-          text: '📇 面试', 
+        {
+          text: '📇 面试',
           collapsed: true,
           items: [
             { text: '🚩 手写面试题', link: '/docs/前端/面试/手写面试题' },
@@ -314,17 +378,17 @@ export default{
             {
               text: '🚩 口述',
               link: '/docs/前端/面试/口述'
-            },
-          ] 
+            }
+          ]
         },
-        { 
-          text: '🐂 web3', 
+        {
+          text: '🐂 web3',
           collapsed: true,
           items: [
             { text: '🚩 开篇', link: '/docs/前端/web3/开篇' },
-            { text: '🚩 Solidity', link: '/docs/前端/web3/Solidity' },
-          ] 
-        },
+            { text: '🚩 Solidity', link: '/docs/前端/web3/Solidity' }
+          ]
+        }
       ],
       '/docs/学习资源/': [
         {
@@ -350,7 +414,10 @@ export default{
         {
           text: '算法',
           items: [
-            { text: '数据结构', link: '/docs/课程学习/前端算法/dataStructures' },
+            {
+              text: '数据结构',
+              link: '/docs/课程学习/前端算法/dataStructures'
+            },
             { text: '遍历二叉树', link: '/docs/课程学习/前端算法/ergodicTree' },
             { text: '复杂度', link: '/docs/课程学习/前端算法/complexity' },
             { text: '数组解题', link: '/docs/课程学习/前端算法/array' },
@@ -360,11 +427,17 @@ export default{
               text: '链表解题-快慢指针与多指针',
               link: '/docs/课程学习/前端算法/chainHead'
             },
-            { text: '链表解题-环形链表', link: '/docs/课程学习/前端算法/chainCicle' },
+            {
+              text: '链表解题-环形链表',
+              link: '/docs/课程学习/前端算法/chainCicle'
+            },
             { text: '栈解题', link: '/docs/课程学习/前端算法/stack' },
             { text: '队列解题', link: '/docs/课程学习/前端算法/queue' },
             { text: '深度优先&广度优先', link: '/docs/课程学习/前端算法/DFS' },
-            { text: '递归与回溯思想', link: '/docs/课程学习/前端算法/thinking' },
+            {
+              text: '递归与回溯思想',
+              link: '/docs/课程学习/前端算法/thinking'
+            },
             { text: '二叉树', link: '/docs/课程学习/前端算法/tree' },
             { text: '二叉搜索树', link: '/docs/课程学习/前端算法/bstTree' },
             { text: '排序算法', link: '/docs/课程学习/前端算法/sort' },
@@ -386,8 +459,14 @@ export default{
             { text: 'es6', link: '/docs/课程学习/前端面试之道/es6' },
             { text: '异步编程', link: '/docs/课程学习/前端面试之道/async' },
             { text: '浏览器知识', link: '/docs/课程学习/前端面试之道/brower' },
-            { text: '安全防范知识', link: '/docs/课程学习/前端面试之道/secure' },
-            { text: '性能优化', link: '/docs/课程学习/前端面试之道/performance' },
+            {
+              text: '安全防范知识',
+              link: '/docs/课程学习/前端面试之道/secure'
+            },
+            {
+              text: '性能优化',
+              link: '/docs/课程学习/前端面试之道/performance'
+            },
             { text: '网络协议', link: '/docs/课程学习/前端面试之道/internet' }
           ]
         }
@@ -399,12 +478,24 @@ export default{
             { text: '开篇', link: '/docs/课程学习/深入浅出vite/start' },
             { text: '前端模块化', link: '/docs/课程学习/深入浅出vite/module' },
             { text: '搭建vite项目', link: '/docs/课程学习/深入浅出vite/init' },
-            { text: '处理静态资源', link: '/docs/课程学习/深入浅出vite/handleStatic' },
-            { text: '预构建', link: '/docs/课程学习/深入浅出vite/construction' },
-            { text: 'vite 的实现', link: '/docs/课程学习/深入浅出vite/achieve' },
+            {
+              text: '处理静态资源',
+              link: '/docs/课程学习/深入浅出vite/handleStatic'
+            },
+            {
+              text: '预构建',
+              link: '/docs/课程学习/深入浅出vite/construction'
+            },
+            {
+              text: 'vite 的实现',
+              link: '/docs/课程学习/深入浅出vite/achieve'
+            },
             { text: 'Esbuild', link: '/docs/课程学习/深入浅出vite/esbuild' },
             { text: 'Rollup', link: '/docs/课程学习/深入浅出vite/rollup' },
-            { text: '开发 vite 插件', link: '/docs/课程学习/深入浅出vite/vitePlugin' },
+            {
+              text: '开发 vite 插件',
+              link: '/docs/课程学习/深入浅出vite/vitePlugin'
+            },
             { text: 'HMR 热更新', link: '/docs/课程学习/深入浅出vite/hmr' },
             {
               text: 'Code Splitting 代码分割',
@@ -439,10 +530,22 @@ export default{
         {
           text: '基于 vite 的组件库工程化实战',
           items: [
-            { text: '开篇', link: '/docs/课程学习/基于Vite的组件库工程化实战/start' },
-            { text: '创建项目', link: '/docs/课程学习/基于Vite的组件库工程化实战/create' },
-            { text: '添加样式', link: '/docs/课程学习/基于Vite的组件库工程化实战/addCss' },
-            { text: '添加文档', link: '/docs/课程学习/基于Vite的组件库工程化实战/addDoc' }
+            {
+              text: '开篇',
+              link: '/docs/课程学习/基于Vite的组件库工程化实战/start'
+            },
+            {
+              text: '创建项目',
+              link: '/docs/课程学习/基于Vite的组件库工程化实战/create'
+            },
+            {
+              text: '添加样式',
+              link: '/docs/课程学习/基于Vite的组件库工程化实战/addCss'
+            },
+            {
+              text: '添加文档',
+              link: '/docs/课程学习/基于Vite的组件库工程化实战/addDoc'
+            }
           ]
         }
       ],
@@ -451,8 +554,11 @@ export default{
           text: '前端调试通关秘籍',
           items: [
             { text: '开篇', link: '/docs/课程学习/前端调试通关秘籍/start' },
-            { text: 'sourcemap', link: '/docs/课程学习/前端调试通关秘籍/sourcemap' },
-            { text: '断点', link: '/docs/课程学习/前端调试通关秘籍/断点' },
+            {
+              text: 'sourcemap',
+              link: '/docs/课程学习/前端调试通关秘籍/sourcemap'
+            },
+            { text: '断点', link: '/docs/课程学习/前端调试通关秘籍/断点' }
           ]
         }
       ],
@@ -462,8 +568,14 @@ export default{
           items: [
             { text: '开篇', link: '/docs/课程学习/nextJs官网SSR实战/start' },
             { text: '项目init', link: '/docs/课程学习/nextJs官网SSR实战/init' },
-            { text: '规范搭建', link: '/docs/课程学习/nextJs官网SSR实战/standard' },
-            { text: '架构搭建', link: '/docs/课程学习/nextJs官网SSR实战/architecture' },
+            {
+              text: '规范搭建',
+              link: '/docs/课程学习/nextJs官网SSR实战/standard'
+            },
+            {
+              text: '架构搭建',
+              link: '/docs/课程学习/nextJs官网SSR实战/architecture'
+            }
           ]
         }
       ],
@@ -472,10 +584,22 @@ export default{
           text: '前端大师课笔记',
           items: [
             { text: '开篇', link: '/docs/课程学习/前端大师课笔记/start' },
-            { text: '事件循环', link: '/docs/课程学习/前端大师课笔记/eventLoop' },
-            { text: '渲染原理', link: '/docs/课程学习/前端大师课笔记/rendering' },
-            { text: '实战', link: '/docs/课程学习/前端大师课笔记/projectStudy' },
-            { text: '属性描述符', link: '/docs/课程学习/前端大师课笔记/property' },
+            {
+              text: '事件循环',
+              link: '/docs/课程学习/前端大师课笔记/eventLoop'
+            },
+            {
+              text: '渲染原理',
+              link: '/docs/课程学习/前端大师课笔记/rendering'
+            },
+            {
+              text: '实战',
+              link: '/docs/课程学习/前端大师课笔记/projectStudy'
+            },
+            {
+              text: '属性描述符',
+              link: '/docs/课程学习/前端大师课笔记/property'
+            },
             { text: '手撕vue', link: '/docs/课程学习/前端大师课笔记/miniVue' }
           ]
         }
@@ -488,17 +612,32 @@ export default{
             { text: 'js_类型', link: '/docs/课程学习/重学前端/js_type' },
             { text: 'js_对象', link: '/docs/课程学习/重学前端/js_object' },
             { text: 'js_原型', link: '/docs/课程学习/重学前端/js_prototype' },
-            { text: 'js_事件循环', link: '/docs/课程学习/重学前端/js_eventLoop' },
-            { text: 'js_闭包&执行上下文', link: '/docs/课程学习/重学前端/js_closure' },
+            {
+              text: 'js_事件循环',
+              link: '/docs/课程学习/重学前端/js_eventLoop'
+            },
+            {
+              text: 'js_闭包&执行上下文',
+              link: '/docs/课程学习/重学前端/js_closure'
+            },
             { text: 'js_函数', link: '/docs/课程学习/重学前端/js_function' },
             { text: 'js_语句', link: '/docs/课程学习/重学前端/js_completion' },
             { text: 'js_词法', link: '/docs/课程学习/重学前端/js_token' },
             { text: 'js_分号', link: '/docs/课程学习/重学前端/js_semicolon' },
             { text: 'js_语法', link: '/docs/课程学习/重学前端/js_grammar' },
             { text: 'html_标签', link: '/docs/课程学习/重学前端/html_tag' },
-            { text: 'html_元信息标签', link: '/docs/课程学习/重学前端/html_head' },
-            { text: 'html_替换型元素', link: '/docs/课程学习/重学前端/html_tramslate' },
-            { text: 'html_标准', link: '/docs/课程学习/重学前端/html_standard' },
+            {
+              text: 'html_元信息标签',
+              link: '/docs/课程学习/重学前端/html_head'
+            },
+            {
+              text: 'html_替换型元素',
+              link: '/docs/课程学习/重学前端/html_tramslate'
+            },
+            {
+              text: 'html_标准',
+              link: '/docs/课程学习/重学前端/html_standard'
+            },
             { text: 'html_DTD', link: '/docs/课程学习/重学前端/html_DTD' },
             { text: 'html_ARIA', link: '/docs/课程学习/重学前端/html_ARIA' },
             { text: 'css_规则', link: '/docs/课程学习/重学前端/css_rule' },
@@ -507,20 +646,59 @@ export default{
             { text: 'css_排版', link: '/docs/课程学习/重学前端/css_compose' },
             { text: 'css_动画', link: '/docs/课程学习/重学前端/css_animation' },
             { text: 'css_颜色', link: '/docs/课程学习/重学前端/css_color' },
-            { text: 'browser_http', link: '/docs/课程学习/重学前端/browser_http' },
-            { text: 'browser_Dom构建', link: '/docs/课程学习/重学前端/browser_dom' },
-            { text: 'browser_CSS计算', link: '/docs/课程学习/重学前端/browser_css' },
-            { text: 'browser_排版', link: '/docs/课程学习/重学前端/browser_maker' },
-            { text: 'browser_渲染', link: '/docs/课程学习/重学前端/browser_print' },
-            { text: 'browser_DOM_API', link: '/docs/课程学习/重学前端/browser_domApi' },
-            { text: 'browser_CSSDOM', link: '/docs/课程学习/重学前端/browser_cssdom' },
-            { text: 'browser_事件', link: '/docs/课程学习/重学前端/browser_event' },
-            { text: 'sum_性能', link: '/docs/课程学习/重学前端/sum_performance' },
+            {
+              text: 'browser_http',
+              link: '/docs/课程学习/重学前端/browser_http'
+            },
+            {
+              text: 'browser_Dom构建',
+              link: '/docs/课程学习/重学前端/browser_dom'
+            },
+            {
+              text: 'browser_CSS计算',
+              link: '/docs/课程学习/重学前端/browser_css'
+            },
+            {
+              text: 'browser_排版',
+              link: '/docs/课程学习/重学前端/browser_maker'
+            },
+            {
+              text: 'browser_渲染',
+              link: '/docs/课程学习/重学前端/browser_print'
+            },
+            {
+              text: 'browser_DOM_API',
+              link: '/docs/课程学习/重学前端/browser_domApi'
+            },
+            {
+              text: 'browser_CSSDOM',
+              link: '/docs/课程学习/重学前端/browser_cssdom'
+            },
+            {
+              text: 'browser_事件',
+              link: '/docs/课程学习/重学前端/browser_event'
+            },
+            {
+              text: 'sum_性能',
+              link: '/docs/课程学习/重学前端/sum_performance'
+            },
             { text: 'sum_工具链', link: '/docs/课程学习/重学前端/sum_tool' },
-            { text: 'sum_持续集成', link: '/docs/课程学习/重学前端/sum_continue' },
-            { text: 'sum_搭建系统', link: '/docs/课程学习/重学前端/sum_system' },
-            { text: 'sum_架构', link: '/docs/课程学习/重学前端/sum_architecture' },
-            { text: 'other_问题', link: '/docs/课程学习/重学前端/other_question' }
+            {
+              text: 'sum_持续集成',
+              link: '/docs/课程学习/重学前端/sum_continue'
+            },
+            {
+              text: 'sum_搭建系统',
+              link: '/docs/课程学习/重学前端/sum_system'
+            },
+            {
+              text: 'sum_架构',
+              link: '/docs/课程学习/重学前端/sum_architecture'
+            },
+            {
+              text: 'other_问题',
+              link: '/docs/课程学习/重学前端/other_question'
+            }
           ]
         }
       ],
@@ -529,7 +707,7 @@ export default{
           text: '面试',
           items: [
             { text: '开始', link: '/docs/进阶学习/面试/start' },
-            { text: '浏览器', link: '/docs/进阶学习/面试/浏览器' },
+            { text: '浏览器', link: '/docs/进阶学习/面试/浏览器' }
           ]
         }
       ],
@@ -537,21 +715,21 @@ export default{
         {
           text: '中枢',
           items: [
-            { 
-              text: 'html',  
+            {
+              text: 'html',
               items: [
-                 { text: 'seo', link: '/docs/进阶学习/中枢/面试/html/seo' },
-                 { text: '文档声明', link: '/docs/进阶学习/中枢/面试/html/文档声明' },
-              ] 
+                { text: 'seo', link: '/docs/进阶学习/中枢/面试/html/seo' },
+                {
+                  text: '文档声明',
+                  link: '/docs/进阶学习/中枢/面试/html/文档声明'
+                }
+              ]
             },
-            { text: '浏览器', link: '/docs/进阶学习/面试/浏览器' },
+            { text: '浏览器', link: '/docs/进阶学习/面试/浏览器' }
           ]
         }
-      ],
+      ]
     }
   },
   dest: 'public'
 }
-  
- 
-

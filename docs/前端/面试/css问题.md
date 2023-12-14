@@ -1,4 +1,5 @@
 ## 行内元素有哪些？块级元素有哪些？ 空(void)元素有哪些？
+
 ```
 行内元素：span、img、input...
 块级元素：div、footer、header、section、p、h1...h6...
@@ -10,7 +11,8 @@ display: inline-block; 	把某元素转换成了行内块元素		  ===>不独占
 display: block;					把某元素转换成了块元素	  ===>独占一行，并且可以设置宽高
 ```
 
-## CSS选择符有哪些？哪些属性可以继承？
+## CSS 选择符有哪些？哪些属性可以继承？
+
 ```
 CSS选择符：
     通配（*）
@@ -21,13 +23,14 @@ CSS选择符：
     后代选择器(ul li)
     子元素选择器（ > ）
     属性选择器(a[href])
-    
+
 CSS属性哪些可以继承：
 		文字系列：font-size、color、line-height、text-align...
 ***不可继承属性：border、padding、margin...
 ```
 
-## CSS优先级算法如何计算？
+## CSS 优先级算法如何计算？
+
 ```
 优先级比较：!important > 内联样式 > id > class > 标签 > 通配
 
@@ -39,7 +42,8 @@ CSS权重计算：
 第五：通配、>、+         权重值:0
 ```
 
-## 用CSS画一个三角形
+## 用 CSS 画一个三角形
+
 ```
 {
     width: 0;
@@ -53,15 +57,18 @@ CSS权重计算：
 ```
 
 ## ::before 和 :before 中双冒号和单冒号 有什么区别？
-单冒号 : 是伪类
-双冒号是 :: 伪元素
+
+单冒号 : 是伪类双冒号是 :: 伪元素
 
 - 在 `CSS` 中伪类一直用 : 表示，如 `:hover, :active` 等
 - 伪元素在 `CSS1` 中已存在，当时语法是用 : 表示，如 `:before` 和 `:after`
-- 后来在 `CSS3` 中修订，伪元素用 :: 表示，如 `::before` 和 `::after`，以此区分伪元素和伪类
-- 由于低版本 IE 对双冒号不兼容，开发者为了兼容性各浏览器，继续使使用 `:after` 这种老语法表 示伪元素。
+- 后来在 `CSS3` 中修订，伪元素用 :: 表示，如 `::before` 和 `::after`，以此区分伪
+  元素和伪类
+- 由于低版本 IE 对双冒号不兼容，开发者为了兼容性各浏览器，继续使使用 `:after` 这
+  种老语法表 示伪元素。
 
 ## ios 系统中元素被触摸时产生的半透明灰色遮罩怎么去掉
+
 ```
 <style>
 	a,button,input,textarea{
@@ -71,24 +78,28 @@ CSS权重计算：
 ```
 
 ## 禁止 ios 长按时触发系统的菜单，禁止 ios & android 长按时下载图片
+
 ```
 html,body{
 	touch-callout: none;
 	-webkit-touch-callout: none;
-	
+
 	user-select:none;
 	-webkit-user-select:none;
 }
 ```
 
 ## 禁止 ios 和 android 用户选中文字
+
 ```
 html,body{
 	user-select:none;
 	-webkit-user-select:none;
 }
 ```
-## CSS的盒模型
+
+## CSS 的盒模型
+
 ```
 在HTML页面中的所有元素都可以看成是一个盒子
 盒子的组成：内容content、内边距padding、边框border、外边距margin

@@ -1,47 +1,57 @@
-使用nvm管理node版本，并且设置node，npm的安装目录（非常全面仔细）
+使用 nvm 管理 node 版本，并且设置 node，npm 的安装目录（非常全面仔细）
 
->node版本推荐使用lts版本，避免出现问题，如果使用最新版在taro低版本中安装依赖node-sass会出问题
+> node 版本推荐使用 lts 版本，避免出现问题，如果使用最新版在 taro 低版本中安装依
+> 赖 node-sass 会出问题
 
+## 安装 nvm
 
-## 安装nvm
-在[nvm下载地址](https://github.com/coreybutler/nvm-windows/releases/tag/1.1.7) 下载 nvm-setup.zip，随后进行安装nvm，建议安装到D:\nvm 以及D:\nodejs
+在[nvm 下载地址](https://github.com/coreybutler/nvm-windows/releases/tag/1.1.7)
+下载 nvm-setup.zip，随后进行安装 nvm，建议安装到 D:\nvm 以及 D:\nodejs
 
-## 配置nvm
-1. 打开 settings.txt，加上，不然下载node时会出现下载不到npm的情况
+## 配置 nvm
+
+1. 打开 settings.txt，加上，不然下载 node 时会出现下载不到 npm 的情况
+
 ```
 root: D:\nvm
 path: D:\nodejs
-node_mirror: https://npm.taobao.org/mirrors/node/ 
+node_mirror: https://npm.taobao.org/mirrors/node/
 npm_mirror: https://npm.taobao.org/mirrors/npm/
 ```
-2. 设置nvm环境变量
 
-删除系统变量：NVM_HOME 和 NVM_SYMLINK <br/>
-删除path中的 %NVM_HOME%;%NVM_SYMLINK% <br/>
+2. 设置 nvm 环境变量
 
-如果之前有设置过node环境变量，如node_path，一起删掉<br/>
-在用户变量中会有上面一样的变量，不需要动<br/>
+删除系统变量：NVM_HOME 和 NVM_SYMLINK <br/> 删除 path 中的
+%NVM_HOME%;%NVM_SYMLINK% <br/>
 
-3. 安装node
+如果之前有设置过 node 环境变量，如 node_path，一起删掉<br/> 在用户变量中会有上面
+一样的变量，不需要动<br/>
 
-nvm install  版本号  (高于8.0版本得node_modules会为空，此时去node官网手动下载对应的版本复制文件)
+3. 安装 node
 
-nvm use 版本号 选择使用node版本，此时nodejs文件夹会生成相应的node版本资源
+nvm install 版本号 (高于 8.0 版本得 node_modules 会为空，此时去 node 官网手动下
+载对应的版本复制文件)
 
-## 设置node，npm的安装目录
+nvm use 版本号 选择使用 node 版本，此时 nodejs 文件夹会生成相应的 node 版本资源
+
+## 设置 node，npm 的安装目录
+
 ```
 npm config set prefix "D:\nodejs\node_global"
 npm config set cache "D:\nodejs\node_cache"
 同时将D:\nodejs\node_global加到系统变量path中
 ```
 
-## npm安装yarn
+## npm 安装 yarn
+
 npm install -g yarn
 
-## npm安装cnpm
+## npm 安装 cnpm
+
 npm install -g cnpm --registry=https://registry.npm.taobao.org
 
-## nvm常用命令
+## nvm 常用命令
+
 ```
 nvm --help 显示所有信息
 nvm --version 显示当前安装的nvm版本

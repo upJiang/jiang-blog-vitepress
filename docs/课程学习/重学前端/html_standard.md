@@ -1,5 +1,8 @@
 ## HTML 标准
-我们采用 WHATWG 的 living standard 标准，我们先来看看标准是如何描述一个标签的，这里我们看到，有下面这些内容。
+
+我们采用 WHATWG 的 living standard 标准，我们先来看看标准是如何描述一个标签的，
+这里我们看到，有下面这些内容。
+
 ```
 Categories:
     Flow content.
@@ -38,11 +41,12 @@ DOM interface:
       [CEReactions] attribute boolean playsInline;
     };
 ```
+
 我们看到，这里的描述分为 6 个部分，有下面这些内容。
+
 - Categories：标签所属的分类。
 - Contexts in which this element can be used：标签能够用在哪里。
 - Content model：标签的内容模型。
 - Tag omission in text/html：标签是否可以省略。
 - Content attributes：内容属性。
 - DOM interface：用 WebIDL 定义的元素类型接口。
-

@@ -30,7 +30,8 @@
     "prepare": "husky install",
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
-    "docs:preview": "vitepress preview"
+    "docs:preview": "vitepress preview",
+    "prettier": "prettier --write ./docs"
   },
   "husky": {
     "hooks": {

@@ -1,11 +1,15 @@
->sentry是一个开源的监控系统，能支持服务端与客户端的监控，还有个强大的后台错误分析、报警平台。类似于后台的日志功能。
+> sentry 是一个开源的监控系统，能支持服务端与客户端的监控，还有个强大的后台错误
+> 分析、报警平台。类似于后台的日志功能。
 
->sentry有点不稳定，经常断连，注意不要开拦截广告的插件,注意在登录时要点击下方的accept
+> sentry 有点不稳定，经常断连，注意不要开拦截广告的插件,注意在登录时要点击下方的
+> accept
 
 使用方法：
-1. 在[sentry官网](https://sentry.io/welcome/)注册一个账号，推荐直接使用github账号登录。
 
-2. 创建一个项目，这里以vue3为例，在main.js 加入代码
+1. 在[sentry 官网](https://sentry.io/welcome/)注册一个账号，推荐直接使用 github
+   账号登录。
+
+2. 创建一个项目，这里以 vue3 为例，在 main.js 加入代码
 
 ```
 import * as Sentry from "@sentry/vue";
@@ -27,7 +31,8 @@ Sentry.init({
 });
 ```
 
-3. 在代码中抛出一个错误，然后在sentry面板上即可查看
+3. 在代码中抛出一个错误，然后在 sentry 面板上即可查看
+
 ```
 <a-button type="primary" @click="clickThrowError">点击抛出错误</a-button>
 

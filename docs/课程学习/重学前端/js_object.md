@@ -1,6 +1,7 @@
 ## 基于对象的定义
 
-语言和宿主的基础设施由对象来提供，并且 JavaScript 程序即是一系列互相通讯的对象集合
+语言和宿主的基础设施由对象来提供，并且 JavaScript 程序即是一系列互相通讯的对象集
+合
 
 ## 对象的特征
 
@@ -14,14 +15,12 @@
 
 2. 对象有状态：对象具有状态，同一对象可能处于不同状态之下。
 
-   
-
    ```
-   var o = { 
+   var o = {
      d: 1,
      f() {
          console.log(this.d);
-     }    
+     }
    };
    ```
 
@@ -31,9 +30,11 @@
 
 ## 对象的两类属性
 
-对 JavaScript 来说，属性并非只是简单的名称和值，JavaScript 用一组特征（attribute）来描述属性（property）。
+对 JavaScript 来说，属性并非只是简单的名称和值，JavaScript 用一组特征
+（attribute）来描述属性（property）。
 
 ## 数据属性
+
 在大多数情况下，我们只关心数据属性的值即可。
 
 - value：就是属性的值。
@@ -48,13 +49,13 @@
 - enumerable：决定 for in 能否枚举该属性。
 - configurable：决定该属性能否被删除或者改变特征值。
 
-访问器属性使得属性在读和写时执行代码，它允许使用者在写和读属性时，得到完全不同的值，它可以视为一种函数的语法糖。
+访问器属性使得属性在读和写时执行代码，它允许使用者在写和读属性时，得到完全不同的
+值，它可以视为一种函数的语法糖。
 
+> 我们通常用于定义属性的代码会产生数据属性，其中的
+> writable、enumerable、configurable 都默认为 true。
 
-
-> 我们通常用于定义属性的代码会产生数据属性，其中的 writable、enumerable、configurable 都默认为 true。
-
-#### 使用getOwnPropertyDescriptor查看数据属性
+#### 使用 getOwnPropertyDescriptor 查看数据属性
 
 ```
 var o = { a: 1 };
@@ -64,7 +65,7 @@ Object.getOwnPropertyDescriptor(o,"a") // {value: 1, writable: true, enumerable:
 Object.getOwnPropertyDescriptor(o,"b") // {value: 2, writable: true, enumerable: true, configurable: true}
 ```
 
-#### 使用Object.defineProperty改变数据属性
+#### 使用 Object.defineProperty 改变数据属性
 
 ```
 var o = { a: 1 };
@@ -83,23 +84,31 @@ var o = { get a() { return 1 } };
 console.log(o.a); // 1
 ```
 
-访问器属性跟数据属性不同，每次访问属性都会执行 getter 或者 setter 函数。这里我们的 getter 函数返回了 1，所以 o.a 每次都得到 1。
+访问器属性跟数据属性不同，每次访问属性都会执行 getter 或者 setter 函数。这里我们
+的 getter 函数返回了 1，所以 o.a 每次都得到 1。
 
 ## 对象分类
 
-- 宿主对象（host Objects）：由 JavaScript 宿主环境提供的对象，它们的行为完全由宿主环境决定。
+- 宿主对象（host Objects）：由 JavaScript 宿主环境提供的对象，它们的行为完全由宿
+  主环境决定。
 - 内置对象（Built-in Objects）：由 JavaScript 语言提供的对象。
-  - 固有对象（Intrinsic Objects ）：由标准规定，随着 JavaScript 运行时创建而自动创建的对象实例。
-  - 原生对象（Native Objects）：可以由用户通过 Array、RegExp 等内置构造器或者特殊语法创建的对象。
-  - 普通对象（Ordinary Objects）：由{}语法、Object 构造器或者 class 关键字定义类创建的对象，它能够被原型继承。
+  - 固有对象（Intrinsic Objects ）：由标准规定，随着 JavaScript 运行时创建而自动
+    创建的对象实例。
+  - 原生对象（Native Objects）：可以由用户通过 Array、RegExp 等内置构造器或者特
+    殊语法创建的对象。
+  - 普通对象（Ordinary Objects）：由{}语法、Object 构造器或者 class 关键字定义类
+    创建的对象，它能够被原型继承。
 
 ### 宿主对象
 
 JavaScript 宿主对象千奇百怪，但是前端最熟悉的无疑是浏览器环境中的宿主了。
 
-在浏览器环境中，我们都知道全局对象是 window，window 上又有很多属性，如 document。实际上，这个全局对象 window 上的属性，一部分来自 JavaScript 语言，一部分来自浏览器环境。
+在浏览器环境中，我们都知道全局对象是 window，window 上又有很多属性，如
+document。实际上，这个全局对象 window 上的属性，一部分来自 JavaScript 语言，一部
+分来自浏览器环境。
 
-宿主对象也分为固有的和用户可创建的两种，比如 document.createElement 就可以创建一些 DOM 对象。
+宿主对象也分为固有的和用户可创建的两种，比如 document.createElement 就可以创建一
+些 DOM 对象。
 
 ### 内置对象·固有对象
 
@@ -109,15 +118,19 @@ JavaScript 宿主对象千奇百怪，但是前端最熟悉的无疑是浏览器
 
 #### 小实验：获取全部 JavaScript 固有对象
 
-我们从 JavaScript 标准中可以找到全部的 JavaScript 对象定义。JavaScript 语言规定了全局对象的属性。
+我们从 JavaScript 标准中可以找到全部的 JavaScript 对象定义。JavaScript 语言规定
+了全局对象的属性。
 
 三个值：Infinity、NaN、undefined。
 
 九个函数：
 
-eval isFinite、isNaN、parseFloat、parseInt、decodeURI 、decodeURIComponent、 encodeURI、encodeURIComponent
+eval isFinite、isNaN、parseFloat、parseInt、decodeURI 、decodeURIComponent、
+encodeURI、encodeURIComponent
 
-一些构造器：Array、Date、RegExp、Promise、Proxy、Map、WeakMap、Set、WeakSet、Function、Boolean、String、Number、Symbol、Object、Error、EvalError、RangeError、ReferenceError、SyntaxError、TypeError、URIError、ArrayBuffer、SharedArrayBuffer、DataView、Typed Array、Float32Array、Float64Array、Int8Array、Int16Array、Int32Array、UInt8Array、UInt16Array、UInt32Array、UInt8ClampedArray。
+一些构造器
+：Array、Date、RegExp、Promise、Proxy、Map、WeakMap、Set、WeakSet、Function、Boolean、String、Number、Symbol、Object、Error、EvalError、RangeError、ReferenceError、SyntaxError、TypeError、URIError、ArrayBuffer、SharedArrayBuffer、DataView、Typed
+Array、Float32Array、Float64Array、Int8Array、Int16Array、Int32Array、UInt8Array、UInt16Array、UInt32Array、UInt8ClampedArray。
 
 四个用于当作命名空间的对象：Atomics、JSON、Math、Reflect
 
@@ -190,17 +203,19 @@ for(var i = 0; i < objects.length; i++) {
 }
 ```
 
-
-
 ### 内置对象·原生对象
 
-我们把 JavaScript 中，能够通过语言本身的构造器创建的对象称作原生对象。在 JavaScript 标准中，提供了 30 多个构造器。按照我的理解，按照不同应用场景，我把原生对象分成了以下几个种类。
+我们把 JavaScript 中，能够通过语言本身的构造器创建的对象称作原生对象。在
+JavaScript 标准中，提供了 30 多个构造器。按照我的理解，按照不同应用场景，我把原
+生对象分成了以下几个种类。
 
 <a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/6c/d0/6cb1df319bbc7c7f948acfdb9ffd99d0.png">![img](https://static001.geekbang.org/resource/image/6c/d0/6cb1df319bbc7c7f948acfdb9ffd99d0.png)</a>
 
-通过这些构造器，我们可以用 new 运算创建新的对象，所以我们把这些对象称作原生对象。
+通过这些构造器，我们可以用 new 运算创建新的对象，所以我们把这些对象称作原生对象
+。
 
-几乎所有这些构造器的能力都是无法用纯 JavaScript 代码实现的，它们也无法用 class/extend 语法来继承。
+几乎所有这些构造器的能力都是无法用纯 JavaScript 代码实现的，它们也无法用
+class/extend 语法来继承。
 
 这些构造器创建的对象多数使用了私有字段, 例如：
 
@@ -211,22 +226,23 @@ for(var i = 0; i < objects.length; i++) {
 - RegExp: [[RegExpMatcher]]
 - Symbol: [[SymbolData]]Map: [[MapData]]
 
-这些字段使得原型继承方法无法正常工作，所以，我们可以认为，所有这些原生对象都是为了特定能力或者性能，而设计出来的“特权对象”。
+这些字段使得原型继承方法无法正常工作，所以，我们可以认为，所有这些原生对象都是为
+了特定能力或者性能，而设计出来的“特权对象”。
 
 ## 函数对象与构造器对象
->用对象来模拟函数与构造器
+
+> 用对象来模拟函数与构造器
 
 #### 函数对象，具有[[call]]私有字段的对象
 
-> [[call]]私有字段必须是一个引擎中定义的函数，需要接受 this 值和调用参数，并且会产生域的切换
+> [[call]]私有字段必须是一个引擎中定义的函数，需要接受 this 值和调用参数，并且会
+> 产生域的切换
 
 任何对象只需要实现[[call]]，它就是一个函数对象，可以去作为函数被调用
 
 #### 构造器对象，具有私有字段[[construct]]的对象
 
 任何对象实现[[construct]]，它就是一个构造器对象，可以作为构造器被调用
-
-
 
 用 function 关键字创建的函数必定同时是函数和构造器
 
@@ -236,7 +252,8 @@ ES6 之后 => 语法创建的函数仅仅是函数，它们无法被当作构造
 new (a => 0) // error
 ```
 
-对于用户使用 function 语法或者 Function 构造器创建的对象来说，[[call]]和[[construct]]行为总是相似的，它们执行同一段代码。
+对于用户使用 function 语法或者 Function 构造器创建的对象来说
+，[[call]]和[[construct]]行为总是相似的，它们执行同一段代码。
 
 ```
 function f(){
@@ -252,7 +269,8 @@ var o = new f(); //把f作为构造器调用
 - 以新对象为 this，执行函数的[[call]]；
 - 如果[[call]]的返回值是对象，那么，返回这个对象，否则返回第一步创建的新对象。
 
-这样的规则造成了个有趣的现象，如果我们的构造器返回了一个新的对象，那么 new 创建的新对象就变成了一个构造函数之外完全无法访问的对象，这一定程度上可以实现“私有”。
+这样的规则造成了个有趣的现象，如果我们的构造器返回了一个新的对象，那么 new 创建
+的新对象就变成了一个构造函数之外完全无法访问的对象，这一定程度上可以实现“私有”。
 
 ```
 function cls(){    this.a = 100; //除了函数内，其它地方都无法访问，实现了私有    return {        getValue:() => this.a    }}var o = new cls;o.getValue(); //100//a在外面永远无法访问到
@@ -265,14 +283,7 @@ function cls(){    this.a = 100; //除了函数内，其它地方都无法访问
 - Array：Array 的 length 属性根据最大的下标自动发生变化。
 - Object.prototype：作为所有正常对象的默认原型，不能再给它设置原型了。
 - String：为了支持下标运算，String 的正整数属性访问会去字符串里查找。
-- Arguments：arguments 的非负整数型下标属性跟对应的变量联动。模块的 
+- Arguments：arguments 的非负整数型下标属性跟对应的变量联动。模块的
 - namespace 对象：特殊的地方非常多，跟一般对象完全不一样，尽量只用于 import 吧。
 - 类型数组和数组缓冲区：跟内存块相关联，下标运算比较特殊。
 - bind 后的 function：跟原来的函数相关联。
-
-
-
-
-
-
-

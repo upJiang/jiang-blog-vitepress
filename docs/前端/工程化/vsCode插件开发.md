@@ -1,54 +1,72 @@
->vscode 是前端开发的利器，大家平时会使用很多插件，但有没有想过自己开发一个插件来满足自己特定的开发需求。比如很多重复的代码，可以直接用插件一键生成。现在我们一起从 0 - 1 做一个你自己的 vscode 插件~~~
+> vscode 是前端开发的利器，大家平时会使用很多插件，但有没有想过自己开发一个插件
+> 来满足自己特定的开发需求。比如一键生成重复的代码、添加代码片段、添加 chatGPT(
+> 下一篇文章讲到)。现在我们一起从 0 - 1 做一个你自己的 vscode 插件！
 
-**该文章能够让你入门 `vscode` 插件开发，发布插件，学会 `vscode` 与 `webview` 之间的通信，在 vscode 中添加各种操作菜单，生成代码等。**
+**该文章能够让你入门 `vscode` 插件开发，发布插件，学会 `vscode` 与 `webview` 之
+间的通信，在 vscode 中添加各种操作菜单，生成代码等。**
 
 插件实现两个功能：
-- **能够在文件夹上右键自动生成配置好的代码文件**
-- **能够在 webview 上填写代码片段内容，并在 vscode 中应用。**
+
+- **在文件夹上右键自动生成配置好的代码文件**
+- **在 webview 上填写代码片段内容，并在 vscode 中生成文件并应用。**
 
 [中文教程参考](https://liiked.github.io/VS-Code-Extension-Doc-ZH/#/)
 
-有不懂的地方可以直接下载代码，[插件项目地址](https://github.com/upJiang/jiang-vscode-plugin)
-
+有不懂的地方可以直接下载代码
+，[插件项目地址](https://github.com/upJiang/jiang-vscode-plugin)
 
 **先学习创建插件项目，调试，以及发布的完整过程。**
+
 ## 创建项目
+
 - 安装官方脚手架
 
 ```
 npm install -g yo generator-code
 ```
+
 - 执行，生成项目
+
 ```
 yo code
 ```
 
 在 `package.json` 中设置插件图标，在根目录下添加文件与图片
+
 ```
 "icon": "images/title.jpg"
 ```
- 
+
 - `f5` 运行插件，会自动打开一个扩展开发宿主
 
 ## 发布插件
+
 - 全局安装插件发布工具
+
 ```
 npm install -g vsce
 ```
+
 - 项目打包
+
 ```
 vsce package
 ```
 
 - 创建 `Azure Personal Access Token`，用于发布
-- 打开 [Azure官网](https://aex.dev.azure.com) ，注册好账号后，在这里创建 token，设置期限最长为一年，`Scopes` 直接选择 `Full access`。保存好创建的 `token`
+- 打开 [Azure 官网](https://aex.dev.azure.com) ，注册好账号后，在这里创建
+  token，设置期限最长为一年，`Scopes` 直接选择 `Full access`。保存好创建的
+  `token`
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7c9d1e2d1abb4b31a4444f134a6e8af0~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=415&h=431&s=25374&e=png&b=fbfbfb">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7c9d1e2d1abb4b31a4444f134a6e8af0~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=415&h=431&s=25374&e=png&b=fbfbfb)</a>
 
 - 创建发行方
-打开 [创建发行方地址](https://aka.ms/vscode-create-publisher )，填一个与项目 `publisher` 一致的名字，直接创建即可
+
+打开 [创建发行方地址](https://aka.ms/vscode-create-publisher)，填一个与项目
+`publisher` 一致的名字，直接创建即可
 
 - 开始发布
+
 ```
 # 登录
 vsce login (publisher name)
@@ -63,23 +81,34 @@ vsce publish -p <token>
 然后过几分钟，再搜索一下自己的插件名称，就能搜到啦
 
 - 本地打包并安装
+
 ```
 vsce package
 ```
+
 会在根目录生成一个 `.vsix` 文件，然后直接在扩展那里选择 `从 VSLX 安装` 即可
 
-插件项目的常规配置，比如 `eslint` `prettier`
-[参考我的文章](https://juejin.cn/post/7051512232374435847)
+插件项目的常规配置，比如 `eslint` `prettier`，
+[请参考我的文章](https://juejin.cn/post/7051512232374435847)，**强烈建议直接使用
+我文章中的插件版本**
 
 ## Hello World 初尝试
+
 **插件的开发过程：**
-- 在 `package.json` 中注册 `command`，设置 `command` 出现的位置、`title`，菜单、子菜单 等
-- 在生成的插件项目中，`src` 下的 `extension.ts` 是插件的入口文件，所有的 `command`，都要在这里注册，并且命令 (`command`) 必须与`package.json` 中注册的 `command`一致。
+
+- 在 `package.json` 中注册 `command`，设置 `command` 出现的位置、`title`，菜单、
+  子菜单 等
+- 在生成的插件项目中，`src` 下的 `extension.ts` 是插件的入口文件，所有的
+  `command`，都要在这里注册，并且命令 (`command`) 必须与`package.json` 中注册的
+  `command`一致。
 
 实践一下：
-- 在 `package.json` 中添加 `command`，这里实现两个小功能。<br/>
+
+- 在 `package.json` 中添加 `command`，这里实现两个小功能。
+
 1. 弹出一个消息提示 <br/>
 2. 打开一个 `webview`
+
 ```
 "contributes": {
     "commands": [
@@ -94,7 +123,9 @@ vsce package
     ]
   },
 ```
+
 - 然后在 `extension.ts` 注册这两个 `command`
+
 ```
 import * as vscode from "vscode";
 
@@ -147,17 +178,22 @@ export function activate(context: vscode.ExtensionContext) {
 // 插件关闭前执行清理工作
 export function deactivate() {}
 ```
+
 重新运行，然后在新窗口输入 `Hello World` 或者 `打开webview`，就能看到效果
 
-在 `​​VSCode​​​` 命令面板中，输入​ `​Open Webview Developer Tools​​` ​后可以打开 `​​Webview` ​​的控制台
+在 `​​VSCode​​​` 命令面板中，输入 ​ `​Open Webview Developer Tools​​` ​ 后可以打
+开 `​​Webview` ​​ 的控制台
 
-## 开发功能：在文件夹上右键生成代码文件
+## 功能开发：在文件夹上右键生成代码文件
+
 在做之前先优化一下项目目录
+
 - 在 `src` 目录下新建 `commands` 文件夹，用于存放所有的命令
 - 在根目录下新建 `materials` 文件夹，用于存放要生成的代码文件模板
 - 在 `materials` 下新建 `block` 文件夹，写入四个模板文件
 
 1. `index.vue`
+
 ```
 <template>
   <div>{{ model.name.value }}</div>
@@ -169,7 +205,9 @@ const presenter = usePresenter()
 const { model } = presenter
 </script>
 ```
+
 2. `model.ts`
+
 ```
 import { reactive, ref } from 'vue'
 
@@ -180,7 +218,9 @@ export const useModel = () => {
 
 export type Model = ReturnType<typeof useModel>
 ```
+
 3. `presenter.tsx`
+
 ```
 import Service from './service'
 import { useModel } from './model'
@@ -195,7 +235,9 @@ export const usePresenter = () => {
   }
 }
 ```
+
 4. `service.ts`
+
 ```
 import { Model } from './model'
 
@@ -207,14 +249,18 @@ export default class Service {
   }
 }
 ```
+
 此时的项目的目录结构应该为：
 
 <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/06ca417f440743f49c9cce1d28f1a2eb~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=355&h=517&s=23440&e=png&b=191919">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/06ca417f440743f49c9cce1d28f1a2eb~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=355&h=517&s=23440&e=png&b=191919)</a>
 
 ### 在 `package.json` 中注册 `command`
-要实现的目标是：选中文件夹后右键出现 `CodeToolBox` 菜单，点击 `创建区块`，将 `materials/blocks` 的内容自动生成到该文件夹中
+
+要实现的目标是：选中文件夹后右键出现 `CodeToolBox` 菜单，点击 `创建区块`，将
+`materials/blocks` 的内容自动生成到该文件夹中
 
 `package.json`
+
 ```
 "contributes": {
     "commands": [
@@ -245,12 +291,15 @@ export default class Service {
     ]
   },
 ```
+
 实现的效果：
 
 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/432e38c5aa13415c927e101f9a6b6bfd~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=600&h=645&s=70767&e=png&b=1f1f1f">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/432e38c5aa13415c927e101f9a6b6bfd~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=600&h=645&s=70767&e=png&b=1f1f1f)</a>
 
 ### 新增 `src/commands/createScript.ts`
+
 以下代码大部分都是 `chatGPT` 帮写的，提问内容
+
 ```
 请帮我写个vscode插件项目，使用ts帮我写个方法，以当前右键文件夹位置作为目标源，指定某个目录的文件夹内容为来源，复制来源的所有内容到目标源中
 ```
@@ -320,7 +369,9 @@ async function copyDirectoryContents(sourcePath: string, targetPath: string) {
   }
 }
 ```
+
 ### 在 extension.ts 中注册 registerCreateScript
+
 ```
 import * as vscode from "vscode";
 import { registerCreateScript } from "./commands/createScript";
@@ -332,14 +383,21 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {}
 ```
 
-f5 重新启动后，在扩展宿主页面中，新建一个空项目，新增 `materials/blocks` 文件夹，写入前面的四个文件，新建 `src` 文件夹，然后在 `src` 中右键，选中 `CodeToolBox`-> `创建区块`，就能在该文件夹下自动生成文件啦。今后如果有很多代码可以重复使用的，都可以添加到 `materials` 中，然后添加多个不同的 `command` 去自动生成文件内容。
+f5 重新启动后，在扩展宿主页面中，新建一个空项目，新增 `materials/blocks` 文件夹
+，写入前面的四个文件，新建 `src` 文件夹，然后在 `src` 中右键，选中
+`CodeToolBox`-> `创建区块`，就能在该文件夹下自动生成文件啦。今后如果有很多代码可
+以重复使用的，都可以添加到 `materials` 中，然后添加多个不同的 `command` 去自动生
+成文件内容。
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3a0d1d04b73b4bc794c21b0e96e9abfd~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=297&h=241&s=8501&e=png&b=181818">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3a0d1d04b73b4bc794c21b0e96e9abfd~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=297&h=241&s=8501&e=png&b=181818)</a>
 
+## 功能开发：在 webview 上填写代码片段内容，并在 vscode 中应用
 
-## 功能开发：在webview 上填写代码片段内容，并在 vscode 中应用
-- 在根目录下创建 `webview-vue` 项目，要求使用 `vue3 + vite` 创建新项目，因为下面只介绍 `vite` 的打包处理过程
-- 创建项目，创建后项目配置这里不做介绍，自行编写页面，引入路由，引入组件库，[加入规范参考文章](https://juejin.cn/post/7051512232374435847) 等
+- 在根目录下创建 `webview-vue` 项目，要求使用 `vue3 + vite` 创建新项目，因为下面
+  只介绍 `vite` 的打包处理过程
+- 创建项目，创建后项目配置这里不做介绍，自行编写页面，引入路由，引入组件库
+  ，[加入规范参考文章](https://juejin.cn/post/7051512232374435847) 等
+
 ```
 ## 安装 Vue CLI
 npm install -g @vue/cli
@@ -347,11 +405,15 @@ npm install -g @vue/cli
 ## 创建项目
 vue create my-vue3-project
 ```
+
 - 在插件项目中的 `package.json` 添加命令，用于执行 `webview-vue` 项目
+
 ```
 "dev": "yarn --cwd \"webview-vue\" dev",
 ```
+
 ### 在 `package.json` 添加 `command`
+
 ```
 "contributes": {
   "commands": [
@@ -368,7 +430,7 @@ vue create my-vue3-project
     ],
     "CodeToolBox/editor/context": [
       {
-        "command": "CodeToolBox.createSnippets" 
+        "command": "CodeToolBox.createSnippets"
       }
     ]
   },
@@ -382,7 +444,9 @@ vue create my-vue3-project
 },
 
 ```
+
 ### 在 `src\commands` 下新增 `createSnippets.ts`，
+
 ```
 import { commands, ExtensionContext } from "vscode";
 import { showWebView } from "../utils/webviewUtils";
@@ -405,16 +469,23 @@ export const registerCreateSnippets = (context: ExtensionContext) => {
   );
 };
 ```
+
 ### 在 `extension.ts` 注册 `command`
+
 ```
 import { registerCreateSnippets } from "./commands/createSnippets";
 export function activate(context: vscode.ExtensionContext) {
   registerCreateSnippets(context);
 }
 ```
+
 ### 封装打开 webview 的通用方法
-- 在 `src` 下新建 `utils/webviewUtils.ts`，此处用于封装打开 webview 的方法，发送信息，接收 `webview` 返回的信息，然后去派发任务。
-代码中都有详尽的说明，此处只封装了一个路由跳转的任务派发，往后可以添加更多的任务，甚至将文件拆分的更细，学会后自己扩展即可。
+
+- 在 `src` 下新建 `utils/webviewUtils.ts`，此处用于封装打开 webview 的方法，发送
+  信息，接收 `webview` 返回的信息，然后去派发任务。代码中都有详尽的说明，此处只
+  封装了一个路由跳转的任务派发，往后可以添加更多的任务，甚至将文件拆分的更细，学
+  会后自己扩展即可。
+
 ```
 import * as vscode from "vscode";
 import * as snippet from "../webview/controllers/addSnippets";
@@ -577,14 +648,24 @@ const taskMap: Record<string, any> = {
   addSnippets: snippet.addSnippets,
 };
 ```
-### 解读代码
-在平时开发时，需要先执行 `yarn dev`，此时会直接运行 `webview-vue` 项目，在 webview-vue 项目中需要指定运行端口号为 `7979`。因为在上面设置中，我们在开发环境中是直接打开 `http://127.0.0.1:7979/src/main.ts`，而生产发布插件后，我们先自动打包一次，这个打包的文件必须是将所有的文件都打包到一个 `js` 中，包括 css 这些。下面先介绍如何在 `webview-vue` 项目设置打包.
 
-我们使用 `vite-plugin-css-injected-by-js` 将所有文件都打包一个文件中，[打包参考文章](https://juejin.cn/post/7277804250024902693)
+### 解读代码
+
+在平时开发时，需要先执行 `yarn dev`，此时会直接运行 `webview-vue` 项目，在
+webview-vue 项目中需要指定运行端口号为 `7979`。因为在上面设置中，我们在开发环境
+中是直接打开 `http://127.0.0.1:7979/src/main.ts`，而生产发布插件后，我们先自动打
+包一次，这个打包的文件必须是将所有的文件都打包到一个 `js` 中，包括 css 这些。下
+面先介绍如何在 `webview-vue` 项目设置打包.
+
+我们使用 `vite-plugin-css-injected-by-js` 将所有文件都打包一个文件中
+，[打包参考文章](https://juejin.cn/post/7277804250024902693)
+
 ```
 yarn add -D vite-plugin-css-injected-by-js
 ```
+
 修改 `vite.config.ts`
+
 ```
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -616,16 +697,21 @@ export default defineConfig({
   },
 })
 ```
-- 在插件项目中配置发布自动打包命令，`package.json`，这样在我们发布插件时，就会自动打包一次
+
+- 在插件项目中配置发布自动打包命令，`package.json`，这样在我们发布插件时，就会自
+  动打包一次
+
 ```
 "build": "yarn --cwd \"webview-vue\" build",
 "vscode:prepublish": "webpack --mode production && yarn --cwd \"webview-vue\" build",
 ```
-- 执行 build 后会在根目录下生成打包文件
-<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ad970e6b36784220bd3faee172740316~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=301&h=90&s=3822&e=png&b=191919">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ad970e6b36784220bd3faee172740316~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=301&h=90&s=3822&e=png&b=191919)</a>
 
-- 添加 `.vscodeignore` 忽略文件，将 `webview-vue` 忽略掉，避免被上传到插件，导致文件过大
-.vscodeignore
+- 执行 build 后会在根目录下生成打包文件
+  <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ad970e6b36784220bd3faee172740316~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=301&h=90&s=3822&e=png&b=191919">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ad970e6b36784220bd3faee172740316~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=301&h=90&s=3822&e=png&b=191919)</a>
+
+- 添加 `.vscodeignore` 忽略文件，将 `webview-vue` 忽略掉，避免被上传到插件，导致
+  文件过大 .vscodeignore
+
 ```
 .vscode/**
 .vscode-test/**
@@ -644,19 +730,25 @@ webview-vue/**
 ```
 
 ### 在 webview 项目中，接收来自 vscode 的信息
+
 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/510cc9e1214e4d77a93f408a9ca7dad9~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=303&h=505&s=17887&e=png&b=191919">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/510cc9e1214e4d77a93f408a9ca7dad9~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=303&h=505&s=17887&e=png&b=191919)</a>
 
 在 `webview-vue` 项目中，封装跟 `vscode` 交互的方法：
-- 声明 `vscode` 全局变量，在前面封装的 打开 `webview` 方法中，我们在 `html`容器中写入了一段，可直接搜索文章查找一下
+
+- 声明 `vscode` 全局变量，在前面封装的 打开 `webview` 方法中，我们在 `html`容器
+  中写入了一段，可直接搜索文章查找一下
+
 ```
 <script>
   window.vscode = acquireVsCodeApi();
 </script>
 ```
+
 - 使用 `window.addEventListener('message')`，监听 `vscode` 传入的消息
 - 根据 `vscode` 传入消息的 `cmd`去派发任务执行。
 
-`src/utils/vscodeUtils.ts` 
+`src/utils/vscodeUtils.ts`
+
 ```
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import router from '@/router'
@@ -710,7 +802,11 @@ export const taskHandler: {
   },
 }
 ```
-- 在 `main.ts` 中执行该监听方法，并告诉 `vscode`，`webview` 项目已经加载完成，这样是为了避免出现 `webview` 项目还没加载完成就发送了信息过来，在前面封装的方法也是监听到这个方法后才开始发送 `msssage`
+
+- 在 `main.ts` 中执行该监听方法，并告诉 `vscode`，`webview` 项目已经加载完成，这
+  样是为了避免出现 `webview` 项目还没加载完成就发送了信息过来，在前面封装的方法
+  也是监听到这个方法后才开始发送 `msssage`
+
 ```
 import { createApp } from 'vue'
 import router from './router'
@@ -731,9 +827,13 @@ initMessageListener() // 执行监听
 vscode.postMessage({ cmd: 'webviewLoaded' })
 ```
 
-- 写一个代码片段的 form 表单页面，然后将输入的内容传给 vscode，vscode 那边接收到后在当前项目中新增 `.vscode\test.code-snippets` 文件，并写入表单信息，一次完整的通讯就完成了。
-- 自行在 `webview-vue` 项目中创建页面，添加路由，可以直接参考开头贴的项目地址代码。
+- 写一个代码片段的 form 表单页面，然后将输入的内容传给 vscode，vscode 那边接收到
+  后在当前项目中新增 `.vscode\test.code-snippets` 文件，并写入表单信息，一次完整
+  的通讯就完成了。
+- 自行在 `webview-vue` 项目中创建页面，添加路由，可以直接参考开头贴的项目地址代
+  码。
 - 这里只贴上填写完表单后的提交方法
+
 ```
 onSubmit() {
   // 向 vscode 发送信息
@@ -745,12 +845,17 @@ onSubmit() {
   })
 }
 ```
-- `vscode` 在 `panel.webview.onDidReceiveMessage` 方法中，会监听 `webview` 发送的信息，然后分发任务
-- 这里封装接收信息后的任务分发，在插件项目中新增 `src\webview\controllers\addSnippets.ts`，往后所有接收 `webview` 消息需要处理的任务在添加到 `controllers` 文件夹中
+
+- `vscode` 在 `panel.webview.onDidReceiveMessage` 方法中，会监听 `webview` 发送
+  的信息，然后分发任务
+- 这里封装接收信息后的任务分发，在插件项目中新增
+  `src\webview\controllers\addSnippets.ts`，往后所有接收 `webview` 消息需要处理
+  的任务在添加到 `controllers` 文件夹中
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/12d16c8cf67845efb94c834623eaf765~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=314&h=258&s=9776&e=png&b=1a1a1a">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/12d16c8cf67845efb94c834623eaf765~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=314&h=258&s=9776&e=png&b=1a1a1a)</a>
 
 `src\webview\controllers\addSnippets.ts`
+
 ```
 import * as vscode from "vscode";
 import * as path from "path";
@@ -832,7 +937,9 @@ export const addSnippets = (
 
 至此这个功能就算完成了，`vscode` 与 `webview` 的通讯应该也弄明白了。
 
-此时，F5 后，在打开的新窗口中右键，会直接打开一个 `webview` 页面，填写完表单后会提交，会在当前项目中新增 `.vscode\test.code-snippets` 文件，并写入表单信息，这个文件写入后，就能直接在该项目中使用文件内的代码片段了。
+此时，F5 后，在打开的新窗口中右键，会直接打开一个 `webview` 页面，填写完表单后会
+提交，会在当前项目中新增 `.vscode\test.code-snippets` 文件，并写入表单信息，这个
+文件写入后，就能直接在该项目中使用文件内的代码片段了。
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3713b220464748f490a7bdc2bb14e955~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=625&h=506&s=31942&e=png&b=202020">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3713b220464748f490a7bdc2bb14e955~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=625&h=506&s=31942&e=png&b=202020)</a>
 
@@ -844,9 +951,381 @@ export const addSnippets = (
 
 打包发布前记得修改一下 `package.json` 的版本号
 
-大家可以在 `vscode` 中下载安装我的插件 `CodeToolBox` 体验一下，往后会持续添加更多功能，谢谢~
+大家可以在 `vscode` 中下载安装我的插件 `CodeToolBox` 体验一下，往后会持续添加更
+多功能，谢谢~
 
-[插件项目地址](https://github.com/upJiang/jiang-vscode-plugin)，觉得还行的赏个 `star`
+[插件项目地址](https://github.com/upJiang/jiang-vscode-plugin)，觉得还行的赏个
+`star`
 
 至此，已经完成插件开发的入门内容，相信大家也能够去写一个自己的 vscode 插件了~
 
+## 功能开发：接入 `chatGPT`
+
+### 在 `vscode` 侧边栏添加插件图标
+
+#### `package.json` 添加设置
+
+```
+"contributes": {
+    // 左侧侧边栏的容器设置，唯一标识id需要下方设置对应的 views，这里设置其名称、图标
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "CodeToolBox",
+          "title": "CodeToolBox",
+          "icon": "images/tool.png" // 自定义图标，请手动添加图片
+        }
+      ]
+    },
+    // 对应上方设置的唯一 id，设置这个标签点击打开后的视图，name是视图上方的名称
+    "views": {
+      "CodeToolBox": [
+        {
+          "id": "CodeToolBox.welcome",
+          "name": "welcome",
+        }
+      ]
+    },
+    // 设置这个视图里面的内容，
+    // 目前添加两个按钮（打开chatGPT对话框、设置）
+    "viewsWelcome": [
+      {
+        "view": "CodeToolBox.welcome",
+        "contents": "[打开chatGPT对话框](command:CodeToolBox.chatGPTView)\n[设置](command:CodeToolBox.openSetting)"
+      }
+    ],
+}
+```
+
+<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c743b26a1a554bb598d02e41326718ec~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=475&h=573&s=20705&e=png&b=181818">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c743b26a1a554bb598d02e41326718ec~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=475&h=573&s=20705&e=png&b=181818)</a>
+
+下面把图示位置称为插件视图
+
+### 添加插件设置
+
+- `package.json` 添加打开用户插件设置命令
+
+```
+"contributes": {
+  "commands": [
+    {
+      "command": "CodeToolBox.openSetting",
+      "title": "设置"
+    },
+  ],
+}
+```
+
+- 新建 `/src/commands/createSetting.ts`
+
+```
+import { commands, ExtensionContext } from "vscode";
+
+export const registerCreateSetting = (context: ExtensionContext) => {
+  context.subscriptions.push(
+    commands.registerCommand("CodeToolBox.openSetting", () => {
+      // 打开插件设置
+      commands.executeCommand("workbench.action.openSettings", "CodeToolBox");
+    }),
+  );
+};
+```
+
+- 在 `src/extension.ts` 添加命令
+
+```
+import { registerCreateSetting } from "./commands/createSetting";
+export function activate(context: vscode.ExtensionContext) {
+  registerCreateSetting(context);
+}
+```
+
+- `package.json` 添加插件的设置项
+
+```
+"contributes": {
+  "configuration": {
+        "type": "object",
+        "title": "CodeToolBox",
+        "properties": {
+          "CodeToolBox.hostname": {
+            "type": "string",
+            "default": "api.openai.com",
+            "description": "第三方代理地址"
+          },
+          "CodeToolBox.apiKey": {
+            "type": "string",
+            "default": "api.openai.com",
+            "description": "第三方代理提供的apiKey"
+          }
+        }
+      }
+  }
+```
+
+这样当年点击设置时，插件的设置就会自动打开，后续再使用用户设置的信息
+
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d23cb0b3cce9495c8ef3759ac60cd52e~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1496&h=576&s=61242&e=png&b=1f1f1f">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d23cb0b3cce9495c8ef3759ac60cd52e~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1496&h=576&s=61242&e=png&b=1f1f1f)</a>
+
+### 添加 chatGPT 对话框
+
+前面我们添加了一个 [打开 chatGPT 对话框] 按钮，现在来添加一下
+
+目的：
+
+- 点击按钮后在当前插件视图中切换到 `chatGPT对话框`
+- 切换后需要关闭操作，我们需要在 `chatGPT对话框` 状态下，视图的上方要有关闭按钮
+  以及设置按钮
+- `chatGPT对话框` 其实是一个 `webview`，所以我们需要在当前 `webviewView` 中去加
+  载 `webview`
+- `chatGPT对话框` 的内容应该是一个移动端形式的聊天界面
+
+#### 点击按钮后在当前插件视图中切换到 `chatGPT对话框`
+
+- 在 `package.json` 添加配置
+
+```
+// 新增 `chatGPT对话框` 命令
+"contributes": {
+  {
+    "command": "CodeToolBox.chatGPTView",
+    "title": "chatGPT对话框"
+  },
+}
+```
+
+- 设置 `chatGPT对话框` 出现的时机
+
+1. 当 `CodeToolBox.chatGPTView` 为 `false` 时就是两个按钮的视图
+2. 当 `CodeToolBox.chatGPTView` 为 `true` 时就是 `chatGPT对话框` 的视图
+
+在 `package.json` 添加配置
+
+```
+"views": {
+    "CodeToolBox": [
+      {
+        "id": "CodeToolBox.welcome",
+        "name": "welcome",
+        "when": "!CodeToolBox.chatGPTView"
+      },
+      {
+        "type": "webview",
+        "id": "CodeToolBox.chatGPTView",
+        "name": "chatGPT",
+        "when": "CodeToolBox.chatGPTView"
+      }
+    ]
+  },
+```
+
+- 当插件视图为 `chatGPT对话框` 时，我们在其顶部添加两个按钮，设置与关闭
+
+在 `package.json` 添加配置
+
+```
+// 添加关闭命令
+  "contributes": {
+      "commands": [{
+          "command": "CodeToolBox.hideChatGPTView",
+          "title": "关闭chatGPT对话框",
+          "icon": "$(close)"
+        }
+      ],
+  }
+
+  // 配置插件视图顶部，即 title
+ "menus": {
+   "view/title": [
+        {
+          "command": "CodeToolBox.hideChatGPTView",
+          "when": "view == CodeToolBox.chatGPTView", // 当插件视图为 `chatGPT对话框` 时才出现
+          "group": "navigation@4" // 分组是为了不让他两在同一个 `...` 出现
+        },
+        {
+          "command": "CodeToolBox.openSetting",
+          "when": "view == CodeToolBox.chatGPTView", // 当插件视图为 `chatGPT对话框` 时才出现
+          "group": "navigation@3" // // 分组是为了不让他两在同一个 `...` 出现
+        }
+      ]
+ }
+```
+
+- 新建 `/src/commands/createChatGPTView.ts`
+
+`CodeToolBox.hideChatGPTView`、`CodeToolBox.chatGPTView`，这两个命令都在此编写
+
+```
+import {
+  commands,
+  ExtensionContext,
+  WebviewView,
+  WebviewViewProvider,
+  window,
+} from "vscode";
+import { getHtmlForWebview } from "../utils/webviewUtils";
+
+// 实现 Webview 视图提供者接口，以下内容都是 chatGPT 提供
+class MyWebviewViewProvider implements WebviewViewProvider {
+  public webview?: WebviewView["webview"];
+  constructor(private context: ExtensionContext) {
+    this.context = context;
+  }
+  resolveWebviewView(webviewView: WebviewView): void {
+    this.webview = webviewView.webview;
+    // 设置 enableScripts 选项为 true
+    webviewView.webview.options = {
+      enableScripts: true,
+    };
+    // 设置 Webview 的内容
+    webviewView.webview.html = getHtmlForWebview(
+      this.context,
+      webviewView.webview,
+    );
+
+    webviewView.webview.onDidReceiveMessage(
+      (message: {
+        cmd: string;
+        cbid: string;
+        data: any;
+        skipError?: boolean;
+      }) => {
+        // 监听webview反馈回来加载完成，初始化主动推送消息
+        if (message.cmd === "webviewLoaded") {
+          webviewView.webview.postMessage({
+            cmd: "vscodePushTask",
+            task: "route",
+            data: {
+              path: "/add-snippets",
+            },
+          });
+        }
+      },
+    );
+  }
+
+  // 销毁
+  removeWebView() {
+    if (this.webview) {
+      this.webview = undefined;
+    }
+  }
+}
+
+let webviewViewProvider: MyWebviewViewProvider | undefined;
+export const registerCreateChatGPTView = (context: ExtensionContext) => {
+  context.subscriptions.push(
+    commands.registerCommand("CodeToolBox.chatGPTView", () => {
+      commands
+        .executeCommand("workbench.view.extension.CodeToolBox")
+        .then(() => {
+          // 设置 CodeToolBox.chatGPTView 为true，这样才能显示，"when": "CodeToolBox.chatGPTView"
+          commands
+            .executeCommand("setContext", "CodeToolBox.chatGPTView", true)
+            .then(() => {
+              // 注册 webview 视图
+              webviewViewProvider = new MyWebviewViewProvider(context);
+              context.subscriptions.push(
+                window.registerWebviewViewProvider(
+                  "CodeToolBox.chatGPTView",
+                  webviewViewProvider,
+                  {
+                    webviewOptions: {
+                      retainContextWhenHidden: true,
+                    },
+                  },
+                ),
+              );
+            });
+        });
+    }),
+
+    // 关闭
+    commands.registerCommand("CodeToolBox.hideChatGPTView", () => {
+      commands
+        .executeCommand("setContext", "CodeToolBox.chatGPTView", false)
+        .then(() => {
+          webviewViewProvider?.removeWebView();
+        });
+    }),
+  );
+};
+```
+
+- 在 `src/extension.ts` 添加命令
+
+```
+import { registerCreateChatGPTView } from "./commands/createChatGPTView";
+export function activate(context: vscode.ExtensionContext) {
+  registerCreateChatGPTView(context);
+}
+```
+
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/72f567468b244e56a849ec5091e0b1e3~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1503&h=671&s=93053&e=png&b=202020">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/72f567468b244e56a849ec5091e0b1e3~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1503&h=671&s=93053&e=png&b=202020)</a>
+
+### 编写 `chatGPT对话框` 页面
+
+- 在 `package.json` 添加命令 `explainByChatGPT` 命令
+
+```
+"contributes": {
+    "commands": [
+      {
+        "command": "CodeToolBox.explainByChatGPT",
+        "title": "解释这段文案"
+      }
+    ],
+    // 添加右键菜单
+    "editor/context": [
+      {
+        "submenu": "CodeToolBox/editor/context" // 设置编辑视图中的右键菜单
+      }
+    ],
+    "submenus": [
+      {
+        "id": "CodeToolBox/editor/context", // 定义id便于今后添加更多的右键菜单
+        "label": "CodeToolBox",
+        "icon": "$(octoface)"
+      }
+    ],
+    "CodeToolBox/editor/context": [
+        {
+          "command": "CodeToolBox.explainByChatGPT" // 添加解释这段文案右键菜单
+        }
+    ]
+}
+```
+
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/94f3a6dca4f14033b0990d92b1e19775~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=500&h=81&s=5021&e=png&b=202020">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/94f3a6dca4f14033b0990d92b1e19775~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=500&h=81&s=5021&e=png&b=202020)</a>
+
+- 新建 `/src/commands/createExplainByChatGPT.ts` import { commands,
+  ExtensionContext, window } from "vscode";
+
+export const registerCreateExplainByChatGPT = (context: ExtensionContext) => {
+context.subscriptions.push(
+commands.registerCommand("CodeToolBox.explainByChatGPT", () => { // 获取当前活动
+的文本编辑器 const editor = window.activeTextEditor;
+
+      if (editor) {
+        // 获取用户选中的文本
+        const selectedText = editor.document.getText(editor.selection);
+
+        // 打印选中的文本（你可以根据需求进行其他操作）
+        console.log("Selected text:", selectedText);
+      } else {
+        window.showInformationMessage("No active text editor.");
+      }
+    }),
+
+); };
+
+- 在 `src/extension.ts` 添加命令
+
+```
+import { registerCreateExplainByChatGPT } from "./commands/createExplainByChatGPT";
+export function activate(context: vscode.ExtensionContext) {
+  registerCreateExplainByChatGPT(context);
+}
+```
+
+[vscode 内置图标库](https://microsoft.github.io/vscode-codicons/dist/codicon.html)
