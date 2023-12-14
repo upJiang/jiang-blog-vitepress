@@ -287,6 +287,10 @@ export default {
             {
               text: '🚩 vsCode插件开发',
               link: '/docs/前端/工程化/vsCode插件开发'
+            },
+            {
+              text: '🚩 vsCode插件开发之接入chatGPT',
+              link: '/docs/前端/工程化/vsCode插件开发之接入chatGPT'
             }
           ]
         },
