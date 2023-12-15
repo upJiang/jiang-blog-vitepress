@@ -392,6 +392,11 @@ export default {
             { text: '🚩 开篇', link: '/docs/前端/web3/开篇' },
             { text: '🚩 Solidity', link: '/docs/前端/web3/Solidity' }
           ]
+        },
+        {
+          text: '💪 鸿蒙',
+          collapsed: true,
+          items: [{ text: '🚩 开篇', link: '/docs/前端/鸿蒙/开篇' }]
         }
       ],
       '/docs/学习资源/': [
