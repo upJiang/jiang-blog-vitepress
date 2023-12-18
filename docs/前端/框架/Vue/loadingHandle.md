@@ -194,7 +194,7 @@ const clickAllLoading = () => {
 
 点击运行结果
 
-![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e6899cb3a82467aa4ea0db3c3b438ec~tplv-k3u1fbpfcp-watermark.image?)
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e6899cb3a82467aa4ea0db3c3b438ec~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6e6899cb3a82467aa4ea0db3c3b438ec~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 总结：通过全局变量控制 loading 的显示隐藏，设置全局 loading 动画，在请求封装文件
 中通过控制请求数去实现多个请求的 loading 控制，在 api 文件中通过传参控制控制是否
