@@ -174,3 +174,5 @@ import * as allValues from './export_all.js'
   类型，
 - 实际上还可以通过文件命名来区分 .cjs 表明是 CJS 规范的模块，.mjs 表明是 ESM 规
   范的模块。
+
+## global 全局对象
