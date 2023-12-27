@@ -26,7 +26,7 @@
 
 ```
 const hello = "Hello";
-hello = '13'
+hello = '123'
 console.log(hello);
 ```
 
