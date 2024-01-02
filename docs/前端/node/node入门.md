@@ -176,3 +176,37 @@ import * as allValues from './export_all.js'
   范的模块。
 
 ## global 全局对象
+
+`JavaScript` 中存在一个特殊的全局对象，可以在任意位置被访问，通常用 `globalThis`
+指代。
+
+在**浏览器中，指向 `window` 这个全局对象**，而 **`Node.js` 中指向 `global`**，
+
+```
+global.userInfo = {
+    name: 'xm',
+    age: 18
+}
+```
+
+### 特殊的全局变量
+
+- **\_\_filename**: 表示当前正在执行的脚本文件的绝对路径。
+- **\_\_dirname**: 表示当前正在执行的脚本文件的绝对路径。
+
+`CJS` 中可以直接使用，但在 `ESM` 中需要这样使用：
+
+```
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
+import { createRequire } from 'module'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+console.log('__filename', __filename)
+console.log('__dirname', __dirname)
+
+const require = createRequire(import.meta.url)
+console.log('name', require('./package.json').name)
+```
