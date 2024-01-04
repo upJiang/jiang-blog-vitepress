@@ -321,7 +321,8 @@ export default {
           collapsed: true,
           items: [
             { text: '🚩 nvm管理node', link: '/docs/前端/node/nvm' },
-            { text: '🚩 node入门', link: '/docs/前端/node/node入门' }
+            { text: '🚩 node入门', link: '/docs/前端/node/node入门' },
+            { text: '🚩 path路径', link: '/docs/前端/node/path路径' }
           ]
         },
         {

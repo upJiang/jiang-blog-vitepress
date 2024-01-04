@@ -210,3 +210,19 @@ console.log('__dirname', __dirname)
 const require = createRequire(import.meta.url)
 console.log('name', require('./package.json').name)
 ```
+
+## process
+
+- `process.cwd()` 获取当前工作目录的绝对路径。
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e6bf837604341f1a669f549f70f9de0~tplv-k3u1fbpfcp-jj-mark:1512:0:0:0:q75.awebp#?w=590&h=310&s=311269&e=png&b=170c30">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8e6bf837604341f1a669f549f70f9de0~tplv-k3u1fbpfcp-jj-mark:1512:0:0:0:q75.awebp#?w=590&h=310&s=311269&e=png&b=170c30)</a>
+
+- `process.env` 获取当前执行环境的环境变量 (对象形式)。
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f7f47f0a1ad14e549f30fb8b4ad07416~tplv-k3u1fbpfcp-jj-mark:1512:0:0:0:q75.awebp#?w=424&h=625&s=520803&e=png&b=041932">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f7f47f0a1ad14e549f30fb8b4ad07416~tplv-k3u1fbpfcp-jj-mark:1512:0:0:0:q75.awebp#?w=424&h=625&s=520803&e=png&b=041932)</a>
+
+- `process.version` 获取当前 Node 版本。
+
+<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/44ee63ff7f674d1cb5811e8f9d7ccad6~tplv-k3u1fbpfcp-jj-mark:1512:0:0:0:q75.awebp#?w=459&h=111&s=91734&e=png&b=041e32">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/44ee63ff7f674d1cb5811e8f9d7ccad6~tplv-k3u1fbpfcp-jj-mark:1512:0:0:0:q75.awebp#?w=459&h=111&s=91734&e=png&b=041e32)</a>
+
+- 其它请自行查阅
