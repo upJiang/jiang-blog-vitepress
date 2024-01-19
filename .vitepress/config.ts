@@ -401,6 +401,11 @@ export default {
           text: '💪 鸿蒙',
           collapsed: true,
           items: [{ text: '🚩 开篇', link: '/docs/前端/鸿蒙/开篇' }]
+        },
+        {
+          text: '💪 Nestjs',
+          collapsed: true,
+          items: [{ text: '🚩 开篇', link: '/docs/前端/Nestjs/开篇' }]
         }
       ],
       '/docs/学习资源/': [
