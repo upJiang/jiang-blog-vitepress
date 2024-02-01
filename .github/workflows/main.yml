@@ -6,7 +6,7 @@ name: Build And Deploy To Aliyun ECS
 on:
   # Triggers the workflow on push request events but only for the "master" branch
   push:
-    branches: [ "main" ]
+    branches: ['main']
     # The workflow only run when push event include at least one file inside the docs directory
     paths:
       - 'docs/**'
@@ -36,11 +36,11 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: Install Dependencies
         run: yarn
-        
+
       # Build static paes
       - name: Build
         run: yarn build
-        
+
       - name: Deploy To Aliyun
         uses: easingthemes/ssh-deploy@v2.2.11
         with:
@@ -49,10 +49,10 @@ jobs:
           # Arguments to pass to rsync
           # ARGS: # optional, default is -rltgoDz
           # Source directory
-          SOURCE: "docs/.vuepress/dist/"
+          SOURCE: '.vitepress/dist/'
           # Remote host
           REMOTE_HOST: 121.4.86.16
           # Remote user
-          REMOTE_USER: "root"
+          REMOTE_USER: 'root'
           # Target directory
-          TARGET: "www/wwwroot/blog.junfeng530.xyz/"
+          TARGET: 'www/wwwroot/blog.junfeng530.xyz/'
