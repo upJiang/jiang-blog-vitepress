@@ -1,6 +1,6 @@
-# This is a basic workflow to help you get started with Actions
+# https://github.com/marketplace/actions/ssh-deploy
 
-name: Build And Deploy To Aliyun ECS
+name: Build And Deploy
 
 # Controls when the workflow will run
 on:
@@ -41,8 +41,8 @@ jobs:
       - name: Build
         run: yarn build
 
-      - name: Deploy To Aliyun
-        uses: easingthemes/ssh-deploy@v2.2.11
+      - name: Deploy
+        uses: easingthemes/ssh-deploy@v5.0.0
         with:
           # Private Key
           SSH_PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
