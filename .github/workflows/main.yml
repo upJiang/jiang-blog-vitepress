@@ -55,4 +55,4 @@ jobs:
           # Remote user
           REMOTE_USER: 'root'
           # Target directory22
-          TARGET: 'www/wwwroot/blog.junfeng530.xyz/'
+          TARGET: '/www/wwwroot/blog.junfeng530.xyz/'
