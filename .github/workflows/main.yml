@@ -1,0 +1,58 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Build And Deploy To Aliyun ECS
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push request events but only for the "master" branch
+  push:
+    branches: [ "main" ]
+    # The workflow only run when push event include at least one file inside the docs directory
+    paths:
+      - 'docs/**'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # Setup Node.js environment
+      - name: Setup Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16.13.0
+
+      # Runs a set of commands using the runners shell
+      - name: Install Dependencies
+        run: yarn
+        
+      # Build static paes
+      - name: Build
+        run: yarn build
+        
+      - name: Deploy To Aliyun
+        uses: easingthemes/ssh-deploy@v2.2.11
+        with:
+          # Private Key
+          SSH_PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          # Arguments to pass to rsync
+          # ARGS: # optional, default is -rltgoDz
+          # Source directory
+          SOURCE: "docs/.vuepress/dist/"
+          # Remote host
+          REMOTE_HOST: 121.4.86.16
+          # Remote user
+          REMOTE_USER: "root"
+          # Target directory
+          TARGET: "www/wwwroot/blog.junfeng530.xyz/"
