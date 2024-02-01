@@ -59,4 +59,4 @@ IdentityFile ~/.ssh/id_rsa
 Port 443
 ```
 
-再次尝试如果还出问题，拉取方式换成 https，应该就好了
+再次尝试如果还出问题，拉取方式换成 https，应该就好
