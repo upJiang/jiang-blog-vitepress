@@ -54,5 +54,5 @@ jobs:
           REMOTE_HOST: 121.4.86.16
           # Remote user
           REMOTE_USER: 'root'
-          # Target directory11
+          # Target directory22
           TARGET: 'www/wwwroot/blog.junfeng530.xyz/'
