@@ -52,7 +52,7 @@ jobs:
           SOURCE: '.vitepress/dist/'
           # Remote host
           REMOTE_HOST: 121.4.86.16
-          # Remote user
+          # Remote user11
           REMOTE_USER: 'root'
           # Target directory22
           TARGET: '/www/wwwroot/blog.junfeng530.xyz/'
