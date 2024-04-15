@@ -4,6 +4,9 @@
     <span class="home-title">而在于你怎样使用</span>
     <span class="home-tips">前端 | 学习</span>
   </div>
+  <div class="page-bottom">
+    <a href="https://beian.miit.gov.cn">粤ICP备18079096号</a>
+  </div>
 </template>
 
 <script>
@@ -23,6 +26,15 @@ export default defineComponent({
 </script>
 
 <style>
+.page-bottom {
+  position: fixed;
+  bottom: 10px;
+  text-align: center;
+  font-size: 16px;
+  color: #333;
+  left: 50%;
+  transform: translate(-50%, 0);
+}
 .home-container {
   display: flex;
   flex-direction: column;

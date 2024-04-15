@@ -2,5 +2,4 @@ node_modules
 *.html
 .vitepress/dist/
 .vitepress/cache/
-.vitepress/theme/
 .DS_Store
