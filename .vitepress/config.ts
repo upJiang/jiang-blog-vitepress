@@ -8,7 +8,7 @@ export default {
           'width=device-width,initial-scale=1,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no'
       }
     ],
-    ['meta', { name: 'keywords', content: 'Jiang的个人博客' }],
+    ['meta', { name: 'keywords', content: '博客,vitePress,前端' }],
     ['meta', { name: 'referrer', content: 'never' }], // 掘金图片加了防盗链，这里表示当前页面中发起的请求将不会携带 referer
     ['link', { rel: 'icon', href: '/favicon.ico' }],
     // 引入 Gitalk
@@ -38,7 +38,7 @@ export default {
       }
     ]
   ],
-  title: "Jiang's Blog",
+  title: "Jiang's Blog 个人分享",
 
   themeConfig: {
     lang: 'zh-CH',
