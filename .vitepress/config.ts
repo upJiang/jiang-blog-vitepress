@@ -38,8 +38,7 @@ export default {
       }
     ]
   ],
-  title: "Jiang's Blog 个人分享",
-
+  title: '前端小江',
   themeConfig: {
     lang: 'zh-CH',
     returnToTopLabel: '回到顶部',
