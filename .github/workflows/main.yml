@@ -51,7 +51,7 @@ jobs:
           # Source directory
           SOURCE: '.vitepress/dist/'
           # Remote host
-          REMOTE_HOST: 121.4.86.16
+          REMOTE_HOST: 129.211.13.9
           # Remote user11
           REMOTE_USER: 'root'
           # Target directory22
