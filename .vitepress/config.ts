@@ -725,7 +725,30 @@ export default {
           text: '面试',
           items: [
             { text: '开始', link: '/docs/进阶学习/面试/start' },
-            { text: '浏览器', link: '/docs/进阶学习/面试/浏览器' }
+            {
+              text: '浏览器加载渲染',
+              link: '/docs/进阶学习/面试/浏览器加载渲染'
+            },
+            { text: '前端安全', link: '/docs/进阶学习/面试/前端安全' },
+            { text: '手写题', link: '/docs/进阶学习/面试/手写题' },
+            { text: '算法', link: '/docs/进阶学习/面试/算法' },
+            { text: 'GIT', link: '/docs/进阶学习/面试/GIT' },
+            { text: 'HTTP', link: '/docs/进阶学习/面试/HTTP' },
+            {
+              text: 'node-koa-express',
+              link: '/docs/进阶学习/面试/node-koa-express'
+            },
+            { text: 'Vue-React', link: '/docs/进阶学习/面试/Vue-React' },
+            { text: '构建工具', link: '/docs/进阶学习/面试/构建工具' },
+            {
+              text: '近期面试遇到的问题汇总',
+              link: '/docs/进阶学习/面试/近期面试遇到的问题汇总'
+            },
+            { text: '浏览器', link: '/docs/进阶学习/面试/浏览器' },
+            { text: '简历项目相关', link: '/docs/进阶学习/面试/简历项目相关' },
+            { text: '面试口水问题', link: '/docs/进阶学习/面试/面试口水问题' },
+            { text: '最难的项目', link: '/docs/进阶学习/面试/最难的项目' },
+            { text: 'HR 面', link: '/docs/进阶学习/面试/hr面' }
           ]
         }
       ],
