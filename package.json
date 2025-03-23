@@ -31,7 +31,8 @@
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview",
-    "prettier": "prettier --write ./docs"
+    "prettier": "prettier --write ./docs",
+    "format-md": "node scripts/format-md-lists.js"
   },
   "husky": {
     "hooks": {
