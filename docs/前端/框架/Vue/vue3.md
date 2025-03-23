@@ -2,43 +2,29 @@
 
 ## vue3.0 的提升与改变（完全自述）
 
-1. 性能优化上，静态标记，热更新 click，vite 打包速度，摇树优化（打包时会把一些没
-   有用到的 nextnick,observable 等方法抽离出来，排除掉）
-2. 语法上，采用最新的 script setup 语法糖，比如
-   defineEmit,defineProps,useContext(里面有 expose，用于暴露组件的方法，真正意义
-   上的组件封装），vue3.2 开始使用 defineExpose 替代
-3. 定义全局变量的方式，以前可以使用 vue.proto,,定义原型链去挂载全局变量，现在使
-   用 app.config.globalProperties
+1. 性能优化上，静态标记，热更新 click，vite 打包速度，摇树优化（打包时会把一些没有用到的 nextnick,observable 等方法抽离出来，排除掉）
+2. 语法上，采用最新的 script setup 语法糖，比如 defineEmit,defineProps,useContext(里面有 expose，用于暴露组件的方法，真正意义上的组件封装），vue3.2 开始使用 defineExpose 替代
+3. 定义全局变量的方式，以前可以使用 vue.proto,,定义原型链去挂载全局变量，现在使用 app.config.globalProperties
 4. v-modal 的使用，移除.async，实现父子组件双向数据绑定
 5. 插槽 slot 使用的变化，增加了 name 的属性（具名插槽），便于排版吧
-6. teleport，就是一个任意插入到 div 中的工具，但是需要变量去动态控制，首次加载就
-   算是 true 也不显示
+6. teleport，就是一个任意插入到 div 中的工具，但是需要变量去动态控制，首次加载就算是 true 也不显示
 7. 本来在 template 中必须有一层 div 包裹并导出，现在不需要了，fragmate
 8. css 中，v-bind 使用变量
-9. 新增了 watchEffect 可以监控这个方法内写过的变量发生改变后就会触发，以及一些
-   red,reactive 这些的用法就不用详细说了
-10. 移除掉了 created 方法，setup 是在 beforeCreated 后才能使用的，没有 this，只
-    能使用 getCurrentInstance 去获取实例，而且使用 proxy 导出使用
+9. 新增了 watchEffect 可以监控这个方法内写过的变量发生改变后就会触发，以及一些 red,reactive 这些的用法就不用详细说了
+10. 移除掉了 created 方法，setup 是在 beforeCreated 后才能使用的，没有 this，只能使用 getCurrentInstance 去获取实例，而且使用 proxy 导出使用
 11. 组件的传值除了使用 vuex，还可以使用 provide/reject 进行深层传递
 12. 函数式编程，可以轻易暴露公共方法，取消了 mixin 的使用
-13. 新增一些获取 env 环境变量的方法 import.meta.env.VITE_BASE_URL，便于定义打包
-    方式使用不同变量这些
-14. 在 vite 中不能使用 require，比如遍历文件夹，以前使用 require.context,,, 现在
-    提供了新方法 import.meta.globEager 或者 import.meta.glob
-15. 注册自定义组件的方法变化，以前需要 install，，，然后 use 什么的，现在直接
-    app.component(key, componentArray[key])
-16. dom 中 ref 的使用，因为跟语法 ref 可能有冲突啥的，现在必须定义 const a =
-    ref(null)，否则在服务器环境中会报错
+13. 新增一些获取 env 环境变量的方法 import.meta.env.VITE_BASE_URL，便于定义打包方式使用不同变量这些
+14. 在 vite 中不能使用 require，比如遍历文件夹，以前使用 require.context,,, 现在提供了新方法 import.meta.globEager 或者 import.meta.glob
+15. 注册自定义组件的方法变化，以前需要 install，，，然后 use 什么的，现在直接 app.component(key, componentArray[key])
+16. dom 中 ref 的使用，因为跟语法 ref 可能有冲突啥的，现在必须定义 const a = ref(null)，否则在服务器环境中会报错
 17. 以前基本不怎么支持 ts，现在是全方位支持
 18. 新增 Suspens 异步组件，可以用于封装 loading 结束后显示下一个组件
-19. 新增了一个 createdRender 自定义渲染器，函数式组件（但不建议使用，性能提升不
-    高）
-20. vue2 中 h 渲染方法以及其中的 on 方法的变化，h 直接导入使用，on 方法直接前面
-    是 on，，，就可以使用，以及插槽的变化
+19. 新增了一个 createdRender 自定义渲染器，函数式组件（但不建议使用，性能提升不高）
+20. vue2 中 h 渲染方法以及其中的 on 方法的变化，h 直接导入使用，on 方法直接前面是 on，，，就可以使用，以及插槽的变化
 21. defineAsyncCompont 定义异步组件，用于区分函数式组件
 22. 自定义指令的语法变了，比如 inserted=>mounted , bind->beforeMount
-23. 过渡动画 transition 现在卸载 router-view 内部，v-enter =>v-enter-from ,
-    v-leave => v-leave-from
+23. 过渡动画 transition 现在卸载 router-view 内部，v-enter =>v-enter-from , v-leave => v-leave-from
 24. $on,$off,$once，filters 被移除，使用必须使用第三方库
 25. 修改 vite.config.ts 不需要重新启动项目
 26. vite 用的 esm 不支持 node 的 require
@@ -47,30 +33,22 @@
 
 > vue2.0 使用 object.defineProperty，vue3.0 使用 prpxy
 
-vue3 ==> 基于 Proxy 的数据响应式<br/> ==> 依赖收集: 添加副作用 efferc() => 依赖
-收集 track() -> 触发副作用 trigger()
+vue3 ==> 基于 Proxy 的数据响应式<br/> ==> 依赖收集: 添加副作用 efferc() => 依赖收集 track() -> 触发副作用 trigger()
 
-1. vue2.0 初始化需要递归，速度慢，而 vue3 不需要初始化，它是在运行时初始化的，当
-   遇到响应式对象时才去遍历，采取获取依赖，添加副作用函数等。
-2. vue2.0 依赖关系占用资源较多，为了实现响应式数据需要添加很多依赖，以及
-   watcher，而 vue3.0 没有 watcher，依靠的 effect 副作用函数以及 proxy 去做到响
-   应式
-3. vue2.0 数组支持需要特殊实现，动态属性的增加删除需要额外的 api(
-   如$set.$delete),而 vue3.0 直接使用 proxy 搞定了
+1. vue2.0 初始化需要递归，速度慢，而 vue3 不需要初始化，它是在运行时初始化的，当遇到响应式对象时才去遍历，采取获取依赖，添加副作用函数等。
+2. vue2.0 依赖关系占用资源较多，为了实现响应式数据需要添加很多依赖，以及 watcher，而 vue3.0 没有 watcher，依靠的 effect 副作用函数以及 proxy 去做到响应式
+3. vue2.0 数组支持需要特殊实现，动态属性的增加删除需要额外的 api( 如$set.$delete),而 vue3.0 直接使用 proxy 搞定了
 4. vue2.0 不支持 MAp,Set，vue3 支持
 
 ## 虚拟 dom 是什么？
 
-虚拟 dom 就是一个 js 对象，一个对于真实 dom 的一个抽象，可以表示一个真实 dom 的
-基本结构
+虚拟 dom 就是一个 js 对象，一个对于真实 dom 的一个抽象，可以表示一个真实 dom 的基本结构
 
 ## 为什么需要虚拟 dom？
 
 1. 虚拟 dom 可以做到定点更新，可以对于两次虚拟 dom 进行对比，只更新变化的节点
-2. 通过虚拟 dom 可以更好做跨平台，数据驱动可以直接驱动虚拟 dom,渲染层可以更好写
-   出跨平台的代码
-3. 虚拟 dom 可以在真实 dom 生成之前做一些兼容性处理或优化工作，减少人为犯错的可
-   能
+2. 通过虚拟 dom 可以更好做跨平台，数据驱动可以直接驱动虚拟 dom,渲染层可以更好写出跨平台的代码
+3. 虚拟 dom 可以在真实 dom 生成之前做一些兼容性处理或优化工作，减少人为犯错的可能
 
 ## vue3 编译器优化策略
 
@@ -126,8 +104,7 @@ data.hobby = '打游戏'
 console.log(data.hobby) // 打游戏
 ```
 
-Object.defineProperty**只对初始对象里的属性有监听作用，而对新增的属性无效**。这
-也是为什么 Vue2 中对象新增属性的修改需要使用 Vue.$set 来设值的原因。
+Object.defineProperty**只对初始对象里的属性有监听作用，而对新增的属性无效**。这也是为什么 Vue2 中对象新增属性的修改需要使用 Vue.$set 来设值的原因。
 
 #### Proxy
 
@@ -216,9 +193,7 @@ console.log(myself) // 林三心今年22岁，存款300元
 
 #### 用 `track函数` 把所有依赖于`变量`的 `effect函数` 都收集起来，放在 `dep` 里
 
-dep 为什么用 `Set` 呢？因为 `Set` 可以自动去重。搜集起来之后，以后**只要 money
-变量一改变，就执行 trigger 函数通知 dep 里所有依赖 money 变量的 effect 函数执行
-，实现依赖变量的更新**。
+dep 为什么用 `Set` 呢？因为 `Set` 可以自动去重。搜集起来之后，以后**只要 money 变量一改变，就执行 trigger 函数通知 dep 里所有依赖 money 变量的 effect 函数执行，实现依赖变量的更新**。
 
 ```
 let name = '林三心', age = 22, money = 20
@@ -247,8 +222,7 @@ console.log(myself) // 林三心今年22岁，存款300元
 console.log(ohtherMyself) // 22岁的林三心居然有300元
 ```
 
-问题思考：如果变量是对象怎么办？它的每一个属性都应该有对应的 dep？如果是多个对象
-又怎么办？
+问题思考：如果变量是对象怎么办？它的每一个属性都应该有对应的 dep？如果是多个对象又怎么办？
 
 #### 单个对象：使用 Map 存储对象里属性的 dep。多个对象：使用 WeakMap 存储多个对象里属性的 dep。
 
@@ -390,8 +364,7 @@ console.log(typeStr1, typeStr2, heightStr1, heightStr2)
 // 猫是个大菜鸟 猫是个小天才 20已经算很高了 20还算很矮啊
 ```
 
-问题思考：总是手动去执行 track 函数进行依赖收集，并且当数据改变时手动执行
-trigger 函数去进行通知更新。如何自动通知更新？
+问题思考：总是手动去执行 track 函数进行依赖收集，并且当数据改变时手动执行 trigger 函数去进行通知更新。如何自动通知更新？
 
 #### 使用 Proxy 搭配 Reflect 实现自动通知更新
 
@@ -452,8 +425,7 @@ function trigger(target, key) {
 }
 ```
 
-使用时无需再手动调用 `track` 和 `trigger`。在执行 `effect 函数`时会自动调用
-`Proxy 的 get 方法`，`修改对象属性值`时会自动调用 `Proxy 的 set 方法`
+使用时无需再手动调用 `track` 和 `trigger`。在执行 `effect 函数`时会自动调用 `Proxy 的 get 方法`，`修改对象属性值`时会自动调用 `Proxy 的 set 方法`
 
 ```
 const person = reactive({ name: '林三心', age: 22 }) // 传入reactive
@@ -490,13 +462,11 @@ console.log(typeStr1, typeStr2, heightStr1, heightStr2)
 
 <a data-fancybox title="img" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/413bd2e621004d0c9838c200bd658f05~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/413bd2e621004d0c9838c200bd658f05~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
 
-问题思考：在 track 方法中，我们是写死对象属性的判断，并讲 effect 方法添加到对应
-的 dep。如何让其自动添加？
+问题思考：在 track 方法中，我们是写死对象属性的判断，并讲 effect 方法添加到对应的 dep。如何让其自动添加？
 
 #### 当 effect 执行的时候会触发 Proxy 的 get 方法， 执行 track 将其放入到对应的 dep 中
 
-使用一个全局变量 activeEffect 存储当前的 effect 函数，执行完 effect 函数后，重置
-回 null
+使用一个全局变量 activeEffect 存储当前的 effect 函数，执行完 effect 函数后，重置回 null
 
 ```
 let activeEffect = null
@@ -655,13 +625,9 @@ const effectNameStr1 = () => { nameStr1 = `${person.name}是个大菜鸟` }
 
 **activeEffect**：当前执行的 effect 函数
 
-**weakMap**：用来存储所有的对象 **depsMap**：就是对象(new Map()) **dep**：就是对
-象的属性(去重 new Set())，每一个属性都应该有一个 dep,这个 dep 用来存储该属性对应
-的所有 effect 方法
+**weakMap**：用来存储所有的对象 **depsMap**：就是对象(new Map()) **dep**：就是对象的属性(去重 new Set())，每一个属性都应该有一个 dep,这个 dep 用来存储该属性对应的所有 effect 方法
 
-**track 方法**：将当前执行的 effect 函数添加到对应的 dep 中，全部存储在 weakMap
-中 **trigger 方法**：当变量改变时，在存储的 weakMap 中找到该变量对应的 dep，并执
-行 dep 中的所有 effect 函数，即更新
+**track 方法**：将当前执行的 effect 函数添加到对应的 dep 中，全部存储在 weakMap 中 **trigger 方法**：当变量改变时，在存储的 weakMap 中找到该变量对应的 dep，并执行 dep 中的所有 effect 函数，即更新
 
 **Proxy**：
 
@@ -673,8 +639,7 @@ const effectNameStr1 = () => { nameStr1 = `${person.name}是个大菜鸟` }
 - 将对象传入到封装的 Proxy 中，get 方法中执行 track，set 方法中执行 trigger
 - 编写 track 方法分发 effect 函数到 对应 dep 中，并全部存储到 weakMap 中，即收集
 - 编写 trigger 方法执行当前改变的变量对应的 dep 中的所有 effect 函数，即更新
-- 定义对象，定义 effect 函数自动触发 track 收集依赖；当对象属性值改变时，自动触
-  发 trigger 执行属性对应的 dep 中的所有 effect 方法，更新视图。
+- 定义对象，定义 effect 函数自动触发 track 收集依赖；当对象属性值改变时，自动触发 trigger 执行属性对应的 dep 中的所有 effect 方法，更新视图。
 
 ## 实现 ref
 
@@ -690,9 +655,7 @@ function ref (initValue) {
 
 ## 实现 computed
 
-computed 的实现就是通过 ref 的响应式，在 effect 里面将 fn 执行函数赋值给 ref，返
-回这个 ref。这样当 fn 中的变量发生改变，就会自动触发 Proxy 的 set 方法，更新
-ref。
+computed 的实现就是通过 ref 的响应式，在 effect 里面将 fn 执行函数赋值给 ref，返回这个 ref。这样当 fn 中的变量发生改变，就会自动触发 Proxy 的 set 方法，更新 ref。
 
 ```
 function computed(fn) {
@@ -792,12 +755,8 @@ proxyPerson.name = 'sunshine_lin' // 设置属性值触发set方法
 
 Reflect 的两个方法
 
-- `get(target, key, receiver)`：个人理解就是，访问`target`的`key`属性，但
-  是`this`是指向`receiver`，所以实际是访问的值是`receiver`的`key`的值，但是这可
-  不是直接访问`receiver[key]`属性，大家要区分一下
-- `set(target, key, value, receiver)`：个人理解就是，设置`target`的`key`属性
-  为`value`，但是`this`是指向`receiver`，所以实际是是设置`receiver`的`key`的值
-  为`value`，但这可不是直接`receiver[key] = value`，大家要区分一下
+- `get(target, key, receiver)`：个人理解就是，访问`target`的`key`属性，但是`this`是指向`receiver`，所以实际是访问的值是`receiver`的`key`的值，但是这可不是直接访问`receiver[key]`属性，大家要区分一下
+- `set(target, key, value, receiver)`：个人理解就是，设置`target`的`key`属性为`value`，但是`this`是指向`receiver`，所以实际是是设置`receiver`的`key`的值为`value`，但这可不是直接`receiver[key] = value`，大家要区分一下
 
 正确的做法：
 
@@ -835,8 +794,7 @@ const proxyPerson = new Proxy(person, {
 })
 ```
 
-那为什么建议 Proxy 和 Reflect 一起使用呢？因为 Proxy 和 Reflect 的方法都是一一对
-应的，在 Proxy 里使用 Reflect 会`提高语义化`
+那为什么建议 Proxy 和 Reflect 一起使用呢？因为 Proxy 和 Reflect 的方法都是一一对应的，在 Proxy 里使用 Reflect 会`提高语义化`
 
 - `Proxy`的`get`对应`Reflect.get`
 - `Proxy`的`set`对应`Reflect.set`

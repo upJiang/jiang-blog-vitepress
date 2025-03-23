@@ -1,25 +1,17 @@
-续上一篇[vscode 插件开发入门](https://juejin.cn/post/7303451052598083622)，这里
-默认大家已经入门了，如果没入门的赶紧学习我的上一篇文章哦。
+续上一篇[vscode 插件开发入门](https://juejin.cn/post/7303451052598083622)，这里默认大家已经入门了，如果没入门的赶紧学习我的上一篇文章哦。
 
-我们应该都在 `vscode` 中使用过有关 `chatGPT` 的插件吧，比如说打开一个
-`chatGPT`的对话框，选中文案后让 `chatGPT` 解释这段文案。学完这篇文章后，你也可以
-做一个这样的插件！！！
+我们应该都在 `vscode` 中使用过有关 `chatGPT` 的插件吧，比如说打开一个 `chatGPT`的对话框，选中文案后让 `chatGPT` 解释这段文案。学完这篇文章后，你也可以做一个这样的插件！！！
 
 本次要实现的功能
 
 - 在侧边栏添加插件图标，点击图标后打开一个插件视图，视图中有两个按钮
   - 打开 `chatGPT 对话框`：可以与 `chatGPT` 进行问答
-  - 设置：可以设置用户的 `chatGPT` 信息，这里需要你去购买一个 `openAi` 的转发
-    `apikey` ,毕竟调用 `chatGPT` 是需要付费的。推荐一
-    个[网站](https://peiqi.shop/)购买，我也是在这里买的，注：本人无任何收益。
-- 选中一段文案后，可以右键找到 `CodeToolBox => 解释这段文案`，自动唤起
-  `chatGPT 对话框`，自动提问
+  - 设置：可以设置用户的 `chatGPT` 信息，这里需要你去购买一个 `openAi` 的转发 `apikey` ,毕竟调用 `chatGPT` 是需要付费的。推荐一个[网站](https://peiqi.shop/)购买，我也是在这里买的，注：本人无任何收益。
+- 选中一段文案后，可以右键找到 `CodeToolBox => 解释这段文案`，自动唤起 `chatGPT 对话框`，自动提问
 
-直接上视频看效果吧~，[视频地址](https://junfeng530.xyz/chatGPT.mp4)，ps: 掘金说
-我视频连接格式不对，没法上传。。。
+直接上视频看效果吧~，[视频地址](https://junfeng530.xyz/chatGPT.mp4)，ps: 掘金说我视频连接格式不对，没法上传。。。
 
-[代码仓库地址](https://github.com/upJiang/jiang-vscode-plugin)，创作不易，觉得可
-以赏个 `star` 吧 🙏
+[代码仓库地址](https://github.com/upJiang/jiang-vscode-plugin)，创作不易，觉得可以赏个 `star` 吧 🙏
 
 ## 在侧边栏添加插件图标
 
@@ -130,10 +122,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 ```
 
-这样当点击设置时，插件的设置就会自动打开，这里必须设置两个值，一个是你购买的
-`apiKey`，还有一个 `houtname`,如果你也是在我上面那个地址购买的应该是
-`api.chatanywhere.com.cn`，这些设置后面需要获取然后传给 `webview` 去调 `openAI`
-的接口
+这样当点击设置时，插件的设置就会自动打开，这里必须设置两个值，一个是你购买的 `apiKey`，还有一个 `houtname`,如果你也是在我上面那个地址购买的应该是 `api.chatanywhere.com.cn`，这些设置后面需要获取然后传给 `webview` 去调 `openAI` 的接口
 
 <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/915d5402d236440d9be951c212d3a5b1~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1525&h=665&s=81625&e=png&b=1e1e1e">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/915d5402d236440d9be951c212d3a5b1~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1525&h=665&s=81625&e=png&b=1e1e1e)</a>
 
@@ -219,8 +208,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 - 配置完了，我们来编写命令的代码了，新建 `/src/commands/createChatGPTView.ts`
 
-`CodeToolBox.chatGPTView`、`CodeToolBox.openChatGPTView`、`CodeToolBox.hideChatGPTView`，
-现在这里处理这三个命令
+`CodeToolBox.chatGPTView`、`CodeToolBox.openChatGPTView`、`CodeToolBox.hideChatGPTView`，现在这里处理这三个命令
 
 ```
 import {
@@ -344,17 +332,9 @@ export const registerCreateChatGPTView = (context: ExtensionContext) => {
 
 - 解释代码
 
-  - 我们定一个 `MyWebviewViewProvider` 类，这个是 `webview` 视图的类型，初始化一
-    个 `webviewViewProvider` 的实例，在 `resolveWebviewView` 这个方法中去设置
-    webview 里面的内容，有一些封装的方法在上一篇文章有，如果实在看不懂就下载我的
-    代码下来研究吧。
-  - 并且给 `webview` 发送消息，让它打开 `chat-gpt-view` 页面，传入
-    `hostname`、`apiKey`、`model`、`selectedText` 参数，其中 `selectedText` 这个
-    参数是用户选中的文案，下面会介绍这个功能
-  - 打开 `chatGPT聊天框` 其实就是下面代码，其实就是让 `vscode` 打开
-    `CodeToolBox` 插件后再设置 `CodeToolBox.chatGPTView` 为 `true`，前面我们在
-    `package.json` 设置的条件就会生效,就能切换到 `chatGPT聊天框` 了，然后再打开
-    `webview` 项目的页面
+  - 我们定一个 `MyWebviewViewProvider` 类，这个是 `webview` 视图的类型，初始化一个 `webviewViewProvider` 的实例，在 `resolveWebviewView` 这个方法中去设置 webview 里面的内容，有一些封装的方法在上一篇文章有，如果实在看不懂就下载我的代码下来研究吧。
+  - 并且给 `webview` 发送消息，让它打开 `chat-gpt-view` 页面，传入 `hostname`、`apiKey`、`model`、`selectedText` 参数，其中 `selectedText` 这个参数是用户选中的文案，下面会介绍这个功能
+  - 打开 `chatGPT聊天框` 其实就是下面代码，其实就是让 `vscode` 打开 `CodeToolBox` 插件后再设置 `CodeToolBox.chatGPTView` 为 `true`，前面我们在 `package.json` 设置的条件就会生效,就能切换到 `chatGPT聊天框` 了，然后再打开 `webview` 项目的页面
 
     ```
     commands.executeCommand("workbench.view.extension.CodeToolBox").then(() => {
@@ -378,17 +358,11 @@ export function activate(context: vscode.ExtensionContext) {
 
 ## 编写 `chatGPT对话框` 页面
 
-这里就是自己写一个 `chatGPT对话框` 的页面，我上一篇文章有提到 `webview` 项目的创
-建，这里我使用的 `vue2+vite`，打包的时候必须要要打包成一个 `js` 才能在 `vscode`
-中使用，所以这里建议大家跟我使用一样的，可以直接拉代码看我的项目吧，避免踩坑。
+这里就是自己写一个 `chatGPT对话框` 的页面，我上一篇文章有提到 `webview` 项目的创建，这里我使用的 `vue2+vite`，打包的时候必须要要打包成一个 `js` 才能在 `vscode` 中使用，所以这里建议大家跟我使用一样的，可以直接拉代码看我的项目吧，避免踩坑。
 
-- 一个聊天对话框的页面相信大家都会写，这里有个关键点就是 `openAI` 返回的数据其实
-  一段字符串，我们需要去解析它，并让它以 `markdown` 的格式输出，并且要逐字输出
-- 因为 `openAI` 自带的流式输出我不知道如何监听获取，所以我这里是直接获取整个答案
-  文本，使用 `requestAnimationFrame` 逐字输出
-- 这里我使用的 `markdown-it`、
-  `markdown-it-code-copy`、`markdown-it-highlightjs` 这三个插件，封装了一个渲染
-  返回数据的组件，可供大家参考一下
+- 一个聊天对话框的页面相信大家都会写，这里有个关键点就是 `openAI` 返回的数据其实一段字符串，我们需要去解析它，并让它以 `markdown` 的格式输出，并且要逐字输出
+- 因为 `openAI` 自带的流式输出我不知道如何监听获取，所以我这里是直接获取整个答案文本，使用 `requestAnimationFrame` 逐字输出
+- 这里我使用的 `markdown-it`、 `markdown-it-code-copy`、`markdown-it-highlightjs` 这三个插件，封装了一个渲染返回数据的组件，可供大家参考一下
 
 需要安装四个依赖
 
@@ -720,8 +694,7 @@ ps：总感觉这样贴代码很罗嗦，但也怕大家看不懂，下面看看
 
 ## 实现选中文案自动打开 `chatGPT 对话框`
 
-这里要实现的功能：用户选中编辑器的一段文案后，右键找到
-`CodeToolBox => 解释这段文案`，自动唤起 `chatGPT 对话框`，并自动提问
+这里要实现的功能：用户选中编辑器的一段文案后，右键找到 `CodeToolBox => 解释这段文案`，自动唤起 `chatGPT 对话框`，并自动提问
 
 - 在 `package.json` 添加命令 `explainByChatGPT` 命令
 
@@ -800,9 +773,7 @@ export const registerCreateChatGPTView = (context: ExtensionContext) => {
 };
 ```
 
-这里会获取用户选中的文本，若没有选中文本则会提示，调用 `openChatGPTView`方法，传
-递 `hostname、apiKey、model、selectedText` 参数给 webview 进行处理，接收到
-`selectedText` 的值就会自动提问。
+这里会获取用户选中的文本，若没有选中文本则会提示，调用 `openChatGPTView`方法，传递 `hostname、apiKey、model、selectedText` 参数给 webview 进行处理，接收到 `selectedText` 的值就会自动提问。
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1f4408964ac4e72bef9212284a827a9~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1162&h=994&s=170903&e=png&b=1f1f1f">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1f4408964ac4e72bef9212284a827a9~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=1162&h=994&s=170903&e=png&b=1f1f1f)</a>
 

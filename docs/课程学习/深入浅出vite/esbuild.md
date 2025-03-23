@@ -1,22 +1,13 @@
-> 作为 Vite 的双引擎之一，Esbuild 在很多关键的构建阶段(
-> 如`依赖预编译、TS 语法转译、代码压缩`)让 Vite 获得了相当优异的性能，是 Vite 高
-> 性能的得力助手。
+> 作为 Vite 的双引擎之一，Esbuild 在很多关键的构建阶段( 如`依赖预编译、TS 语法转译、代码压缩`)让 Vite 获得了相当优异的性能，是 Vite 高性能的得力助手。
 
 ## 为什么 Esbuild 性能极高？
 
-Esbuild 是由 Figma 的 CTO 「Evan Wallace」基于 Golang 开发的一款打包工具，相比传
-统的打包工具，主打性能优势，在构建速度上可以比传统工具快 10~100 倍。那么，它是如
-何达到这样超高的构建性能的呢？主要原因可以概括为 4 点。
+Esbuild 是由 Figma 的 CTO 「Evan Wallace」基于 Golang 开发的一款打包工具，相比传统的打包工具，主打性能优势，在构建速度上可以比传统工具快 10~100 倍。那么，它是如何达到这样超高的构建性能的呢？主要原因可以概括为 4 点。
 
-1. **使用 Golang 开发，构建逻辑代码直接被编译为原生机器码**，而不用像 JS 一样先
-   代码解析为字节码，然后转换为机器码，大大节省了程序运行时间。
-2. **多核并行**。内部打包算法充分利用多核 CPU 优势，所有的步骤尽可能并行，这也是
-   得益于 Go 当中多线程共享内存的优势。
-3. **从零造轮子**。 几乎没有使用任何第三方库，所有逻辑自己编写，大到 AST 解析，
-   小到字符串的操作，保证极致的代码性能。
-4. **高效的内存利用**。Esbuild 中从头到尾尽可能地复用一份 AST 节点数据，而不用像
-   JS 打包工具中频繁地解析和传递 AST 数据（如 string -> TS -> JS -> string)，造
-   成内存的大量浪费。
+1. **使用 Golang 开发，构建逻辑代码直接被编译为原生机器码**，而不用像 JS 一样先代码解析为字节码，然后转换为机器码，大大节省了程序运行时间。
+2. **多核并行**。内部打包算法充分利用多核 CPU 优势，所有的步骤尽可能并行，这也是得益于 Go 当中多线程共享内存的优势。
+3. **从零造轮子**。 几乎没有使用任何第三方库，所有逻辑自己编写，大到 AST 解析，小到字符串的操作，保证极致的代码性能。
+4. **高效的内存利用**。Esbuild 中从头到尾尽可能地复用一份 AST 节点数据，而不用像 JS 打包工具中频繁地解析和传递 AST 数据（如 string -> TS -> JS -> string)，造成内存的大量浪费。
 
 ## Esbuild 功能使用
 
@@ -26,8 +17,7 @@ Esbuild 是由 Figma 的 CTO 「Evan Wallace」基于 Golang 开发的一款打�
 pnpm i esbuild
 ```
 
-Esbuild 对外暴露了一系列的 API，主要包括两类: `Build API` 和 `Transform API`，我
-们可以在 Nodejs 代码中通过调用这些 API 来使用 Esbuild 的各种功能。
+Esbuild 对外暴露了一系列的 API，主要包括两类: `Build API` 和 `Transform API`，我们可以在 Nodejs 代码中通过调用这些 API 来使用 Esbuild 的各种功能。
 
 ### 项目打包——Build API
 
@@ -51,8 +41,7 @@ console.log(Server.renderToString(<Greet />));
 pnpm install react react-dom
 ```
 
-在 package.json 中添加 build 脚本，命令行形式调用，随后可执行 pnpm run build (如
-果不行就使用 npm run build)
+在 package.json 中添加 build 脚本，命令行形式调用，随后可执行 pnpm run build (如果不行就使用 npm run build)
 
 ```
  "scripts": {
@@ -105,11 +94,9 @@ async function runBuild() {
 runBuild();
 ```
 
-4. 执行 `node build.js`
-   <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e4eb90f7188d4cec836731c5d8040591~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e4eb90f7188d4cec836731c5d8040591~tplv-k3u1fbpfcp-watermark.image?)</a>
+4. 执行 `node build.js` <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e4eb90f7188d4cec836731c5d8040591~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e4eb90f7188d4cec836731c5d8040591~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-观察一下 dist 目录，发现打包产物和相应的 SourceMap 文件也已经成功写入磁盘:<br>
-<a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2b2ea97c4383430db899905b898d9e08~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2b2ea97c4383430db899905b898d9e08~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+观察一下 dist 目录，发现打包产物和相应的 SourceMap 文件也已经成功写入磁盘:<br> <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2b2ea97c4383430db899905b898d9e08~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2b2ea97c4383430db899905b898d9e08~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
 `buildSync` 方法的使用几乎相同，如下代码所示:
 
@@ -134,10 +121,8 @@ runBuild();
 
 这个 API 有 3 个特点。
 
-- 开启 serve 模式后，将在指定的端口和目录上搭建一个`静态文件服务`，这个服务器用
-  原生 Go 语言实现，性能比 Nodejs 更高。
-- 类似 webpack-dev-server，所有的产物文件都默认不会写到磁盘，而是放在内存中，通
-  过请求服务来访问。
+- 开启 serve 模式后，将在指定的端口和目录上搭建一个`静态文件服务`，这个服务器用原生 Go 语言实现，性能比 Nodejs 更高。
+- 类似 webpack-dev-server，所有的产物文件都默认不会写到磁盘，而是放在内存中，通过请求服务来访问。
 - 每次`请求`到来时，都会进行重新构建(rebuild)，永远返回新的产物。
 
 > 值得注意的是，触发 rebuild 的条件并不是代码改动，而是新的请求到来。
@@ -173,22 +158,17 @@ function runBuild() {
 runBuild();
 ```
 
-执行 `node serve.js`，打开 `localhost:8000`会打开 dist 产物目录<br>
-<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a681347cc974d37aade0d901468522a~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a681347cc974d37aade0d901468522a~tplv-k3u1fbpfcp-watermark.image?)</a>
+执行 `node serve.js`，打开 `localhost:8000`会打开 dist 产物目录<br> <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a681347cc974d37aade0d901468522a~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8a681347cc974d37aade0d901468522a~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 看一个 index.js:
 
 <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8b53224ddffe4f148e5020ba8239d847~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8b53224ddffe4f148e5020ba8239d847~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
-后续`每次在浏览器请求都会触发 Esbuild 重新构建`，而每次重新构建都是一个增量构建
-的过程，耗时也会比首次构建少很多(一般能减少 70% 左右)。**Serve API 只适合在开发
-阶段使用，不适用于生产环境。**
+后续`每次在浏览器请求都会触发 Esbuild 重新构建`，而每次重新构建都是一个增量构建的过程，耗时也会比首次构建少很多(一般能减少 70% 左右)。**Serve API 只适合在开发阶段使用，不适用于生产环境。**
 
 ### 单文件转译——Transform API
 
-除了项目的打包功能之后，Esbuild 还专门提供了单文件编译的能力，即 Transform API，
-与 Build API 类似，它也包含了同步和异步的两个方法，分别
-是`transformSync`和`transform`。下面，我们具体使用下这些方法。
+除了项目的打包功能之后，Esbuild 还专门提供了单文件编译的能力，即 Transform API，与 Build API 类似，它也包含了同步和异步的两个方法，分别是`transformSync`和`transform`。下面，我们具体使用下这些方法。
 
 首先，在项目根目录新建 `transform.js`，内容如下:
 
@@ -220,19 +200,13 @@ function runTransform {
 }
 ```
 
-不过由于同步的 API 会使 Esbuild `丧失并发任务处理的优势`（Build API 的部分已经分
-析过），同样也`不推荐大家使用transformSync`。出于性能考虑，Vite 的底层实现也是采
-用 transform 这个异步的 API 进行 TS 及 JSX 的单文件转译的。
+不过由于同步的 API 会使 Esbuild `丧失并发任务处理的优势`（Build API 的部分已经分析过），同样也`不推荐大家使用transformSync`。出于性能考虑，Vite 的底层实现也是采用 transform 这个异步的 API 进行 TS 及 JSX 的单文件转译的。
 
 ## Esbuild 插件开发
 
-> 插件开发其实就是基于原有的体系结构中进行`扩展`和`自定义`。 Esbuild 插件也不例
-> 外，通过 Esbuild 插件我们可以扩展 Esbuild 原有的路径解析、模块加载等方面的能力
-> ，并在 Esbuild 的构建过程中执行一系列自定义的逻辑。
+> 插件开发其实就是基于原有的体系结构中进行`扩展`和`自定义`。 Esbuild 插件也不例外，通过 Esbuild 插件我们可以扩展 Esbuild 原有的路径解析、模块加载等方面的能力，并在 Esbuild 的构建过程中执行一系列自定义的逻辑。
 
-Esbuild 插件结构被设计为一个对象，里面有 `name` 和 `setup` 两个属性
-，`name是插件的名称`，`setup是一个函数`，其中入参是一个 `build` 对象，这个对象上
-挂载了一些钩子可供我们自定义一些钩子函数逻辑。以下是一个简单的 Esbuild 插件示例:
+Esbuild 插件结构被设计为一个对象，里面有 `name` 和 `setup` 两个属性，`name是插件的名称`，`setup是一个函数`，其中入参是一个 `build` 对象，这个对象上挂载了一些钩子可供我们自定义一些钩子函数逻辑。以下是一个简单的 Esbuild 插件示例:
 
 ```
 let envPlugin = {
@@ -279,25 +253,18 @@ build.onLoad({ filter: /.*/, namespace: 'env-ns' }, () => ({
 
 这两个钩子函数中都需要传入两个参数: `Options` 和 `Callback`。
 
-- Options：它是一个对象，对于 `onResolve` 和 `onload` 都一样，包含 `filter` 和
-  `namespace` 两个属性
+- Options：它是一个对象，对于 `onResolve` 和 `onload` 都一样，包含 `filter` 和 `namespace` 两个属性
   - filter: 为`必传参数`，是一个`正则表达式`，它决定了`要过滤出的特征文件`。
-  - namespace：namespace 为`选填参数`，一般在 `onResolve` 钩子中的回调参数返回
-    `namespace` 属性作为标识，我们可以在 `onLoad` 钩子中通过 `namespace` 将模块
-    过滤出来。如上述插件示例就在 `onLoad` 钩子通过 `env-ns` 这个 `namespace` 标
-    识过滤出了要处理的 env 模块。
+  - namespace：namespace 为`选填参数`，一般在 `onResolve` 钩子中的回调参数返回 `namespace` 属性作为标识，我们可以在 `onLoad` 钩子中通过 `namespace` 将模块过滤出来。如上述插件示例就在 `onLoad` 钩子通过 `env-ns` 这个 `namespace` 标识过滤出了要处理的 env 模块。
     ```
     interface Options {
     filter: RegExp;
     namespace?: string;
     }
     ```
-- Callback：它的类型根据不同的钩子会有所不同。相比于 Options，Callback 函数入参
-  和返回值的结构复杂得多，涉及很多属性
+- Callback：它的类型根据不同的钩子会有所不同。相比于 Options，Callback 函数入参和返回值的结构复杂得多，涉及很多属性
 
-> 📢 注意: 插件中的 filter 正则是使用 Go 原生正则实现的，为了不使性能过于劣化，
-> 规则应该尽可能严格。同时它本身和 JS 的正则也有所区别，不支持前瞻(?<=)、后顾
-> (?=)和反向引用(\1)这三种规则。
+> 📢 注意: 插件中的 filter 正则是使用 Go 原生正则实现的，为了不使性能过于劣化，规则应该尽可能严格。同时它本身和 JS 的正则也有所区别，不支持前瞻(?<=)、后顾 (?=)和反向引用(\1)这三种规则。
 
 在 onResolve 钩子中函数参数和返回值梳理如下:
 
@@ -380,8 +347,7 @@ build.onLoad({ filter: /.*/, namespace: 'env-ns' }, (args: OnLoadArgs): OnLoadRe
 
 #### 其他钩子
 
-在 build 对象中，除了 `onResolve` 和 `onLoad`，还有 `onStart` 和 `onEnd` 两个钩
-子用来在构建开启和结束时执行一些自定义的逻辑，使用上比较简单，如下面的例子所示:
+在 build 对象中，除了 `onResolve` 和 `onLoad`，还有 `onStart` 和 `onEnd` 两个钩子用来在构建开启和结束时执行一些自定义的逻辑，使用上比较简单，如下面的例子所示:
 
 ```
 let examplePlugin = {
@@ -404,10 +370,8 @@ let examplePlugin = {
 
 在使用这些钩子的时候，有 2 点需要注意。
 
-- onStart 的执行时机是在每次 build 的时候，包括触发 `watch` 或者 `serve` 模式下
-  的重新构建。
-- onEnd 钩子中如果要拿到 `metafile`，必须将 Esbuild 的构建配置中 `metafile` 属性
-  设为 `true`。
+- onStart 的执行时机是在每次 build 的时候，包括触发 `watch` 或者 `serve` 模式下的重新构建。
+- onEnd 钩子中如果要拿到 `metafile`，必须将 Esbuild 的构建配置中 `metafile` 属性设为 `true`。
 
 ## 实战 1: CDN 依赖拉取插件
 
@@ -424,8 +388,7 @@ let Greet = () => <h1>Hello, juejin!</h1>;
 render(<Greet />, document.getElementById("root"));
 ```
 
-现在我们需要通过 Esbuild 插件来识别这样的 url 路径，然后从网络获取模块内容并让
-Esbuild 进行加载，甚至不再需要 npm install 安装依赖了
+现在我们需要通过 Esbuild 插件来识别这样的 url 路径，然后从网络获取模块内容并让 Esbuild 进行加载，甚至不再需要 npm install 安装依赖了
 
 1. 新建 plugin/http-import-plugin.js
 
@@ -476,8 +439,7 @@ module.exports = () => ({
 });
 ```
 
-2. 新建 esbuildTest/pluginBuild.js 文件，注意 entryPoints 的路径是相对于一级目录
-   的：
+2. 新建 esbuildTest/pluginBuild.js 文件，注意 entryPoints 的路径是相对于一级目录的：
 
 ```
 const { build } = require("esbuild");
@@ -514,8 +476,7 @@ render(<Greet />, document.getElementById("root"));
 
 <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/19c6f133b45e4b9f9dabfabad3d5c1e7~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/19c6f133b45e4b9f9dabfabad3d5c1e7~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
-4. 除了要解析 react-dom 这种直接依赖的路径，还要解析它依赖的路径，也就是间接依赖
-   的路径，处理间接依赖，改写 build.onResolve：
+4. 除了要解析 react-dom 这种直接依赖的路径，还要解析它依赖的路径，也就是间接依赖的路径，处理间接依赖，改写 build.onResolve：
 
 ```
 // 拦截间接依赖的路径，并重写路径
@@ -562,8 +523,7 @@ build.onResolve({ filter: /.*/, namespace: "http-url" }, (args) => ({
 }
 ```
 
-从 outputs 属性中我们可以看到产物的路径，这意味着我们可以在插件中拿到所有 js 和
-css 产物，然后自己组装、生成一个 HTML，实现自动化生成 HTML 的效果。
+从 outputs 属性中我们可以看到产物的路径，这意味着我们可以在插件中拿到所有 js 和 css 产物，然后自己组装、生成一个 HTML，实现自动化生成 HTML 的效果。
 
 1. 新建 `plugin/html-plugin.js`
 
@@ -665,7 +625,4 @@ runBuild();
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f04903f888d4b37b3fec8a857f9569e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/8f04903f888d4b37b3fec8a857f9569e~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-当然，如果要做一个足够通用的 HTML 插件，还需要考虑诸多的因素，比
-如`自定义 HTML 内容、自定义公共前缀(publicPath)、自定义 script 标签类型以及 多入口打包`等
-等，大家感兴趣的话可以自行扩展。(可参考这
-个[开源插件](https://github.com/sanyuan0704/ewas/blob/main/packages/esbuild-plugin-html/src/index.ts))
+当然，如果要做一个足够通用的 HTML 插件，还需要考虑诸多的因素，比如`自定义 HTML 内容、自定义公共前缀(publicPath)、自定义 script 标签类型以及 多入口打包`等等，大家感兴趣的话可以自行扩展。(可参考这个[开源插件](https://github.com/sanyuan0704/ewas/blob/main/packages/esbuild-plugin-html/src/index.ts))

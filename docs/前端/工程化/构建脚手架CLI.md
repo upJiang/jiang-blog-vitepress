@@ -55,13 +55,11 @@ console.log('my-node-cli working~')
 $ npm link # or yarn link
 ```
 
-然后，在控制台直接执行 `jiang-cli`，就会打印出来了，`windows` 请使用
-`cmd`，`powershell` 好像不会打印
+然后，在控制台直接执行 `jiang-cli`，就会打印出来了，`windows` 请使用 `cmd`，`powershell` 好像不会打印
 
 ### 询问用户信息
 
-实现与询问用户信息的功能需要引入 inquirer.js 👉
-[文档看这里](https://github.com/SBoudrias/Inquirer.js/)
+实现与询问用户信息的功能需要引入 inquirer.js 👉 [文档看这里](https://github.com/SBoudrias/Inquirer.js/)
 
 ```
 $ npm install inquirer --dev # yarn add inquirer --dev
@@ -179,8 +177,7 @@ inquirer.prompt([
 })
 ```
 
-同样，在控制台执行一下 `jiang-cli` ，此时 `index.html`、`common.css` 已经成功创
-建 ✔
+同样，在控制台执行一下 `jiang-cli` ，此时 `index.html`、`common.css` 已经成功创建 ✔
 
 当前的目录结构 👇
 
@@ -265,8 +262,7 @@ console.log('jiang working ~')
 分析一下我们要怎么做？
 
 - 首先我们要借助 commander 依赖去实现这个需求
-- 参照 vue-cli 常用的命令有 create、config 等等，在最新版本中可以使用 vue ui 进
-  行可视化创建
+- 参照 vue-cli 常用的命令有 create、config 等等，在最新版本中可以使用 vue ui 进行可视化创建
 - 如果创建的存在，需要提示是否覆盖
 
 #### 安装依赖
@@ -456,8 +452,7 @@ program
 
 #### `figlet` 打印个 Logo
 
-如果此时我们想给脚手架整个 `Logo`，工具库里的
-[figlet](https://www.npmjs.com/package/figlet) 就是干这个的
+如果此时我们想给脚手架整个 `Logo`，工具库里的 [figlet](https://www.npmjs.com/package/figlet) 就是干这个的
 
 - 安装依赖
 
@@ -512,8 +507,7 @@ program.parse(process.argv);
 
 ### 询问用户问题获取创建所需信息
 
-使用 [inquirer](https://www.npmjs.com/package/inquirer)，让他来帮我们解决命令行
-交互的问题，前面基础创建那里也有用到
+使用 [inquirer](https://www.npmjs.com/package/inquirer)，让他来帮我们解决命令行交互的问题，前面基础创建那里也有用到
 
 接下来我们要做的：
 
@@ -771,9 +765,7 @@ module.exports = Generator;
 
 ### 下载远程模板
 
-> 下载远程模版需要使用 download-git-repo 工具包，实际上它也在我们上面列的工具菜
-> 单上，但是在使用它的时候，需要注意一个问题，就是它是不支持 promise 的，所以我
-> 们这里需要使用 使用 util 模块中的 promisify 方法对其进行 promise 化
+> 下载远程模版需要使用 download-git-repo 工具包，实际上它也在我们上面列的工具菜单上，但是在使用它的时候，需要注意一个问题，就是它是不支持 promise 的，所以我们这里需要使用 使用 util 模块中的 promisify 方法对其进行 promise 化
 
 - 安装依赖与 promise 化
 
@@ -947,8 +939,7 @@ module.exports = Generator;
 
 ## 发布
 
-- 登录 `npm`，现在 `npm` 也需要一次性验证，手机下载 `Authenticator`，或者使用华
-  为云等，都可以弄，百度自行解决
+- 登录 `npm`，现在 `npm` 也需要一次性验证，手机下载 `Authenticator`，或者使用华为云等，都可以弄，百度自行解决
 
 ```
 npm login
@@ -977,7 +968,6 @@ $ jiang create jiang-project
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/75b6d6e3e9e2402588eca87278249d6d~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=694&h=238&s=18816&e=png&b=fefefe">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/75b6d6e3e9e2402588eca87278249d6d~tplv-k3u1fbpfcp-jj-mark:0:0:0:0:q75.image#?w=694&h=238&s=18816&e=png&b=fefefe)</a>
 
-至此，已经可以完成了脚手架的构建。只需要修改仓库地址，对项目修修补补，就能变成自
-己的脚手架专属。
+至此，已经可以完成了脚手架的构建。只需要修改仓库地址，对项目修修补补，就能变成自己的脚手架专属。
 
 > 有时候下载不到可能是网络问题

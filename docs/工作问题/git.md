@@ -14,8 +14,7 @@ yarn config set proxy http://127.0.0.1:10080
 
 ## OpenSSL SSL_read Connection was reset, errno 10054
 
-解决方案：执行一下 `git init`，或者 执行一下
-`git config --global http.sslVerify "false"`，又或者 `ipconfig /flushdns`
+解决方案：执行一下 `git init`，或者 执行一下 `git config --global http.sslVerify "false"`，又或者 `ipconfig /flushdns`
 
 实在不行，，，就把修改的文件拷贝出去，然后重新克隆项目再还原回去吧。。。
 

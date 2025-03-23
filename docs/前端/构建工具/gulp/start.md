@@ -16,8 +16,7 @@ yarn add gulp -D
 gulp 组合任务，可以任意嵌套任何深度
 
 - 如果需要让任务（task）按顺序执行，请使用 `series()` 方法。
-- 对于希望以最大并发来运行的任务（tasks），可以使用 `parallel()` 方法将它们组合
-  起来。
+- 对于希望以最大并发来运行的任务（tasks），可以使用 `parallel()` 方法将它们组合起来。
 
 ```
 const { series, parallel } = require('gulp');
@@ -40,13 +39,9 @@ function javascript(cb) {
 exports.build = series(clean, parallel(css, javascript));
 ```
 
-当使用 `series()` 组合多个任务（task）时，任何一个任务（task）的错误将导致整个任
-务组合结束，并且不会进一步执行其他任务。当使用 `parallel()` 组合多个任务（task）
-时，一个任务的错误将结束整个任务组合的结束，但是其他并行的任务（task）可能会执行
-完，也可能没有执行完。
+当使用 `series()` 组合多个任务（task）时，任何一个任务（task）的错误将导致整个任务组合结束，并且不会进一步执行其他任务。当使用 `parallel()` 组合多个任务（task）时，一个任务的错误将结束整个任务组合的结束，但是其他并行的任务（task）可能会执行完，也可能没有执行完。
 
-gulp `不再支持同步任务`（Synchronous tasks）。因为同步任务常常会导致难以调试的细
-微错误，例如忘记从任务（task）中返回 stream。
+gulp `不再支持同步任务`（Synchronous tasks）。因为同步任务常常会导致难以调试的细微错误，例如忘记从任务（task）中返回 stream。
 
 ## gulp 返回
 
@@ -108,8 +103,7 @@ gulp 任务必须要有 return，返回方式有如下几种:
 
 - callback
 
-  如果任务（task）不返回任何内容，则必须使用 callback 来指示任务已完成。在如下示
-  例中，callback 将作为唯一一个名为 cb() 的参数传递给你的任务（task）。
+  如果任务（task）不返回任何内容，则必须使用 callback 来指示任务已完成。在如下示例中，callback 将作为唯一一个名为 cb() 的参数传递给你的任务（task）。
 
   ```
   function callbackTask(cb) {
@@ -120,8 +114,7 @@ gulp 任务必须要有 return，返回方式有如下几种:
   exports.default = callbackTask;
   ```
 
-  如需通过 callback 把任务（task）中的错误告知 gulp，请将 Error 作为 callback 的
-  唯一参数。
+  如需通过 callback 把任务（task）中的错误告知 gulp，请将 Error 作为 callback 的唯一参数。
 
   ```
   function callbackError(cb) {
@@ -146,9 +139,7 @@ gulp 任务必须要有 return，返回方式有如下几种:
 
 - async/await
 
-  如果不使用前面提供到几种方式，你还可以将任务（task）定义为一个 async 函数，它
-  将利用 promise 对你的任务（task）进行包装。这将允许你使用 await 处理 promise，
-  并使用其他同步代码。
+  如果不使用前面提供到几种方式，你还可以将任务（task）定义为一个 async 函数，它将利用 promise 对你的任务（task）进行包装。这将允许你使用 await 处理 promise，并使用其他同步代码。
 
   ```
   const fs = require('fs');
@@ -162,22 +153,17 @@ gulp 任务必须要有 return，返回方式有如下几种:
   exports.default = asyncAwaitTask;
   ```
 
-当你看到 _"Did you forget to signal async completion?"_ 警告时，说明你并未使用前
-面提到的返回方式。你需要**使用 callback 或返回 stream、promise、event
-emitter、child process、observable**来解决此问题。
+当你看到 _"Did you forget to signal async completion?"_ 警告时，说明你并未使用前面提到的返回方式。你需要**使用 callback 或返回 stream、promise、event emitter、child process、observable**来解决此问题。
 
 ## gulp 实战
 
 ### 创建任务
 
-在项目根目录创建个 `gulpfile.js` 文件,执行 `gulp` 命令后，`gulp` 会去读取
-`gulpfile.js` 文件，这是 `gulp` 的入口文件，所有的指令逻辑处理都在此文件中进行。
+在项目根目录创建个 `gulpfile.js` 文件,执行 `gulp` 命令后，`gulp` 会去读取 `gulpfile.js` 文件，这是 `gulp` 的入口文件，所有的指令逻辑处理都在此文件中进行。
 
-当项目体量过大时，可以在根目录内创建个 `gulpfile.js` 文件夹，文件夹内部创建
-`index.js`，可以在 `index.js` 中引入不同的处理模块.
+当项目体量过大时，可以在根目录内创建个 `gulpfile.js` 文件夹，文件夹内部创建 `index.js`，可以在 `index.js` 中引入不同的处理模块.
 
-在以前的版本中都是通过 `gulp.task` 来创建不同的任务，新版本主要通过
-`exports.xxx` 来导出任务
+在以前的版本中都是通过 `gulp.task` 来创建不同的任务，新版本主要通过 `exports.xxx` 来导出任务
 
 ```
 function test(cb) {
@@ -195,8 +181,7 @@ exports.test = test;
 [16:41:29] Finished 'test' after 1.95 ms
 ```
 
-如果将 `exports.test = test`改为 `exports.default=test`,在控制台直接输入 `gulp`
-就可以直接构建了。
+如果将 `exports.test = test`改为 `exports.default=test`,在控制台直接输入 `gulp` 就可以直接构建了。
 
 ### 处理 js
 
@@ -333,7 +318,6 @@ function less() {
 exports.less = less;
 ```
 
-控制台输入指令 gulp less 在 build/less 下会生成两个文件 index.min.css 以及
-index.min.css.map
+控制台输入指令 gulp less 在 build/less 下会生成两个文件 index.min.css 以及 index.min.css.map
 
 [项目地址](https://github.com/upJiang/gulp-study)

@@ -1,1 +1,42 @@
- 
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.fixAll.stylelint": "explicit"
+  },
+  "stylelint.validate": ["css", "less", "scss", "vue"],
+  "[less]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[scss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": null,
+    "editor.wordWrap": "on",
+    "editor.wrappingIndent": "same"
+  },
+  "git.ignoreWindowsCaseInsensitivity": false,
+  "files.eol": "\n",
+  "markdown.extension.list.indentationSize": "inherit",
+  "markdown.extension.toc.levels": "2..6",
+  "markdown.extension.list.spacing": "two",
+  "editor.formatOnSaveMode": "modificationsIfAvailable",
+  "files.associations": {
+    "*.md": "markdown"
+  },
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "\\.md$",
+        "cmd": "node ${workspaceFolder}/scripts/format-md-lists.js ${file}"
+      }
+    ]
+  }
+}

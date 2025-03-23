@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "格式化当前 Markdown 文件",
+      "program": "${workspaceFolder}/scripts/format-md-lists.js",
+      "args": ["${file}"],
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

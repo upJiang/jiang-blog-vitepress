@@ -6,18 +6,13 @@
 
 ## 链表的合并
 
-> 真题描述：将两个有序链表合并为一个新的有序链表并返回。新链表是通过拼接给定的两
-> 个链表的所有结点组成的。
+> 真题描述：将两个有序链表合并为一个新的有序链表并返回。新链表是通过拼接给定的两个链表的所有结点组成的。
 
 示例：输入：1->2->4, 1->3->4 输出：1->1->2->3->4->4
 
-我们回忆一下数组，题目逻辑是一样，数组使用的是双指针法，以第一个数组为底，长度为
-两数组之后。指针同时从末尾开始往左移动，通过判断两数组值移动赋值。
+我们回忆一下数组，题目逻辑是一样，数组使用的是双指针法，以第一个数组为底，长度为两数组之后。指针同时从末尾开始往左移动，通过判断两数组值移动赋值。
 
-在链表里面，没有索引这个概念，它就像一个链子，我们只要改变了 next 指向，就会改变
-整个链表的长度。所以在这题中，我们只需要定义一个链表，然后从头开始比较两个链表初
-始位置的大小，将较小的顺序插入新链表中，然后改变被插入的 head 等于它的 next 即可
-，同时改变新链表的当前 head。后面将剩余的链表末段指向新链表末尾即可。
+在链表里面，没有索引这个概念，它就像一个链子，我们只要改变了 next 指向，就会改变整个链表的长度。所以在这题中，我们只需要定义一个链表，然后从头开始比较两个链表初始位置的大小，将较小的顺序插入新链表中，然后改变被插入的 head 等于它的 next 即可，同时改变新链表的当前 head。后面将剩余的链表末段指向新链表末尾即可。
 
 ```
 const mergeTwoLists = function(l1, l2) {
@@ -60,8 +55,7 @@ const mergeTwoLists = function(l1, l2) {
 
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e6f3b38195ccf~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e6f3b38195ccf~tplv-t2oaga2asx-watermark.awebp)</a>
 
-思路：因为是有序链表，在满足 cur != null && cur.next != null 下判断 cur.val ===
-cur.next.val 即可,注意通过 while 循环时要改变 cur 的 head （cur = cur.next;）
+思路：因为是有序链表，在满足 cur != null && cur.next != null 下判断 cur.val === cur.next.val 即可,注意通过 while 循环时要改变 cur 的 head （cur = cur.next;）
 
 ```
 const deleteDuplicates = function(head) {
@@ -84,25 +78,18 @@ const deleteDuplicates = function(head) {
 
 ## 删除问题的延伸——dummy 结点登场
 
-> 真题描述：给定一个排序链表，删除所有含有重复数字的结点，只保留原始链表中 没有
-> 重复出现的数字。
+> 真题描述：给定一个排序链表，删除所有含有重复数字的结点，只保留原始链表中 没有重复出现的数字。
 
 示例：<br> 输入: 1->2->3->3->4->4->5<br> 输出: 1->2->5<br>
 
 思路：
 
-- 跟上面一道题很像，只是要把相同的都删掉不做保留，试想一下，如果当走到 cur.val
-  === cur.next.val ，我们是无法删除 cur 这个结点的，因为我们无法拿到的它的前驱结
-  点并改变，或者说我们的第一个结点没有前驱结点，没办法删除。
-- `dummy 结点`，就是咱们**人为制造出来的第一个结点的前驱结点**。我们定义一个新链
-  表 dummy，把 dummy 的 next 指向目标链表，这样就为目标链表的首部创建了前驱结点
-  ，就能够进行删除了。但要注意我们比较的应该是：dummy.next.val ===
-  dummy.next.next.val,
+- 跟上面一道题很像，只是要把相同的都删掉不做保留，试想一下，如果当走到 cur.val === cur.next.val ，我们是无法删除 cur 这个结点的，因为我们无法拿到的它的前驱结点并改变，或者说我们的第一个结点没有前驱结点，没办法删除。
+- `dummy 结点`，就是咱们**人为制造出来的第一个结点的前驱结点**。我们定义一个新链表 dummy，把 dummy 的 next 指向目标链表，这样就为目标链表的首部创建了前驱结点，就能够进行删除了。但要注意我们比较的应该是：dummy.next.val === dummy.next.next.val,
 
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e7109a0a2ad77~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e7109a0a2ad77~tplv-t2oaga2asx-watermark.awebp)</a>
 
-这样一来，如果想要删除两个连续重复的值为 1 的结点，我们只需要把 dummy 结点的
-next 指针直接指向 2：
+这样一来，如果想要删除两个连续重复的值为 1 的结点，我们只需要把 dummy 结点的 next 指针直接指向 2：
 
 ```
 const deleteDuplicates = function(head) {

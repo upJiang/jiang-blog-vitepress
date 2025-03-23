@@ -1,5 +1,4 @@
-曾经实践过的 Element3 组件库 demo 开发
-：[Vue3 组件库工程化实战 -- Element3](https://juejin.cn/post/6930879590554402830)
+曾经实践过的 Element3 组件库 demo 开发：[Vue3 组件库工程化实战 -- Element3](https://juejin.cn/post/6930879590554402830)
 
 这篇课程使用 vite 开发组件库，与经典组件库的区别：
 

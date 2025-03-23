@@ -11,8 +11,7 @@
 - 移动应用：`React Native、Weex`；
 - Web 开发：`Vue、React、Svelte` 等前端框架
 - 构建工具：`webpack、Vite、Rollup`；
-- CLI 工具：前端开发者常用的各种项目脚手架和工具，如
-  ：`nodemon、whistle、http-server`；
+- CLI 工具：前端开发者常用的各种项目脚手架和工具，如：`nodemon、whistle、http-server`；
 
 ## 在 vsCode 中调试
 
@@ -144,12 +143,10 @@ import * as allValues from './export_all.js'
 
 - **CommonJS**:
 
-  - 模块是同步加载的，通常用于服务器端 Node.js 环境。支持动态加载模块 (`require`
-    语句可以出现在任意位置)；
+  - 模块是同步加载的，通常用于服务器端 Node.js 环境。支持动态加载模块 (`require` 语句可以出现在任意位置)；
 
 - **ECMAScript Modules**:
-  - 支持异步加载，适合用于浏览器环境。会在所有模块都加载完毕后才执行代码 (通常会
-    将 `import` 导入语句放在模块的顶部)；
+  - 支持异步加载，适合用于浏览器环境。会在所有模块都加载完毕后才执行代码 (通常会将 `import` 导入语句放在模块的顶部)；
 
 #### 3. 模块解析
 
@@ -170,15 +167,12 @@ import * as allValues from './export_all.js'
 
 #### 5. 文件命名
 
-- 通常情况下模块一般都以 .js 结尾，通过 package.json 中 "type":"module" 区分模块
-  类型，
-- 实际上还可以通过文件命名来区分 .cjs 表明是 CJS 规范的模块，.mjs 表明是 ESM 规
-  范的模块。
+- 通常情况下模块一般都以 .js 结尾，通过 package.json 中 "type":"module" 区分模块类型，
+- 实际上还可以通过文件命名来区分 .cjs 表明是 CJS 规范的模块，.mjs 表明是 ESM 规范的模块。
 
 ## global 全局对象
 
-`JavaScript` 中存在一个特殊的全局对象，可以在任意位置被访问，通常用 `globalThis`
-指代。
+`JavaScript` 中存在一个特殊的全局对象，可以在任意位置被访问，通常用 `globalThis` 指代。
 
 在**浏览器中，指向 `window` 这个全局对象**，而 **`Node.js` 中指向 `global`**，
 

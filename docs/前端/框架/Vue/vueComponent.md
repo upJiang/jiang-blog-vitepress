@@ -6,8 +6,7 @@
 
 现在我来分别介绍这三种组件该如何封装
 
-组件目录结构<br/>
-<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/110a543422174c5b872ec95c63e31b6b~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/110a543422174c5b872ec95c63e31b6b~tplv-k3u1fbpfcp-watermark.image?)</a>
+组件目录结构<br/> <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/110a543422174c5b872ec95c63e31b6b~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/110a543422174c5b872ec95c63e31b6b~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 导入式组件
 
@@ -103,10 +102,7 @@ app.use(d)
 
 ## 函数式组件
 
-> 这里我将会介绍如何在 vue 文件中使用，以及在 ts/js 文件中使用。<br/> 我们可能会
-> 遇到一个场景，比如说需要在接口报错或者成功时弹出一个全局自定义的组件，要求不能
-> 在 vue 文件中去写，也不能使用组件库的组件，而是需要在 axios 这种 js/ts 文件中
-> 去写，这样才能做到通用。那么我们该如何在 js 中使用并封装一个函数式组件？
+> 这里我将会介绍如何在 vue 文件中使用，以及在 ts/js 文件中使用。<br/> 我们可能会遇到一个场景，比如说需要在接口报错或者成功时弹出一个全局自定义的组件，要求不能在 vue 文件中去写，也不能使用组件库的组件，而是需要在 axios 这种 js/ts 文件中去写，这样才能做到通用。那么我们该如何在 js 中使用并封装一个函数式组件？
 
 组件代码：/src/components/function/components/tipsDialog.vue
 
@@ -253,9 +249,6 @@ if (response?.status === 200) {
 }
 ```
 
-项目截图：<br/>
-<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4bd304c5249d4a9db4c79bd5ef1293e9~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4bd304c5249d4a9db4c79bd5ef1293e9~tplv-k3u1fbpfcp-watermark.image?)</a>
+项目截图：<br/> <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4bd304c5249d4a9db4c79bd5ef1293e9~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4bd304c5249d4a9db4c79bd5ef1293e9~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-[项目地址](https://github.com/upJiang/jiangVue3Test) 项目目前引入了: i18n vuex
-v-router less mock axios 封装 ant-design（按需加载） srntry 构建分包 env ts 的支
-持 三种封装组件的形式。赏个 star~
+[项目地址](https://github.com/upJiang/jiangVue3Test) 项目目前引入了: i18n vuex v-router less mock axios 封装 ant-design（按需加载） srntry 构建分包 env ts 的支持 三种封装组件的形式。赏个 star~

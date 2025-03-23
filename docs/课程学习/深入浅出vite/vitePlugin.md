@@ -1,5 +1,4 @@
-> 实际上 Vite 的插件机制也包含了自己独有的一部分，与 Rollup 的各个插件 Hook 并非
-> 完全兼容。
+> 实际上 Vite 的插件机制也包含了自己独有的一部分，与 Rollup 的各个插件 Hook 并非完全兼容。
 
 ## 一个简单的插件示例
 
@@ -17,8 +16,7 @@ Vite 插件与 Rollup 插件结构类似，为一个 name 和各种插件 Hook �
 
 > 如果插件是一个 npm 包，在 package.json 中的包命名也推荐以 vite-plugin 开头
 
-一般情况下因为要考虑到外部传参，我们不会直接写一个对象，而是实现一个返回插件对象
-的`工厂函数`，如下代码所示:
+一般情况下因为要考虑到外部传参，我们不会直接写一个对象，而是实现一个返回插件对象的`工厂函数`，如下代码所示:
 
 ```
 // myPlugin.js
@@ -51,24 +49,18 @@ Vite 开发阶段会模拟 Rollup 的行为:
 其中 Vite 会调用一系列与 Rollup 兼容的钩子，这个钩子主要分为三个阶段:
 
 - **服务器启动阶段**: options 和 buildStart 钩子会在服务启动时被调用。
-- **请求响应阶段**: 当浏览器发起请求时，Vite 内部依次调用 resolveId、load 和
-  transform 钩子。
+- **请求响应阶段**: 当浏览器发起请求时，Vite 内部依次调用 resolveId、load 和 transform 钩子。
 - **服务器关闭阶段**: Vite 会依次执行 buildEnd 和 closeBundle 钩子。
 
-除了以上钩子，其他 Rollup 插件钩子(如`moduleParsed`、`renderChunk`)均不会在 Vite
-开发阶段调用。而生产环境下，由于 Vite 直接使用 Rollup，Vite 插件中所有 Rollup 的
-插件钩子都会生效。
+除了以上钩子，其他 Rollup 插件钩子(如`moduleParsed`、`renderChunk`)均不会在 Vite 开发阶段调用。而生产环境下，由于 Vite 直接使用 Rollup，Vite 插件中所有 Rollup 的插件钩子都会生效。
 
 ### 2. 独有 Hook
 
-Vite 中特有的一些 Hook，这些 Hook 只会在 Vite 内部调用，而放到 Rollup 中会被直接
-忽略。
+Vite 中特有的一些 Hook，这些 Hook 只会在 Vite 内部调用，而放到 Rollup 中会被直接忽略。
 
 #### 2.1 给配置再加点料: config
 
-Vite 在读取完配置文件（即 `vite.config.ts`）之后，会拿到用户导出的配置对象，然后
-执行 config 钩子。在这个钩子里面，你可以对配置文件导出的对象进行自定义的操作，如
-下代码所示:
+Vite 在读取完配置文件（即 `vite.config.ts`）之后，会拿到用户导出的配置对象，然后执行 config 钩子。在这个钩子里面，你可以对配置文件导出的对象进行自定义的操作，如下代码所示:
 
 ```
 // 返回部分配置（推荐）
@@ -82,9 +74,7 @@ const editConfigPlugin = () => ({
 })
 ```
 
-官方推荐的姿势是在 config 钩子中返回一个配置对象，这个配置对象会和 Vite 已有的配
-置进行深度的合并。不过你也可以通过钩子的入参拿到 config 对象进行自定义的修改，如
-下代码所示:
+官方推荐的姿势是在 config 钩子中返回一个配置对象，这个配置对象会和 Vite 已有的配置进行深度的合并。不过你也可以通过钩子的入参拿到 config 对象进行自定义的修改，如下代码所示:
 
 ```
 const mutateConfigPlugin = () => ({
@@ -99,8 +89,7 @@ const mutateConfigPlugin = () => ({
 })
 ```
 
-在一些比较深层的对象配置中，这种直接修改配置的方式会显得比较麻烦，如
-`optimizeDeps.esbuildOptions.plugins`，需要写很多的样板代码，类似下面这样:
+在一些比较深层的对象配置中，这种直接修改配置的方式会显得比较麻烦，如 `optimizeDeps.esbuildOptions.plugins`，需要写很多的样板代码，类似下面这样:
 
 ```
 // 防止出现 undefined 的情况
@@ -125,8 +114,7 @@ config() {
 
 #### 2.2 记录最终配置: configResolved
 
-Vite 在解析完配置之后会调用 `configResolved` 钩子，这个钩子一般用来记录最终的配
-置信息，而不建议再修改配置，用法如下图所示:
+Vite 在解析完配置之后会调用 `configResolved` 钩子，这个钩子一般用来记录最终的配置信息，而不建议再修改配置，用法如下图所示:
 
 ```
 const exmaplePlugin = () => {
@@ -150,8 +138,7 @@ const exmaplePlugin = () => {
 
 #### 2.3 获取 Dev Server 实例: configureServer
 
-这个钩子仅在`开发阶段`会被调用，用于扩展 Vite 的 Dev Server，一般用于增加自定义
-server 中间件，如下代码所示:
+这个钩子仅在`开发阶段`会被调用，用于扩展 Vite 的 Dev Server，一般用于增加自定义 server 中间件，如下代码所示:
 
 ```
 const myPlugin = () => ({
@@ -213,8 +200,7 @@ const htmlPlugin = () => {
 
 #### 2.5 热更新处理: handleHotUpdate
 
-这个钩子会在 Vite 服务端处理热更新时被调用，你可以在这个钩子中拿到热更新相关的上
-下文信息，进行热更模块的过滤，或者进行自定义的热更处理。下面是一个简单的例子:
+这个钩子会在 Vite 服务端处理热更新时被调用，你可以在这个钩子中拿到热更新相关的上下文信息，进行热更模块的过滤，或者进行自定义的热更处理。下面是一个简单的例子:
 
 ```
 const handleHmrPlugin = () => {
@@ -316,11 +302,8 @@ export default function testHookPlugin () {
 
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/83c255efbdec4c66971a30ff270c70a9~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/83c255efbdec4c66971a30ff270c70a9~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
-- **服务启动阶段**:
-  `config、configResolved、options、configureServer、buildStart`
-- **请求响应阶段**: 如果是 `html` 文件，仅执行`transformIndexHtml`钩子；对
-  于`非 HTML` 文件，则依次执行`resolveId`、`load`和`transform`钩子。相信大家学过
-  Rollup 的插件机制，已经对这三个钩子比较熟悉了。
+- **服务启动阶段**: `config、configResolved、options、configureServer、buildStart`
+- **请求响应阶段**: 如果是 `html` 文件，仅执行`transformIndexHtml`钩子；对于`非 HTML` 文件，则依次执行`resolveId`、`load`和`transform`钩子。相信大家学过 Rollup 的插件机制，已经对这三个钩子比较熟悉了。
 - **热更新阶段**: 执行`handleHotUpdate`钩子。
 - **服务关闭阶段**: 依次执行`buildEnd`和`closeBundle`钩子。
 
@@ -328,8 +311,7 @@ export default function testHookPlugin () {
 
 Vite 插件的应用情景和应用顺序。
 
-默认情况下 Vite 插件同时被用于开发环境和生产环境，你可以通过 `apply` 属性来决定
-应用场景:
+默认情况下 Vite 插件同时被用于开发环境和生产环境，你可以通过 `apply` 属性来决定应用场景:
 
 ```
 {
@@ -373,8 +355,7 @@ Vite 会依次执行如下的插件:
 
 ### 实战案例 1: 虚拟模块加载
 
-虚拟模块：作为构建工具，一般需要处理两种形式的模块，一种存在于真实的磁盘文件系统
-中，另一种`并不在磁盘而在内存当中`，也就是虚拟模块。
+虚拟模块：作为构建工具，一般需要处理两种形式的模块，一种存在于真实的磁盘文件系统中，另一种`并不在磁盘而在内存当中`，也就是虚拟模块。
 
 编写插件 plugins/virtual-module.ts
 
@@ -425,12 +406,9 @@ import fib from 'virtual:fib';
 alert(`结果: ${fib(10)}`)
 ```
 
-这里我们使用了 virtual:fib 这个虚拟模块，虽然这个模块不存在真实的文件系统中，但
-你打开浏览器后可以发现这个模块导出的函数是可以正常执行的:<br>
-<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/216e84976e3c408cb845b64bf329943f~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/216e84976e3c408cb845b64bf329943f~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+这里我们使用了 virtual:fib 这个虚拟模块，虽然这个模块不存在真实的文件系统中，但你打开浏览器后可以发现这个模块导出的函数是可以正常执行的:<br> <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/216e84976e3c408cb845b64bf329943f~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/216e84976e3c408cb845b64bf329943f~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
-接着我们来尝试一下如何通过虚拟模块来读取内存中的变量，在 virtual-module.ts 中增
-加如下代码:
+接着我们来尝试一下如何通过虚拟模块来读取内存中的变量，在 virtual-module.ts 中增加如下代码:
 
 ```
 import { Plugin, ResolvedConfig } from 'vite';
@@ -468,8 +446,7 @@ export default function virtualFibModulePlugin(): Plugin {
 }
 ```
 
-在新增的这些代码中，我们注册了一个新的虚拟模块 virtual:env，紧接着我们去项目去使
-用:
+在新增的这些代码中，我们注册了一个新的虚拟模块 virtual:env，紧接着我们去项目去使用:
 
 ```
 // main.tsx
@@ -490,20 +467,13 @@ declare module 'virtual:*' {
 
 <a data-fancybox title="img" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/59c04f44a5334138ab722400c03c071c~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/59c04f44a5334138ab722400c03c071c~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
-Vite 环境变量能正确地在浏览器中打印出来，说明在内存中计算出来的 virtual:env 模块
-的确被成功地加载了。从中你可以看到，虚拟模块的内容完全能够被动态计算出来，因此它
-的灵活性和可定制程度非常高，实用性也很强，在 Vite 内部的插件被深度地使用，社区当
-中也有不少知名的插件(如 `vite-plugin-windicss`、`vite-plugin-svg-icons`等)也使用
-了虚拟模块的技术。
+Vite 环境变量能正确地在浏览器中打印出来，说明在内存中计算出来的 virtual:env 模块的确被成功地加载了。从中你可以看到，虚拟模块的内容完全能够被动态计算出来，因此它的灵活性和可定制程度非常高，实用性也很强，在 Vite 内部的插件被深度地使用，社区当中也有不少知名的插件(如 `vite-plugin-windicss`、`vite-plugin-svg-icons`等)也使用了虚拟模块的技术。
 
 ### 实战案例 2: Svg 组件形式加载
 
-在一般的项目开发过程中，我们有时候希望能将 svg 当做一个组件来引入，这样我们可以
-很方便地修改 svg 的各种属性，相比于 img 标签的引入方式也更加优雅。但 Vite 本身并
-不支持将 svg 转换为组件的代码，需要我们通过插件来实现。
+在一般的项目开发过程中，我们有时候希望能将 svg 当做一个组件来引入，这样我们可以很方便地修改 svg 的各种属性，相比于 img 标签的引入方式也更加优雅。但 Vite 本身并不支持将 svg 转换为组件的代码，需要我们通过插件来实现。
 
-接下来我们就来写一个 Vite 插件，实现在 React 项目能够通过组件方式来使用 svg 资源
-。首先安装一下需要的依赖:
+接下来我们就来写一个 Vite 插件，实现在 React 项目能够通过组件方式来使用 svg 资源。首先安装一下需要的依赖:
 
 ```
 pnpm i resolve @svgr/core -D
@@ -602,13 +572,11 @@ function App() {
 export default App;
 ```
 
-打开浏览器，可以看到组件已经正常显示:<br>
-<a data-fancybox title="img" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ad0d1812f0ac49759d2f284f49502ea9~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ad0d1812f0ac49759d2f284f49502ea9~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+打开浏览器，可以看到组件已经正常显示:<br> <a data-fancybox title="img" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ad0d1812f0ac49759d2f284f49502ea9~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ad0d1812f0ac49759d2f284f49502ea9~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
 ## 调试技巧
 
-另外，在开发调试插件的过程，我推荐大家在本地装上 vite-plugin-inspect 插件，并在
-Vite 中使用它:
+另外，在开发调试插件的过程，我推荐大家在本地装上 vite-plugin-inspect 插件，并在 Vite 中使用它:
 
 ```
 // vite.config.ts
@@ -635,5 +603,4 @@ import inspect from 'vite-plugin-inspect';
 
 <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d40c06d94c96412cbf9fc2dccf35d5f1~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d40c06d94c96412cbf9fc2dccf35d5f1~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
-通过这个面板，我们可以很清楚地看到相应模块经过插件处理后变成了什么样子，让插件的
-调试更加方便。
+通过这个面板，我们可以很清楚地看到相应模块经过插件处理后变成了什么样子，让插件的调试更加方便。

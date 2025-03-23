@@ -68,6 +68,5 @@ index.html
 ```
 
 - 首先会执行 `observe(user)`，开启监听
-- 然后执行 `autorun(showFirstName)`，将 `showFirstName` 这个方法放到监听的的收集
-  中去，当触发了监听时，就会自动执行该方法
+- 然后执行 `autorun(showFirstName)`，将 `showFirstName` 这个方法放到监听的的收集中去，当触发了监听时，就会自动执行该方法
 - 当在 `input`中修改 name 值时，就会执行收集的方法 `showFirstName`

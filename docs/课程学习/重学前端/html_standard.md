@@ -1,7 +1,6 @@
 ## HTML 标准
 
-我们采用 WHATWG 的 living standard 标准，我们先来看看标准是如何描述一个标签的，
-这里我们看到，有下面这些内容。
+我们采用 WHATWG 的 living standard 标准，我们先来看看标准是如何描述一个标签的，这里我们看到，有下面这些内容。
 
 ```
 Categories:

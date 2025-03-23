@@ -1,12 +1,6 @@
-> 静态资源处理是前端工程经常遇到的问题，在真实的工程中不仅仅包含了动态执行的代码
-> ，也不可避免地要引入各种静态资源，如`图片、JSON、Worker 文件、Web Assembly` 文
-> 件等等。
+> 静态资源处理是前端工程经常遇到的问题，在真实的工程中不仅仅包含了动态执行的代码，也不可避免地要引入各种静态资源，如`图片、JSON、Worker 文件、Web Assembly` 文件等等。
 
-而静态资源本身并不是标准意义上的模块，因此对它们的处理和普通的代码是需要区别对待
-的。一方面我们需要解决资源加载的问题
-，`对 Vite 来说就是如何将静态资源解析并加载为一个 ES 模块的问题`；另一方面在生产
-环境下我们还需要考虑`静态资源的部署问题、体积问题、网络性能问题`，并采取相应的方
-案来进行优化。
+而静态资源本身并不是标准意义上的模块，因此对它们的处理和普通的代码是需要区别对待的。一方面我们需要解决资源加载的问题，`对 Vite 来说就是如何将静态资源解析并加载为一个 ES 模块的问题`；另一方面在生产环境下我们还需要考虑`静态资源的部署问题、体积问题、网络性能问题`，并采取相应的方案来进行优化。
 
 ## 图片加载
 
@@ -26,12 +20,7 @@ resolve: {
 
 ## SVG 组件方式加载
 
-SVG 组件加载在不同的前端框架中的实现不太相同，社区中也已经了有了对应的插件支持:
-Vue2 项目中可以使用
-[vite-plugin-vue2-svg](https://github.com/pakholeung37/vite-plugin-vue2-svg)插件
-。 Vue3 项目中可以引入
-[vite-svg-loader](https://github.com/jpkleemans/vite-svg-loader)。 React 项目使
-用 [vite-plugin-svgr](https://github.com/pd4d10/vite-plugin-svgr)插件。
+SVG 组件加载在不同的前端框架中的实现不太相同，社区中也已经了有了对应的插件支持: Vue2 项目中可以使用 [vite-plugin-vue2-svg](https://github.com/pakholeung37/vite-plugin-vue2-svg)插件。 Vue3 项目中可以引入 [vite-svg-loader](https://github.com/jpkleemans/vite-svg-loader)。 React 项目使用 [vite-plugin-svgr](https://github.com/pd4d10/vite-plugin-svgr)插件。
 
 #### 在 react 项目中添加依赖
 
@@ -79,9 +68,7 @@ export function Header() {
 
 ## JSON 加载
 
-Vite 中已经内置了对于 JSON 文件的解析，底层使用 `@rollup/pluginutils` 的
-`dataToEsm` 方法将 `JSON` 对象转换为一个包含各种具名导出的 `ES` 模块，使用姿势如
-下:
+Vite 中已经内置了对于 JSON 文件的解析，底层使用 `@rollup/pluginutils` 的 `dataToEsm` 方法将 `JSON` 对象转换为一个包含各种具名导出的 `ES` 模块，使用姿势如下:
 
 ```
 import { version } from '../../../package.json';
@@ -99,8 +86,7 @@ import { version } from '../../../package.json';
 }
 ```
 
-这样会将 JSON 的内容解析为 `export default JSON.parse("xxx")`，这样会失去按名导
-出的能力，不过在 JSON 数据量比较大的时候，可以优化解析性能。
+这样会将 JSON 的内容解析为 `export default JSON.parse("xxx")`，这样会失去按名导出的能力，不过在 JSON 数据量比较大的时候，可以优化解析性能。
 
 ## Web Worker 脚本
 
@@ -138,8 +124,7 @@ worker.addEventListener('message', (e) => {
 
 ## Web Assembly 文件
 
-Vite 对于 .wasm 文件也提供了开箱即用的支持，我们拿一个斐波拉契的 `.wasm` 文件来
-进行一下实际操作，对应的 JavaScript 原文件如下:
+Vite 对于 .wasm 文件也提供了开箱即用的支持，我们拿一个斐波拉契的 `.wasm` 文件来进行一下实际操作，对应的 JavaScript 原文件如下:
 
 ```
 export function fib(n) {
@@ -171,12 +156,9 @@ init({}).then((exports) => {
 });
 ```
 
-Vite 会对.wasm 文件的内容进行封装
-，`默认导出为 init 函数，这个函数返回一个 Promise`，因此我们可以在其 then 方法中
-拿到其导出的成员——fib 方法。
+Vite 会对.wasm 文件的内容进行封装，`默认导出为 init 函数，这个函数返回一个 Promise`，因此我们可以在其 then 方法中拿到其导出的成员——fib 方法。
 
-回到浏览器，我们可以查看到计算结果，说明 .wasm 文件已经被成功执行:<br>
-<a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7478ef95b7a847fca740218262b411cd~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7478ef95b7a847fca740218262b411cd~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+回到浏览器，我们可以查看到计算结果，说明 .wasm 文件已经被成功执行:<br> <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7478ef95b7a847fca740218262b411cd~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7478ef95b7a847fca740218262b411cd~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
 ## 其它静态资源
 
@@ -186,8 +168,7 @@ Vite 会对.wasm 文件的内容进行封装
 - 字体类文件。包括 `woff、woff2、eot、ttf 和 otf`。
 - 文本类。包括 `webmanifest、pdf和txt`。
 
-也就是说，你可以在 Vite 将这些类型的文件当做一个 ES 模块来导入使用。如果你的项目
-中还存在其它格式的静态资源，你可以通过 `assetsInclude` 配置让 Vite 来支持加载:
+也就是说，你可以在 Vite 将这些类型的文件当做一个 ES 模块来导入使用。如果你的项目中还存在其它格式的静态资源，你可以通过 `assetsInclude` 配置让 Vite 来支持加载:
 
 ```
 // vite.config.ts
@@ -202,8 +183,7 @@ Vite 会对.wasm 文件的内容进行封装
 Vite 中引入静态资源时，也支持在路径最后加上一些特殊的 query 后缀，包括:
 
 - ?url: 表示获取资源的路径，这在只想获取文件路径而不是内容的场景将会很有用。
-- ?raw: 表示获取资源的字符串内容，如果你只想拿到资源的原始内容，可以使用这个后缀
-  。
+- ?raw: 表示获取资源的字符串内容，如果你只想拿到资源的原始内容，可以使用这个后缀。
 - ?inline: 表示资源强制内联，而不是打包成单独的文件。
 
 ## 生产环境处理
@@ -250,8 +230,7 @@ interface ImportMeta {
 }
 ```
 
-值得注意的是，如果某个环境变量要在 Vite 中通过 import.meta.env 访问，那么它必须
-以 VITE\_开头，如 VITE_IMG_BASE_URL。
+值得注意的是，如果某个环境变量要在 Vite 中通过 import.meta.env 访问，那么它必须以 VITE\_开头，如 VITE_IMG_BASE_URL。
 
 ### 单文件 or 内联？
 
@@ -260,13 +239,9 @@ interface ImportMeta {
 - 如果静态资源体积 >= 4KB，则提取成单独的文件
 - 如果静态资源体积 < 4KB，则作为 base64 格式的字符串内联
 
-对于比较小的资源，适合内联到代码中，一方面对代码体积的影响很小，另一方面可以减少
-不必要的网络请求，优化网络性能。而对于比较大的资源，就推荐单独打包成一个文件，而
-不是内联了，否则可能导致上 MB 的 base64 字符串内嵌到代码中，导致代码体积瞬间庞大
-，页面加载性能直线下降。
+对于比较小的资源，适合内联到代码中，一方面对代码体积的影响很小，另一方面可以减少不必要的网络请求，优化网络性能。而对于比较大的资源，就推荐单独打包成一个文件，而不是内联了，否则可能导致上 MB 的 base64 字符串内嵌到代码中，导致代码体积瞬间庞大，页面加载性能直线下降。
 
-上述的 `4 KB` 即为提取成单文件的临界值，当然，这个临界值你可以通过
-`build.assetsInlineLimit` 自行配置，如下代码所示:
+上述的 `4 KB` 即为提取成单文件的临界值，当然，这个临界值你可以通过 `build.assetsInlineLimit` 自行配置，如下代码所示:
 
 ```
 // vite.config.ts
@@ -278,15 +253,11 @@ interface ImportMeta {
 }
 ```
 
-> svg 格式的文件不受这个临时值的影响，始终会打包成单独的文件，因为它和普通格式的
-> 图片不一样，需要动态设置一些属性
+> svg 格式的文件不受这个临时值的影响，始终会打包成单独的文件，因为它和普通格式的图片不一样，需要动态设置一些属性
 
 ### 图片压缩
 
-在 JavaScript 领域有一个非常知名的图片压缩库 `imagemin`，作为一个底层的压缩工具
-，前端的项目中经常基于它来进行图片压缩，比如 `Webpack` 中大名鼎鼎的
-`image-webpack-loader`。社区当中也已经有了开箱即用的
-`Vite 插件——vite-plugin-imagemin`，首先让我们来安装它:
+在 JavaScript 领域有一个非常知名的图片压缩库 `imagemin`，作为一个底层的压缩工具，前端的项目中经常基于它来进行图片压缩，比如 `Webpack` 中大名鼎鼎的 `image-webpack-loader`。社区当中也已经有了开箱即用的 `Vite 插件——vite-plugin-imagemin`，首先让我们来安装它:
 
 ```
 pnpm i vite-plugin-imagemin -D
@@ -335,20 +306,13 @@ import viteImagemin from 'vite-plugin-imagemin';
 }
 ```
 
-执行 pnpm run build 后，Vite 插件已经自动帮助我们调用 imagemin 进行项目图片的压
-缩，可以看到压缩的效果非常明显：<br>
-<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7bf122b2f5c7447990f2ed502d8defba~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7bf122b2f5c7447990f2ed502d8defba~tplv-k3u1fbpfcp-watermark.image?)</a>
+执行 pnpm run build 后，Vite 插件已经自动帮助我们调用 imagemin 进行项目图片的压缩，可以看到压缩的效果非常明显：<br> <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7bf122b2f5c7447990f2ed502d8defba~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7bf122b2f5c7447990f2ed502d8defba~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### 雪碧图优化
 
-在实际的项目中我们还会经常用到各种各样的 svg 图标，虽然 svg 文件一般体积不大，但
-Vite 中对于 svg 文件会始终打包成单文件，大量的图标引入之后会导致网络请求增加，大
-量的 HTTP 请求会导致网络解析耗时变长，页面加载性能直接受到影响。这个问题怎么解决
-呢？
+在实际的项目中我们还会经常用到各种各样的 svg 图标，虽然 svg 文件一般体积不大，但 Vite 中对于 svg 文件会始终打包成单文件，大量的图标引入之后会导致网络请求增加，大量的 HTTP 请求会导致网络解析耗时变长，页面加载性能直接受到影响。这个问题怎么解决呢？
 
-> HTTP2 的多路复用设计可以解决大量 HTTP 的请求导致的网络加载性能问题，因此雪碧图
-> 技术在 HTTP2 并没有明显的优化效果，这个技术更适合在传统的 HTTP 1.1 场景下使用(
-> 比如本地的 Dev Server)。
+> HTTP2 的多路复用设计可以解决大量 HTTP 的请求导致的网络加载性能问题，因此雪碧图技术在 HTTP2 并没有明显的优化效果，这个技术更适合在传统的 HTTP 1.1 场景下使用( 比如本地的 Dev Server)。
 
 比如在 Header 中分别引入 5 个 svg 文件:
 
@@ -368,8 +332,7 @@ const icons = import.meta.glob('../../assets/icons/logo-*.svg');
 
 <a data-fancybox title="img" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bb4489676ca341689048f9595a8f0fae~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bb4489676ca341689048f9595a8f0fae~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
-可以看到对象的 value 都是动态 import，适合按需加载的场景。在这里我们只需要同步加
-载即可，可以使用 import.meta.globEager 来完成:
+可以看到对象的 value 都是动态 import，适合按需加载的场景。在这里我们只需要同步加载即可，可以使用 import.meta.globEager 来完成:
 
 ```
 const icons = import.meta.globEager('../../assets/icons/logo-*.svg');
@@ -389,8 +352,7 @@ const iconUrls = Object.values(icons).map(mod => mod.default);
 ))}
 ```
 
-回到页面中，我们发现浏览器分别发出了 5 个 svg 的请求:
-<a data-fancybox title="img" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3646903dde814c6c8cb7097b93f98667~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3646903dde814c6c8cb7097b93f98667~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
+回到页面中，我们发现浏览器分别发出了 5 个 svg 的请求: <a data-fancybox title="img" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3646903dde814c6c8cb7097b93f98667~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3646903dde814c6c8cb7097b93f98667~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
 ### 通过 vite-plugin-svg-icons 合并 svg 请求
 
@@ -451,5 +413,4 @@ import 'virtual:svg-icons-register';
 
 <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/17497a3a9abe40d2a5145bca8d2041f6~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/17497a3a9abe40d2a5145bca8d2041f6~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?)</a>
 
-如此一来，我们就能将所有的 svg 内容都内联到 HTML 中，省去了大量 svg 的网络请求，
-只请求一次。
+如此一来，我们就能将所有的 svg 内容都内联到 HTML 中，省去了大量 svg 的网络请求，只请求一次。

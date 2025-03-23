@@ -2,8 +2,7 @@
 
 1.下载 Git [下载地址](https://git-scm.com/downloads)
 
-2.生成 ssh 秘钥：打开终端，执行 ssh-keygen -t rsa -C "邮箱地址"，切换到～/.shh
-目录中，复制 id_rsa.pub 的内容到你 gitlab/gitee/github 等的 ssh key 中。
+2.生成 ssh 秘钥：打开终端，执行 ssh-keygen -t rsa -C "邮箱地址"，切换到～/.shh 目录中，复制 id_rsa.pub 的内容到你 gitlab/gitee/github 等的 ssh key 中。
 
 3.配置 git 的用户名和邮箱
 
@@ -35,10 +34,7 @@ $ git config --system --list
 
 ## 远程仓库
 
-> 配置完后我们第一步应该理解远程仓库这个概念，远程仓库就是我们在 gitlab/github
-> 这些地方的代码仓库。我们一般一个项目只对应一个远程仓库，远程仓库名默认为
-> origin，我们可以使用 rename 命令对它进行重命名，如果只需要对应一个远程仓库，不
-> 建议更改名字，一个项目也可以对应多个远程仓库。
+> 配置完后我们第一步应该理解远程仓库这个概念，远程仓库就是我们在 gitlab/github 这些地方的代码仓库。我们一般一个项目只对应一个远程仓库，远程仓库名默认为 origin，我们可以使用 rename 命令对它进行重命名，如果只需要对应一个远程仓库，不建议更改名字，一个项目也可以对应多个远程仓库。
 
 #### 查看
 
@@ -115,18 +111,14 @@ $ git push -u origin/test
 
 ## 拉取代码
 
-> 最近在网上有个真实发生的案例比较火，说的是一个新入职的员工，不会用 Git 拉代码
-> ，第二天就被开掉了。<br>那么刚进公司，同事给了你 git 仓库地址，你这时候应该怎
-> 么做呢？拉取代码时会有两种方式: https、ssh
+> 最近在网上有个真实发生的案例比较火，说的是一个新入职的员工，不会用 Git 拉代码，第二天就被开掉了。<br>那么刚进公司，同事给了你 git 仓库地址，你这时候应该怎么做呢？拉取代码时会有两种方式: https、ssh
 
 - https 需要每次提交前都手动输入用户名和密码，<br>
-- ssh 的方式配置完毕后 Git 都会使用你本地的私钥和远程仓库的公钥进行验证是否是一
-  对秘钥，从而简化了操作流程。
+- ssh 的方式配置完毕后 Git 都会使用你本地的私钥和远程仓库的公钥进行验证是否是一对秘钥，从而简化了操作流程。
 
 ### 从 git 仓库克隆代码
 
-> clone 都会包含所有远程分支的代码，可以通过 checkout 切换分支，clone 过来的代码
-> 不需要初始化就可以直接操作分支了
+> clone 都会包含所有远程分支的代码，可以通过 checkout 切换分支，clone 过来的代码不需要初始化就可以直接操作分支了
 
 ```
 # 在本地生成默认分支，一般是master或者main
@@ -165,48 +157,35 @@ git remote rename origin new_origin
 
 ## 四个关键点
 
-git 的通用操作流程图
-<a data-fancybox title="" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/513f0456d26a46808e72fcb40bdaff2a~tplv-k3u1fbpfcp-zoom-1.image">![](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/513f0456d26a46808e72fcb40bdaff2a~tplv-k3u1fbpfcp-zoom-1.image)</a>
+git 的通用操作流程图 <a data-fancybox title="" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/513f0456d26a46808e72fcb40bdaff2a~tplv-k3u1fbpfcp-zoom-1.image">![](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/513f0456d26a46808e72fcb40bdaff2a~tplv-k3u1fbpfcp-zoom-1.image)</a>
 
-1.**工作区(workspace)**：就是你平时写代码的地方，是当前看到最新的内容，在开发的
-过程也就是对工作区的操作
+1.**工作区(workspace)**：就是你平时写代码的地方，是当前看到最新的内容，在开发的过程也就是对工作区的操作
 
-2.**暂存区（Index/Stage）**：就是我们使用 `git add` 提交的区域，在这里我们可以选
-择提交或者放弃哪些更改
+2.**暂存区（Index/Stage）**：就是我们使用 `git add` 提交的区域，在这里我们可以选择提交或者放弃哪些更改
 
-3.**本地仓库(repository)**：本地仓库，位于自己的电脑上，通过  `git commit`  提交
-暂存区的内容，会进入本地仓库
+3.**本地仓库(repository)**：本地仓库，位于自己的电脑上，通过  `git commit`  提交暂存区的内容，会进入本地仓库
 
-4.**远程仓库(remote)**：git 远程仓库，gitlab/gitee/github/svn 等等，通
-过`git push`提交远程仓库
+4.**远程仓库(remote)**：git 远程仓库，gitlab/gitee/github/svn 等等，通过`git push`提交远程仓库
 
-总结：平时在工作区正常开发，通过 git add 提交代码到暂存区，通过 git commit 提交
-代码到本地仓库，通过 git push 提交代码到远程仓库
+总结：平时在工作区正常开发，通过 git add 提交代码到暂存区，通过 git commit 提交代码到本地仓库，通过 git push 提交代码到远程仓库
 
 ## HEAD
 
 > 我们先来理解 HEAD、HEAD^、commit_id 这些东西的概念
 
-git 必须知道当前版本是哪个版本，在 git 中会有很多 commit_id，`HEAD` 就是当前版本
-的 commit_id，也就是最新的提交 `3628164...882e1e0` ，可以用前七位缩写，上一个版
-本就是 `HEAD^` ，上上一个版本就是 `HEAD^^` ，当然往上 100 个版本写 100 个 `^` 比
-较容易数不过来，所以写成 `HEAD~100`。
+git 必须知道当前版本是哪个版本，在 git 中会有很多 commit_id，`HEAD` 就是当前版本的 commit_id，也就是最新的提交 `3628164...882e1e0` ，可以用前七位缩写，上一个版本就是 `HEAD^` ，上上一个版本就是 `HEAD^^` ，当然往上 100 个版本写 100 个 `^` 比较容易数不过来，所以写成 `HEAD~100`。
 
 #### 符号操作
 
-git 中的一些连续 commit_id 都是左开右闭的`3628164...882e1e0`，如果想左闭右闭合就
-在开始的 commit 加上^ `3628164^...882e1e0`
+git 中的一些连续 commit_id 都是左开右闭的`3628164...882e1e0`，如果想左闭右闭合就在开始的 commit 加上^ `3628164^...882e1e0`
 
-n 默认是 1 不写，直接 HEAD 就是当前指针<br> **HEAD^n** 后退 n 步,不管父子顺序的
-提交，意思就是不需要管是不是同一个分支的提交<br> **HEAD~n** 退到第 n 个父提交,按
-照提交的父子顺序，意思就是必须是同一个分支的提交
+n 默认是 1 不写，直接 HEAD 就是当前指针<br> **HEAD^n** 后退 n 步,不管父子顺序的提交，意思就是不需要管是不是同一个分支的提交<br> **HEAD~n** 退到第 n 个父提交,按照提交的父子顺序，意思就是必须是同一个分支的提交
 
 HEAD ～ n 等于 HEAD~~~( n 个波浪) 等于 HEAD^^^(n 个尖括号)
 
 HEAD^n 比较特殊，不需要管是不是同一个分支的提交
 
-比如我们有四个分支，分支树形图如下：
-<a data-fancybox title="截屏2021-11-15 上午11.18.53.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa7b95dac93b4146be0261ebd4ee83fc~tplv-k3u1fbpfcp-watermark.image?">![截屏2021-11-15 上午11.18.53.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa7b95dac93b4146be0261ebd4ee83fc~tplv-k3u1fbpfcp-watermark.image?)</a>
+比如我们有四个分支，分支树形图如下： <a data-fancybox title="截屏2021-11-15 上午11.18.53.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa7b95dac93b4146be0261ebd4ee83fc~tplv-k3u1fbpfcp-watermark.image?">![截屏2021-11-15 上午11.18.53.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fa7b95dac93b4146be0261ebd4ee83fc~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ```
 albert@home-pc MINGW64 /d/gitstart (dev1)
@@ -226,8 +205,7 @@ $ git rev-parse --short HEAD^2 //后退两步，不管父子顺序的提交
 e330eac
 ```
 
-只要你 commit 了，就算没有 push ，也会生成 commit_id ，HEAD 就会移动到你最新的
-commit 上
+只要你 commit 了，就算没有 push ，也会生成 commit_id ，HEAD 就会移动到你最新的 commit 上
 
 我们可以通过 git log、git reflog 查看提交记录，以及当前 HEAD
 
@@ -290,8 +268,7 @@ $ git reset --hard origin/master //将当前分支内容重置成远程分支内
 
 ### git fetch 与 git pull 的区别
 
-都是拉取远程代码，它们的区别是 fetch 不会自动合并工作区代码，**fetch + merge ===
-git pull**。
+都是拉取远程代码，它们的区别是 fetch 不会自动合并工作区代码，**fetch + merge === git pull**。
 
 ```
 # 拉取当前分支的最新内容
@@ -331,8 +308,7 @@ git branch -u origin/test
 
 ## log(查看)
 
-查看提交历史：git log 显示所有提交过的版本信息，当前 HEAD，不包括已经被删除的
-commit 记录和 reset 的操作
+查看提交历史：git log 显示所有提交过的版本信息，当前 HEAD，不包括已经被删除的 commit 记录和 reset 的操作
 
 **git 默认展示三条 log 信息，按 S 键可以往下展开哦**
 
@@ -430,29 +406,19 @@ pick b093fc3 bbbb
 pick d52ce82 ggg
 ```
 
-先明白这三个区别：<br> pick：保留该 commit（缩写:p）<br> reword：保留该 commit，
-但我需要修改该 commit 的注释（缩写:r）<br> edit：保留该 commit, 但我要停下来修改
-该提交(不仅仅修改注释)（缩写: e）
+先明白这三个区别：<br> pick：保留该 commit（缩写:p）<br> reword：保留该 commit，但我需要修改该 commit 的注释（缩写:r）<br> edit：保留该 commit, 但我要停下来修改该提交(不仅仅修改注释)（缩写: e）
 
 将第三条改成 reword 或者 edit ，保存退出
 
-reword d52ce82 ggg <br> 保存退出后会直接进入到下一个 vim 进行编辑，其实就是执行
-git commit --amend 后的编辑界面，正常修改保存后提交即可
+reword d52ce82 ggg <br> 保存退出后会直接进入到下一个 vim 进行编辑，其实就是执行 git commit --amend 后的编辑界面，正常修改保存后提交即可
 
-edit d52ce82 ggg <br> 保存退出后，会让我们选择执行的下一个命令， git commit
---amend 或者是 git rebase --continue，输入 git commit --amend 就跟上面一样了，
-git rebase --continue 则退出此次更改
+edit d52ce82 ggg <br> 保存退出后，会让我们选择执行的下一个命令， git commit --amend 或者是 git rebase --continue，输入 git commit --amend 就跟上面一样了， git rebase --continue 则退出此次更改
 
 ## stash(暂存)
 
-> 当我们在开发项目的时候，假设现在你在 A 分支写代码，产品经理突然过来让你改 B 分
-> 支的 bug ，这个时候你怎么办？<br>我们知道只有把工作区的代码都 commit 上去之后
-> 才能切换分支干活，可是你现在改的内容你并不想 commit 上去生成一条无用的 commit
-> ，那么这时候 stash 就能够帮你解决这个问题了。stash 能够帮我们暂存我们修改的内
-> 容，之后再取出来使用，这样就不用 commit 上去了。
+> 当我们在开发项目的时候，假设现在你在 A 分支写代码，产品经理突然过来让你改 B 分支的 bug ，这个时候你怎么办？<br>我们知道只有把工作区的代码都 commit 上去之后才能切换分支干活，可是你现在改的内容你并不想 commit 上去生成一条无用的 commit ，那么这时候 stash 就能够帮你解决这个问题了。stash 能够帮我们暂存我们修改的内容，之后再取出来使用，这样就不用 commit 上去了。
 
-暂存工作区的内容，注意一定要有改动才行，如果经常使用暂存功能，请务必添加说明信息
-，避免忘记是哪条切换不回来
+暂存工作区的内容，注意一定要有改动才行，如果经常使用暂存功能，请务必添加说明信息，避免忘记是哪条切换不回来
 
 ```
 $ git stash / git stash save '说明信息'
@@ -475,9 +441,7 @@ $ git stash show 0
  1 file changed, 1 insertion(+), 1 deletion(-)
 ```
 
-应用暂存（暂存记录仍在）,先查看暂存记录跟详情，再通过 index 去应用<br> **注意：
-如果暂存的文件跟当前修改的文件相同，那么要想清楚再使用，可以先把当前修改 commit
-上去，然后再通过 commit_id 使用 rebase/merge 合并回来**
+应用暂存（暂存记录仍在）,先查看暂存记录跟详情，再通过 index 去应用<br> **注意：如果暂存的文件跟当前修改的文件相同，那么要想清楚再使用，可以先把当前修改 commit 上去，然后再通过 commit_id 使用 rebase/merge 合并回来**
 
 ```
 # 应用最新暂存
@@ -497,16 +461,13 @@ $ git stash drop 0
 $ git stash pop 0
 ```
 
-注：不加 stash{0} 都是操作最新的一次（栈顶）暂存, stash{0} 就是数字而已，网上很
-多教程使用 stash@{0}，我在实际操作中都不生效，只需要在后直接加 index 即可。<br>
+注：不加 stash{0} 都是操作最新的一次（栈顶）暂存, stash{0} 就是数字而已，网上很多教程使用 stash@{0}，我在实际操作中都不生效，只需要在后直接加 index 即可。<br>
 
-在实际工作中用到最多的应该是：保存暂存 git stash save '说明信息'，然后切换分支去
-做别的事情，然后切回来把保存的暂存应用并删除 git stash pop
+在实际工作中用到最多的应该是：保存暂存 git stash save '说明信息'，然后切换分支去做别的事情，然后切回来把保存的暂存应用并删除 git stash pop
 
 ## rm(删除)
 
-> 跟 git reset HEAD file.js 有点类似，但 reset 会改变本地仓库，而 rm 不会，rm 只
-> 操作工作区跟暂存区，同名使用路径
+> 跟 git reset HEAD file.js 有点类似，但 reset 会改变本地仓库，而 rm 不会，rm 只操作工作区跟暂存区，同名使用路径
 
 ```
 # 仅从暂存区中删除文件，但是工作区依然还有该文件,
@@ -524,13 +485,9 @@ reset 有三种模式 **soft mixed（默认） hard** 注意看图示红色线�
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b34c28f1284943eda41526b32109590d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b34c28f1284943eda41526b32109590d~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-- soft 让本地仓库与 Reset 节点的內容相同，那么我们的工作区代码就会跟本地仓库产生
-  差异，会将这些差异放到暂存区中<br>
-- mixed 让本地仓库以及暂存区跟 Reset 节点的內容相同，也就是会清空暂存区，但是工
-  作区跟 soft 一样不变，我们后面可能需要重新 add <br>
-- hard 改变工作区、暂存区、本地仓库,全部内容都变成 Reset 节点的內容相同，所以慎
-  用，另外两个不会改变工作区内容可以把代码找回，这个用了就有点麻烦了，下面会介绍
-  如何把 reset 掉的代码找回来
+- soft 让本地仓库与 Reset 节点的內容相同，那么我们的工作区代码就会跟本地仓库产生差异，会将这些差异放到暂存区中<br>
+- mixed 让本地仓库以及暂存区跟 Reset 节点的內容相同，也就是会清空暂存区，但是工作区跟 soft 一样不变，我们后面可能需要重新 add <br>
+- hard 改变工作区、暂存区、本地仓库,全部内容都变成 Reset 节点的內容相同，所以慎用，另外两个不会改变工作区内容可以把代码找回，这个用了就有点麻烦了，下面会介绍如何把 reset 掉的代码找回来
 
 ```
 # 先查看暂存区都更改了哪些文件
@@ -576,25 +533,16 @@ $ git reset HEAD src/pages/details/index.js
 ### 找回 reset 掉的代码
 
 - 已 commit ：git reflog 获取 hash 值 然后 git reset --hard [对应的值]
-- 未 commit 但 add ：git fsck --lost-found 恢复删除文件 然后到 .git/lost-found
-  目录寻找文件/或者通过 merge/rebase 合并回来
+- 未 commit 但 add ：git fsck --lost-found 恢复删除文件 然后到 .git/lost-found 目录寻找文件/或者通过 merge/rebase 合并回来
 - 未 commit 未 add ：无解，所以要慎用此命令
 
 ### git fsck
 
-> `fill system check`  文件系统检查，用来对本地和远程仓库的一致性检查
-> ，`dangling objects` 悬空对象。git 中把 commit 删了后，并不是真正的删除，而是
-> 变成了悬空对象（dangling commit）。<br>git gc 在达到一定条件下会清除这些悬空对
-> 象,在悬空对象列表中，使用 `git show commitId` 查看悬空记录的详情
-> ，`git merge commitId` 即可恢复
+> `fill system check`  文件系统检查，用来对本地和远程仓库的一致性检查，`dangling objects` 悬空对象。git 中把 commit 删了后，并不是真正的删除，而是变成了悬空对象（dangling commit）。<br>git gc 在达到一定条件下会清除这些悬空对象,在悬空对象列表中，使用 `git show commitId` 查看悬空记录的详情，`git merge commitId` 即可恢复
 
-**为什么会产生悬空对象？**<br> 比如我们刚刚在工作区提交了一些 commit ，我们通过
-reset 把这些 commit 清空掉了，这些被清空掉的 commit 就变成了 dangling commit 。
-又或者是比如 B commit 依靠 A commit ,而 A 被删掉了，那么 B 就悬空了
+**为什么会产生悬空对象？**<br> 比如我们刚刚在工作区提交了一些 commit ，我们通过 reset 把这些 commit 清空掉了，这些被清空掉的 commit 就变成了 dangling commit 。又或者是比如 B commit 依靠 A commit ,而 A 被删掉了，那么 B 就悬空了
 
-**Dangling blob**=对暂存区域/索引所做的更改，但从未提交。Git 的一个令人惊奇的地
-方是，一旦它被添加到暂存区域中，就可以始终得到它，因为这些 BLOB 的行为就像提交，
-因为它们也有一个散列！！
+**Dangling blob**=对暂存区域/索引所做的更改，但从未提交。Git 的一个令人惊奇的地方是，一旦它被添加到暂存区域中，就可以始终得到它，因为这些 BLOB 的行为就像提交，因为它们也有一个散列！！
 
 ```
 $ git show edbfa48d1c6428d00af9b2cf6dc70a423d6969ad
@@ -614,8 +562,7 @@ trim_trailing_whitespace = false
 sda
 ```
 
-**Dangling commit**=未直接或由其任何优势者链接到任何分支或标记的提交。你也可以把
-这些拿回来！
+**Dangling commit**=未直接或由其任何优势者链接到任何分支或标记的提交。你也可以把这些拿回来！
 
 ```
 $ git show e08b6bd66efe7a3842531282596c2ee8d6dd00e9
@@ -649,20 +596,15 @@ $ git merge dbd5b7e3ede83289ad64c62196d82baa81ec1a2d
 
 ### reset 总结
 
-reset 的本质：移动 HEAD 以及它所指向的 branch，**reset**  这个指令虽然可以用来撤
-销  **commit** ，但它的实质行为并不是撤销，而是移动  **HEAD** ，并且「捎带」上
- **HEAD**  所指向的  **branch**（如果有的话）。
+reset 的本质：移动 HEAD 以及它所指向的 branch，**reset**  这个指令虽然可以用来撤销  **commit** ，但它的实质行为并不是撤销，而是移动  **HEAD** ，并且「捎带」上  **HEAD**  所指向的  **branch**（如果有的话）。
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6398f96068734296ad3d9e15715e558d~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/6398f96068734296ad3d9e15715e558d~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## revert(撤销)
 
-撤销`某些` commit，并且把这次撤销，作为一次`最新`的提交,需要填写提交注释，会有
-revert 信息。撤销的 commit 记录仍在，只是`追加`一个 commit ，撤销后产生的新节点
-代码有可能会跟上一个版本的代码产生`冲突`
+撤销`某些` commit，并且把这次撤销，作为一次`最新`的提交,需要填写提交注释，会有 revert 信息。撤销的 commit 记录仍在，只是`追加`一个 commit ，撤销后产生的新节点代码有可能会跟上一个版本的代码产生`冲突`
 
-比如说有 A-B-C，使用 revert b-c 将代码回到 A，此时会变成 A-B-C-D，使用 reset A
-会变成 A
+比如说有 A-B-C，使用 revert b-c 将代码回到 A，此时会变成 A-B-C-D，使用 reset A 会变成 A
 
 ```
 $ git revert b093fc3f062924339f43cbc93df9497fa1eb3ff6
@@ -709,24 +651,13 @@ Date:   Mon Nov 15 14:27:10 2021 +0800
 
 ### reset 跟 revert 的区别
 
-- 在操作上，revert 必须处理完工作区跟暂存区的变更，才能使用，并且改变的是本地仓
-  库的代码，并且会跟前面的提交产生冲突，revert 的 HEAD 参数可以是一个 commit 范
-  围；而 reset 不需要处理工作区跟暂存区的变更， reset 提供三种模式，reset 的
-  HEAD 参数只能是一个指定的 commit
+- 在操作上，revert 必须处理完工作区跟暂存区的变更，才能使用，并且改变的是本地仓库的代码，并且会跟前面的提交产生冲突，revert 的 HEAD 参数可以是一个 commit 范围；而 reset 不需要处理工作区跟暂存区的变更， reset 提供三种模式，reset 的 HEAD 参数只能是一个指定的 commit
 
-- 在结果上，revert 是撤销 n 个 commit ，然后生成一个新 commit ，撤销掉的 commit
-  仍在，reset 是直接把指针往前移动到某个 commit，并且不会生成新的 commit 信息，
-  撤销掉的 commit 就没了
+- 在结果上，revert 是撤销 n 个 commit ，然后生成一个新 commit ，撤销掉的 commit 仍在，reset 是直接把指针往前移动到某个 commit，并且不会生成新的 commit 信息，撤销掉的 commit 就没了
 
-- 在影响上，影响就在于这个撤销掉的 commit 在不在，因为 reset 会把撤销 commit 丢
-  失，这个时候，如果有另一个人在分支提交了代码，而你的 commit 不见了，这个时候如
-  果你强制 push 会把别人的代码冲掉了，如果你去 merge 又会把你不想要的代码给弄回
-  来了，然后你就只能手动去弄了。但是 revert 并不会删除 commit，当你去 merge 别人
-  代码时，你的 commit 仍在，那么 git 仍然会以你的为准。
+- 在影响上，影响就在于这个撤销掉的 commit 在不在，因为 reset 会把撤销 commit 丢失，这个时候，如果有另一个人在分支提交了代码，而你的 commit 不见了，这个时候如果你强制 push 会把别人的代码冲掉了，如果你去 merge 又会把你不想要的代码给弄回来了，然后你就只能手动去弄了。但是 revert 并不会删除 commit，当你去 merge 别人代码时，你的 commit 仍在，那么 git 仍然会以你的为准。
 
-总结：如果你想要撤销的代码已经在远程上了，如果不存在会有人在你的分支上去提交代码
-，那么你可以选择 reset + 强制推送，如果有可能会有人在你的分支上去提交代码，那么
-就会产生问题，这个时候建议使用 revert。
+总结：如果你想要撤销的代码已经在远程上了，如果不存在会有人在你的分支上去提交代码，那么你可以选择 reset + 强制推送，如果有可能会有人在你的分支上去提交代码，那么就会产生问题，这个时候建议使用 revert。
 
 # reset 或者 revert 后强制提交本地代码上去
 
@@ -736,45 +667,28 @@ $ git push -f origin 远程分支名
 
 ## rebase(变基)
 
-> rebse 翻译为变基，就是能够改变基点，在合并分支的时候能够改变当前分支基点，保证
-> 当前 HEAD 不变，并且提交记录是线性的。除此之外还能对某一段线性提交历史进行编辑
-> 、删除、复制、粘贴。合理使用 rebase 命令可以使我们的提交历史干净、简洁！
+> rebse 翻译为变基，就是能够改变基点，在合并分支的时候能够改变当前分支基点，保证当前 HEAD 不变，并且提交记录是线性的。除此之外还能对某一段线性提交历史进行编辑、删除、复制、粘贴。合理使用 rebase 命令可以使我们的提交历史干净、简洁！
 
 ### 合并
 
 <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c241190f28b04b739b23de00b1b85154~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c241190f28b04b739b23de00b1b85154~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-场景：现在有 master 跟 Feature 两个分支，Feature 是在 master 基础上拉出来的，它
-们的共同基点都是白色部分，Feature 做了三次 commit，master 做了两次 commit。现在
-在 Feature 上需要合并 master
+场景：现在有 master 跟 Feature 两个分支，Feature 是在 master 基础上拉出来的，它们的共同基点都是白色部分，Feature 做了三次 commit，master 做了两次 commit。现在在 Feature 上需要合并 master
 
-使用 git rebase master 命令后，以它们的共同基点作为起点，先逐个应用 master 分支
-的更改，以 master 分支最后的提交作为基点，再逐个应用 Feature 分支的每个更改。看
-到这里你应该理解为什么要翻译成变基了吧，基点被改变了，并且你当前分支的 HEAD 仍旧
-没被破坏，还是线性的，是不是很棒。如果使用 merge 则会多出一个 commit
+使用 git rebase master 命令后，以它们的共同基点作为起点，先逐个应用 master 分支的更改，以 master 分支最后的提交作为基点，再逐个应用 Feature 分支的每个更改。看到这里你应该理解为什么要翻译成变基了吧，基点被改变了，并且你当前分支的 HEAD 仍旧没被破坏，还是线性的，是不是很棒。如果使用 merge 则会多出一个 commit
 
-`git merge`  在不是 fast-forward（快速合并）的情况下，会产生一条额外的合并记录，
-类似  `Merge branch 'xxx' into 'xxx'`  的一条提交信息
-<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5abd099ebda04c3d9c2d6b048ad217e3~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5abd099ebda04c3d9c2d6b048ad217e3~tplv-k3u1fbpfcp-watermark.image?)</a>
+`git merge`  在不是 fast-forward（快速合并）的情况下，会产生一条额外的合并记录，类似  `Merge branch 'xxx' into 'xxx'`  的一条提交信息 <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5abd099ebda04c3d9c2d6b048ad217e3~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5abd099ebda04c3d9c2d6b048ad217e3~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-rebase 的过程中会产生`冲突`的，此时，就需要手动解决冲突，然后使用依次
-`git add `、`git rebase --continue `的方式来处理冲突，完成 rebase 的过程，如果不
-想要某次 rebase 的结果，那么需要使用 `git rebase --skip `来跳过这次 rebase 操作
-。
+rebase 的过程中会产生`冲突`的，此时，就需要手动解决冲突，然后使用依次 `git add `、`git rebase --continue `的方式来处理冲突，完成 rebase 的过程，如果不想要某次 rebase 的结果，那么需要使用 `git rebase --skip `来跳过这次 rebase 操作。
 
-> 特别注意，只能在自己使用的 feature 分支上进行 rebase 操作，不允许在集成分支上
-> 进行 rebase，因为这种操作会修改集成分支的历史记录。
+> 特别注意，只能在自己使用的 feature 分支上进行 rebase 操作，不允许在集成分支上进行 rebase，因为这种操作会修改集成分支的历史记录。
 
 #### 交互模式
 
-- 在开发时，我们可能会有多个 commit，这个时候 push 的时候会产生多个 commit 信息
-  ，使用 rebase 可以将多个 commit 合并成一个
-- 合并分支的时候好会产生一条 merge 的 commit 信息。使用 rebase 不会产生 merge 的
-  commit 信息
+- 在开发时，我们可能会有多个 commit，这个时候 push 的时候会产生多个 commit 信息，使用 rebase 可以将多个 commit 合并成一个
+- 合并分支的时候好会产生一条 merge 的 commit 信息。使用 rebase 不会产生 merge 的 commit 信息
 
-> 比如说现在有三个本地 commit 还未 push，aa , bb ,cc，使用之前需要将工作区代码都
-> commit 掉。base-commit 就是指明操作的基点提交对象，基于这个基点进行 rebase 的
-> 操作，但是操作的对象**不包括这个 commit**
+> 比如说现在有三个本地 commit 还未 push，aa , bb ,cc，使用之前需要将工作区代码都 commit 掉。base-commit 就是指明操作的基点提交对象，基于这个基点进行 rebase 的操作，但是操作的对象**不包括这个 commit**
 
 ```
 git rebase -i <base-commit >
@@ -807,8 +721,7 @@ pick 946c0c3 cc   //这才是最后一条提交
 # x, exec <command> = run command (the rest of the line) using shell
 ```
 
-输入 i 进入编辑修改操作指令，修改提交信息，比如将 aa 跟 bb drop 掉，然后将最后一
-条 cc 给 reword 修改注释，然后 esc 退出编辑， wq 保存，注意要至少保留一个 pick
+输入 i 进入编辑修改操作指令，修改提交信息，比如将 aa 跟 bb drop 掉，然后将最后一条 cc 给 reword 修改注释，然后 esc 退出编辑， wq 保存，注意要至少保留一个 pick
 
 ```
 # //如果有冲突先解决冲突,如果 rebase 中途出现问题，可以使用git rebase --abort 恢复,停止操作。
@@ -836,27 +749,19 @@ $ git reset --hard  0c72e64
 
 > 在 rebase 中已经讲过 merge 的用法了，在这里就讲一下 merge 的三个参数
 
-`--ff`: (fast-forward)默认的提交方式。方式就是当条件允许（没有冲突的情况）的时候
-，git 直接把 HEAD 指针指向合并分支的头，完成合并。属于“快进方式”，不过这种情况如
-果删除分支，则会丢失分支信息。因为在这个过程中没有创建 commit。
+`--ff`: (fast-forward)默认的提交方式。方式就是当条件允许（没有冲突的情况）的时候，git 直接把 HEAD 指针指向合并分支的头，完成合并。属于“快进方式”，不过这种情况如果删除分支，则会丢失分支信息。因为在这个过程中没有创建 commit。
 
 `--no-ff`: 指的是强行关闭 fast-forward 方式。
 
-`--squash`: 是用来把一些不必要 commit 进行压缩，比如说，你的 feature 在开发的时
-候写的 commit 很乱，那么我们合并的时候不希望把这些历史 commit 带过来，于是使用
---squash 进行合并，此时文件已经同合并后一样了，但不移动 HEAD ，不提交。需要进行
-一次额外的 commit 来“总结”一下，然后完成最终的合并。
+`--squash`: 是用来把一些不必要 commit 进行压缩，比如说，你的 feature 在开发的时候写的 commit 很乱，那么我们合并的时候不希望把这些历史 commit 带过来，于是使用 --squash 进行合并，此时文件已经同合并后一样了，但不移动 HEAD ，不提交。需要进行一次额外的 commit 来“总结”一下，然后完成最终的合并。
 
-总结：默认不指定参数的情况下，没有冲突使用 --ff，不会多出来一个 merge commit，有
-冲突自动 --no-ff ，会自动生成一条 merge 信息
+总结：默认不指定参数的情况下，没有冲突使用 --ff，不会多出来一个 merge commit，有冲突自动 --no-ff ，会自动生成一条 merge 信息
 
 ## cherry-pick
 
-> 使用场景:当一个 bug 解决 或者功能 在 A 分支，这时 B 分支也需要这些 commit，那
-> 么可以使用 cherry-pick 将这些 commit 复制过来
+> 使用场景:当一个 bug 解决 或者功能 在 A 分支，这时 B 分支也需要这些 commit，那么可以使用 cherry-pick 将这些 commit 复制过来
 
-假设仓库中有三个分支：master、feature-a、feature-b。现在需要将 feature-a 中的两
-次 commit 合并到 feature-b 中
+假设仓库中有三个分支：master、feature-a、feature-b。现在需要将 feature-a 中的两次 commit 合并到 feature-b 中
 
 ```
 # //切换到feature-a 分支
@@ -869,9 +774,7 @@ $ git reflog/git log
 3.git cherry-pick 6b95b5 b09a488
 ```
 
-这时候，如果没有冲突的话， git log 就可以看到 feature-b 分支上会多出 2 次新的提
-交这个时候它是自动提交的，如果想不自动提交，执行：git cherry-pick 6b95b5 b09a488
--n
+这时候，如果没有冲突的话， git log 就可以看到 feature-b 分支上会多出 2 次新的提交这个时候它是自动提交的，如果想不自动提交，执行：git cherry-pick 6b95b5 b09a488 -n
 
 发生冲突：
 
@@ -883,21 +786,17 @@ $ git add -u
 $ git cherry-pick --ontinue
 ```
 
-> 注意：虽然表面上看似是将那两次提交拿过来再用一遍，但其实 Git 只是拿到修改生成
-> 了新的提交，因此，这里会看到这 2 个新的提交，commit-id 和我们挑选 commit-id 并
-> 不一致。
+> 注意：虽然表面上看似是将那两次提交拿过来再用一遍，但其实 Git 只是拿到修改生成了新的提交，因此，这里会看到这 2 个新的提交，commit-id 和我们挑选 commit-id 并不一致。
 
 其他有用参数：
 
 - -e/--edit：进行 cherry-pick 时，会在进行新的提交之前，重新编辑提交的信息
-- x：在记录提交时，会在原始提交消息后添加一行 cherry picked from commit …，以表
-  明此更改是从哪个提交中挑选出来的。 这仅适用于没有冲突的 cherry-pick
+- x：在记录提交时，会在原始提交消息后添加一行 cherry picked from commit …，以表明此更改是从哪个提交中挑选出来的。 这仅适用于没有冲突的 cherry-pick
 - -s/--signoff：在提交信息的末尾追加一行操作者的签名，表示是谁进行了这个操作
 
 ## tag(标签)
 
-> Git 可以给仓库历史中的某一个提交打上标签，以示重要。 比较有代表性的是人们会使
-> 用这个功能来标记发布结点（ v1.0 、 v2.0 等等）
+> Git 可以给仓库历史中的某一个提交打上标签，以示重要。 比较有代表性的是人们会使用这个功能来标记发布结点（ v1.0 、 v2.0 等等）
 
 **轻量标签**：就是简单输个标签名即可，不会有任何附带信息
 
@@ -923,8 +822,7 @@ $ git show /git show v1.0
 $ git tag -a v1.0 9fceb02
 ```
 
-推送标签到远程：不需要指定分支，它会在远程仓库共享，在仓库中可以找到 tag 并查看,
-不推送到远程只能在本地查看
+推送标签到远程：不需要指定分支，它会在远程仓库共享，在仓库中可以找到 tag 并查看, 不推送到远程只能在本地查看
 
 ```
 $ git push origin v1.0
@@ -951,9 +849,7 @@ $ git push origin -d v1.0
 
 ## .gitignore
 
-> 一般我们总会有些文件无需纳入 Git 的管理，也不希望它们总出现在未跟踪文件列表。
-> 通常都是些自动生成的文件，比如日志文件，或者编译过程中创建的临时文件等。我们可
-> 以创建一个名为 .gitignore 的文件，列出要忽略的文件模式。
+> 一般我们总会有些文件无需纳入 Git 的管理，也不希望它们总出现在未跟踪文件列表。通常都是些自动生成的文件，比如日志文件，或者编译过程中创建的临时文件等。我们可以创建一个名为 .gitignore 的文件，列出要忽略的文件模式。
 
 ```
 # 此为注释 – 将被 Git 忽略
@@ -973,5 +869,4 @@ doc/**/*.txt
 
 ## .gitkeep
 
-> .gitkeep 是一个占位文件。 Git 是不会把一个完全空的文件夹添加到版本控制里，为了
-> 让空文件夹被跟踪，常规做法是在空文件夹里添加.gitkeep。
+> .gitkeep 是一个占位文件。 Git 是不会把一个完全空的文件夹添加到版本控制里，为了让空文件夹被跟踪，常规做法是在空文件夹里添加.gitkeep。

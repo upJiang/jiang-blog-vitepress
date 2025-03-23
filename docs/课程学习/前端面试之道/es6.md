@@ -1,7 +1,6 @@
 ## var、let 及 const 区别
 
-为什么要存在提升这个事情呢，其实提升存在的根本原因就是为
-了`解决函数间互相调用的情况`
+为什么要存在提升这个事情呢，其实提升存在的根本原因就是为了`解决函数间互相调用的情况`
 
 ```
 function test1() {
@@ -34,10 +33,8 @@ let a = 1
 
 总结：
 
-- 函数提升优先于变量提升，函数提升会把整个函数挪到作用域顶部，变量提升只会把声明
-  挪到作用域顶部
-- `var` 存在提升，我们能在声明之前使用。`let、const` 因为暂时性死区的原因，不能
-  在声明前使用
+- 函数提升优先于变量提升，函数提升会把整个函数挪到作用域顶部，变量提升只会把声明挪到作用域顶部
+- `var` 存在提升，我们能在声明之前使用。`let、const` 因为暂时性死区的原因，不能在声明前使用
 - `var` 在全局作用域下声明变量会导致变量挂载在 `window` 上，其他两者不会
 - `let` 和 `const` 作用基本一致，但是后者声明的变量不能再次赋值
 
@@ -73,13 +70,8 @@ child instanceof Parent // true
 
 ## commonJs 跟 ES Module 的区别
 
-- CommonJS 支持动态导入，也就是 `require(${path}/xx.js)`，后者目前不支持，但是已
-  有提案
-- CommonJS 是同步导入，因为用于服务端，文件都在本地，同步导入即使卡住主线程影响
-  也不大。而后者是异步导入，因为用于浏览器，需要下载文件，如果也采用同步导入会对
-  渲染有很大影响 CommonJS 在导出时都是`值拷贝`，就算导出的值变了，导入的值也不会
-  改变，所以如果想更新值，必须重新导入一次。但是 ES Module 采用`实时绑定`的方式
-  ，导入导出的值都指向同一个内存地址，所以导入值会跟随导出值变化
+- CommonJS 支持动态导入，也就是 `require(${path}/xx.js)`，后者目前不支持，但是已有提案
+- CommonJS 是同步导入，因为用于服务端，文件都在本地，同步导入即使卡住主线程影响也不大。而后者是异步导入，因为用于浏览器，需要下载文件，如果也采用同步导入会对渲染有很大影响 CommonJS 在导出时都是`值拷贝`，就算导出的值变了，导入的值也不会改变，所以如果想更新值，必须重新导入一次。但是 ES Module 采用`实时绑定`的方式，导入导出的值都指向同一个内存地址，所以导入值会跟随导出值变化
 - ES Module 会编译成 require/exports 来执行的
 
 ## proxy
@@ -88,12 +80,9 @@ child instanceof Parent // true
 let p = new Proxy(target, handler)
 ```
 
-`target` 代表需要添加代理的对象，`handler` 用来自定义对象中的操作，比如可以用来
-自定义 set 或者 get 函数。
+`target` 代表需要添加代理的对象，`handler` 用来自定义对象中的操作，比如可以用来自定义 set 或者 get 函数。
 
-使用 Proxy 来实现一个数据响应式， Reflect.get 是获取一个对象的某个属性值
-，target：目标对象，property：键值，receiver：如果 target 对象中指定了
-getter，receiver 则为 getter 调用时的 this 值。
+使用 Proxy 来实现一个数据响应式， Reflect.get 是获取一个对象的某个属性值，target：目标对象，property：键值，receiver：如果 target 对象中指定了 getter，receiver 则为 getter 调用时的 this 值。
 
 ```
 let onWatch = (obj, setBind, getLogger) => {

@@ -21,8 +21,7 @@ pnpm i vitepress@"0.22.4" -D
 }
 ```
 
-运行 `pnpm run docs:dev`<br>
-<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/02decc8c90a74a8fb81ab01bcf87cd52~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/02decc8c90a74a8fb81ab01bcf87cd52~tplv-k3u1fbpfcp-watermark.image?)</a>
+运行 `pnpm run docs:dev`<br> <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/02decc8c90a74a8fb81ab01bcf87cd52~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/02decc8c90a74a8fb81ab01bcf87cd52~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 配置菜单
 
@@ -55,15 +54,11 @@ const config = {
 export default config
 ```
 
-- 重新运行生效：`pnpm run docs:dev`
-  ![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f3b8502b9b424af3949b6286fc6fa827~tplv-k3u1fbpfcp-watermark.image?)
+- 重新运行生效：`pnpm run docs:dev` ![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f3b8502b9b424af3949b6286fc6fa827~tplv-k3u1fbpfcp-watermark.image?)
 
 ## 组件 Demo 展示
 
-> 其实 markdown 是可以直接运行 html 代码的。而 Vitepress 中也含有 vue 实例，也就
-> 是说 vue 的代码也是可以直接运行的。唯一的问题就是如何将组件库加载。通过编写一
-> 个主题 theme 就可以获取 vue 实例。只需要在 enhanceApp 方法中注册组件库插件就可
-> 以了。
+> 其实 markdown 是可以直接运行 html 代码的。而 Vitepress 中也含有 vue 实例，也就是说 vue 的代码也是可以直接运行的。唯一的问题就是如何将组件库加载。通过编写一个主题 theme 就可以获取 vue 实例。只需要在 enhanceApp 方法中注册组件库插件就可以了。
 
 - 新建 `docs/.vitepress/theme/index.ts`
 

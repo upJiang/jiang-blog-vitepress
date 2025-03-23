@@ -33,8 +33,7 @@ transition 与 animation 相比来说，是简单得多的一个属性。它有�
 
 这里的四个部分，可以重复多次，指定多个属性的变换规则。
 
-实际上，有时候我们会把 transition 和 animation 组合，抛弃 animation 的
-timing-function，以编排不同段用不同的曲线。
+实际上，有时候我们会把 transition 和 animation 组合，抛弃 animation 的 timing-function，以编排不同段用不同的曲线。
 
 ```
 @keyframes mykf {

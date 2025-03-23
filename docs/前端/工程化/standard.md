@@ -8,8 +8,7 @@
 
 ## 添加 husky
 
-> 这个其实在我前面的文章有写过，现在采取更简单的方法写一遍，直接使用 lint-staged
-> 搭配 .lintstagedrc 去设置暂存区的 stylelint、eslint、以及 commit 信息的校验
+> 这个其实在我前面的文章有写过，现在采取更简单的方法写一遍，直接使用 lint-staged 搭配 .lintstagedrc 去设置暂存区的 stylelint、eslint、以及 commit 信息的校验
 
 **1. 安装依赖**
 
@@ -163,8 +162,7 @@ module.exports = {
 }
 ```
 
-**3. 添加配置文件 .prettierrc.js 文件，vscode 记得设置默认的格式化程序为
-prettier**
+**3. 添加配置文件 .prettierrc.js 文件，vscode 记得设置默认的格式化程序为 prettier**
 
 ```
 module.exports = {
@@ -210,8 +208,7 @@ trim_trailing_whitespace = false
 insert_final_newline = false
 ```
 
-至此，您保存文件的时候应该会自动修正 eslint，并且按照 prettier 格式保存执行 yarn
-lint 时会检测 暂存区文件的 eslint、stylelint
+至此，您保存文件的时候应该会自动修正 eslint，并且按照 prettier 格式保存执行 yarn lint 时会检测 暂存区文件的 eslint、stylelint
 
 ## 添加 stylelint
 
@@ -281,13 +278,11 @@ public/*
 }
 ```
 
-至此，当您保存有样式的文件的时候，会自动帮您格式化样式，在提交代码时会检查
-eslint、stylelint、commit 信息了。
+至此，当您保存有样式的文件的时候，会自动帮您格式化样式，在提交代码时会检查 eslint、stylelint、commit 信息了。
 
 ## 添加 tsc 的检查
 
-前面在 pre-commit 已经设置了 tsc 检查，在代码提交时会自动全局检测，这个我暂时并
-不知道如何能够只检测暂存区的 ts 规范，现在做的是全局检测,这里是针对 vue 项目的。
+前面在 pre-commit 已经设置了 tsc 检查，在代码提交时会自动全局检测，这个我暂时并不知道如何能够只检测暂存区的 ts 规范，现在做的是全局检测,这里是针对 vue 项目的。
 
 **1. 安装依赖**
 
@@ -323,6 +318,4 @@ yarn add @vue/cli-plugin-typescript -D
 }
 ```
 
-总结：现在我们已经做到在保存时自动 eslint 修正、prettier 格式化、stylelint 格式
-化暂存区提交时检测 eslint、stylelint，全局检测 ts 规范。
-[项目地址](https://github.com/upJiang/jiangVue3Test)
+总结：现在我们已经做到在保存时自动 eslint 修正、prettier 格式化、stylelint 格式化暂存区提交时检测 eslint、stylelint，全局检测 ts 规范。 [项目地址](https://github.com/upJiang/jiangVue3Test)

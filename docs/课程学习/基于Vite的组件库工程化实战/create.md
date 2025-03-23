@@ -1,10 +1,6 @@
 ## 创建项目
 
-> 这个项目的包管理工作选择目前比较流行的 Pnpm 完成。选择 Pnpm ，首先是由于 Pnpm
-> 优秀的管理机制，使得安装依赖非常迅速且节省空间。更重要的是，项目后期需要开发组
-> 件库的周边，比如 CLI 工具等。CLI 工具以单独软件包的形式发布在 npm 仓库之中，这
-> 样的话，一个 Repo 多个软件包的项目结构需要使用 monorepo 风格进行管理。pnpm 拥
-> 有的 workspace 功能可以很好地完成这样的工作。
+> 这个项目的包管理工作选择目前比较流行的 Pnpm 完成。选择 Pnpm ，首先是由于 Pnpm 优秀的管理机制，使得安装依赖非常迅速且节省空间。更重要的是，项目后期需要开发组件库的周边，比如 CLI 工具等。CLI 工具以单独软件包的形式发布在 npm 仓库之中，这样的话，一个 Repo 多个软件包的项目结构需要使用 monorepo 风格进行管理。pnpm 拥有的 workspace 功能可以很好地完成这样的工作。
 
 #### 从零开始自己搭建 Vite 项目
 
@@ -100,8 +96,7 @@ createApp(SButton).mount("#app");
 
 ## 支持 Vue 单文件 (SFC) 组件
 
-> Vue3.0 默认的包是不支持模板编译功能的，Vite 默认只能支持 TS 代码。而 Vue 的模
-> 板需要在编译阶段转换为 Typescript 代码 (渲染函数)才可以运行
+> Vue3.0 默认的包是不支持模板编译功能的，Vite 默认只能支持 TS 代码。而 Vue 的模板需要在编译阶段转换为 Typescript 代码 (渲染函数)才可以运行
 
 #### 安装 Vite 的 Vue 插件
 
@@ -152,8 +147,7 @@ createApp(SFCButton)
 
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fc689ad964474b1a9f3521f0ec1d6b8b~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fc689ad964474b1a9f3521f0ec1d6b8b~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
 
-在引用 .vue 模块时候，编辑器中 import 语句会有红色的警告。这是因为 Typescript 默
-认是不支持 .vue 类型的模块的。可以通过`添加一个模块的类型定义`来解决这个问题。
+在引用 .vue 模块时候，编辑器中 import 语句会有红色的警告。这是因为 Typescript 默认是不支持 .vue 类型的模块的。可以通过`添加一个模块的类型定义`来解决这个问题。
 
 src/shims-vue.d.ts
 
@@ -165,8 +159,7 @@ declare module "*.vue" {
 }
 ```
 
-为避免报错，请使用 16 版本的
-node，[升级 node 参考文章](https://juejin.cn/post/6998884224073744414)
+为避免报错，请使用 16 版本的 node，[升级 node 参考文章](https://juejin.cn/post/6998884224073744414)
 
 ## 库文件封装
 
@@ -265,8 +258,7 @@ package.json
   },
 ```
 
-执行后可以看到新生成 dist 打包结果目录
-<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e950b72dcad545ef8474812d5b022178~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e950b72dcad545ef8474812d5b022178~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
+执行后可以看到新生成 dist 打包结果目录 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e950b72dcad545ef8474812d5b022178~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e950b72dcad545ef8474812d5b022178~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
 
 ## 测试
 

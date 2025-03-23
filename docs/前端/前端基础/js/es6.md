@@ -24,10 +24,8 @@ function fn(){
 let不允许重复定义，直接报错
 ```
 
-- 函数提升优先于变量提升，函数提升会把整个函数挪到作用域顶部，变量提升只会把声明
-  挪到作用域顶部，声明而不会赋值
-- var 存在提升，我们能在声明之前使用。let、const 因为暂时性死区的原因，不能在声
-  明前使用
+- 函数提升优先于变量提升，函数提升会把整个函数挪到作用域顶部，变量提升只会把声明挪到作用域顶部，声明而不会赋值
+- var 存在提升，我们能在声明之前使用。let、const 因为暂时性死区的原因，不能在声明前使用
 - var 在全局作用域下声明变量会导致变量挂载在 window 上，其他两者不会
 - let 和 const 作用基本一致，但是后者声明的变量不能再次赋值
 
@@ -118,8 +116,7 @@ let show = (a) =>a    //参数，返回值
 show("aaa")
 ```
 
-> 使用箭头函数时，this 指向定义函数的位置，而不是函数内部，故在写小程序请求时外
-> 面包了已成 promise 之后不需要 let self= this ,它直接指向外层
+> 使用箭头函数时，this 指向定义函数的位置，而不是函数内部，故在写小程序请求时外面包了已成 promise 之后不需要 let self= this ,它直接指向外层
 
 <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cde7835210f64a33a59b86ec1cc0185e~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cde7835210f64a33a59b86ec1cc0185e~tplv-k3u1fbpfcp-watermark.image?)</a>
 
@@ -207,8 +204,7 @@ Object.is(+0,-0)  //false
 
 ### Object.assign()
 
-> 浅拷贝，Object.assign(目标源，数据，数据) 合并对象，将后面的对象合并到目标对象
-> 中，若有重复，后面的替换前面的
+> 浅拷贝，Object.assign(目标源，数据，数据) 合并对象，将后面的对象合并到目标对象中，若有重复，后面的替换前面的
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae6c4b9336914ba7b0a73091da4cb0f2~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae6c4b9336914ba7b0a73091da4cb0f2~tplv-k3u1fbpfcp-watermark.image?)</a>
 
@@ -259,16 +255,13 @@ import a from './modules/2.js' //只有default出来的不用花阔号
 
 ### import 详述
 
-1. import 可以是相对路径，也可以是绝对路径<br/> import
-   "https://code.jquery.com/jquery-3.3.1.js"
+1. import 可以是相对路径，也可以是绝对路径<br/> import "https://code.jquery.com/jquery-3.3.1.js"
 2. import 模块只引入一次，无论你导入多少次
 3. import './modules/1.js';如果这么用，相等于引入文件
 4. import 有提升的效果，import 会自动提升到顶部，首先执行。
 5. 导出去模块内容，如果里面有定时器更改，外面也会改动，不像 Comon 规范缓存
 
-import() 类似 node 里面 require，可以动态引入的，，而且他是有返回值的，是个
-promise 对象，而默认 import 语法不能写到 if 之类里面，因为他是静态的，必须先引入
-再调用。
+import() 类似 node 里面 require，可以动态引入的，，而且他是有返回值的，是个 promise 对象，而默认 import 语法不能写到 if 之类里面，因为他是静态的，必须先引入再调用。
 
 ```
 import('./modules/1.js').then({}res=>{
@@ -315,20 +308,17 @@ let syml = Symbpl('aaa');
 ### 注意
 
 1. Symbol 不能 new
-2. Symbol() 返回是一个唯一值。民间传说，做一个 key，定义一些唯一或者私有的一些东
-   西
+2. Symbol() 返回是一个唯一值。民间传说，做一个 key，定义一些唯一或者私有的一些东西
 3. Symbol 是一个单独的数据类型，就叫 symbol，基本类型。
 4. 如果 symbol 作为 key，用 for-in 循环是出不来的(比如用 json)
 
 ## generator
 
-> generator 函数 解决异步深度嵌套。手动调用，每执行一次 next()，就执行一个 yield
-> 的方法
+> generator 函数 解决异步深度嵌套。手动调用，每执行一次 next()，就执行一个 yield 的方法
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b75aa4db3ee4c608b6501d79e3a8f78~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b75aa4db3ee4c608b6501d79e3a8f78~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-generator 结合 axios 数据请求：
-<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3ce4a18ec5e44b8c921b62a8fe2ea7bb~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3ce4a18ec5e44b8c921b62a8fe2ea7bb~tplv-k3u1fbpfcp-watermark.image?)</a>
+generator 结合 axios 数据请求： <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3ce4a18ec5e44b8c921b62a8fe2ea7bb~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3ce4a18ec5e44b8c921b62a8fe2ea7bb~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a79f0c54715d46339fce0f38f2e09977~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a79f0c54715d46339fce0f38f2e09977~tplv-k3u1fbpfcp-watermark.image?)</a>
 
@@ -366,14 +356,11 @@ console.log(newArr);
 然后set变成数组之后，一些有关于数组的东西就可以使用了，比如map循环和filter过滤
 ```
 
-> new Set([]);存放数组，可用 add 添加 json 对象<br/> new WeakSet({});存放是对象
-> json，一般不用，不靠谱<br/> 确认，初始往里面加东西，是不行的，最好用 add 去添
-> 加吧。
+> new Set([]);存放数组，可用 add 添加 json 对象<br/> new WeakSet({});存放是对象 json，一般不用，不靠谱<br/> 确认，初始往里面加东西，是不行的，最好用 add 去添加吧。
 
 ## Map
 
-> 类似 json，但是 json 的键(key)只能是字符串,map 的可以是任何类型的,用
-> (key,value)标识，以 key 获取或者设置
+> 类似 json，但是 json 的键(key)只能是字符串,map 的可以是任何类型的,用 (key,value)标识，以 key 获取或者设置
 
 使用：
 
@@ -448,8 +435,7 @@ Math.cbrt(27);//计算一个数的立方根3
 
 ### 命名捕获
 
-<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?)</a><br/>
-<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d3629bdf0f74c24a99ccce49fcfb827~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d3629bdf0f74c24a99ccce49fcfb827~tplv-k3u1fbpfcp-watermark.image?)</a>
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e1c454f9204a4ed19664ef9c67f40402~tplv-k3u1fbpfcp-watermark.image?)</a><br/> <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d3629bdf0f74c24a99ccce49fcfb827~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7d3629bdf0f74c24a99ccce49fcfb827~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ### replace 替换
 
@@ -471,8 +457,7 @@ Math.cbrt(27);//计算一个数的立方根3
 
 <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/494f69c61de140faa8a61744f0867cf3~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/494f69c61de140faa8a61744f0867cf3~tplv-k3u1fbpfcp-watermark.image?)</a>
 
-<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb512b7762fc4e328b822831e51b2613~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb512b7762fc4e328b822831e51b2613~tplv-k3u1fbpfcp-watermark.image?)</a><br/>
-<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2e630ee4b7894870b16da23ed74d1da0~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2e630ee4b7894870b16da23ed74d1da0~tplv-k3u1fbpfcp-watermark.image?)</a>
+<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb512b7762fc4e328b822831e51b2613~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fb512b7762fc4e328b822831e51b2613~tplv-k3u1fbpfcp-watermark.image?)</a><br/> <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2e630ee4b7894870b16da23ed74d1da0~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2e630ee4b7894870b16da23ed74d1da0~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 #### set():设置，拦截
 

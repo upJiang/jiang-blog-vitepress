@@ -1,5 +1,4 @@
-> 使用 mock 模拟数据请求，在 vue3+vite 项目中我们将使用 vite-plugin-mock 插件来
-> 实现
+> 使用 mock 模拟数据请求，在 vue3+vite 项目中我们将使用 vite-plugin-mock 插件来实现
 
 **1. 安装插件**
 

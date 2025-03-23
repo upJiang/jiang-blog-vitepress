@@ -1,8 +1,6 @@
-“思想”并不是一坨剪不断理还乱、学了只能用来吹水的虚无概念。“思想”本质上就是套路，
-而且是普适性非常强的套路
+“思想”并不是一坨剪不断理还乱、学了只能用来吹水的虚无概念。“思想”本质上就是套路，而且是普适性非常强的套路
 
-在研究递归问题时，我觉得很有必要先了解 for 循环里面的递归是怎么一个执行顺序，否
-则直接往下学会很懵逼，看不懂代码
+在研究递归问题时，我觉得很有必要先了解 for 循环里面的递归是怎么一个执行顺序，否则直接往下学会很懵逼，看不懂代码
 
 ## 循环下的递归执行
 
@@ -76,12 +74,9 @@ cycle(0)
 
 这题的结果数量应该就是 m\*(m-1) = 6
 
-我们这样去思考，题目中不变的是“坑位”，我们手里有三张牌，我们要把牌发到坑位中。第
-一个坑位有三张牌能选，第二个坑位有两张，第三个坑位没得选。<br>
-<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a215aa6c68~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a215aa6c68~tplv-t2oaga2asx-watermark.awebp)</a>
+我们这样去思考，题目中不变的是“坑位”，我们手里有三张牌，我们要把牌发到坑位中。第一个坑位有三张牌能选，第二个坑位有两张，第三个坑位没得选。<br> <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a215aa6c68~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a215aa6c68~tplv-t2oaga2asx-watermark.awebp)</a>
 
-我们把它装换成一棵树看看：<br>
-<a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a21d81055e~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a21d81055e~tplv-t2oaga2asx-watermark.awebp)</a>
+我们把它装换成一棵树看看：<br> <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a21d81055e~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/3/171da9a21d81055e~tplv-t2oaga2asx-watermark.awebp)</a>
 
 现在来看，这个问题不就是一个 DFS 问题，解题思路就是递归。
 
@@ -170,11 +165,9 @@ const permute = function(nums) {
 
 ## 组合问题：变化的“坑位”，不变的“套路”
 
-> 题目描述：给定一组不含重复元素的整数数组 nums，返回该数组所有可能的子集（幂集
-> ）。说明：解集不能包含重复的子集。
+> 题目描述：给定一组不含重复元素的整数数组 nums，返回该数组所有可能的子集（幂集）。说明：解集不能包含重复的子集。
 
-示例: 输入: nums = [1,2,3]<br> 输出:<br> [ [3], [1],
-[2],[1,3],[2,3],[1,2],[1,2,3],[] ]<br>
+示例: 输入: nums = [1,2,3]<br> 输出:<br> [ [3], [1], [2],[1,3],[2,3],[1,2],[1,2,3],[] ]<br>
 
 跟上题对比：多了一个取不去取值的判断，但是不判断顺序，也没有限制取的个数
 
@@ -237,8 +230,7 @@ const subsets = function(nums) {
 
 ## 限定组合问题：及时回溯，即为“剪枝”
 
-> 题目描述：给定一组不含重复元素的整数数组 nums，返回该数组所有可能的子集（幂集
-> ）。说明：解集不能包含重复的子集。
+> 题目描述：给定一组不含重复元素的整数数组 nums，返回该数组所有可能的子集（幂集）。说明：解集不能包含重复的子集。
 
 ```
 示例: 输入: n = 4, k = 2
@@ -293,16 +285,12 @@ const combine = function(n, k) {
 
 看两个特征：
 
-- 题目中暗示了一个或多个解，并且要求我们详尽地列举出每一个解的内容时，一定要想到
-  DFS、想到递归回溯。
+- 题目中暗示了一个或多个解，并且要求我们详尽地列举出每一个解的内容时，一定要想到 DFS、想到递归回溯。
 - 题目经分析后，可以转化为树形逻辑模型求解。
 
 ### 怎么用
 
-一个模型——树形逻辑模型；两个要点——递归式和递归边界。<br> 树形逻辑模型的构建，关
-键在于找“坑位”，一个坑位就对应树中的一层，每一层的处理逻辑往往是一样的，这个逻辑
-就是递归式的内容。至于递归边界，要么在题目中约束得非常清楚、要么默认为“坑位”数量
-的边界。 <br> 用伪代码总结一下编码形式，大部分的题解都符合以下特征： <br>
+一个模型——树形逻辑模型；两个要点——递归式和递归边界。<br> 树形逻辑模型的构建，关键在于找“坑位”，一个坑位就对应树中的一层，每一层的处理逻辑往往是一样的，这个逻辑就是递归式的内容。至于递归边界，要么在题目中约束得非常清楚、要么默认为“坑位”数量的边界。 <br> 用伪代码总结一下编码形式，大部分的题解都符合以下特征： <br>
 
 ```
 function xxx(入参) {

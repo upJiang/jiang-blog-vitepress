@@ -15,19 +15,12 @@
 }
 ```
 
-- `configurable`：当且仅当该属性的 configurable 为 true 时，
-  该`属性描述符才能够被改变`，同时该属性也能从对应的对象上被删除。
-- `enumerable`：当且仅当该属性的 enumerable 为 true 时，该属
-  性`才能够出现在对象的枚举属性中`。
-- `value`：该属性对应的值。可以是任何有效的 JavaScript 值（数值，对象，函数等）
-  。
-- `writable`：当且仅当该属性的 writable 为 true 时，value 才能被赋值运算
-  符`改变`。
-- `get`：一个给属性提供 getter 的方法，如果没有 getter 则为 undefined。当访问该
-  属性时，该方法会被执行，方法执行时没有参数传入，但是会传入 this 对象（由于继承
-  关系，这里的 this 并不一定是定义该属性的对象）。
-- `set`：一个给属性提供 setter 的方法，如果没有 setter 则为 undefined。当属性值
-  修改时，触发执行该方法。该方法将接受唯一参数，即该属性新的参数值。
+- `configurable`：当且仅当该属性的 configurable 为 true 时，该`属性描述符才能够被改变`，同时该属性也能从对应的对象上被删除。
+- `enumerable`：当且仅当该属性的 enumerable 为 true 时，该属性`才能够出现在对象的枚举属性中`。
+- `value`：该属性对应的值。可以是任何有效的 JavaScript 值（数值，对象，函数等）。
+- `writable`：当且仅当该属性的 writable 为 true 时，value 才能被赋值运算符`改变`。
+- `get`：一个给属性提供 getter 的方法，如果没有 getter 则为 undefined。当访问该属性时，该方法会被执行，方法执行时没有参数传入，但是会传入 this 对象（由于继承关系，这里的 this 并不一定是定义该属性的对象）。
+- `set`：一个给属性提供 setter 的方法，如果没有 setter 则为 undefined。当属性值修改时，触发执行该方法。该方法将接受唯一参数，即该属性新的参数值。
 
 ## 获取属性描述符
 

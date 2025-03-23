@@ -1,5 +1,4 @@
-使用 [UnoCSS](https://github.com/unocss/unocss) 实现 AtomicCSS(可复用的行内样式
-，原子样式)
+使用 [UnoCSS](https://github.com/unocss/unocss) 实现 AtomicCSS(可复用的行内样式，原子样式)
 
 ## 引入 UnoCSS
 
@@ -75,8 +74,7 @@ createApp({
 
 跑起来后：
 
-<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e03b40ea6a534252afa17c4ec61f0515~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e03b40ea6a534252afa17c4ec61f0515~tplv-k3u1fbpfcp-watermark.image?)</a>
-到此为止，说明 UnoCSS 已经正常引入了。
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e03b40ea6a534252afa17c4ec61f0515~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e03b40ea6a534252afa17c4ec61f0515~tplv-k3u1fbpfcp-watermark.image?)</a> 到此为止，说明 UnoCSS 已经正常引入了。
 
 ## 实现组件属性定制按钮样式
 
@@ -149,8 +147,7 @@ export default defineComponent({
 
 #### 封装 UnoCSS 安全列表
 
-UnoCSS 提供了安全列表选项。也就是说，把样式定义中变量的取值添加到 Safelist 中去
-。这样 UnoCSS 就会根据 Safelist 生成样式了。
+UnoCSS 提供了安全列表选项。也就是说，把样式定义中变量的取值添加到 Safelist 中去。这样 UnoCSS 就会根据 Safelist 生成样式了。
 
 新建 config/unocss.ts
 
@@ -199,14 +196,11 @@ export default defineConfig({
 })
 ```
 
-效果图<br>
-<a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2a00fc62202c42babe71dc4cf9e4bbcd~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2a00fc62202c42babe71dc4cf9e4bbcd~tplv-k3u1fbpfcp-watermark.image?)</a>
+效果图<br> <a data-fancybox title="image.png" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2a00fc62202c42babe71dc4cf9e4bbcd~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2a00fc62202c42babe71dc4cf9e4bbcd~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 ## 【 Icon 图标按钮】实现
 
-在 UnoCSS 中引入图标，直接使用 [iconfy 网站](https://icones.js.org/)的图标代码即
-可，跟 iconFont 使用方法类似
-<a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b3c1022116a48a78ca902a78cf3b774~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b3c1022116a48a78ca902a78cf3b774~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
+在 UnoCSS 中引入图标，直接使用 [iconfy 网站](https://icones.js.org/)的图标代码即可，跟 iconFont 使用方法类似 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b3c1022116a48a78ca902a78cf3b774~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/1b3c1022116a48a78ca902a78cf3b774~tplv-k3u1fbpfcp-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
 
 例子：Uno 中使用 class="i-ic-baseline-search"，系统就会自动引用这个图标
 
@@ -337,8 +331,7 @@ createApp({
 
 ## Build 时单独导出 CSS
 
-使用 unocss 后，如果运行 pnpm build 的时候会报错。<br>
-<a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/13c2a76382fc4517ba4023db0b45ae6c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/13c2a76382fc4517ba4023db0b45ae6c~tplv-k3u1fbpfcp-watermark.image?)</a>
+使用 unocss 后，如果运行 pnpm build 的时候会报错。<br> <a data-fancybox title="image.png" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/13c2a76382fc4517ba4023db0b45ae6c~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/13c2a76382fc4517ba4023db0b45ae6c~tplv-k3u1fbpfcp-watermark.image?)</a>
 
 解决办法是根据提示增加编译选项 cssCodeSplit vite.config.ts
 

@@ -1,0 +1,14 @@
+{
+  "parser": "markdown",
+  "printWidth": 80,
+  "proseWrap": "preserve",
+  "tabWidth": 2,
+  "useTabs": false,
+  "singleQuote": true,
+  "trailingComma": "none",
+  "bracketSpacing": true,
+  "semi": false,
+  "requirePragma": false,
+  "insertPragma": false,
+  "endOfLine": "auto"
+} 
