@@ -109,7 +109,7 @@ title: 面试资料密码验证
     }
     
     // 检查密码
-    if (passwordInput.value === '123456') {
+    if (passwordInput.value === '530274') {
       console.log('密码正确');
       // 验证成功，设置授权状态
       try {
