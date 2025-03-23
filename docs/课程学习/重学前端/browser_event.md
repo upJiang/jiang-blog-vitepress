@@ -3,7 +3,9 @@
 在开始接触具体的 API 之前，我们要先了解一下事件。一般来说，事件来自输入设备，我们平时的个人设备上，输入设备有三种：
 
 - 键盘；
+
 - 鼠标；
+
 - 触摸屏。
 
 **这其中，触摸屏和鼠标又有一定的共性，它们被称作 pointer 设备，所谓 pointer 设备，是指它的输入最终会被抽象成屏幕上面的一个点。**但是触摸屏和鼠标又有一定区别，它们的精度、反应时间和支持的点的数量都不一样。
@@ -15,9 +17,13 @@ WIMP 是如此成功，以至于今天很多的前端工程师会有一个观点
 注意：
 
 - JS 代码只能执行捕获或者冒泡其中的一个阶段
+
 - onclick 和 attachEvent 只能得到冒泡阶段
+
 - addEventListener (type, listener[, useCapture]) 第三个参数如果是 true，表示在事件捕获阶段调用事件处理程序；如果是 false（不写默认就是 false），表示在事件冒泡阶段电泳事件处理程序。
+
 - 在实际开发中，我们很少使用事件捕获(低版本 ie 不兼容)，我们更关注事件冒泡
+
 - 有些事件是没有冒泡的，比如 onblur、onfocus、onmouseover、onmouseleave
 
 ## 捕获与冒泡
@@ -59,8 +65,11 @@ document.getElementById("i").addEventListener("mousedown", () => {
 我们监听了 body 和一个 body 的子元素上的鼠标按下事件，捕获和冒泡分别监听，可以看到，最终产生的顺序是：
 
 - “key1”
+
 - “key2”
+
 - “key22”
+
 - “key11”
 
 这是捕获和冒泡发生的完整顺序。
@@ -74,7 +83,9 @@ document.getElementById("i").addEventListener("mousedown", () => {
 addEventListener 有三个参数：
 
 - 事件名称；
+
 - 事件处理函数；
+
 - 捕获还是冒泡。
 
 事件处理函数不一定是函数，也可以是个 JavaScript 具有 handleEvent 方法的对象，看下例子：
@@ -89,7 +100,9 @@ document.body.addEventListener("keydown", o, false);
 第三个参数不一定是 bool 值，也可以是个对象，它提供了更多选项。
 
 - once：只执行一次。
+
 - passive：承诺此事件监听不会调用 preventDefault，这有助于性能。
+
 - useCapture：是否捕获（否则冒泡）。
 
 实际使用，在现代浏览器中，还可以不传第三个参数，我建议默认不传第三个参数，因为我认为冒泡是符合正常的人类心智模型的，大部分业务开发者不需要关心捕获过程。除非你是组件或者库的使用者，那就总是需要关心冒泡和捕获了。

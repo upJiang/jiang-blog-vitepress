@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const { globSync } = require('glob')
 
 /**
  * 格式化 Markdown 列表，在每个列表项之间添加空行
@@ -46,12 +47,62 @@ function formatMarkdownLists(filePath) {
   }
 }
 
-// 获取命令行参数
-const args = process.argv.slice(2)
-if (args.length === 0) {
-  console.error('请提供要处理的 Markdown 文件路径')
-  process.exit(1)
+/**
+ * 处理目录下的所有 Markdown 文件
+ * @param {string} pattern - glob 模式，用于查找 Markdown 文件
+ */
+function processAllMarkdownFiles(pattern = 'docs/**/*.md') {
+  try {
+    // 查找所有匹配的 Markdown 文件
+    const files = globSync(pattern)
+
+    if (files.length === 0) {
+      console.log(`没有找到匹配的 Markdown 文件: ${pattern}`)
+      return
+    }
+
+    console.log(`找到 ${files.length} 个 Markdown 文件`)
+
+    // 统计处理结果
+    let updated = 0
+    let skipped = 0
+    let failed = 0
+
+    // 处理每个文件
+    for (const file of files) {
+      const result = formatMarkdownLists(file)
+      if (result === true) {
+        updated++
+      } else if (result === false) {
+        skipped++
+      } else {
+        failed++
+      }
+    }
+
+    // 输出处理结果
+    console.log('\n===== 处理完成 =====')
+    console.log(`共处理: ${files.length} 个文件`)
+    console.log(`已更新: ${updated} 个文件`)
+    console.log(`无需更新: ${skipped} 个文件`)
+    if (failed > 0) {
+      console.log(`处理失败: ${failed} 个文件`)
+    }
+  } catch (error) {
+    console.error('处理文件时出错:', error)
+  }
 }
 
-// 处理文件
-formatMarkdownLists(args[0])
+// 获取命令行参数
+const args = process.argv.slice(2)
+
+if (args.length === 0) {
+  // 如果没有参数，处理所有 Markdown 文件
+  processAllMarkdownFiles()
+} else if (args[0] === '--all') {
+  // 明确指定处理所有文件
+  processAllMarkdownFiles()
+} else {
+  // 处理指定的文件
+  formatMarkdownLists(args[0])
+}

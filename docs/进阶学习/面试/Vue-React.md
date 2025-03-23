@@ -75,12 +75,19 @@ Reflect.get(obj, 'c',{a:3,b:2}) // 5
 ### react 跟 vue 的本质不同，哪个性能好
 
 - **React**
+
   - 函数式导向，JSX 语法扩展，强调不可变数据与组件组合，依赖外部状态管理（如 Redux）
+
   - 依赖 Virtual DOM 差异比对（Fiber 架构优化高复杂度场景）
+
   - React 的 Fiber 调度机制更适合复杂交互场景（如 Figma 类工具）
+
 - **Vue**
+
   - 渐进式框架，模板语法 + 响应式系统，内置状态管理（Vuex/Pinia），提供开箱即用的 CLI 工具链
+
   - Vue 通过响应式依赖追踪实现精准组件级更新（Proxy 劫持数据）
+
   - Vue 的模板编译优化（Compiler-informed fast paths）通常更高效
 
 ### v-model 原理
@@ -96,6 +103,7 @@ vue3 支持一个组件多个 v-model
 ### Vue3 收集依赖的原理
 
 - 用 WeakMap 存储依赖（key + 执行函数）
+
 - 在 proxy 劫持对象，在 get 方法中使用 track 收集依赖，在 set 方法中使用 trigger 触发执行函数
 
 ```javascript
@@ -150,19 +158,33 @@ function effect(fn) {
 React 的虚拟 dom 更新：
 
 - **构建虚拟 DOM 树** React 使用 `React.createElement` 将 JSX 转换为虚拟 DOM 对象（React 元素），形成一棵虚拟 DOM 树。
+
 - **触发更新机制** 当组件的 `state` 或 `props` 发生变化时，React 会触发更新流程：
+
   - 调用 `render` 方法，生成新的虚拟 DOM 树。
+
   - 将新旧虚拟 DOM 树进行对比。
+
 - **对比虚拟 DOM 树（Diff 算法）** React 的 Diff 算法优化了传统 O(n³) 的树对比，采用分层递归策略，将时间复杂度降低为 O(n)。具体过程如下：
+
   - **分层比较**：React 仅对同一层级的节点进行比较，不跨层级。
+
   - **节点类型判断**：
+
     - 如果节点类型相同，保留当前节点，仅对属性和子节点递归更新。
+
     - 如果节点类型不同，直接移除旧节点，添加新节点。
+
   - **Key 优化**：通过 `key` 标识节点，提高节点复用率，减少不必要的操作。
+
 - **生成更新队列** 在对比过程中，React 会生成一系列更新操作（增、删、改节点），并存入更新队列。
+
 - **批量更新真实 DOM** React 将更新操作应用到真实 DOM，尽量减少操作次数：
+
   - 使用 `requestAnimationFrame` 等技术合并多次更新。
+
   - 将所有更新操作打包为一次 DOM 操作。
+
 - **触发生命周期钩子** 更新完成后，React 调用组件的 `componentDidUpdate` 或 React Hook 中的 `useEffect` 钩子，通知开发者更新结束。
 
 vue3 虚拟 dom
@@ -243,6 +265,7 @@ render() {
 > ```
 
 - **旧版分拣**： 工人必须一口气分完所有包裹（组件更新），期间不能接电话（响应点击/滚动），导致客户投诉
+
 - **Fiber 分拣**： 工人每分拣 5 个包裹就抬头看看有没有紧急电话（高优先级任务），可以随时暂停/继续工作
 
 **三大核心改进**

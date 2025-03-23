@@ -5,7 +5,9 @@
 ### 区别
 
 - 脚本是可以由浏览器或者 node 环境引入执行的，模块只能由 JavaScript 代码用 import 引入执行。
+
 - 从概念上，我们可以认为脚本具有主动性的 JavaScript 代码段，是控制宿主完成一定任务的代码；而模块是被动性的 JavaScript 代码段，是等待被调用的库。
+
 - 我们对标准中的语法产生式做一些对比，不难发现，实际上模块和脚本之间的区别仅仅在于是否包含 import 和 export，模块有，脚本没有。
 
 在 script 标签的引入方式中，默认加载的文件是脚本，如果要引入模块，必须给 script 标签添加 type=“module”。如果引入脚本，则不需要 type。
@@ -30,9 +32,13 @@ export {a, b, c};
 **声明型语句前添加 export 关键字**:这里的 export 可以加在任何声明性质的语句之前，整理如下：
 
 - var
+
 - function (含 async 和 generator)
+
 - class
+
 - let
+
 - const
 
 export 还有一种特殊的用法，就是跟 default 联合使用。export default 表示导出一个默认变量值，它可以用于 function 和 class。这里导出的变量是没有名称的，可以使用 import x from "./a.js"这样的语法，在模块中引入。
@@ -68,12 +74,15 @@ import v from "mod";  //把模块默认的导出值放入变量v
 带 from 的 import 细分又有三种用法：
 
 - import x from "./a.js" 引入模块中导出的默认值。
+
 - import {a as x, modify} from "./a.js"; 引入模块中的变量。
+
 - import \* as x from "./a.js" 把模块中所有的变量以类似对象属性的方式引入。
 
 第一种方式还可以跟后两种组合使用。记忆方式就是只有默认的引入能够跟其它的组合
 
 - import d, {a as x, modify} from "./a.js"
+
 - import d, \* as x from "./a.js"
 
 语法要求不带 as 的默认值永远在最前。注意，这里的变量实际上仍然可以受到原来模块的控制。

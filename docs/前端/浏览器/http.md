@@ -1,9 +1,13 @@
 ## http 状态码
 
 - 1xx (Informational): 收到请求，正在处理
+
 - 2xx (Successful): 该请求已成功收到，理解并接受
+
 - 3xx (Redirection): 重定向
+
 - 4xx (Client Error): 该请求包含错误的语法或不能为完成
+
 - 5xx (Server Error): 服务器错误
 
 304 服务器根据 if-modified-since，缓存过期时间对比，返回 304，让客户端取缓存

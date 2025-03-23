@@ -11,7 +11,9 @@
 ### HTTP/0.9 是最初的版本，极其简单，只支持 GET 方法，没有头部，响应只能是 HTML。
 
 - **核心特征**：单行协议（`GET /index.html`）
+
 - **局限**：无状态码/头部/错误处理
+
 - **前端启示**：理解「请求-响应」基础模型
 
 ### 接下来是 HTTP/1.0，引入了状态码、头部字段、多内容类型支持，但每个请求需要新建连接，效率低。
@@ -21,9 +23,13 @@
 然后，串行请求意味着浏览器必须等一个请求完成之后才能发送下一个请求。如果前一个请求响应慢，后面的请求就会被阻塞，这会进一步降低页面加载速度。
 
 - **重大改进**：
+
   - 状态码（200/404 等）
+
   - 头部字段（Content-Type/User-Agent）
+
   - 支持非 HTML 内容（图片/CSS 等）
+
 - **痛点**：每个请求新建 TCP 连接（三次握手开销），请求串行，
 
 ```javascript
@@ -40,26 +46,42 @@ Content-Length: 1234
 - **核心突破**：
   1. 持久连接（**Connection: keep-alive**）
   - 通过`Connection: Keep-Alive`头部字段实现，底层 TCP 连接在完成首个请求后**不会立即关闭**，而是设置两个关键参数：
+
   - `Keep-Alive: timeout=5, max=100` ▶︎ 表示连接保持 5 秒，最多承载 100 次请求
+
   - 客户端和服务端通过**心跳检测包**维持连接活性 ![](https://r6kvtxijgm.feishu.cn/space/api/box/stream/download/asynccode/?code=ZGQ3OWQ4Mzg5Mzg5MjdhYTM0MWUyNTQyNmQwOGVlMzhfcDBCMFl5c0dFZjdLRjJCQUc1ejdESVJIeHY4R0o4WjBfVG9rZW46RGd2TmJQNEJ2b2NFd3V4d0JpZGM5SE9HbkdiXzE3NDI2NDg2MzY6MTc0MjY1MjIzNl9WNA)
   2. 管线化（Pipelining）
   - **非管线化模式**：请求 → 响应 → 请求 → 响应（串行） ![](https://r6kvtxijgm.feishu.cn/space/api/box/stream/download/asynccode/?code=YmUzMTE2ZjBiZTQ1NmUzN2NmZTE2YTZkNjhhMmQzMThfdFJMUmR2SFNFNEpxRmpubWJqYkY2TVdWVmUycjJEbHZfVG9rZW46RUlBcGJxMEE0b3FHMGp4ZWl5MmNNdEt1bkxsXzE3NDI2NDg2MzY6MTc0MjY1MjIzNl9WNA)
+
   - **管线化模式**：请求 1→ 请求 2→ 请求 3→ 响应 1→ 响应 2→ 响应 3（并行发送请求 ） ![](https://r6kvtxijgm.feishu.cn/space/api/box/stream/download/asynccode/?code=Yjg5YThjZmZlZjliNDAyM2IwZWE0ZDIxNjdkN2MxMGRfbzFqUHFBS2ZTcjE2akk1T2pTMWFZMHZWRHB4VVJzQmxfVG9rZW46QXlpcGJsdXRJb1VlaUt4S0ZsS2NDVFpnbnljXzE3NDI2NDg2MzY6MTc0MjY1MjIzNl9WNA) **串行请求是指客户端在发送下一个请求之前必须等待前一个请求的响应**，而**管线化允许客户端连续发送多个请求而无需等待响应。不过，虽然请求可以连续发送，但服务器必须按顺序返回响应，这可能导致队头阻塞**。虽然减少了 RTT 时间，但存在**队头阻塞**(HOL Blocking)问题
   3. 分块传输（Transfer-Encoding: chunked）当服务器不知道内容总大小时，可以将数据分成多个块发送，每个块包含自己的大小，最后以零长度的块结束应用场景比如动态内容生成、大文件流式传输。优点是不需要预先知道内容长度，支持流式处理；缺点是增加了一些传输开销 ![](https://r6kvtxijgm.feishu.cn/space/api/box/stream/download/asynccode/?code=MmUzYTIxYmEwYTFjZDFhMDFkNDljYjJlN2JhOTBkNWNfQ3pzUXNEM3NJSzJQdnZqTEVJcm1aSFZMR3dibVhnM1BfVG9rZW46VWFWdWJhUWdvb3EzNkp4RmwxZWN3UFJEbmplXzE3NDI2NDg2MzY6MTc0MjY1MjIzNl9WNA)
   4. 缓存控制（**Cache-Control/ETag**）
   - 强缓存：不会发送请求
+
     - Expires: http1.0 的产物，指定什么时候会过期 `Expires: Wed, 22 Oct 2018 08:41:00 GMT`，受限于本地时间，如果本地时间更改，则缓存时间也会失效
+
     - canche-contorl：针对 EXpires 的时间限制，于是 http1.1 的产物诞生，也是 http 实现长连接的根本，当设置了这个，请求能够在设定的时间内共用一个 TCP 连接
+
       - `Cache-control: max-age=30`,30 秒后过期
+
   - 协商缓存，会发送请求，然后比较本地资源
+
     - Last-Modified：以修改时间为标准的 `Last-Modified`，http1.0 的产物客户端会把 `If-Modified-Since`发送给服务端，服务端对比这个值跟当前的 `Last-Modified`,查看最后修改时间有没有变化，没有变化则返回 304，告知客户端使用本地缓存，由于是以修改时间为标准，如果一个资源周期性的修改，改了又改回来，那么也会被认为是修改了。
+
     - E-tag：基于 Last-Modified 的最后修改时间限制，一个针对于资源唯一性的产物 e-tag 诞生，http1.1 的产物，由文件内容 hash 生成，只有当资源改变才会被识别 成改变 Expires 跟 Last-Modified 都是 1.0 的产物，都是以时间为维度，于是 1.1 在这个基础做了优化，出现了更灵活的 canche-contorl 以及以资源为维度的 e-tag
+
 - **典型问题**：
+
   - 队头阻塞（Head-of-line blocking）
+
   - 冗余头部传输
+
 - **前端优化方案**：
+
   - 域名分片（突破浏览器并发连接数限制）
+
   - 雪碧图合并小图
+
   - 代码压缩（gzip）
 
 ### HTTP/2.0 则采用二进制分帧、多路复用、头部压缩等技术，进一步提升性能。
@@ -75,7 +97,9 @@ Content-Length: 1234
      ↙↘       匝道自动分流
     📦每个包裹（数据帧）都有专属快递单：
        - 收件人ID（Stream ID）
+
        - 紧急程度（优先级）
+
        - 包裹类型（HEADERS/DATA等）
 
      响应的根据 ID 识别
@@ -87,6 +111,7 @@ Content-Length: 1234
     ```
 
   - 二进制协议（替代文本协议）
+
     - HTTP/1.1 是基于文本的，比如请求行、头部都是 ASCII 编码，换行分隔，解析的时 候需要逐字符处理，容易出错，效率低。另外，文本协议无法多路复用，导致队头阻 塞问题。 **传统 HTTP/1.1 文本协议** → 像手写信件，解析的时候需要逐字符处理，也就是字符串
     ```javascript
     GET /index.html HTTP/1.1      → 信的开头必须写"亲启："
@@ -108,6 +133,7 @@ Content-Length: 1234
   - 头部压缩（HPACK 算法） HTTP/2 的头部压缩技术（HPACK 算法）就像给网络传输的「快递面单」做了智能优化，**让重复的信息不用每次都手写，而是直接贴条形码**
 
     - **预装通用模板（静态表）**
+
       - 内置 61 种常见头部组合，例如
         ```javascript
         2 → :method: GET
@@ -115,6 +141,7 @@ Content-Length: 1234
         33 → user-agent: Chrome
         ```
     - **动态更新模板（动态表）**
+
       - 在连接过程中**自动记录新出现的头部**，例如
       ```javascript
       第一次发送 → Cookie: session=abc
@@ -122,7 +149,9 @@ Content-Length: 1234
       后续发送 → 只需传数字62
       ```
       - **规则**：动态表大小有限（默认 4KB），新的条目会挤掉旧的
+
       - **特点**：高频字符用短码（如字母`e`用`101`），低频用长码
+
     - **超级压缩术（哈夫曼编码）**
 
       - 将文字转换为更短的二进制码，例如：
@@ -154,7 +183,9 @@ Content-Length: 1234
   **技术安全设计**
 
   - **防偷窥**：每个连接的动态表独立，避免不同网站间信息泄漏
+
   - **防溢出**：动态表有大小限制，默认超过 4KB 会自动清理旧条目
+
   - **防攻击**：采用哈夫曼编码而非 DEFLATE，避免类似 CRIME 漏洞的破解风险
 
   ***
@@ -231,11 +262,17 @@ server {
 ![](https://r6kvtxijgm.feishu.cn/space/api/box/stream/download/asynccode/?code=NzJmNjZjMjlmZDQ1MmMzNDMzYjg1NmQ5MjA0NTE3ODdfTEFLWmtYcHliV3VjaFNkUjU4RUUyRDMzMnc0WFVjdFBfVG9rZW46QXNyVWJKSzByb3p3OGR4cGFpUWNjOWhYbnNmXzE3NDI2NDg2MzY6MTc0MjY1MjIzNl9WNA)
 
 - **告别 TCP 限制**：QUIC 直接运行在 UDP 上，绕过了 TCP 的拥塞控制算法限制
+
 - **多路复用增强**：每个数据流独立传输，彻底解决 HTTP/2 的 **TCP 层队头阻塞**问题
+
   - Http1.1 的长连接，使用串行请求，会导致队头阻塞
+
   - Http2.0 使用多路复用，streamId 的方式，hack 表头压缩等方式，让请求可以不按照顺序响应解决了队头阻塞。但注意解决的是 http 层（应用层）的队头阻塞，tcp 层仍存在队头阻塞。那么 TCP（传输层） 为啥仍然有队头阻塞问题：**TCP 的有序传输特性导致即使应用层多路复用，底层数据包丢失仍会阻塞所有流。**
+
   - 那么 http2.0 如何解决 tcp （传输层）的队头阻塞： ![](https://r6kvtxijgm.feishu.cn/space/api/box/stream/download/asynccode/?code=MDM3ZGM2NTJkOGMyZWQzMGRjY2IyOWI3Njk4YzhkOTZfc1l6M2lWWnZWNlFRVmc1aDRsVjFGNHR0TVAyVGRPNE9fVG9rZW46SG1uTmJPV2lHb2RNMWJ4VGd4R2Nac29iblpkXzE3NDI2NDg2MzY6MTc0MjY1MjIzNl9WNA)
+
     - **核心机制**：基于 UDP 的 QUIC 协议，**每个数据流拥有独立序列号，丢包仅影响当前流**（如聊天消息与文件传输互不干扰
+
 - **连接迁移能力**：网络切换时（如 WiFi→4G）连接保持不中断
 
 #### http3.0 仍未被普及的原因：
@@ -254,10 +291,15 @@ server {
   ```
 
 - **生态支持不完善**
+
 - Chrome/Firefox/Edge 已支持,需手动开启 h3-flag
+
 - **性能权衡争议**
+
   - **CPU 消耗**：QUIC 加密计算负载比 TCP+TLS 高 15-20%
+
   - **小文件场景**：对 <10KB 的资源，协议优势不明显
+
   - **网络穿透性**：部分企业防火墙默认拦截 UDP 443
 
 ### HTTP 总结
@@ -265,28 +307,39 @@ server {
 #### **HTTP/0.9**
 
 - **定位**：初始版本，极简设计
+
 - **特性**：
+
   - 仅支持 `GET` 方法
+
   - 无头部/状态码，响应只能是 HTML
+
 - **局限**：无法处理错误或复杂内容
 
 #### **HTTP/1.0**
 
 - **突破**：
+
   - 引入状态码（200/404）和头部字段（如 `Content-Type`）
+
   - 支持非 HTML 内容（图片/CSS）
+
 - **痛点**：
+
   - 每次请求需新建 TCP 连接（三次握手开销）
+
   - 串行请求导致队头阻塞
 
 #### **HTTP/1.1**
 
 - **核心改进**：
+
   - **持久连接**：
     1. 通过 `Connection: Keep-Alive` 复用 TCP 连接（如 `Keep-Alive: timeout=5, max=100`）
   - **管线化**：
     1. 允许连续发送多个请求，但响应需按序返回（仍存在队头阻塞）
   - **分块传输**：支持流式内容（`Transfer-Encoding: chunked`）
+
   - **缓存优化**：
     1. `Cache-Control` 替代 `Expires`（更灵活）
     2. `ETag` 替代 `Last-Modified`（基于内容哈希）
@@ -295,22 +348,28 @@ server {
 #### **HTTP/2**
 
 - **技术革新**：
+
   - **二进制分帧**：
     1. 数据切割为带 `Stream ID` 的帧（多路复用，无需按序响应）
   - **头部压缩**：
     1. HPACK 算法（静态表 + 动态表 + 哈夫曼编码，节省 80% 流量）
   - **服务器推送**：主动推送关联资源（如 HTML + CSS + JS 并行传输）
+
 - **局限性**：TCP 层丢包仍阻塞所有流
 
 #### **HTTP/3**
 
 - **底层重构**：
+
   - **QUIC 协议**：
     1. 基于 UDP，每个流独立传输（彻底消除 TCP 层队头阻塞）
     2. 整合 TLS 1.3 实现强制加密
   - **连接迁移**：网络切换（如 WiFi→4G）保持连接
+
 - **部署挑战**：
+
   - 需同时监听 TCP/UDP 443 端口（Nginx 配置复杂）
+
   - 部分防火墙拦截 UDP 流量
 
 表格 还在加载中，请等待加载完成后再尝试复制
@@ -323,8 +382,11 @@ server {
    2. 检查 WebSocket 或 SSE 连接的稳定性（通过 `onerror` 和 `onclose` 事件监听）
 
 - 处理：
+
   - try catch 前端重试机制
+
   - 大文件上传使用分片（如每 5MB 一个 chunk）
+
   - HTTP/2，多路复用减少连接竞争
 
 ### TCP 的三次握手 & 四次挥手

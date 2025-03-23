@@ -21,9 +21,13 @@
 现行的组件化方案，目前有五种主流选择：
 
 - Web Component；
+
 - Vue；
+
 - React；
+
 - Angular；
+
 - 自研。
 
 Web Component 是 W3C 推行的规范，理论上是未来的选项；但是实际上这份标准的状态堪忧，Shadow DOM 的设计比较复杂，一般的前端掌握起来都比较困难。
@@ -47,7 +51,9 @@ Angular 是 Google 推出的 Web 框架，它是比较标准的 MVVM 模式。An
 适配问题主要适配的是屏幕的三个要素。
 
 - 单位英寸像素数（Pixel Per Inch，PPI）：现实世界的一英寸内像素数，决定了屏幕的显示质量。
+
 - 设备像素比率（Device Pixel Ratio，DPR）：物理像素与逻辑像素（px）的对应关系。
+
 - 分辨率（Resolution）：屏幕区域的宽高所占像素数。
 
 在当前环境下，分辨率适配可以使用 vw 单位解决，DPR 适配则需要用到 CSS 的 viewport 规则来控制缩放比例解决，而 PPI 主要影响的是文字，可以采用 media 规则来适配。

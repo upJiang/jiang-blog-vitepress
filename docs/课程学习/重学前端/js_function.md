@@ -125,7 +125,9 @@ JavaScript 用一个栈来管理执行上下文，这个栈中的每一项又包
 [[thisMode]] 私有属性有三个取值。
 
 - lexical：表示从上下文中找 this，这对应了箭头函数。
+
 - global：表示当 this 为 undefined 时，取全局对象，对应了普通函数。
+
 - strict：当严格模式时使用，this 严格按照调用时传入的值，可能为 null 或者 undefined。
 
 函数创建新的执行上下文中的词法环境记录时，会根据[[thisMode]]来标记新纪录的[[ThisBindingStatus]]私有属性。

@@ -632,13 +632,17 @@ const effectNameStr1 = () => { nameStr1 = `${person.name}是个大菜鸟` }
 **Proxy**：
 
 - 当 effect 函数执行时，即读取变量内容时，调用 get 方法并执行 track 方法。
+
 - 当变量改变时，调用 set 方法并执行 trigger 方法
 
 #### 总结过程
 
 - 将对象传入到封装的 Proxy 中，get 方法中执行 track，set 方法中执行 trigger
+
 - 编写 track 方法分发 effect 函数到 对应 dep 中，并全部存储到 weakMap 中，即收集
+
 - 编写 trigger 方法执行当前改变的变量对应的 dep 中的所有 effect 函数，即更新
+
 - 定义对象，定义 effect 函数自动触发 track 收集依赖；当对象属性值改变时，自动触发 trigger 执行属性对应的 dep 中的所有 effect 方法，更新视图。
 
 ## 实现 ref
@@ -756,6 +760,7 @@ proxyPerson.name = 'sunshine_lin' // 设置属性值触发set方法
 Reflect 的两个方法
 
 - `get(target, key, receiver)`：个人理解就是，访问`target`的`key`属性，但是`this`是指向`receiver`，所以实际是访问的值是`receiver`的`key`的值，但是这可不是直接访问`receiver[key]`属性，大家要区分一下
+
 - `set(target, key, value, receiver)`：个人理解就是，设置`target`的`key`属性为`value`，但是`this`是指向`receiver`，所以实际是是设置`receiver`的`key`的值为`value`，但这可不是直接`receiver[key] = value`，大家要区分一下
 
 正确的做法：
@@ -797,4 +802,5 @@ const proxyPerson = new Proxy(person, {
 那为什么建议 Proxy 和 Reflect 一起使用呢？因为 Proxy 和 Reflect 的方法都是一一对应的，在 Proxy 里使用 Reflect 会`提高语义化`
 
 - `Proxy`的`get`对应`Reflect.get`
+
 - `Proxy`的`set`对应`Reflect.set`

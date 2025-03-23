@@ -5,7 +5,9 @@
 semantic-release 的大致工作流程如下：
 
 - 提交到特定的分支触发 release 流程
+
 - 验证 commit 信息，生成 release note，打 git tag
+
 - 其他后续流程，如生成 CHANGELOG.md，npm publish 等等（通过插件完成）
 
 这里将使用 GithubAction 与 semantic-release 为我们的 github 项目搭建自动集成 changelong ，打 tags，更新版本号，GithubAcion 还能做更多的事情（比如发布 npm 包、build 等等），可自行查阅学习。

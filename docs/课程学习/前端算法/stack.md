@@ -11,9 +11,13 @@
 思路：
 
 - **关键思路就是栈入栈跟出栈的对称性，恰好括号也是对称的。最后一个入栈的左括号，第一个出栈的右括号一定要与之匹配**
+
 - 定义一个 Map，key 为左括号，value 为右括号
+
 - 定义一个栈 stack []，遍历字符串，将遇到的左括号映射的右括号 :`stack.push(leftToRight[ch])`入栈
+
 - 遇到的右括号必须要满足 stack.pop() <返回的是 pop 掉的值，即左括号映射的右括号> === 遇到的右括号，如果不满足或者 stack.length === 0：即没有左括号右括号就出现了。那么就返回 false
+
 - 最后遍历完后，stack 应该是空的，return !stack.length
 
 ```
@@ -26,6 +30,7 @@ const leftToRight = {
 
 /**
  * @param {string} s
+
  * @return {boolean}
  */
 const isValid = function(s) {
@@ -67,10 +72,15 @@ const isValid = function(s) {
 使用栈的方式：
 
 - 初始化一个结果数组：const res = (new Array(len)).fill(0) // 初始化结果数组，注意数组定长，占位为 0
+
 - 初始化一个栈 stack，`用于存储递减的温度对应的索引`，这个栈一定是递减的，并且每个数字只 push 一次
+
   - 这个逻辑有点绕，我们比较的时候，只会比较入栈后的数据与当前遍历的数据，并且数组的数据只会入栈一次，而且这个栈的数据一定是递减的
+
   - 比如说 [9,8,7,6,5,10],在遍历第一个 9 时，在不满足 arr[i] > 栈顶：arr[stack[stack.length - 1]] 时，我们只入栈不出栈，通过这个限制条件保证栈都是递减的
+
   - 当遇到 10 时，arr[i] > 栈顶：arr[stack[stack.length - 1]]：10 > 9,我们将栈顶 10 对应的索引 pop 掉，并且 10 的结果就是当前 10 的索引跟当前 i 的差值：res[top] = i - top
+
   - **注意注意：这个时候你已经遍历完了，进入到了 while(stack.length && T[i] > T[stack[stack.length-1]]) 的条件中，这时我们不断的把栈 pop 掉，一直循环 while 把前面的 [9,8,7,6,5]的结果都计算出来，并且都应该是跟 10 这个数字的差值。**很多人看不懂解题思路就是这里没理解好！！！
 
 上代码：
@@ -117,6 +127,7 @@ const MinStack = function() {
 
 /**
  * @param {number} x
+
  * @return {void}
  */
 // 栈的入栈操作，其实就是数组的 push 方法
@@ -162,8 +173,11 @@ MinStack.prototype.getMin = function() {
 **解法二** 思路：如何实现时间复杂度 0(1)，
 
 - 其实就是我们在用户操作 push、pop 的时候就以给它把最小值存储起来了。我们新增一个辅助栈，这个辅助栈是递减的
+
 - 在 push 时，除了正常栈的操作，我们还要判断当前入栈值是否比辅助栈的栈顶小，只有比较小才能入栈
+
 - 在 pop 时，除了正常栈的操作，我们还要判断当前出栈值在辅助栈是否存在，存在，则辅助栈也要出栈
+
 - 在上两个步骤完成后，那么这个正常栈的最小值就是辅助栈的栈顶了
 
 上代码：
@@ -177,6 +191,7 @@ const MinStack = function() {
 
 /**
  * @param {number} x
+
  * @return {void}
  */
 MinStack.prototype.push = function(x) {

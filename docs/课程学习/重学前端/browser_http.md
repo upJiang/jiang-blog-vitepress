@@ -24,6 +24,7 @@
 HTTP 标准由 IETF 组织制定，跟它相关的标准主要有两份：
 
 - HTTP1.1 https://tools.ietf.org/html/rfc2616
+
 - HTTP1.1 https://tools.ietf.org/html/rfc7234
 
 HTTP 协议是基于 TCP 协议出现的，对 TCP 协议来说，TCP 协议是一条双向的通讯通道，HTTP 在 TCP 的基础上，规定了 Request-Response 的模式。这个模式决定了通讯必定是由浏览器端首先发起的。
@@ -86,12 +87,19 @@ Strict-Transport-Security: max-age=15768000
 我们首先来介绍一下 request line 里面的方法部分。这里的方法跟我们编程中的方法意义类似，表示我们此次 HTTP 请求希望执行的操作类型。方法有以下几种定义：
 
 - GET
+
 - POST
+
 - HEAD
+
 - PUT
+
 - DELETE
+
 - CONNECT
+
 - OPTIONS
+
 - TRACE
 
 浏览器通过地址栏访问页面都是 **GET** 方法。表单提交产生 **POST** 方法。
@@ -109,17 +117,29 @@ Strict-Transport-Security: max-age=15768000
 接下来我们看看 response line 的状态码和状态文本。常见的状态码有以下几种。
 
 - 1xx：临时回应，表示客户端请继续。
+
 - 2xx：请求成功。
+
   - 200：请求成功。
+
 - 3xx: 表示请求的目标有变化，希望客户端进一步处理。
+
   - 301&302：永久性与临时性跳转。
+
   - 304：跟客户端缓存没有更新。
+
 - 4xx：客户端请求错误。
+
   - 403：无权限。
+
   - 404：表示请求的页面不存在。
+
   - 418：It’s a teapot. 这是一个彩蛋，来自 ietf 的一个愚人节玩笑。
+
 - 5xx：服务端请求错误。
+
   - 500：服务端错误。
+
   - 503：服务端暂时性错误，可以一会再试。
 
 对我们前端来说，1xx 系列的状态码是非常陌生的，原因是 1xx 的状态被浏览器 HTTP 库直接处理掉了，不会让上层应用知晓。
@@ -151,8 +171,11 @@ HTTP 头可以看作一个键值对。原则上，HTTP 头也是一种数据，�
 HTTP 请求的 body 主要用于提交表单场景。实际上，HTTP 请求的 body 是比较自由的，只要浏览器端发送的 body 服务端认可就可以了。一些常见的 body 格式是：
 
 - application/json
+
 - application/x-www-form-urlencoded
+
 - multipart/form-data
+
 - text/xml
 
 我们使用 HTML 的 form 标签提交产生的 HTML 请求，默认会产生 application/x-www-form-urlencoded 的数据格式，当有文件上传时，则会使用 multipart/form-data。
@@ -164,6 +187,7 @@ HTTP 请求的 body 主要用于提交表单场景。实际上，HTTP 请求的 
 我们首先来了解下 HTTPS。HTTPS 有两个作用
 
 - 确定请求的目标服务端身份
+
 - 保证传输的数据不会被网络中间节点窃听或者篡改
 
 HTTPS 的标准也是由 RFC 规定的，你可以查看它的[详情链接](https://tools.ietf.org/html/rfc2818)

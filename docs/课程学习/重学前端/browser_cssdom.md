@@ -51,14 +51,23 @@ document.styleSheets[0].cssRules
 我们在 CSS 语法部分，已经为你整理过 at-rule 的完整列表，多数 at-rule 都对应着一个 rule 类型：
 
 - CSSStyleRule
+
 - CSSCharsetRule
+
 - CSSImportRule
+
 - CSSMediaRule
+
 - CSSFontFaceRule
+
 - CSSPageRule
+
 - CSSNamespaceRule
+
 - CSSKeyframesRule
+
 - CSSKeyframeRule
+
 - CSSSupportsRule
 
 具体的规则支持的属性，建议你可以用到的时候，再去查阅 MDN 或者 W3C 的文档，在我们的文章中，仅为你详细介绍最常用的 CSSStyleRule。
@@ -88,8 +97,11 @@ CSSOM View 这一部分的 API，可以视为 DOM API 的扩展，它在原本�
 窗口 API 用于操作浏览器窗口的位置、尺寸等。
 
 - moveTo(x, y) 窗口移动到屏幕的特定坐标；
+
 - moveBy(x, y) 窗口移动特定距离；
+
 - resizeTo(x, y) 改变窗口大小到特定尺寸；
+
 - resizeBy(x, y) 改变窗口大小特定尺寸。
 
 此外，窗口 API 还规定了 window.open() 的第三个参数：
@@ -109,8 +121,11 @@ window.open("about:blank", "_blank" ,"width=100,height=100,left=100,right=100" )
 可视区域（视口）滚动行为由 window 对象上的一组 API 控制，我们先来了解一下：
 
 - scrollX 是视口的属性，表示 X 方向上的当前滚动距离，有别名 pageXOffset；
+
 - scrollY 是视口的属性，表示 Y 方向上的当前滚动距离，有别名 pageYOffset；
+
 - scroll(x, y) 使得页面滚动到特定的位置，有别名 scrollTo，支持传入配置型参数 {top, left}；
+
 - scrollBy(x, y) 使得页面滚动特定的距离，支持传入配置型参数 {top, left}。
 
 通过这些属性和方法，我们可以读取视口的滚动位置和操纵视口滚动。不过，要想监听视口滚动事件，我们需要在 document 对象上绑定事件监听函数：
@@ -128,11 +143,17 @@ document.addEventListener("scroll", function(event){
 接下来我们来认识一下元素滚动 API，在 Element 类（参见 DOM 部分），为了支持滚动，加入了以下 API。
 
 - scrollTop 元素的属性，表示 Y 方向上的当前滚动距离。
+
 - scrollLeft 元素的属性，表示 X 方向上的当前滚动距离。
+
 - scrollWidth 元素的属性，表示元素内部的滚动内容的宽度，一般来说会大于等于元素宽度。
+
 - scrollHeight 元素的属性，表示元素内部的滚动内容的高度，一般来说会大于等于元素高度。
+
 - scroll(x, y) 使得元素滚动到特定的位置，有别名 scrollTo，支持传入配置型参数 {top, left}。
+
 - scrollBy(x, y) 使得元素滚动到特定的位置，支持传入配置型参数 {top, left}。
+
 - scrollIntoView(arg) 滚动元素所在的父元素，使得元素滚动到可见区域，可以通过 arg 来指定滚到中间、开始或者就近。
 
 除此之外，可滚动的元素也支持 scroll 事件，我们在元素上监听它的事件即可：
@@ -156,11 +177,17 @@ window 对象上提供了一些全局的尺寸信息，它是通过属性来提�
 ![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c194c756f37e4e1c837f075cd6c721b9~tplv-k3u1fbpfcp-watermark.image?)
 
 - window.innerHeight, window.innerWidth 这两个属性表示视口的大小。
+
 - window.outerWidth, window.outerHeight 这两个属性表示浏览器窗口占据的大小，很多浏览器没有实现，一般来说这两个属性无关紧要。
+
 - window.devicePixelRatio 这个属性非常重要，表示物理像素和 CSS 像素单位的倍率关系，Retina 屏这个值是 2，后来也出现了一些 3 倍的 Android 屏。
+
 - window.screen （屏幕尺寸相关的信息）
+
   - window.screen.width, window.screen.height 设备的屏幕尺寸。
+
   - window.screen.availWidth, window.screen.availHeight 设备屏幕的可渲染区域尺寸，一些 Android 机器会把屏幕的一部分预留做固定按钮，所以有这两个属性，实际上一般浏览器不会实现的这么细致。
+
   - window.screen.colorDepth, window.screen.pixelDepth 这两个属性是固定值 24，应该是为了以后预留。
 
 虽然 window 有这么多相关信息，在我看来，我们主要使用的是 `innerHeight`、`innerWidth` 和 `devicePixelRatio` 三个属性，因为我们前端开发工作只需要跟视口打交道，其它信息大概了解即可。
@@ -174,6 +201,7 @@ window 对象上提供了一些全局的尺寸信息，它是通过属性来提�
 所以我们获取宽高的对象应该是“盒”，于是 CSSOM View 为 Element 类添加了两个方法：
 
 - getClientRects();
+
 - getBoundingClientRect()。
 
 **getClientRects** 会返回一个列表，里面包含元素对应的每一个盒所占据的客户端矩形区域，这里每一个矩形区域可以用 x, y, width, height 来获取它的位置和尺寸。

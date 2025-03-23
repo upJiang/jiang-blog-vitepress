@@ -36,15 +36,21 @@
 在大多数情况下，我们只关心数据属性的值即可。
 
 - value：就是属性的值。
+
 - writable：决定属性能否被赋值。
+
 - enumerable：决定 for in 能否枚举该属性。
+
 - configurable：决定该属性能否被删除或者改变特征值。
 
 ## 访问器（getter/setter）属性
 
 - getter：函数或 undefined，在取属性值时被调用。
+
 - setter：函数或 undefined，在设置属性值时被调用。
+
 - enumerable：决定 for in 能否枚举该属性。
+
 - configurable：决定该属性能否被删除或者改变特征值。
 
 访问器属性使得属性在读和写时执行代码，它允许使用者在写和读属性时，得到完全不同的值，它可以视为一种函数的语法糖。
@@ -85,9 +91,13 @@ console.log(o.a); // 1
 ## 对象分类
 
 - 宿主对象（host Objects）：由 JavaScript 宿主环境提供的对象，它们的行为完全由宿主环境决定。
+
 - 内置对象（Built-in Objects）：由 JavaScript 语言提供的对象。
+
   - 固有对象（Intrinsic Objects ）：由标准规定，随着 JavaScript 运行时创建而自动创建的对象实例。
+
   - 原生对象（Native Objects）：可以由用户通过 Array、RegExp 等内置构造器或者特殊语法创建的对象。
+
   - 普通对象（Ordinary Objects）：由{}语法、Object 构造器或者 class 关键字定义类创建的对象，它能够被原型继承。
 
 ### 宿主对象
@@ -200,10 +210,15 @@ for(var i = 0; i < objects.length; i++) {
 这些构造器创建的对象多数使用了私有字段, 例如：
 
 - Error: [[ErrorData]]
+
 - Boolean: [[BooleanData]]
+
 - Number: [[NumberData]]
+
 - Date: [[DateValue]]
+
 - RegExp: [[RegExpMatcher]]
+
 - Symbol: [[SymbolData]]Map: [[MapData]]
 
 这些字段使得原型继承方法无法正常工作，所以，我们可以认为，所有这些原生对象都是为了特定能力或者性能，而设计出来的“特权对象”。
@@ -243,7 +258,9 @@ var o = new f(); //把f作为构造器调用
 它们[[construct]]的执行过程如下：
 
 - 以 Object.prototype 为原型创建一个新对象；
+
 - 以新对象为 this，执行函数的[[call]]；
+
 - 如果[[call]]的返回值是对象，那么，返回这个对象，否则返回第一步创建的新对象。
 
 这样的规则造成了个有趣的现象，如果我们的构造器返回了一个新的对象，那么 new 创建的新对象就变成了一个构造函数之外完全无法访问的对象，这一定程度上可以实现“私有”。
@@ -257,9 +274,15 @@ function cls(){    this.a = 100; //除了函数内，其它地方都无法访问
 > 在固有对象和原生对象中，有一些对象的行为跟正常对象有很大区别。
 
 - Array：Array 的 length 属性根据最大的下标自动发生变化。
+
 - Object.prototype：作为所有正常对象的默认原型，不能再给它设置原型了。
+
 - String：为了支持下标运算，String 的正整数属性访问会去字符串里查找。
+
 - Arguments：arguments 的非负整数型下标属性跟对应的变量联动。模块的
+
 - namespace 对象：特殊的地方非常多，跟一般对象完全不一样，尽量只用于 import 吧。
+
 - 类型数组和数组缓冲区：跟内存块相关联，下标运算比较特殊。
+
 - bind 后的 function：跟原来的函数相关联。

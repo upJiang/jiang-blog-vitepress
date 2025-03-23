@@ -3,12 +3,15 @@
 缓存可以说是性能优化中简单高效的一种优化方式了，它可以显著减少网络传输所带来的损耗:
 
 - `强缓存`：让我们`直接使用缓存而不发起请求
+
 - `协商缓存`：发起了请求但后端存储的数据和前端一致,那么就没有必要再将数据回传回来，这样就减少了响应数据。
 
 通过以下几个部分来探讨浏览器缓存机制：
 
 - 缓存位置
+
 - 缓存策略
+
 - 实际场景应用缓存策略
 
 ## 缓存位置
@@ -16,12 +19,19 @@
 从缓存位置上来说分为四种，并且各自有优先级，当依次查找缓存且都没有命中的时候，才会去请求网络:
 
 - Service Worker（F12 里面的 application 中可以看到）：
+
   - 浏览器背后的独立线程，一般可以用来实现缓存功能。使用 Service Worker 的话，传输协议必须为 HTTPS。因为 Service Worker 中涉及到请求拦截，所以必须使用 HTTPS 协议来保障安全。
+
     - Service Worker 实现缓存功能一般分为三个步骤：首先需要先注册 Service Worker，然后监听到 install 事件以后就可以缓存需要的文件，那么在下次用户访问的时候就可以通过拦截请求的方式查询是否存在缓存，存在缓存的话就可以直接读取缓存文件，否则就去请求数据。
+
 - Memory Cache：Memory Cache 也就是内存中的缓存，读取内存中的数据肯定比磁盘快。但是内存缓存虽然读取高效，可是缓存持续性很短，会随着进程的释放而释放。type 为 `script`
+
   - <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/12/5/1677db8003dc8311~tplv-t2oaga2asx-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/12/5/1677db8003dc8311~tplv-t2oaga2asx-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
 - Disk Cache：存储在硬盘中的缓存，读取速度慢点，但是什么都能存储到磁盘中，比之 Memory Cache 胜在容量和存储时效性上。
+
 - Push Cache：HTTP/2 中的内容，当以上三种缓存都没有命中时，它才会被使用。并且缓存时间也很短暂，只在会话（Session）中存在，一旦会话结束就被释放。
+
 - 网络请求
 
 ## 缓存
@@ -69,6 +79,7 @@ Cache-Control 可以在请求头或者响应头中设置，并且可以组合使
 缺点：
 
 - 最小单位是秒。也就是说如果我`短时间内资源发生了改变，Last-Modified 并不会发生变化`；
+
 - 周期性变化。如果这个资源在一个周期内修改回原来的样子了，我们认为文件是没有变化的是可以使用缓存的，但是 Last-Modified 记录的是上次修改时间，即使文件没有变化，但修改时间变了，所以它认为缓存失效
 
 因为以上这些弊端，所以在 HTTP / 1.1 出现了 `ETag` 。
@@ -116,9 +127,13 @@ Etag 一般是由`文件内容 hash 生成`的，也就是说它可以`保证资
 <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7069667fcf2f47f3a840ee1026dabfb2~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7069667fcf2f47f3a840ee1026dabfb2~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
 
 - 当浏览器接收到这些字节数据以后，它会将这些`字节数据转换为字符串`，也就是我们写的代码。
+
 - 当数据转换为字符串以后，浏览器会先将这些字符串`通过词法分析转换为标记（token）`，这一过程在词法分析中叫做`标记化`（tokenization）。标记还是字符串，是构成代码的最小单位。这一过程会将代码分拆成一块块，并给这些内容打上标记，便于理解这些最小单位的代码是什么意思。
+
   - <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2ea575740a2f4d0a9400779d56a70182~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/2ea575740a2f4d0a9400779d56a70182~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
+
 - 当结束标记化后，这些`标记会紧接着转换为 Node`，最后这些 Node 会`根据不同 Node 之间的联系构建为一颗 DOM 树`。
+
   - <a data-fancybox title="img" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/af1ec0497504475287d7a11f988a9496~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/af1ec0497504475287d7a11f988a9496~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
 
 ### 将 CSS 文件转换为 CSSOM 树
@@ -174,6 +189,7 @@ Etag 一般是由`文件内容 hash 生成`的，也就是说它可以`保证资
 然后当浏览器在解析到 `script` 标签时，会`暂停构建 DOM`，完成后才会从暂停的地方重新开始。也就是说，如果你想首屏渲染的越快，就越不应该在首屏就加载 JS 文件，这也是都建议将 script 标签放在 body 标签底部的原因。当然在当下，并不是说 script 标签必须放在底部，因为你可以给 script 标签添加 defer 或者 async 属性。
 
 - defer: 当 script 标签加上 defer 属性以后，表示该 JS 文件会并行下载，但是会放到 HTML 解析完成后顺序执行，所以对于这种情况你可以把 script 标签放在任意位置。
+
 - async: 对于没有任何依赖的 JS 文件可以加上 async 属性，表示 JS 文件下载和解析不会阻塞渲染。
 
 ## 重绘（Repaint）和回流（Reflow）
@@ -181,6 +197,7 @@ Etag 一般是由`文件内容 hash 生成`的，也就是说它可以`保证资
 重绘和回流会在我们设置节点样式时频繁出现，同时也会很大程度上影响性能。
 
 - 重绘: 当节点需要`更改外观而不会影响布局`的，比如改变 color 就叫称为重绘
+
 - 回流: 布局或者`几何属性`需要改变就称为回流。
 
 **回流必定会发生重绘，重绘不一定会引发回流**。回流所需的成本比重绘高的多，改变父节点里的子节点很可能会导致父节点的一系列回流。
@@ -188,10 +205,15 @@ Etag 一般是由`文件内容 hash 生成`的，也就是说它可以`保证资
 以下几个动作可能会导致性能问题：
 
 - 改变 window 大小
+
 - 改变字体
+
 - 添加或删除样式
+
 - 文字改变
+
 - 定位或者浮动
+
 - 盒模型
 
 重绘和回流其实也和 Eventloop 有关：<br> 当 Eventloop 执行完 Microtasks(微任务) 后，会判断 document 是否需要更新，因为浏览器是 60Hz 的刷新率，每 16.6ms 才会更新一次。然后判断是否有 resize 或者 scroll 事件，有的话会去触发事件，所以 resize 和 scroll 事件也是至少 16ms 才会触发一次，并且自带节流功能。
@@ -199,10 +221,15 @@ Etag 一般是由`文件内容 hash 生成`的，也就是说它可以`保证资
 如果在一帧中有空闲时间，就会去执行 requestIdleCallback 回调，并做以下事情：
 
 - 判断是否触发了 media query
+
 - 更新动画并且发送事件
+
 - 判断是否有全屏操作事件
+
 - 执行 requestAnimationFrame 回调
+
 - 执行 IntersectionObserver 回调，该方法用于判断元素是否可见，可以用于懒加载上，但是兼容性不好
+
 - 更新界面
 
 ## 减少重绘和回流
@@ -229,6 +256,7 @@ Etag 一般是由`文件内容 hash 生成`的，也就是说它可以`保证资
 ```
 
 - 使用 `visibility` 替换 `display: none` ，因为前者只会引起重绘，后者会引发回流（改变了布局）
+
 - 不要把节点的属性值放在一个循环里当成循环里的变量
 
 ```
@@ -239,8 +267,11 @@ for(let i = 0; i < 1000; i++) {
 ```
 
 - 不要使用 table 布局，可能很小的一个小改动会造成整个 table 的重新布局
+
 - 动画实现的速度的选择，动画速度越快，回流次数越多，也可以选择使用 requestAnimationFrame
+
 - CSS 选择符`从右往左`匹配查找，避免节点层级过多
+
 - 将频繁重绘或者回流的节点设置为图层，图层能够阻止该节点的渲染行为影响别的节点。比如对于 video 标签来说，浏览器会自动将该节点变为图层。 <a data-fancybox title="img" href="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/050b7528bc47418a893ea02f76cbeebb~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/050b7528bc47418a893ea02f76cbeebb~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a> - 设置节点为图层的方式有很多，我们可以通过以下几个常用属性可以生成新图层 - `will-change` - `video`、`iframe` 标签
 
 > 思考题：在不考虑缓存和优化网络协议的前提下，考虑可以通过哪些方式来最快的渲染页面，也就是常说的关键渲染路径，这部分也是性能优化中的一块内容。
@@ -252,6 +283,9 @@ for(let i = 0; i < 1000; i++) {
 如何加速：
 
 - 从文件大小考虑
+
 - 从 script 标签使用上来考虑
+
 - 从 CSS、HTML 的代码书写上来考虑
+
 - 从需要下载的内容是否需要在首屏使用上来考虑

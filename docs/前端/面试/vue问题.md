@@ -17,11 +17,13 @@ immediate 是否初始值就执行
 在任务队列中的异步任务又可以分为两种 microtast（微任务） 和 macrotask（宏任务）, 执行优先级上，先执行宏任务 macrotask，再执行微任务 mincrotask。
 
 - **microtast（微任务）**：Promise， process.nextTick， Object.observe， MutationObserver
+
 - **macrotask（宏任务）**：script 整体代码、setTimeout、 setInterval 等
 
 执行过程中需要注意的几点是：
 
 - 在一次 event loop 中，microtask 在这一次循环中是一直取一直取，直到清空 microtask 队列，而 macrotask 则是一次循环取一次。
+
 - 如果执行事件循环的过程中又加入了异步任务，如果是 macrotask，则放到 macrotask 末尾，等待下一轮循环再执行。如果是 microtask，则放到本次 event loop 中的 microtask 任务末尾继续执行。直到 microtask 队列清空。
 
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/27/17254aa257de1477~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/5/27/17254aa257de1477~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.awebp)</a>
@@ -50,10 +52,15 @@ console.log(7);
 ```
 
 - 由于 script 也属于 macrotask，所以整个 script 里面的内容都放到了主线程（任务栈）中，按顺序执行代码。然后遇到 console.log(1)，直接打印 1。
+
 - 遇到 setTimeout,表示 0 秒后加入任务队列，因为 setTimeout 是一个宏观任务，所以会放到下一个 macrotask，这里不会执行
+
 - 遇到 new Promise，new Promise 在实例的过程中执行代码都是同步进行的，只有回调 .then()才是微任务。所以先打印 3。执行完循环打印 4。然后遇到第一个 .then()，属于 microtask，加入到本次循环的 microtask 队列里面。接着向下执行又遇到一个 .then()，又加入到本次循环的 microtask 队列里面。然后继续向下执行。
+
 - 遇到 console.log(7)，直接打印 7。直到此时，一个事件循环的 macrotask 执行完成，然后去查看此次循环是否还有 microtask，发现还有刚才的 .then() ，立即放到主线程执行，打印出 5。然后发现还有第二个 .then()，立即放到主线程执行，打印出 6 。此时 microtask 任务列表清空完了。到此第一次循环完成。
+
 - 第二次事件循环，从 macrotask 任务列表里面找到了第一次放进的 setTimeout，放到主线程执行，打印出 2。
+
 - 最终打印的结果：1、3、4、7、5、6、2
 
 ## $nextTick、原理
@@ -77,7 +84,9 @@ Vue 在更新 DOM 时是异步执行的。只要侦听到数据变化，Vue 将�
 **$nextTick 将回调函数放到微任务或者宏任务当中以延迟它地执行顺序**<br> 理解源码中它的三个参数的意思：
 
 - callback：我们要执行的操作，可以放在这个函数当中，我们没执行一次$nextTick 就会把回调函数放到一个异步队列当中；
+
 - pending：标识，用以判断在某个事件循环中是否为第一次加入，第一次加入的时候才触发异步执行的队列挂载
+
 - timerFunc：用来触发执行回调函数，也就是 Promise.then 或 MutationObserver 或 setImmediate 或 setTimeout 的过程,这个跟当前环境是否支持`Promise.then或MutationObserver或setImmediate 或setTimeout`来选择执行
 
 在看整个$nextTick里面的执行过程，其实就是`把一个个$nextTick 中的回调函数压入到 callback 队列`当中，然后根据事件的性质等待执行，轮到它执行的时候，就执行一下，然后去掉 callback 队列中相应的事件。
@@ -87,12 +96,19 @@ Vue 在更新 DOM 时是异步执行的。只要侦听到数据变化，Vue 将�
 ## vue2.0 的生命周期
 
 - beforeCreate
+
 - created
+
 - beforeMount
+
 - mounted
+
 - beforeUpdate
+
 - updated
+
 - beforeDestroy
+
 - destroyed
 
 ## 父子组件的生命周期的执行顺序
@@ -112,6 +128,7 @@ beforeCreate -> 请使用 setup()<br/> created -> 请使用 setup()<br/> beforeM
 ## vue3 有什么改进的或者不足之处？
 
 - 完全不兼容 ie，因为使用的 proxy
+
 - 组合式 api，composition api。其实在代码结构上也会有一点乱
 
 ## vuex 是如何判断是不是通过 commit 来修改 state 的？

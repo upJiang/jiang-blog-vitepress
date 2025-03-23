@@ -3,13 +3,17 @@
 以一定的顺序规则，逐个访问二叉树的所有结点，这个过程就是二叉树的遍历。按照顺序规则的不同，遍历方式有以下四种：
 
 - 先序遍历
+
 - 中序遍历
+
 - 后序遍历
+
 - 层次遍历
 
 按照实现方式的不同，遍历方式又可以分为以下两种：
 
 - 递归遍历（先、中、后序遍历）
+
 - 迭代遍历（层次遍历）
 
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/4/14/17177af5d863f478~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/4/14/17177af5d863f478~tplv-t2oaga2asx-watermark.awebp)</a>
@@ -17,7 +21,9 @@
 假如在保证“左子树一定先于右子树遍历”这个前提，那么遍历的可能顺序也不过三种：
 
 - **根结点** -> 左子树 -> 右子树
+
 - 左子树 -> **根结点** -> 右子树
+
 - 左子树 -> 右子树 -> **根结点**
 
 **所谓的“先序”、“中序”和“后序”，“先”、“中”、“后”其实就是指根结点的遍历时机。**

@@ -51,14 +51,23 @@ linear-gradient(direction, color-stop1, color-stop2, ...);
 这里的 direction 可以是方向，也可以是具体的角度。例如：
 
 - to bottom
+
 - to top
+
 - to left
+
 - to right
+
 - to bottom left
+
 - to bottom right
+
 - to top left
+
 - to top right
+
 - 120deg
+
 - 3.14rad
 
 以上这些都是合理的方向取值。
@@ -66,9 +75,13 @@ linear-gradient(direction, color-stop1, color-stop2, ...);
 color-stop 是一个颜色和一个区段，例如：
 
 - rgba(255,0,0,0)
+
 - orange
+
 - yellow 10%
+
 - green 20%
+
 - lime 28px
 
 我们组合一下，产生一个“真正的金色”的背景：
@@ -127,7 +140,9 @@ setInterval(function(){
 CSS 中的很多属性还会产生形状，比如我们常见的属性：
 
 - border
+
 - box-shadow
+
 - border-radius
 
 这些产生形状的属性非常有趣，我们也能看到很多利用它们来产生的 CSS 黑魔法。然而，这里我有一个相反的建议，我们仅仅把它们用于基本的用途，把 border 用于边框、把阴影用于阴影，把圆角用于圆角，所有其它的场景，都有一个更好的替代品：datauri+svg。

@@ -3,7 +3,9 @@
 目的：
 
 - 保存时自动 eslint 修正、prettier 格式化、stylelint 格式化
+
 - 暂存区提交时检测 eslint、stylelint
+
 - 代码提交时全局检测 ts 规范
 
 ## 添加 husky

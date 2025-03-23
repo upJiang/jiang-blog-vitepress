@@ -1,13 +1,21 @@
 ## 词法分类
 
 - WhiteSpace 空白字符
+
 - LineTerminator 换行符
+
 - Comment 注释
+
 - Token 词
+
   - IdentifierName 标识符名称，典型案例是我们使用的变量名，注意这里关键字也包含在内了。
+
   - Punctuator 符号，我们使用的运算符和大括号等符号。
+
   - NumericLiteral 数字直接量，就是我们写的数字。
+
   - StringLiteral 字符串直接量，就是我们用单引号或者双引号引起来的直接量。
+
   - Template 字符串模板，用反引号` 括起来的直接量。
 
 ## 空白符号 Whitespace
@@ -21,8 +29,11 @@
 JavaScript 中只提供了 4 种字符作为换行符:
 
 - < LF > 是 U+000A，就是最正常换行符，在字符串中的\n。
+
 - < CR > 是 U+000D，这个字符真正意义上的“回车”，在字符串中是\r，在一部分 Windows 风格文本编辑器中，换行是两个字符\r\n。
+
 - < LS > 是 U+2028，是 Unicode 中的行分隔符。
+
 - < PS > 是 Unicode 中的段落分隔符。
 
 ## 注释 Comment

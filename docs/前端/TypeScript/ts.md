@@ -1445,6 +1445,7 @@ interface Todo {
 }
 /**
  * From T pick a set of properties K
+
  * type Pick<T, K extends keyof T> = { [P in K]: T[P] };
  */
 type TodoBase = Pick<Todo, "title" | "done">;
@@ -1602,7 +1603,9 @@ console.log(p.name);
 方法装饰器顾名思义，用来装饰类的方法。它接收三个参数：
 
 - target: Object - 对于静态成员来说是类的构造函数，对于实例成员是类的原型对象
+
 - propertyKey: string | symbol - 方法名
+
 - descriptor: TypePropertyDescript - 属性描述符
 
 ```
@@ -1743,14 +1746,19 @@ age属性装饰器
 ### tsconfig.json 的作用
 
 - 用于标识 TypeScript 项目的根路径；
+
 - 用于配置 TypeScript 编译器；
+
 - 用于指定编译的文件。
 
 ### tsconfig.json 重要字段
 
 - files - 设置要编译的文件的名称；
+
 - include - 设置需要进行编译的文件，支持路径模式匹配；
+
 - exclude - 设置无需进行编译的文件，支持路径模式匹配；
+
 - compilerOptions - 设置与编译流程相关的选项。
 
 ### compilerOptions 选项
@@ -1827,9 +1835,13 @@ const bar = foo; // allowed
 ### 文件模块
 
 - **文件模块也被称为外部模块。如果在`你的 TypeScript 文件的根级别位置含有 import 或者 export`，那么它会在这个文件中创建一个本地的作用域**
+
 - 模块是 TS 中外部模块的简称，侧重于代码和复用
+
 - 模块在其自身的作用域里执行，而不是在全局作用域里
+
 - 一个模块里的变量、函数、类等在外部是不可见的，除非你把它导出
+
 - 如果想要使用一个模块里导出的变量，则需要导入
 
 ```
@@ -1843,7 +1855,9 @@ const bar = foo; // error
 ### 声明文件
 
 - 我们可以把类型声明放在一个单独的类型声明文件中
+
 - 文件命名规范为\*.d.ts
+
 - 查看类型声明文件有助于了解库的使用方式
 
 typings\jquery.d.ts
@@ -1858,9 +1872,13 @@ declare const $: (selector: string) => {
 ### 第三方声明文件
 
 - 可以安装使用第三方的声明文件
+
 - `@types` 是一个约定的前缀，所有的第三方声明的类型库都会带有这样的前缀
+
 - JavaScript 中有很多内置对象，它们可以在 TypeScript 中被当做声明好了的类型
+
 - 内置对象是指根据标准在全局作用域（Global）上存在的对象。这里的标准是指 ECMAScript 和其他环境（比如 DOM）的标准
+
 - 这些内置对象的类型声明文件，就包含在 TypeScript 核心库的类型声明文件中,具体可以查看[ts 核心声明文件](https://github.com/Microsoft/TypeScript/tree/main/src/lib)
 
 ### 查找声明文件
@@ -1868,7 +1886,9 @@ declare const $: (selector: string) => {
 如果是手动写的声明文件，那么需要满足以下条件之一，才能被正确的识别
 
 - 给 package.json 中的 types 或 typings 字段指定一个类型声明文件地址
+
 - 在项目根目录下，编写一个 index.d.ts 文件
+
 - 针对入口文件（package.json 中的 main 字段指定的入口文件），编写一个同名不同后缀的 .d.ts 文件
 
 ```

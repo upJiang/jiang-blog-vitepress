@@ -73,19 +73,35 @@ checkWebp(showImage);
 ## 性能优化的一些普通点
 
 - 减少 http 请求，将小文件合并成成大文件。
+
 - 使用 http2。
+
 - 使用服务端渲染。
+
 - 静态资源使用 cdn。
+
 - css 文件放头部，js 放尾部。
+
 - 使用 iconfont 代替图片图标。
+
 - 使用 fontmin-webpack 压缩字体文件。
+
 - 使用 gzip 压缩文件。
+
 - 使用 data-src 实现图片懒加载，data-src 放真实图片路径，src 放默认图片，当图片到可视区域把真实图片赋值给 src。
+
 - 媒体查询替换图片，webp,使用 css 代替图片。
+
 - 减少重绘重排，比如用 class 不要频繁改样式。
+
 - 使用事件委托。
+
 - vue 打包优化：路由懒加载，通过注释指定 webpackChunkName，自定义打包文件名。
+
 - 分析打包的大小 npm run preview -- --report。
+
 - webpack 配置排除打包，externals。
+
 - 打包去除 console.log
+
 - dns 预查询`<link rel="dns-prefetch" href="https://fonts.googleapis.com/">`

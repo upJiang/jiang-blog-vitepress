@@ -5,7 +5,9 @@ JavaScript 语句执行机制涉及的一种基础类型：Completion 类型。
 > Completion Record 用于描述异常、跳出等语句执行过程 Completion Record 表示一个语句执行完之后的结果，它有三个字段：
 
 - [[type]] 表示完成的类型，有 break continue return throw 和 normal 几种类型；
+
 - [[value]] 表示语句的返回值，如果语句没有，则是 empty；
+
 - [[target]] 表示语句的目标，通常是一个 JavaScript 标签
 
 ## 语句分类
@@ -17,8 +19,11 @@ JavaScript 语句执行机制涉及的一种基础类型：Completion 类型。
 在 JavaScript 中，我们把不带控制能力的语句称为普通语句。普通语句有下面几种。
 
 - 声明类语句 var 声明 const 声明 let 声明 函数声明 类声明
+
 - 表达式语句
+
 - 空语句
+
 - debugger 语句
 
 这些语句在执行时，从前到后顺次执行（我们这里先忽略 var 和函数声明的预处理机制），没有任何分支或者重复执行逻辑。
@@ -409,14 +414,19 @@ a instanceof "object" == true
 相等表达式由四种运算符和关系表达式构成，我们来看一下运算符：
 
 - ==
+
 - !=
+
 - ===
+
 - !==
 
 类型不同的变量比较时==运算只有三条规则：
 
 - undefined 与 null 相等；
+
 - 字符串和 bool 都转为数字再比较；
+
 - 对象转换成 primitive 类型再比较。
 
 这样我们就可以理解一些不太符合直觉的例子了，比如：
@@ -432,6 +442,7 @@ new Boolean('false') == false false
 这里不太符合直觉的有两点：
 
 - 一个是即使字符串与 boolean 比较，也都要转换成数字；
+
 - 另一个是对象如果转换成了 primitive 类型跟等号另一边类型恰好相同，则不需要转换成数字。
 
 此外，== 的行为也经常跟 if 的行为（转换为 boolean）混淆。总之，我建议，仅在确认 == 发生在 Number 和 String 类型之间时使用，比如：
@@ -447,7 +458,9 @@ document.getElementsByTagName('input')[0].value == 100
 位运算表达式含有三种：
 
 - 按位与表达式 BitwiseANDExpression
+
 - 按位异或表达式 BitwiseANDExpression
+
 - 按位或表达式 BitwiseORExpression。
 
 按位与表达式由按位与运算符（&）连接按位异或表达式构成，按位与表达式把操作数视为二进制整数，然后把两个操作数按位做与运算。

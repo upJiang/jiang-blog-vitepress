@@ -5,6 +5,7 @@
 具体来说就是：
 
 - 在发送端，应用层将数据传递给传输层的 UDP 协议，UDP 只会给数据增加一个 UDP 头标识下是 UDP 协议，然后就传递给网络层了
+
 - 在接收端，网络层将数据传递给传输层，UDP 只去除 IP 报文头就传递给应用层，不会任何拼接操作
 
 #### 不可靠性
@@ -22,7 +23,9 @@
 UDP 头部包含了以下几个数据
 
 - 两个十六位的端口号，分别为源端口（可选字段）和目标端口
+
 - 整个数据报文的长度
+
 - 整个数据报文的检验和（IPv4 可选 字段），该字段用于发现头部信息和数据中的错误
 
 #### 传输方式
@@ -44,14 +47,23 @@ TCP 基本是和 UDP 反着来，`建立连接断开连接都需要先需要进�
 <a data-fancybox title="img" href="https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/22be114f0cc0466689e18677ceca189f~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p1-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/22be114f0cc0466689e18677ceca189f~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
 
 - Sequence number，这个序号保证了 TCP 传输的报文都是有序的，对端可以通过序号顺序的拼接报文
+
 - Acknowledgement Number，这个序号表示数据接收端期望接收的下一个字节的编号是多少，同时也表示上一个序号的数据已经收到
+
 - Window Size，窗口大小，表示还能接收多少字节的数据，用于流量控制
+
 - 标识符
+
   - URG=1：该字段为一表示本数据报的数据部分包含紧急信息，是一个高优先级数据报文，此时紧急指针有效。紧急数据一定位于当前数据包数据部分的最前面，紧急指针标明了紧急数据的尾部。
+
   - ACK=1：该字段为一表示确认号字段有效。此外，TCP 还规定在连接建立后传送的所有报文段都必须把 ACK 置为一。
+
   - PSH=1：该字段为一表示接收端应该立即将数据 push 给应用层，而不是等到缓冲区满后再提交。
+
   - RST=1：该字段为一表示当前 TCP 连接出现严重问题，可能需要重新建立 TCP 连接，也可以用于拒绝非法的报文段和拒绝连接请求。
+
   - SYN=1：当 SYN=1，ACK=0 时，表示当前报文段是一个连接请求报文。当 SYN=1，ACK=1 时，表示当前报文段是一个同意建立连接的应答报文。
+
   - FIN=1：该字段为一表示此报文段是一个释放连接的请求报文。
 
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/1/1631bef9e3c60035~tplv-t2oaga2asx-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/5/1/1631bef9e3c60035~tplv-t2oaga2asx-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
@@ -177,7 +189,9 @@ PS：一般定时器设定的时间都会大于一个 RTT 的平均时间。
 HTTP 请求由三部分构成，分别为：
 
 - 请求行
+
 - 首部
+
 - 实体
 
 ### 请求行
@@ -191,8 +205,11 @@ GET /images/logo.gif HTTP/1.1
 请求方法：最常用的也就是 Get 和 Post
 
 - Get 请求能缓存，Post 不能
+
 - Post 相对 Get 安全一点点，因为 Get 请求都包含在 URL 里（当然你想写到 body 里也是可以的），且会被浏览器保存历史纪录。Post 不会，但是在抓包的情况下都是一样的。
+
 - URL 有长度限制，会影响 Get 请求，但是这个长度限制是浏览器规定的，不是 RFC 规定的
+
 - Post 支持更多的编码类型且不对数据类型限制
 
 副作用：指对服务器上的资源做改变，搜索是无副作用的，注册是副作用的。
@@ -226,29 +243,41 @@ Get 多用于无副作用，幂等的场景，例如搜索关键字。Post 多�
 #### 2XX 成功
 
 - 200 OK，表示从客户端发来的请求在服务器端被正确处理
+
 - 204 No content，表示请求成功，但响应报文不含实体的主体部分
+
 - 205 Reset Content，表示请求成功，但响应报文不含实体的主体部分，但是与 204 响应不同在于要求请求方重置内容
+
 - 206 Partial Content，进行范围请求
 
 #### 3XX 重定向
 
 - 301 moved permanently，永久性重定向，表示资源已被分配了新的 URL
+
 - 302 found，临时性重定向，表示资源临时被分配了新的 URL
+
 - 303 see other，表示资源存在着另一个 URL，应使用 GET 方法获取资源
+
 - 304 not modified，表示服务器允许访问资源，但因发生请求未满足条件的情况
+
 - 307 temporary redirect，临时重定向，和 302 含义类似，但是期望客户端保持请求方法不变向新的地址发出请求
 
 #### 4XX 客户端错误
 
 - 400 bad request，请求报文存在语法错误
+
 - 401 unauthorized，表示发送的请求需要有通过 HTTP 认证的认证信息
+
 - 403 forbidden，表示对请求资源的访问被服务器拒绝
+
 - 404 not found，表示在服务器上没有找到请求的资源
 
 #### 5XX 服务器错误
 
 - 500 internal sever error，表示服务器端在执行请求时发生了错误
+
 - 501 Not Implemented，表示服务器不支持当前请求所需要的某个功能
+
 - 503 service unavailable，表明服务器暂时处于超负载或正在停机维护，无法处理请求
 
 ## TLS

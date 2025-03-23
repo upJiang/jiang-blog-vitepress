@@ -11,8 +11,11 @@ DOM API 是最早被设计出来的一批 API，也是用途最广的 API，所�
 DOM API 大致会包含 4 个部分。
 
 - 节点：DOM 树形结构中的节点相关 API。
+
 - 事件：触发和监听事件相关 API。
+
 - Range：操作文字范围相关 API。
+
 - 遍历：遍历 DOM 需要的 API。
 
 ## 节点
@@ -42,17 +45,25 @@ DocumentFragment 也非常有用，它常常被用来高性能地批量添加节
 Node 是 DOM 树继承关系的根节点，它定义了 DOM 节点在 DOM 树上的操作，首先，Node 提供了一组属性，来表示它在 DOM 树中的关系，它们是：
 
 - parentNode
+
 - childNodes
+
 - firstChild
+
 - lastChild
+
 - nextSibling
+
 - previousSibling
 
 从命名上，我们可以很清晰地看出，这一组属性提供了前、后、父、子关系，有了这几个属性，我们可以很方便地根据相对位置获取元素。当然，Node 中也提供了操作 DOM 树的 API，主要有下面几种。
 
 - appendChild
+
 - insertBefore
+
 - removeChild
+
 - replaceChild
 
 这个命名跟上面一样，我们基本可以知道 API 的作用。这几个 API 的设计可以说是饱受诟病。其中最主要的批评是它不对称——只有 before，没有 after，而 jQuery 等框架都对其做了补充。
@@ -66,19 +77,29 @@ Node 是 DOM 树继承关系的根节点，它定义了 DOM 节点在 DOM 树上
 除此之外，Node 还提供了一些高级 API，我们来认识一下它们。
 
 - compareDocumentPosition 是一个用于比较两个节点中关系的函数。
+
 - contains 检查一个节点是否包含另一个节点的函数。
+
 - isEqualNode 检查两个节点是否完全相同。
+
 - isSameNode 检查两个节点是否是同一个节点，实际上在 JavaScript 中可以用“===”。
+
 - cloneNode 复制一个节点，如果传入参数 true，则会连同子元素做深拷贝。
 
 DOM 标准规定了节点必须从文档的 create 方法创建出来，不能够使用原生的 JavaScript 的 new 运算。于是 document 对象有这些方法。
 
 - createElement
+
 - createTextNode
+
 - createCDATASection
+
 - createComment
+
 - createProcessingInstruction
+
 - createDocumentFragment
+
 - createDocumentType
 
 上面的这些方法都是用于创建对应的节点类型
@@ -94,13 +115,17 @@ Node 提供了树形结构上节点相关的操作。而大部分时候，我们
 首先，我们可以把元素的 Attribute 当作字符串来看待，这样就有以下的 API：
 
 - getAttribute
+
 - setAttribute
+
 - removeAttribute
+
 - hasAttribute
 
 如果你追求极致的性能，还可以把 Attribute 当作节点：
 
 - getAttributeNode
+
 - setAttributeNode
 
 此外，如果你喜欢 property 一样的访问 attribute，还可以使用 attributes 对象，比如 document.body.attributes.class = “a” 等效于 document.body.setAttribute(“class”, “a”)。
@@ -110,10 +135,15 @@ Node 提供了树形结构上节点相关的操作。而大部分时候，我们
 document 节点提供了查找元素的能力。比如有下面的几种。
 
 - querySelector
+
 - querySelectorAll
+
 - getElementById
+
 - getElementsByName
+
 - getElementsByTagName
+
 - getElementsByClassName
 
 我们需要注意，getElementById、getElementsByName、getElementsByTagName、getElementsByClassName，这几个 API 的性能高于 querySelector。
@@ -228,8 +258,11 @@ range.insertNode(document.createTextNode("aaaa"))
 DOM API 大致会包含 4 个部分。
 
 - 节点：DOM 树形结构中的节点相关 API。
+
 - 事件：触发和监听事件相关 API。
+
 - Range：操作文字范围相关 API。
+
 - 遍历：遍历 DOM 需要的 API。
 
 DOM API 中还提供了 NodeIterator 和 TreeWalker 来遍历树。比起直接用属性来遍历，NodeIterator 和 TreeWalker 提供了过滤功能，还可以把属性节点也包含在遍历之内。
@@ -241,22 +274,35 @@ DOM API 中还提供了 NodeIterator 和 TreeWalker 来遍历树。比起直接�
 在 HTML 场景中，需要考虑命名空间的场景不多。最主要的场景是 SVG。创建元素和属性相关的 API 都有带命名空间的版本：
 
 - document
+
   - createElementNS
+
   - createAttributeNS
+
 - Element
+
   - getAttributeNS
+
   - setAttributeNS
+
   - getAttributeNodeNS
+
   - setAttributeNodeNS
+
   - removeAttributeNS
+
   - hasAttributeNS
+
   - attributes.setNamedItemNS
+
   - attributes.getNamedItemNS
+
   - attributes.removeNamedItemNS
 
 若要创建 Document 或者 Doctype，也必须要考虑命名空间问题。DOM 要求从 document.implementation 来创建。
 
 - document.implementation.createDocument
+
 - document.implementation.createDocumentType
 
 除此之外，还提供了一个快捷方式，你也可以动手尝试一下。

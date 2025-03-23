@@ -69,10 +69,15 @@ charset 型 meta 标签非常关键，它描述了 HTML 文档自身的编码形
 除了 content-type，还有以下几种命令：
 
 - content-language 指定内容的语言；
+
 - default-style 指定默认样式表；
+
 - refresh 刷新；
+
 - set-cookie 模拟 http 头 set-cookie，设置 cookie；
+
 - x-ua-compatible 模拟 http 头 x-ua-compatible，声明 ua 兼容性；
+
 - content-security-policy 模拟 http 头 content-security-policy，声明内容安全策略
 
 #### name 为 viewport 的 meta
@@ -86,10 +91,15 @@ charset 型 meta 标签非常关键，它描述了 HTML 文档自身的编码形
 这里只指定了两个属性，宽度和缩放，实际上 viewport 能控制的更多，它能表示的全部属性如下：
 
 - width：页面宽度，可以取值具体的数字，也可以是 device-width，表示跟设备宽度相等。
+
 - height：页面高度，可以取值具体的数字，也可以是 device-height，表示跟设备高度相等。
+
 - initial-scale：初始缩放比例。
+
 - minimum-scale：最小缩放比例。
+
 - maximum-scale：最大缩放比例。
+
 - user-scalable：是否允许用户缩放。
 
 对于已经做好了移动端适配的网页，应该把用户缩放功能禁止掉，宽度设为设备宽度，一个标准的 meta 如下：
@@ -103,9 +113,15 @@ charset 型 meta 标签非常关键，它描述了 HTML 文档自身的编码形
 在 HTML 标准中，还定义了一批 meta 标签的 name，可以视为一种有约定的 meta，我在这里列出来，你可以简单了解一下。
 
 - application-name：如果页面是 Web application，用这个标签表示应用名称。
+
 - author: 页面作者。
+
 - description：页面描述，这个属性可能被用于搜索引擎或者其它场合。
+
 - generator: 生成页面所使用的工具，主要用于可视化编辑器，如果是手写 HTML 的网页，不需要加这个 meta。
+
 - keywords: 页面关键字，对于 SEO 场景非常关键。
+
 - referrer: 跳转策略，是一种安全考量。
+
 - theme-color: 页面风格颜色，实际并不会影响页面，但是浏览器可能据此调整页面之外的 UI（如窗口边框或者 tab 的颜色）。

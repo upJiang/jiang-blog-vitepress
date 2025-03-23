@@ -73,6 +73,7 @@ CSP 本质上就是`建立白名单`，**开发者明确告诉浏览器哪些外
 通常可以通过两种方式来开启 CSP：
 
 - 设置 `HTTP Header` 中的 `Content-Security-Policy`
+
 - 设置 `meta` 标签的方式 `<meta http-equiv="Content-Security-Policy">`
 
 这里以设置 HTTP Header 来举例
@@ -118,10 +119,15 @@ CSRF 中文名为`跨站请求伪造`。原理就是**攻击者构造出一个�
 防范 CSRF 攻击可以遵循以下几种规则：
 
 - Get 请求不对数据进行修改
+
 - 不让第三方网站访问到用户 Cookie
+
 - 阻止第三方网站请求接口
+
 - 请求时附带验证信息，比如`验证码`或者 `Token`
+
 - SameSite：可以对 Cookie 设置 SameSite 属性。该属性表示 Cookie `不随着跨域请求发送`，可以很大程度减少 CSRF 的攻击，但是该属性目前并不是所有浏览器都兼容。
+
 - 验证 Referer: 对于需要防范 CSRF 的请求，我们可以通过验证 Referer 来判断该请求是否为第三方网站发起的。
 
 ## 点击劫持
@@ -139,7 +145,9 @@ CSRF 中文名为`跨站请求伪造`。原理就是**攻击者构造出一个�
 该响应头有三个值可选，分别是
 
 - `DENY`，表示页面不允许通过 iframe 的方式展示
+
 - `SAMEORIGIN`，表示页面可以在相同域名下通过 iframe 的方式展示
+
 - `ALLOW-FROM`，表示页面可以在指定来源的 iframe 中展示
 
 #### JS 防御

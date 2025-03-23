@@ -3,10 +3,15 @@
 > 原始类型存储的都是值，是没有函数可以调用的。'1'.toString() 可以使用是因为在这种情况下，'1' 已经不是原始类型了，而是被强制转换成了 String 类型也就是对象类型，所以可以调用 toString 函数。
 
 - boolean
+
 - null
+
 - undefined
+
 - number
+
 - string
+
 - symbol
 
 ## 对象（Object）类型
@@ -73,7 +78,9 @@ str instanceof String // false,
 在 JS 中类型转换只有三种情况
 
 - 转换为布尔值
+
 - 转换为数字
+
 - 转换为字符串
 
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/11/15/16716dec14421e47~tplv-t2oaga2asx-zoom-in-crop-mark:1304:0:0:0.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2018/11/15/16716dec14421e47~tplv-t2oaga2asx-zoom-in-crop-mark:1304:0:0:0.awebp)</a>
@@ -83,6 +90,7 @@ str instanceof String // false,
 加法运算符不同于其他几个运算符，它有以下几个特点：
 
 - 运算中其中一方为字符串，那么就会把另一方也转换为字符串
+
 - 如果一方不是字符串或者数字，那么会将它转换为数字或者字符串
 
 ```
@@ -94,7 +102,9 @@ true + true // 2
 解析：
 
 - 对于第一行代码来说，触发特点一，所以将数字 1 转换为字符串，得到结果 '11'
+
 - 对于第二行代码来说，触发特点二，所以将 true 转为数字 1
+
 - 对于第三行代码来说，触发特点二，所以将数组通过 toString 转为字符串 1,2,3，得到结果 41,2,3
 
 另外对于加法还需要注意这个表达式 'a' + + 'b'
@@ -141,8 +151,11 @@ console.log(a()()()) // 4. 箭头函数其实是没有 this 的，箭头函数�
 ```
 
 - 对于`直接调用 foo `来说，不管 foo 函数被放在了什么地方，this 一定是 `window`
+
 - 对于 `obj.foo()` 来说，我们只需要记住，谁调用了函数，谁就是 this，所以在这个场景下 foo 函数中的 this 就是 `obj 对象`
+
 - 对于 `new` 的方式来说，this 被`永远绑定在了 c 上面，不会被任何方式改变 this`
+
 - `箭头函数`其实是没有 this 的，箭头函数中的 this 只取决`包裹箭头函数的第一个普通函数的 this`,因为包裹箭头函数的第一个普通函数是 a，所以此时的 this 是 window。另外对箭头函数使用 bind 这类函数是无效的。
 
 **bind 的方式**<br> 讨论`多次 bind` 后的 this 指向:
@@ -212,6 +225,9 @@ fn() 在fn这个作用域中可以访问到makeFn中的内部函数(return 的�
 其实原型链就是多个对象通过 `__proto__` 的方式连接了起来。为什么 `obj` 可以访问到 `valueOf` 函数，就是因为 `obj` 通过原型链找到了 `valueOf` 函数。
 
 - `Object` 是所有对象的爸爸，所有对象都可以通过 `__proto__` 找到它
+
 - `Function` 是所有函数的爸爸，所有函数都可以通过 `__proto__` 找到它
+
 - 函数的 `prototype` 是一个对象
+
 - 对象的 `__proto__` 属性指向原型，`__proto__` 将对象和原型连接起来组成了原型链

@@ -8,6 +8,14 @@
       "program": "${workspaceFolder}/scripts/format-md-lists.js",
       "args": ["${file}"],
       "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "格式化所有 Markdown 文件",
+      "program": "${workspaceFolder}/scripts/format-md-lists.js",
+      "args": ["--all"],
+      "skipFiles": ["<node_internals>/**"]
     }
   ]
 }

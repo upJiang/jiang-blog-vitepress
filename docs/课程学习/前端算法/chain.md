@@ -1,7 +1,9 @@
 链表的命题规律：
 
 - 链表的处理：合并、删除等（删除操作画个记号，重点中的重点！）
+
 - 链表的反转及其衍生题目
+
 - 链表成环问题及其衍生题目
 
 ## 链表的合并
@@ -85,6 +87,7 @@ const deleteDuplicates = function(head) {
 思路：
 
 - 跟上面一道题很像，只是要把相同的都删掉不做保留，试想一下，如果当走到 cur.val === cur.next.val ，我们是无法删除 cur 这个结点的，因为我们无法拿到的它的前驱结点并改变，或者说我们的第一个结点没有前驱结点，没办法删除。
+
 - `dummy 结点`，就是咱们**人为制造出来的第一个结点的前驱结点**。我们定义一个新链表 dummy，把 dummy 的 next 指向目标链表，这样就为目标链表的首部创建了前驱结点，就能够进行删除了。但要注意我们比较的应该是：dummy.next.val === dummy.next.next.val,
 
 <a data-fancybox title="img" href="https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e7109a0a2ad77~tplv-t2oaga2asx-watermark.awebp">![img](https://p1-jj.byteimg.com/tos-cn-i-t2oaga2asx/gold-user-assets/2020/3/17/170e7109a0a2ad77~tplv-t2oaga2asx-watermark.awebp)</a>
@@ -129,7 +132,11 @@ const deleteDuplicates = function(head) {
 链表的处理思维跟数组完全不同，我们应该忘记那些双指针，对撞指针，Map，
 
 - 增删聚焦在改变 next 中，
+
 - 判断 cur.val === cur.next.val ，
+
 - 修改当前结点指向：cur = cur.next
+
 - 返回链表头 head（dummy.next）
+
 - 无法处理的就增加一个前驱结点，使用 dummy 结点。

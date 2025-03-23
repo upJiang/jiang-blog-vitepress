@@ -51,8 +51,11 @@ alternate 型的 link 的一个典型应用场景是，页面提供 rss 订阅�
 其它超链接类 link 标签都表示一个跟当前文档相关联的信息，可以把这样的 link 标签视为一种带链接功能的 meta 标签。
 
 - rel=“author” 链接到本页面的作者，一般是 mailto: 协议
+
 - rel=“help” 链接到本页面的帮助页
+
 - rel=“license” 链接到本页面的版权信息页
+
 - rel=“search” 链接到本页面的搜索页面（一般是站内提供搜索时使用）
 
 ### 外部资源类 link 标签
@@ -78,9 +81,13 @@ icon 型 link 是唯一一个外部资源类的元信息 link，其它元信息�
 列一下这些 link 类型：
 
 - dns-prefetch 型 link 提前对一个域名做 dns 查询，这样的 link 里面的 href 实际上只有域名有意义。
+
 - preconnect 型 link 提前对一个服务器建立 tcp 连接。
+
 - prefetch 型 link 提前取 href 指定的 url 的内容。
+
 - preload 型 link 提前加载 href 指定的 url。
+
 - prerender 型 link 提前渲染 href 指定的 url。
 
 #### modulepreload 型的 link
@@ -128,11 +135,17 @@ a 标签其实同时充当了链接和目标点的角色，当 a 标签有 href 
 重点的内容是，a 标签也可以有 rel 属性，我们来简单了解一下，首先是跟 link 相同的一些 rel，包括下面的几种。
 
 - alternate
+
 - author
+
 - help
+
 - license
+
 - next
+
 - prev
+
 - search
 
 这些跟 link 语义完全一致，不同的是，a 标签产生的链接是会实际显示在网页中的，而 link 标签仅仅是元信息。
@@ -140,13 +153,17 @@ a 标签其实同时充当了链接和目标点的角色，当 a 标签有 href 
 除了这些之外，a 标签独有的 rel 类型：
 
 - tag 表示本网页所属的标签；
+
 - bookmark 到上级章节的链接。
 
 a 标签还有一些辅助的 rel 类型，用于提示浏览器或者搜索引擎做一些处理：
 
 - nofollow 此链接不会被搜索引擎索引；
+
 - noopener 此链接打开的网页无法使用 opener 来获得当前页面的窗口；
+
 - noreferrer 此链接打开的网页无法使用 referrer 来获得当前页面的 url；
+
 - opener 打开的网页可以使用 window.opener 来访问当前页面的 window 对象，这是 a 标签的默认行为。
 
 a 标签基本解决了在页面中插入文字型和整张图片超链接的需要，但是如果我们想要在图片的某个区域产生超链接，那么就要用到另一种标签了——area 标签。
@@ -160,7 +177,9 @@ area 标签支持的 rel 与 a 完全一样
 area 是整个 html 规则中唯一支持非矩形热区的标签，它的 shape 属性支持三种类型。
 
 - 圆形：circle 或者 circ，coords 支持三个值，分别表示中心点的 x,y 坐标和圆形半径 r。
+
 - 矩形：rect 或者 rectangle，coords 支持两个值，分别表示两个对角顶点 x1，y1 和 x2，y2。
+
 - 多边形：poly 或者 polygon，coords 至少包括 6 个值，表示多边形的各个顶点。
 
 因为 area 设计的时间较早，所以不支持含有各种曲线的路径，但是它也是唯一一个支持了非矩形触发区域的元素，所以，对于一些效果而言，area 是必不可少的。
