@@ -2,13 +2,13 @@
 
 ![](https://r6kvtxijgm.feishu.cn/space/api/box/stream/download/asynccode/?code=Yzk1NGVkMmMwN2QzYWY4MTFhNTc3MmY4MWE2ODc2NzlfdE9JNlhsZER6d0ZjSnV2clpGbFZpY1lPb1Q4WU52TndfVG9rZW46VE1xU2JOQ1Z6b3g0U254S3NGSmMweEpNbktkXzE3NDI2NDg2MzY6MTc0MjY1MjIzNl9WNA)
 
-### TCP & UDP
+## TCP & UDP
 
-### Http 的从古到今
+## Http 的从古到今
 
 首先在浏览器的网络面板的 prototol 协议列可以查看每个请求的 http 版本
 
-### HTTP/0.9 是最初的版本，极其简单，只支持 GET 方法，没有头部，响应只能是 HTML。
+## HTTP/0.9 是最初的版本，极其简单，只支持 GET 方法，没有头部，响应只能是 HTML。
 
 - **核心特征**：单行协议（`GET /index.html`）
 
@@ -16,7 +16,7 @@
 
 - **前端启示**：理解「请求-响应」基础模型
 
-### 接下来是 HTTP/1.0，引入了状态码、头部字段、多内容类型支持，但每个请求需要新建连接，效率低。
+## 接下来是 HTTP/1.0，引入了状态码、头部字段、多内容类型支持，但每个请求需要新建连接，效率低。
 
 首先，HTTP/1.0 是早期的 HTTP 版本，每个请求都需要新建一个 TCP 连接，完成之后立即关闭。这样每次请求都要经历 TCP 的三次握手和四次挥手，增加了延迟。特别是当网页有多个资源需要加载时，比如图片、CSS、JS 等，这种重复的连接建立和关闭会导致明显的性能问题。
 
@@ -41,7 +41,7 @@ Content-Type: image/png
 Content-Length: 1234
 ```
 
-### HTTP/1.1 解决了持久连接、管线化、缓存机制等，成为主流版本。
+## HTTP/1.1 解决了持久连接、管线化、缓存机制等，成为主流版本。
 
 - **核心突破**：
   1. 持久连接（**Connection: keep-alive**）
@@ -84,7 +84,7 @@ Content-Length: 1234
 
   - 代码压缩（gzip）
 
-### HTTP/2.0 则采用二进制分帧、多路复用、头部压缩等技术，进一步提升性能。
+## HTTP/2.0 则采用二进制分帧、多路复用、头部压缩等技术，进一步提升性能。
 
 - **核心技术**：
 

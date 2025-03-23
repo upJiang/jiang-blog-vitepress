@@ -1,4 +1,4 @@
-### Git 生成 hash 是根据什么
+## Git 生成 hash 是根据什么
 
 Git 生成 commit ID 依赖以下因素：
 
@@ -7,7 +7,7 @@ Git 生成 commit ID 依赖以下因素：
 3. **提交时间戳**（变为新时间）
 4. **父 commit ID**（指向当前分支）
 
-### Cherry-pick 中 pick 的 commit 是一样的吗
+## Cherry-pick 中 pick 的 commit 是一样的吗
 
 不一样
 
@@ -19,7 +19,7 @@ Git 生成 commit ID 依赖以下因素：
 
 - 时间戳更新为 cherry-pick 操作时间
 
-### Rebase 跟 Reset 、merge 的区别
+## Rebase 跟 Reset 、merge 的区别
 
 Rebase 通常用于整理提交历史，将一个分支的提交转移到另一个分支上，并重写提交历史。而 Reset 则是用来移动 HEAD 指针，重置当前分支的状态到某个特定的提交，可能影响工作目录和暂存区。
 

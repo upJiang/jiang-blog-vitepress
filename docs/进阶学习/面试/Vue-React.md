@@ -1,4 +1,4 @@
-### vue2 Object.defineProperty vue 3 Proxy
+## vue2 Object.defineProperty vue 3 Proxy
 
 vue 2 中对对象数组新增属性时，数据变化了，但是视图不会变化，需要使用 `vue.$set`，本质在于 Object.defineProperty **劫持不到后面新增的属性**，因为它是一开始定义时就只监听第一次写的 data
 

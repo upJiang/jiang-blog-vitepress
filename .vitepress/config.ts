@@ -105,7 +105,7 @@ export default {
           { text: '😘 语言基础', link: '/docs/进阶学习/语言基础/start' },
           { text: '😘 强化', link: '/docs/进阶学习/强化/start' },
           { text: '😘 中枢', link: '/docs/进阶学习/中枢/start' },
-          { text: '😘 面试', link: '/docs/进阶学习/面试/start' }
+          { text: '😘 面试', link: '/docs/进阶学习/面试/浏览器加载渲染' }
         ]
       },
       { text: '🍉工作问题', link: '/docs/工作问题/h5' },
@@ -724,7 +724,6 @@ export default {
         {
           text: '面试',
           items: [
-            { text: '开始', link: '/docs/进阶学习/面试/start' },
             {
               text: '浏览器加载渲染',
               link: '/docs/进阶学习/面试/浏览器加载渲染'
