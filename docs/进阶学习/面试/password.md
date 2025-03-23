@@ -79,12 +79,11 @@ title: 面试资料密码验证
 </div>
 
 <script>
-// 将整个脚本内容直接执行，而不是等待DOMContentLoaded
-(function() {
-  console.log('脚本直接执行');
-  
-  // 确保DOM已加载
-  function initPasswordForm() {
+if (typeof window !== 'undefined') {
+  // 只在浏览器环境执行，避免在SSR阶段执行
+  window.onload = function() {
+    console.log('密码验证脚本加载');
+    
     const passwordInput = document.getElementById('password');
     const submitBtn = document.getElementById('submit-btn');
     const errorMessage = document.getElementById('error-message');
@@ -92,12 +91,9 @@ title: 面试资料密码验证
     const interviewLinks = document.getElementById('interview-links');
     
     if (!submitBtn || !passwordInput) {
-      console.error('表单元素不存在，将在100ms后重试');
-      setTimeout(initPasswordForm, 100);
+      console.error('表单元素不存在');
       return;
     }
-    
-    console.log('找到表单元素，绑定事件');
     
     // 密码验证函数
     function handlePasswordSubmit() {
@@ -156,16 +152,15 @@ title: 面试资料密码验证
       }
     }
     
-    // 直接绑定事件，确保绑定成功
-    submitBtn.onclick = handlePasswordSubmit;
-    console.log('按钮点击事件已绑定');
+    // 绑定按钮点击事件
+    submitBtn.addEventListener('click', handlePasswordSubmit);
     
-    // 回车键事件
-    passwordInput.onkeyup = function(e) {
+    // 检查回车键提交
+    passwordInput.addEventListener('keyup', function(e) {
       if (e.key === 'Enter') {
         handlePasswordSubmit();
       }
-    };
+    });
     
     // 检查是否已授权
     try {
@@ -192,15 +187,8 @@ title: 面试资料密码验证
     } catch (e) {
       console.error('授权检查失败', e);
     }
-  }
-  
-  // 如果DOM已加载，立即执行；否则等待DOM加载
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initPasswordForm);
-  } else {
-    initPasswordForm();
-  }
-})();
+  };
+}
 </script>
 </ClientOnly>
 

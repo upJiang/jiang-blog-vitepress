@@ -28,7 +28,7 @@ const { theme } = useData()
 const password = ref('')
 const errorMessage = ref('')
 const showPasswordForm = ref(true)
-const correctPassword = '123456' // 你可以在这里设置密码，也可以从配置中读取
+const correctPassword = '530274' // 你可以在这里设置密码，也可以从配置中读取
 
 // 从localStorage获取已验证路径
 const getVerifiedPaths = () => {
