@@ -11,12 +11,16 @@ export default {
     ['meta', { name: 'keywords', content: '博客,vitePress,前端' }],
     ['meta', { name: 'referrer', content: 'never' }], // 掘金图片加了防盗链，这里表示当前页面中发起的请求将不会携带 referer
     ['link', { rel: 'icon', href: '/favicon.ico' }],
-    // 引入 Gitalk
-    // [
-    //   'link',
-    //   { rel: 'stylesheet', href: 'https://unpkg.com/gitalk/dist/gitalk.css' }
-    // ],
-    // ['script', { src: 'https://unpkg.com/gitalk/dist/gitalk.min.js' }],
+    // 面试资料保护脚本 - 放在最前面确保最先执行
+    [
+      'script',
+      {
+        src: '/js/interview-protection.js',
+        async: false,
+        type: 'text/javascript'
+      }
+    ],
+    // 引入 jQuery
     [
       'script',
       {
@@ -105,7 +109,7 @@ export default {
           { text: '😘 语言基础', link: '/docs/进阶学习/语言基础/start' },
           { text: '😘 强化', link: '/docs/进阶学习/强化/start' },
           { text: '😘 中枢', link: '/docs/进阶学习/中枢/start' },
-          { text: '😘 面试', link: '/docs/进阶学习/面试/浏览器加载渲染' }
+          { text: '😘 面试资料', link: '/docs/进阶学习/面试/password' }
         ]
       },
       { text: '🍉工作问题', link: '/docs/工作问题/h5' },
