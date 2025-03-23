@@ -16,8 +16,9 @@ export default {
       'script',
       {
         src: '/js/interview-protection.js',
-        async: false,
-        type: 'text/javascript'
+        type: 'text/javascript',
+        defer: false,
+        async: false
       }
     ],
     // 引入 jQuery
