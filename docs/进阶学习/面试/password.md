@@ -17,7 +17,7 @@ title: 面试资料密码验证
   
   <div class="form-group">
     <input type="password" id="password" placeholder="请输入密码">
-    <button id="submit-btn" onclick="window.handlePasswordSubmit()">验证</button>
+    <button id="submit-btn">验证</button>
   </div>
   
   <p id="error-message"></p>
@@ -77,113 +77,132 @@ title: 面试资料密码验证
     </a>
   </div>
 </div>
-</ClientOnly>
 
 <script>
-// 暴露到全局，确保可以通过按钮点击触发
-window.handlePasswordSubmit = function() {
-  console.log('密码验证触发');
-  const passwordInput = document.getElementById('password');
-  const errorMessage = document.getElementById('error-message');
-  const formContainer = document.querySelector('.password-form-container');
-  const interviewLinks = document.getElementById('interview-links');
+// 将整个脚本内容直接执行，而不是等待DOMContentLoaded
+(function() {
+  console.log('脚本直接执行');
+  
+  // 确保DOM已加载
+  function initPasswordForm() {
+    const passwordInput = document.getElementById('password');
+    const submitBtn = document.getElementById('submit-btn');
+    const errorMessage = document.getElementById('error-message');
+    const formContainer = document.querySelector('.password-form-container');
+    const interviewLinks = document.getElementById('interview-links');
     
-  // 检查密码
-  if (passwordInput && passwordInput.value === '123456') {
-    console.log('密码正确');
-    // 验证成功，设置授权状态
-    try {
-      localStorage.setItem('interview_auth', 'true');
-      localStorage.setItem('interview_auth_time', Date.now().toString());
-      
-      // 显示成功消息
-      if (errorMessage) {
-        errorMessage.textContent = '验证成功！正在跳转...';
-        errorMessage.style.color = '#52c41a'; // 绿色
+    if (!submitBtn || !passwordInput) {
+      console.error('表单元素不存在，将在100ms后重试');
+      setTimeout(initPasswordForm, 100);
+      return;
+    }
+    
+    console.log('找到表单元素，绑定事件');
+    
+    // 密码验证函数
+    function handlePasswordSubmit() {
+      console.log('密码验证触发');
+      // 检查密码
+      if (passwordInput.value === '123456') {
+        console.log('密码正确');
+        // 验证成功，设置授权状态
+        try {
+          localStorage.setItem('interview_auth', 'true');
+          localStorage.setItem('interview_auth_time', Date.now().toString());
+          
+          // 显示成功消息
+          if (errorMessage) {
+            errorMessage.textContent = '验证成功！正在跳转...';
+            errorMessage.style.color = '#52c41a'; // 绿色
+          }
+          
+          // 获取重定向地址
+          const redirectPath = localStorage.getItem('interview_redirect');
+          
+          // 直接跳转，不等待用户操作
+          setTimeout(function() {
+            if (redirectPath) {
+              // 跳转到原始请求页面
+              window.location.href = redirectPath;
+              localStorage.removeItem('interview_redirect');
+            } else {
+              // 跳转到面试目录的第一个页面
+              window.location.href = '/docs/进阶学习/面试/GIT.html';
+            }
+          }, 1000);
+        } catch (e) {
+          console.error('无法保存授权状态', e);
+          if (errorMessage) {
+            errorMessage.textContent = '验证成功，但无法保存登录状态';
+            errorMessage.style.color = '#ff4d4f'; // 红色
+          }
+        }
+      } else {
+        console.log('密码错误');
+        // 验证失败
+        if (errorMessage) {
+          errorMessage.textContent = '密码错误，请重试';
+          errorMessage.style.color = '#ff4d4f'; // 红色
+        }
+        if (passwordInput) {
+          passwordInput.value = '';
+          
+          // 添加抖动效果
+          passwordInput.classList.add('shake');
+          setTimeout(function() {
+            passwordInput.classList.remove('shake');
+          }, 500);
+        }
       }
+    }
+    
+    // 直接绑定事件，确保绑定成功
+    submitBtn.onclick = handlePasswordSubmit;
+    console.log('按钮点击事件已绑定');
+    
+    // 回车键事件
+    passwordInput.onkeyup = function(e) {
+      if (e.key === 'Enter') {
+        handlePasswordSubmit();
+      }
+    };
+    
+    // 检查是否已授权
+    try {
+      const authStatus = localStorage.getItem('interview_auth') === 'true';
+      const authTime = parseInt(localStorage.getItem('interview_auth_time') || '0', 10);
+      const currentTime = Date.now();
+      const isAuth = authStatus && (currentTime - (24 * 60 * 60 * 1000) < authTime);
       
-      // 获取重定向地址
-      const redirectPath = localStorage.getItem('interview_redirect');
+      console.log('授权状态检查:', isAuth);
       
-      // 直接跳转，不等待用户操作
-      setTimeout(function() {
+      // 如果已授权，检查是否有重定向地址
+      if (isAuth) {
+        const redirectPath = localStorage.getItem('interview_redirect');
         if (redirectPath) {
-          // 跳转到原始请求页面
+          // 直接跳转到请求页面
           window.location.href = redirectPath;
           localStorage.removeItem('interview_redirect');
-        } else {
-          // 跳转到面试目录的第一个页面
-          window.location.href = '/docs/进阶学习/面试/GIT.html';
+        } else if (formContainer && interviewLinks) {
+          // 显示导航链接
+          formContainer.style.display = 'none';
+          interviewLinks.style.display = 'block';
         }
-      }, 1000);
+      }
     } catch (e) {
-      console.error('无法保存授权状态', e);
-      if (errorMessage) {
-        errorMessage.textContent = '验证成功，但无法保存登录状态';
-        errorMessage.style.color = '#ff4d4f'; // 红色
-      }
-    }
-  } else {
-    console.log('密码错误');
-    // 验证失败
-    if (errorMessage) {
-      errorMessage.textContent = '密码错误，请重试';
-      errorMessage.style.color = '#ff4d4f'; // 红色
-    }
-    if (passwordInput) {
-      passwordInput.value = '';
-      
-      // 添加抖动效果
-      passwordInput.classList.add('shake');
-      setTimeout(function() {
-        passwordInput.classList.remove('shake');
-      }, 500);
+      console.error('授权检查失败', e);
     }
   }
-};
-
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM加载完成');
-  const passwordInput = document.getElementById('password');
-  const formContainer = document.querySelector('.password-form-container');
-  const interviewLinks = document.getElementById('interview-links');
   
-  // 检查回车键提交
-  if (passwordInput) {
-    passwordInput.addEventListener('keyup', function(e) {
-      if (e.key === 'Enter') {
-        window.handlePasswordSubmit();
-      }
-    });
+  // 如果DOM已加载，立即执行；否则等待DOM加载
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPasswordForm);
+  } else {
+    initPasswordForm();
   }
-    
-  // 检查是否已授权
-  try {
-    const authStatus = localStorage.getItem('interview_auth') === 'true';
-    const authTime = parseInt(localStorage.getItem('interview_auth_time') || '0', 10);
-    const currentTime = Date.now();
-    const isAuth = authStatus && (currentTime - (24 * 60 * 60 * 1000) < authTime);
-    
-    console.log('授权状态检查:', isAuth);
-    
-    // 如果已授权，检查是否有重定向地址
-    if (isAuth) {
-      const redirectPath = localStorage.getItem('interview_redirect');
-      if (redirectPath) {
-        // 直接跳转到请求页面
-        window.location.href = redirectPath;
-        localStorage.removeItem('interview_redirect');
-      } else if (formContainer && interviewLinks) {
-        // 显示导航链接
-        formContainer.style.display = 'none';
-        interviewLinks.style.display = 'block';
-      }
-    }
-  } catch (e) {
-    console.error('授权检查失败', e);
-  }
-});
+})();
 </script>
+</ClientOnly>
 
 <style>
 /* 全局样式调整 */
@@ -267,16 +286,7 @@ document.addEventListener('DOMContentLoaded', function() {
   background-color: var(--vp-c-brand-dark);
 }
 
-.error-message {
-  color: #ff4d4f;
-  margin: 10px 0;
-  min-height: 20px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.success-message {
-  color: #52c41a;
+#error-message {
   margin: 10px 0;
   min-height: 20px;
   font-size: 14px;
