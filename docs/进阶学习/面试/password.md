@@ -34,51 +34,51 @@ title: 面试资料密码验证
 <div id="interview-links" style="display: none;">
   <h2>面试资料目录</h2>
   <div class="grid-links">
-    <a href="./GIT.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/GIT.html" class="grid-link">
       <span class="link-icon">📄</span>
       <span class="link-title">Git相关</span>
     </a>
-    <a href="./近期面试遇到的问题汇总.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/近期面试遇到的问题汇总.html" class="grid-link">
       <span class="link-icon">📋</span>
       <span class="link-title">近期面试问题</span>
     </a>
-    <a href="./算法.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/算法.html" class="grid-link">
       <span class="link-icon">🧮</span>
       <span class="link-title">算法题</span>
     </a>
-    <a href="./手写题.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/手写题.html" class="grid-link">
       <span class="link-icon">✍️</span>
       <span class="link-title">手写题</span>
     </a>
-    <a href="./HTTP.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/HTTP.html" class="grid-link">
       <span class="link-icon">🌐</span>
       <span class="link-title">HTTP</span>
     </a>
-    <a href="./Vue-React.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/Vue-React.html" class="grid-link">
       <span class="link-icon">⚛️</span>
       <span class="link-title">Vue与React</span>
     </a>
-    <a href="./浏览器加载渲染.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/浏览器加载渲染.html" class="grid-link">
       <span class="link-icon">🔍</span>
       <span class="link-title">浏览器渲染</span>
     </a>
-    <a href="./前端安全.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/前端安全.html" class="grid-link">
       <span class="link-icon">🔒</span>
       <span class="link-title">前端安全</span>
     </a>
-    <a href="./浏览器.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/浏览器.html" class="grid-link">
       <span class="link-icon">💻</span>
       <span class="link-title">浏览器</span>
     </a>
-    <a href="./hr面.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/hr面.html" class="grid-link">
       <span class="link-icon">👥</span>
       <span class="link-title">HR面试问题</span>
     </a>
-    <a href="./简历项目相关.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/简历项目相关.html" class="grid-link">
       <span class="link-icon">📝</span>
       <span class="link-title">简历项目</span>
     </a>
-    <a href="./node-koa-express.html" class="grid-link">
+    <a href="/docs/进阶学习/面试/node-koa-express.html" class="grid-link">
       <span class="link-icon">🛠️</span>
       <span class="link-title">Node相关</span>
     </a>
@@ -127,7 +127,7 @@ title: 面试资料密码验证
         
         // 直接跳转，不等待用户操作
         setTimeout(function() {
-          if (redirectPath) {
+          if (redirectPath && redirectPath.indexOf('/docs/进阶学习/面试/') > -1) {
             // 跳转到原始请求页面
             window.location.href = redirectPath;
             localStorage.removeItem('interview_redirect');
@@ -186,6 +186,18 @@ title: 面试资料密码验证
       return;
     }
     
+    // 强制刷新localStorage授权状态，确保页面加载时状态正确
+    try {
+      var forceRefresh = (new Date()).getTime();
+      var currentAuth = localStorage.getItem('interview_auth') === 'true';
+      if (currentAuth) {
+        // 更新时间戳确保状态最新
+        localStorage.setItem('interview_auth_time', Date.now().toString() + '-' + forceRefresh);
+      }
+    } catch (e) {
+      console.error('刷新授权状态失败', e);
+    }
+    
     // 绑定按钮点击事件
     submitBtn.onclick = handlePasswordSubmit;
     
@@ -199,13 +211,14 @@ title: 面试资料密码验证
       var currentTime = Date.now();
       var isAuth = authStatus && (currentTime - (24 * 60 * 60 * 1000) < authTime);
       
-      console.log('授权状态检查:', isAuth);
+      console.log('授权状态检查:', isAuth, '时间:', new Date(authTime).toLocaleString());
       
       // 如果已授权，检查是否有重定向地址
       if (isAuth) {
         var redirectPath = localStorage.getItem('interview_redirect');
-        if (redirectPath) {
+        if (redirectPath && redirectPath.indexOf('/docs/进阶学习/面试/') > -1) {
           // 直接跳转到请求页面
+          console.log('重定向到:', redirectPath);
           window.location.href = redirectPath;
           localStorage.removeItem('interview_redirect');
         } else if (formContainer && interviewLinks) {
