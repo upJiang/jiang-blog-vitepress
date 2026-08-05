@@ -1,56 +1,39 @@
 {
-  "main": "index.js",
+  "name": "ai-full-stack-knowledge-base",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
   "license": "ISC",
-  "devDependencies": {
-    "@babel/eslint-parser": "^7.14.7",
-    "@commitlint/cli": "^12.1.4",
-    "@commitlint/config-conventional": "^12.1.4",
-    "commitizen": "^4.2.4",
-    "cz-customizable": "^6.3.0",
-    "eslint": "^7.30.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-prettier": "^3.4.0",
-    "eslint-plugin-vue": "^7.13.0",
-    "glob": "^11.0.1",
-    "globby": "^11.0.1",
-    "gray-matter": "^4.0.2",
-    "husky": "^7.0.0",
-    "lint-staged": "^11.0.0",
-    "mz": "^2.7.0",
-    "prettier": "^2.3.2"
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": ">=20 <23"
   },
-  "dependencies": {
-    "vitepress": "^1.0.0-alpha.51"
+  "devDependencies": {
+    "@algolia/client-search": "5.56.0",
+    "@playwright/test": "1.55.0",
+    "@types/node": "^22.10.2",
+    "debug": "^4.4.3",
+    "gray-matter": "^4.0.3",
+    "mermaid": "11.12.2",
+    "search-insights": "2.17.3",
+    "type-fest": "^4.41.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitepress": "1.6.4",
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.2.0",
+    "yarn": "1.22.22"
   },
   "scripts": {
-    "dev": "npx vitepress --port 9999",
-    "build": "npx vitepress build",
-    "gh": "npx vitepress build && bash scripts/deploy-gh.sh",
-    "lint-staged": "lint-staged",
-    "commitlint": "commitlint --config commitlint.config.js -e -V",
-    "prepare": "husky install",
-    "docs:dev": "vitepress dev",
-    "docs:build": "vitepress build",
-    "docs:preview": "vitepress preview",
-    "prettier": "prettier --write ./docs",
-    "format-md": "node scripts/format-md-lists.js --all"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged",
-      "commit-msg": "commitlint -E $HUSKY_GIT_PARAMS"
-    }
-  },
-  "lint-staged": {
-    "*.{js,ts,vue,jsx,tsx}": [
-      "prettier --write",
-      "eslint --cache --fix",
-      "git add"
-    ]
-  },
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-customizable"
-    }
+    "dev": "vitepress --port 9999",
+    "build": "yarn content:check && vitepress build",
+    "preview": "vitepress preview --port 4173",
+    "typecheck": "vue-tsc --noEmit",
+    "content:check": "tsx scripts/check-content.ts",
+    "build:check": "node scripts/check-build.mjs",
+    "privacy:check": "node scripts/check-privacy.mjs",
+    "visual:check": "node scripts/visual-smoke.mjs",
+    "verify": "yarn content:check && yarn privacy:check && yarn typecheck && vitepress build && yarn build:check"
   }
 }

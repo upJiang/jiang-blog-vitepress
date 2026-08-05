@@ -1,16 +1,16 @@
 // https://vitepress.dev/guide/custom-theme
-import { h } from 'vue'
-import Theme from 'vitepress/theme'
+import type { Theme as VitePressTheme } from 'vitepress'
+import DefaultTheme from 'vitepress/theme'
+import HomePage from './HomePage.vue'
+import MermaidDiagram from './MermaidDiagram.vue'
+import SectionIndex from './SectionIndex.vue'
 import './style.css'
 
 export default {
-  ...Theme,
-  Layout: () => {
-    return h(Theme.Layout, null, {
-      // https://vitepress.dev/guide/extending-default-theme#layout-slots
-    })
-  },
-  enhanceApp({ app, router, siteData }) {
-    // ...
+  ...DefaultTheme,
+  enhanceApp({ app }) {
+    app.component('HomePage', HomePage)
+    app.component('MermaidDiagram', MermaidDiagram)
+    app.component('SectionIndex', SectionIndex)
   }
-}
+} satisfies VitePressTheme

@@ -1,58 +1,77 @@
-# https://github.com/marketplace/actions/ssh-deploy
+name: Verify And Deploy
 
-name: Build And Deploy
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push request events but only for the "master" branch
+  pull_request:
+    branches: [main]
   push:
-    branches: ['main']
-    # The workflow only run when push event include at least one file inside the docs directory
-    # paths:
-    #   - 'docs/**'
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the verified artifact to production
+        required: true
+        default: false
+        type: boolean
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-full-stack-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  verify:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      # Setup Node.js environment
-      - name: Setup Node
-        uses: actions/setup-node@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20.9.0
+          node-version: 20
+          cache: yarn
 
-      # Runs a set of commands using the runners shell
-      - name: Install Dependencies
-        run: yarn
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
 
-      # Build static paes
-      - name: Build
-        run: yarn build
+      - name: Verify content, privacy, types and build
+        run: yarn verify
 
-      - name: Deploy
-        uses: easingthemes/ssh-deploy@v5.0.0
+      - name: Package verified site
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy
+        run: tar -czf site.tar.gz -C .vitepress/dist .
+
+      - name: Upload verified site
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy
+        uses: actions/upload-artifact@v4
         with:
-          # Private Key
-          SSH_PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-          # Arguments to pass to rsync
-          # ARGS: # optional, default is -rltgoDz
-          # Source directory
-          SOURCE: '.vitepress/dist/'
-          # Remote host
-          REMOTE_HOST: 129.211.13.9
-          # Remote user11
-          REMOTE_USER: 'root'
-          # Target directory22
-          TARGET: '/www/wwwroot/blog.junfeng530.xyz/'
+          name: ai-full-stack-site-${{ github.sha }}
+          path: site.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Download verified site
+        uses: actions/download-artifact@v4
+        with:
+          name: ai-full-stack-site-${{ github.sha }}
+
+      - name: Extract site
+        run: mkdir site && tar -xzf site.tar.gz -C site
+
+      - name: Deploy verified artifact
+        uses: easingthemes/ssh-deploy@v5.1.1
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.DEPLOY_HOST }}
+          REMOTE_USER: ${{ secrets.DEPLOY_USER }}
+          TARGET: ${{ secrets.DEPLOY_PATH }}
+          SOURCE: site/
+          ARGS: -rlgoDzvc --delete
