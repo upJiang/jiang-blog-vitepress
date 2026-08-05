@@ -40,11 +40,11 @@ jobs:
         run: yarn verify
 
       - name: Package verified site
-        if: github.event_name == 'workflow_dispatch' && inputs.deploy
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)
         run: tar -czf site.tar.gz -C .vitepress/dist .
 
       - name: Upload verified site
-        if: github.event_name == 'workflow_dispatch' && inputs.deploy
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)
         uses: actions/upload-artifact@v4
         with:
           name: ai-full-stack-site-${{ github.sha }}
@@ -53,7 +53,7 @@ jobs:
           retention-days: 7
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)
     needs: verify
     runs-on: ubuntu-latest
     environment: production
