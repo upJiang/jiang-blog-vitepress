@@ -8,61 +8,372 @@ order: 380
 depth: reference
 series: "重学前端"
 ---
-# CSS 选择器与伪元素
+> 选择器的基本意义是：根据一些特征，选中元素树上的一批元素。
 
-`article > img`、`article :is(img, video)` 和 `article:has(> img)` 都提到 article 与图片，真正被选中的元素却不同。读选择器要从右侧目标开始，再看左侧用什么关系限制它，不能只按自然语言从左往右念。
+- 简单选择器：针对某一特征判断是否选中元素。
 
-## 先认识选择器的组成
+- 复合选择器：连续写在一起的简单选择器，针对元素自身特征选择单个元素
 
-简单选择器可以按类型、class、id、属性或状态筛选。多个简单选择器连在一起形成 compound selector，例如 `button.primary:hover`；再用空格、`>`、`+`、`~` 等 combinator 连接，就得到 complex selector。
+- 复杂选择器：由“（空格）”“ >”“ ~”“ +”“ ||”等符号连接的复合选择器，根据父元素或者前序元素检查单个元素。
 
-```mermaid
-flowchart LR
-  A[候选目标元素] --> B[检查自身类型、class、属性和状态]
-  B --> C[按组合符检查祖先或兄弟关系]
-  C --> D{全部满足?}
-  D -->|是| E[选择器匹配]
-  D -->|否| F[不匹配]
+- 选择器列表：由逗号分隔的复杂选择器，表示“或”的关系。
+
+## 简单选择器
+
+<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a845c432fe004641bc2dad01b8bd4e13~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a845c432fe004641bc2dad01b8bd4e13~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+### 类型选择器和全体选择器
+
+> 根据一个元素的标签名来选中元素
+
+```
+div {
+
+}
 ```
 
-这是理解用的匹配模型，不代表浏览器逐元素采用同一算法。现代引擎会编译选择器、缓存结果，并在 DOM 或状态变化时做增量失效。
+我们还必须要考虑 HTML 或者 XML 元素的命名空间问题。
 
-## 步骤一：比较目标选择和关系选择
+比如我们的 svg 元素，实际上在： http://www.w3.org/2000/svg 命名空间之下。
 
-预期结果是第一条选择直接属于 article 的 img，第二条选择 article 内任意层级的媒体元素，第三条选择“拥有直接图片子元素的 article 本身”。
+svg 和 HTML 中都有 a 元素，我们若要想区分选择 svg 中的 a 和 HTML 中的 a，就必须用带命名空间的类型选择器。
 
-```css
-article > img { border-radius: 0.5rem; }
-article :is(img, video) { max-width: 100%; }
-article:has(> img) { padding-block-start: 0; }
-article:where(.featured, .pinned) { border-color: currentColor; }
+```
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>JS Bin</title>
+</head>
+<body>
+<svg width="100" height="28" viewBox="0 0 100 28" version="1.1"
+     xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <desc>Example link01 - a link on an ellipse
+  </desc>
+  <a xlink:href="http://www.w3.org">
+    <text y="100%">name</text>
+  </a>
+</svg>
+<br/>
+<a href="javascript:void 0;">name</a>
+</body>
+</html>
+
+@namespace svg url(http://www.w3.org/2000/svg);
+@namespace html url(http://www.w3.org/1999/xhtml);
+svg|a {
+  stroke:blue;
+  stroke-width:1;
+}
+
+html|a {
+  font-size:40px
+}
 ```
 
-输入是 article 与不同层级媒体的 DOM。关键逻辑分别使用子代、后代、关系伪类和零优先级分组；输出目标依次是图片/视频或 article。`:has()` 会让祖先样式随后代变化，使用前检查目标浏览器支持和失效范围。
+这里有一个特殊的选择器，就是“ \* ” ，它称为全体选择器，可以选中任意元素。它的用法跟类型选择器是完全一致的
 
-## 步骤二：理解常见伪类
+### id 选择器与 class 选择器
 
-结构伪类包括 `:first-child`、`:nth-child()`、`:empty` 等；交互状态包括 `:hover`、`:focus-visible`、`:checked`、`:disabled`；链接有 `:link` 与 `:visited`。浏览器会限制 `:visited` 可读取和可设置的属性，以降低历史泄露。
+> id 选择器和 class 选择器都是针对特定属性的选择器。id 选择器是“#”号后面跟随 id 名，class 选择器是“.”后面跟随 class 名
 
-`:is()` 和 `:not()` 的 specificity 取参数中最高值，`:where()` 始终为零，适合写容易覆盖的基础规则。`:focus-visible` 能在适当输入方式下显示焦点，不应通过 `outline: none` 删除键盘反馈。
+```
+#myid {
+  stroke:blue;
+  stroke-width:1;
+}
 
-## 步骤三：不要只算三个数字
+.mycls {
+  font-size:40px
+}
+```
 
-层叠先比较来源与重要性、layer 和作用域，再比较 specificity，最后才是源码顺序。id、class/属性/伪类、类型/伪元素常用于解释 specificity，但它不是十进制，也无法跨越更高层级的层叠规则。
+### 属性选择器
 
-大规模项目可以用 `@layer reset, base, components, utilities, overrides` 固定层级。组件状态优先用语义 class 或 data attribute，避免通过很长祖先链提高权重。`!important` 会进入另一条层叠顺序，适合明确控制的少数边界，不是日常覆盖工具。
+属性选择器根据 HTML 元素的属性来选中元素。属性选择器有四种形态。
 
-## 步骤四：伪元素生成的不是普通 DOM
+- 第一种，[att] 直接在方括号中放入属性名，是检查元素是否具有这个属性，只要元素有这个属性，不论属性是什么值，都可以被选中。
 
-`::before`、`::after`、`::first-line`、`::first-letter` 等指向抽象的树外对象或排版片段，无法像普通 Element 一样遍历。生成内容适合装饰和少量辅助标记，不适合承载核心可访问文本或独立交互。
+- 第二种，[att=val] 精确匹配，检查一个元素属性的值是否是 val。
 
-`::first-line` 的可用属性受限，结果会随容器宽度和字体变化；`::first-letter` 受语言和标点规则影响。选择器与排版关系要在真实内容和语言环境中验证。
+- 第三种，[att~=val] 多种匹配，检查一个元素的值是否是若干值之一，这里的 val 不是一个单一的值了，可以是用空格分隔的一个序列
 
-## 故意制造一次失败
+- 第四种，[att|=val] 开头匹配，检查一个元素的值是否是以 val 开头，它跟精确匹配的区别是属性只要以 val 开头即可，后面内容不管。
 
-给组件写 `.page .main #app .card button`，再用另一个页面覆盖按钮颜色。覆盖方被迫复制或提高权重，组件脱离原页面也失去样式。改为低权重组件类、layer 和显式状态后，依赖范围更清楚。
+有些 HTML 属性含有特殊字符，这个时候，可以把 val 用引号括起来，形成一个 CSS 字符串。CSS 字符串允许使用单双引号来规避特殊字符，也可以用反斜杠转义，这样，就可以表示出任意属性值啦。
 
-另一个失败是把错误图标文字放在 `::before { content: '错误' }` 中，却没有真实错误说明。关闭 CSS 或辅助技术不暴露生成内容时，信息消失。核心状态应存在 DOM 文本和可访问关系中，伪元素只增强视觉。
+### 伪类选择器
+
+伪类选择器是一系列由 CSS 规定好的选择器，它们以冒号开头。伪类选择器有普通型和函数型两种。伪类中最常用的部分：树结构关系伪类。
+
+#### 树结构关系伪类选择器
+
+:root 伪类表示树的根元素，在选择器是针对完整的 HTML 文档情况，我们一般用 HTML 标签即可选中根元素。但是随着 scoped css 和 shadow root 等场景出现，选择器可以针对某一子树来选择，这时候就很需要 root 伪类了。
+
+- :empty 伪类表示没有子节点的元素，这里有个例外就是子节点为空白文本节点的情况。
+
+- :nth-child 和 :nth-last-child 这是两个函数型的伪类，CSS 的 An+B 语法设计的是比较复杂的，我们这里仅仅介绍基本用法。我们还是看几个例子：
+
+<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/128f31c9db444593b8f264c42c771917~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/128f31c9db444593b8f264c42c771917~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+- :nth-last-child 的区别仅仅是从后往前数。
+
+- :first-child :last-child 分别表示第一个和最后一个元素。
+
+- :only-child 按字面意思理解即可，选中唯一一个子元素。
+
+of-type 系列，是一个变形的语法糖，S:nth-of-type(An+B) 是:nth-child(|An+B| of S) 的另一种写法。
+
+以此类推，还有 nth-last-of-type、first-of-type、last-of-type、only-of-type。
+
+#### 链接与行为伪类选择器
+
+> 链接与行为是第一批设计出来的伪类，也是最常用的一批。
+
+- :any-link 表示任意的链接，包括 a、area 和 link 标签都可能匹配到这个伪类。
+
+- :link 表示未访问过的链接， :visited 表示已经访问过的链接。
+
+- :hover 表示鼠标悬停在上的元素。
+
+- :active 表示用户正在激活这个元素，如用户按下按钮，鼠标还未抬起时，这个按钮就处于激活状态。
+
+- :focus 表示焦点落在这个元素之上。
+
+- :target 用于选中浏览器 URL 的 hash 部分所指示的元素。
+
+在 Selector Level 4 草案中，还引入了 target-within、focus-within 等伪类，用于表示 target 或者 focus 的父容器。
+
+#### 逻辑伪类选择器
+
+:not 伪类。这个伪类是个函数型伪类，它的作用时选中内部的简单选择器命中的元素。
+
+```
+*|*:not(:hover)
+```
+
+选择器 3 级标准中，not 只支持简单选择器，在选择器 4 级标准，则允许 not 接受一个选择器列表，这意味着选择器支持嵌套，仅靠 not 即可完成选择器的一阶真值逻辑完备，但目前还没有看到浏览器实现它。
+
+在 Selector Level 4 草案中，还引入了:is :where :has 等逻辑伪类，但是它们有一些违背了选择器匹配 DOM 树不回溯的原则，所以这部分设计最终的命运如何还不太确定。
+
+#### 其它伪类选择器
+
+还有一些草案中或者不常用的选择器，你仅做大概了解即可。
+
+- 国际化：用于处理国际化和多语言问题。
+
+  - dir
+
+  - lang
+
+- 音频 / 视频：用于区分音视频播放状态。
+
+  - play
+
+  - pause
+
+- 时序：用于配合读屏软件等时序性客户端的伪类。
+
+  - current
+
+  - past
+
+  - future
+
+- 表格：用于处理 table 的列的伪类。
+
+  - nth-col
+
+  - nth-last-col
+
+## 选择器的组合
+
+> 选择器列表是用逗号分隔的复杂选择器序列；复杂选择器则是用空格、大于号、波浪线等符号连接的复合选择器；复合选择器则是连写的简单选择器组合。
+
+根据选择器列表的语法，选择器的连接方式可以理解为像四则运算一样有优先级。
+
+- 第一优先级
+
+  - 无连接符号
+
+- 第二优先级
+
+  - “空格”
+
+  - “~”
+
+  - “+”
+
+  - “>”
+
+  - “||”
+
+- 第三优先级
+
+  - “,”
+
+例如以下选择器：
+
+```
+.c,.a>.b.d {
+    /*......*/
+}
+```
+
+例子中的“ .b.d ”，表示选中的元素必须同时具有 b 和 d 两个 class。
+
+复杂选择器是针对节点关系的选择，它规定了五种连接符号。
+
+- **“空格”**：后代，表示选中所有符合条件的后代节点， 例如“ .a .b ”表示选中所有具有 class 为 a 的后代节点中 class 为 b 的节点。
+
+- **“>”** ：子代，表示选中符合条件的子节点，例如“ .a>.b ”表示：选中所有“具有 class 为 a 的子节点中，class 为 b 的节点”。
+
+- **“~”** : 后继，表示选中所有符合条件的后继节点，后继节点即跟当前节点具有同一个父元素，并出现在它之后的节点，例如“ .a~.b ”表示选中所有具有 class 为 a 的后继中，class 为 b 的节点。
+
+- **“+”**：直接后继，表示选中符合条件的直接后继节点，直接后继节点即 nextSlibling。例如 “.a+.b ”表示选中所有具有 class 为 a 的下一个 class 为 b 的节点。
+
+- **“||”**：列选择器，表示选中对应列中符合条件的单元格。
+
+## 选择器的优先级
+
+> CSS 标准用一个三元组 (a, b, c) 来构成一个复杂选择器的优先级。
+
+- id 选择器的数目记为 a；
+
+- 伪类选择器和 class 选择器的数目记为 b；
+
+- 伪元素选择器和标签选择器数目记为 c；
+
+- “\*” 不影响优先级。
+
+CSS 标准建议用一个足够大的进制，获取“ a-b-c ”来表示选择器优先级。
+
+```
+specificity = base * base * a + base * b + c
+```
+
+看个常见的例子：
+
+```
+<div id="my" class="x y z">text<div>
+
+
+.x {
+    background-color:lightblue;
+}
+.z {
+    background-color:lightblue;
+}
+.y {
+    background-color:lightgreen;
+}
+
+输出的是y的颜色
+```
+
+在这个例子中，“.x ”和“.z ”都指定了背景色为浅蓝色，但是因为“.y ”规则在最后，所以最终显示结果为浅绿色。另外一个需要注意的是，选择器的优先级是针对复杂选择器的优先级，选择器列表不会合并计算优先级。
+
+```
+<div id="my" class="x y z">text<div>
+
+.x, .z {
+    background-color:lightblue;
+}
+.y {
+    background-color:lightgreen;
+}
+
+输出的是y的颜色
+```
+
+这里选择器列表“ .x, .z”命中了 div，但是它的两项分别计算优先级，所以最终优先级仍跟“ .y” 规则相同。
+
+以上就是选择器优先级的相关规则了，虽然我们这里介绍了详细的计算方式，但是我认为选择器的使用上，如果产生复杂的优先级计算，代码的可读性一定是有问题的。
+
+所以实践中，建议你“根据 id 选单个元素”“class 和 class 的组合选成组元素”“tag 选择器确定页面风格”这样的简单原则来使用选择器，不要搞出过于复杂的选择器。
+
+## 伪元素
+
+> 伪元素的语法跟伪类相似，但是实际产生的效果却是把不存在的元素硬选出来。
+
+目前兼容性达到可用的伪元素有以下几种。
+
+- ::first-line 元素的第一行
+
+- ::first-letter 元素的第一个字母
+
+- ::before
+
+- ::after
+
+### ::first-line
+
+> 元素的第一行
+
+```
+<p>This is a somewhat long HTML
+paragraph that will be broken into several
+lines. The first line will be identified
+by a fictional tag sequence. The other lines
+will be treated as ordinary lines in the
+paragraph.</p>
+
+
+p::first-line {
+    text-transform: uppercase
+}
+```
+
+这一段代码把段落的第一行字母变为大写。注意这里的第一行指的是**排版后显示的第一行**，跟 HTML 代码中的换行无关。
+
+### ::first-letter
+
+> 指第一个字母。首字母变大并向左浮动是一个非常常见的排版方式。
+
+```
+<p>This is a somewhat long HTML
+paragraph that will be broken into several
+lines. The first line will be identified
+by a fictional tag sequence. The other lines
+will be treated as ordinary lines in the
+paragraph.</p>
+
+p::first-letter {
+    text-transform: uppercase;
+    font-size:2em;
+    float:left;
+}
+```
+
+CSS 标准只要求 ::first-line 和 ::first-letter 实现有限的几个 CSS 属性，都是文本相关，这些属性是下面这些。<br> <a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5bb6b72a446842bc969ff868e38b0836~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5bb6b72a446842bc969ff868e38b0836~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+### ::before ::after
+
+::before 表示在元素内容之前插入一个虚拟的元素，::after 则表示在元素内容之后插入。
+
+这两个伪元素所在的 CSS 规则必须指定 content 属性才会生效，我们看下例子：
+
+```
+<p class="special">I'm real element</p>
+
+
+p.special::before {
+    display: block;
+    content: "pseudo! ";
+}
+```
+
+这里要注意一点，::before 和 ::after 还支持 content 为 counter，如：
+
+```
+<p class="special">I'm real element</p>
+p.special::before {
+    display: block;
+    content: counter(chapno, upper-roman) ". ";
+}
+```
+
+这对于实现一些列表样式是非常有用的。
 
 ## 参考资料
 

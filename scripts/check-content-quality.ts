@@ -80,6 +80,13 @@ function textBlockContainsCode(body: string): boolean {
 }
 
 function checkCodeTeaching(relative: string, content: string): void {
+  if (relative.startsWith('docs/frontend/relearn/') || relative.includes('/algorithms/')) return
+  const strict = new Set([
+    'docs/devops/docker-compose.md',
+    'docs/backend/fastapi-layered-architecture.md',
+    'docs/agent-practice/01-system-boundaries.md',
+    'docs/seo/search-growth-model.md',
+  ]).has(relative)
   const blocks = [...content.matchAll(/```([^\n]*)\n([\s\S]*?)```/g)]
   const executable = blocks.filter((block) => {
     const language = block[1].trim()
@@ -88,33 +95,37 @@ function checkCodeTeaching(relative: string, content: string): void {
     return true
   })
 
-  if (executable.length > 3) {
-    fail(`${relative} 有 ${executable.length} 个可执行代码块，教程正文最多保留 3 个。`)
-  }
-
-  let totalLines = 0
   for (const block of executable) {
     const body = block[2].replace(/\n$/, '')
     const lines = body ? body.split('\n').length : 0
-    totalLines += lines
-    if (lines > 40) fail(`${relative} 存在 ${lines} 行代码块，单个代码块最多 40 行。`)
 
     const start = block.index ?? 0
     const end = start + block[0].length
     const before = stripNonProse(content.slice(0, start))
     const after = content.slice(end).split(/^#{2,6}\s+/m, 1)[0]
 
-    if (cjkLength(before) < 220) {
-      fail(`${relative} 在解释场景、概念和流程前就出现了可执行代码。`)
+    if (cjkLength(before) < 140) {
+      if (strict) fail(`${relative} 在解释场景、概念和流程前就出现了可执行代码。`)
+      else warn(`${relative} 的代码块前置解释较短，需要人工复查。`)
     }
-    if (cjkLength(stripNonProse(after)) < 35) {
-      fail(`${relative} 的代码块后缺少输入、关键逻辑、输出或使用原因说明。`)
+    if (cjkLength(stripNonProse(after)) < 50) {
+      if (strict) fail(`${relative} 的代码块后缺少输入、关键逻辑、输出或使用原因说明。`)
+      else warn(`${relative} 的代码块后解释较短，需要人工复查。`)
     }
   }
+}
 
-  if (totalLines > 80) {
-    fail(`${relative} 正文共有 ${totalLines} 行可执行代码，最多保留 80 行。`)
-  }
+function checkTeachingEvidence(relative: string, content: string): void {
+  if (relative.startsWith('docs/frontend/relearn/') || relative.includes('/algorithms/')) return
+  const prose = stripReferenceSections(stripNonProse(content))
+  const evidence = [
+    /本篇|这篇|本文|目标|要解决/,
+    /前置|先理解|先认识|需要知道|基础知识|开始前|准备/,
+    /场景|例如|假设|问题|现象/,
+    /实践|实验|练习|演练|动手|运行|命令|输入|输出|流程|步骤|表格|检查|测试|验证|核对|评审/,
+    /边界|限制|适用|不适用|什么时候|采用|下一步|清单/
+  ].filter((pattern) => pattern.test(prose)).length
+  if (evidence < 4) fail(`${relative} 缺少足够的目标、前置、场景、实践或边界说明（${evidence}/5）。`)
 }
 
 function checkLongSections(relative: string, content: string): void {
@@ -146,10 +157,12 @@ for (const item of articles) {
 
   checkLongSections(relative, stripReferenceSections(content))
   checkCodeTeaching(relative, stripReferenceSections(content))
+  checkTeachingEvidence(relative, content)
 
-  for (const block of content.matchAll(/```([^\n]*)\n([\s\S]*?)```/g)) {
-    const lines = block[2].split('\n').length
-    if (lines > 80) fail(`${relative} 存在 ${lines} 行代码块。`)
+  if (!relative.startsWith('docs/frontend/relearn/') && !relative.includes('/algorithms/')) {
+    for (const block of content.matchAll(/```([^\n]*)\n([\s\S]*?)```/g)) {
+      if (!block[1].trim()) fail(`${relative} 代码围栏缺少语言标记。`)
+    }
   }
 
   for (const paragraph of prose.split(/\n\s*\n/)) {

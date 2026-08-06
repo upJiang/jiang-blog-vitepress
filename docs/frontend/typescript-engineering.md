@@ -3,7 +3,7 @@ title: "TypeScript 工程实践"
 description: "从一份不可信的接口响应开始，学习类型检查、运行时校验和页面状态建模。"
 category: frontend
 tags: ["TypeScript", "Architecture"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 700
 depth: flagship
 series: "现代前端"

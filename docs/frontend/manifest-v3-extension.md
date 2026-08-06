@@ -3,7 +3,7 @@ title: "Manifest V3 浏览器扩展架构"
 description: "从读取当前页面标题开始，理解页面脚本、内容脚本、Service Worker、消息与最小权限。"
 category: frontend
 tags: ["Browser Extension", "Manifest V3"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 770
 depth: flagship
 series: "现代前端"
@@ -11,7 +11,7 @@ series: "现代前端"
 
 # Manifest V3 浏览器扩展架构
 
-扩展要读取当前网页标题，并在弹窗中展示。Popup 不能直接访问页面 DOM，后台 Service Worker 也没有网页 DOM；真正运行在页面上下文旁边的是 Content Script。三个环境有不同权限和生命周期，需要通过消息连接。
+扩展要读取当前网页标题，并在弹窗中展示。Popup 无法直接访问页面 DOM，后台 Service Worker 也没有网页 DOM；真正运行在页面上下文旁边的是 Content Script。三个环境有不同权限和生命周期，需要通过消息连接。
 
 本篇先跑通“点击扩展 -> 请求标题 -> 页面读取 -> 返回结果”，再加入最小权限、存储与后台休眠。示例以 Chromium Manifest V3 公共 API 为基础，其他浏览器差异要按目标平台核对。
 
@@ -54,7 +54,7 @@ Service Worker 只暴露明确能力，例如读取当前 Tab、写入受限存�
 
 ## 步骤三：接受 Service Worker 会休眠
 
-后台不能依赖内存变量长期存在。需要恢复的状态写入 `chrome.storage` 或其他合适存储；Timer 与长连接不能被当作永久调度器。事件处理尽快完成，异步响应按 API 要求保持通道或返回 Promise。
+后台不应依赖内存变量长期存在。需要恢复的状态写入 `chrome.storage` 或其他合适存储；Timer 与长连接也不具备永久调度保证。事件处理尽快完成，异步响应按 API 要求保持通道或返回 Promise。
 
 状态分为：Popup 局部 UI、Tab 级临时状态、扩展持久设置和可重建缓存。敏感 Token 尽量避免存储；确需认证时缩小权限、生命周期和暴露面，不把凭证发送给 Content Script。
 
@@ -72,6 +72,21 @@ Tab 会刷新、导航和销毁，Content Script 可能尚未注入。Popup 请�
 | 扩展更新 | 消息与存储 Schema 有兼容迁移 |
 
 测试覆盖权限安装提示、无权限页面、Worker 重启、多个 Tab、导航和扩展升级。使用打包后的扩展运行浏览器测试，确认 Manifest、CSP 和资源路径，而不是只测试普通网页组件。
+
+## 跟踪一次“读取当前页标题”
+
+用户点击扩展按钮后，页面 UI 请求 Service Worker 获取当前活动 Tab。Worker 校验消息类型和发送方，确认扩展拥有当前页的临时或声明权限，再向 Content Script 请求 `document.title`。Content Script 只返回标题字符串，不返回整页 HTML。
+
+| 运行环境 | 能访问什么 | 生命周期特点 |
+| --- | --- | --- |
+| 扩展页面 | 扩展 API 与自己的 DOM | 页面关闭后销毁 |
+| Service Worker | 事件、权限和网络协调 | 空闲会休眠，无长期内存保证 |
+| Content Script | 受限扩展 API、页面 DOM | 随页面导航变化 |
+| 页面脚本 | 网站自身 JavaScript 世界 | 不可信，无法直接获得扩展权限 |
+
+消息契约包含类型、版本、最小数据和稳定错误。每个接收端验证 `sender`、目标 Tab 和权限，不能把来自页面的任意 URL 交给高权限网络请求。需要与页面世界交换数据时，显式序列化并再次校验。
+
+在浏览器里测试普通页面、无权限页面、导航后旧消息、Worker 休眠后首次调用和权限撤销。持久状态放 `chrome.storage` 或服务端，不能依赖 Worker 全局变量。权限从 `activeTab` 等最小能力开始，只有功能确实需要时再请求更广 Host Permission。
 
 ## 参考资料
 

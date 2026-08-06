@@ -1,116 +1,192 @@
 ---
-title: "FastAPI 分层架构"
-description: "从一个创建任务接口开始，理解路由、应用服务、仓储和领域规则怎样协作。"
+title: "FastAPI 分层架构：从请求到事务"
+description: "从一个创建任务接口开始，理解请求模型、应用服务、仓储、事务和错误映射怎样协作。"
 category: backend
-tags: ["Python", "FastAPI"]
-updated: 2026-08-05
+tags: ["Python", "FastAPI", "SQLAlchemy"]
+updated: 2026-08-06
 order: 60
 depth: flagship
 series: "Python"
 ---
 
-# FastAPI 分层架构
+# FastAPI 分层架构：从请求到事务
 
-第一次写 FastAPI 接口时，很容易在路由函数里完成参数校验、SQL 查询、权限判断、外部调用和错误处理。功能少时很直观；当同一个用例还要被 Celery Worker 调用，或者数据库失败需要回滚时，这个路由就很难测试和复用。
+很多 FastAPI 项目一开始只有一个路由函数：读取请求、查询数据库、判断权限、写入任务，然后返回 JSON。它能很快跑起来，但当同一任务还要从 Celery Worker 或管理脚本发起时，HTTP 细节和业务规则就会被复制到多个地方。
 
-本篇实现一个“提交文档处理任务”的最小接口。它接收来源 ID，返回 `202 + taskId`。我们逐步把 HTTP、业务流程和数据访问分开，并解释每一层解决的具体问题。
+本篇不从“目录应该怎么分”开始，而是跟踪一个具体用例：用户提交一份文档处理任务。读完后，你应当知道一次请求经过哪些对象，哪一层负责什么，数据库什么时候提交，以及为什么错误不能直接把 SQLAlchemy 异常原样返回给客户端。
 
-## 分层不是多建几个目录
+## 先准备四个词
 
-分层的目标是让变化方向清楚：HTTP 协议变化不改业务规则，数据库替换不让路由重写，Worker 也能调用同一个用例。最小结构包含四层：
+- **路由（route）**：HTTP 方法和 URL 到 Python 函数的映射，例如 `POST /tasks`。
+- **DTO**：数据传输对象，描述接口收到和返回的数据形状。它不是数据库表。
+- **应用服务**：完成一个业务用例的协调者，例如“创建任务”。它不应该知道 HTTP 状态码。
+- **Repository**：数据访问的抽象。应用服务请求“按 ID 查询”和“保存”，Repository 决定如何写 SQL。
 
-| 层 | 负责什么 | 不应该知道什么 |
-| --- | --- | --- |
-| API | 请求、响应、认证依赖、状态码 | SQL 和完整业务流程 |
-| Application Service | 用例顺序、权限、事务、幂等 | FastAPI Request |
-| Domain | 状态和不变量 | Pydantic 与 SQLAlchemy |
-| Repository | 查询、锁、持久化映射 | HTTP 状态码 |
+把一次请求画出来：
 
 ```mermaid
 flowchart LR
-  H[HTTP 请求] --> A[API 路由]
-  A --> S[应用服务]
-  S --> D[领域规则]
-  S --> R[Repository]
-  R --> DB[(数据库)]
-  W[Celery Worker] --> S
+  A[HTTP 请求] --> B[FastAPI 路由]
+  B --> C[请求 DTO]
+  C --> D[应用服务]
+  D --> E[Repository]
+  E --> F[(数据库)]
+  D --> G[业务结果]
+  G --> H[响应 DTO]
 ```
 
-## 步骤一：让路由只适配 HTTP
+这不是为了增加类的数量。每个边界都对应一种变化：路由会随 HTTP 协议变化，应用服务会随业务规则变化，Repository 会随数据库或查询方式变化。
 
-请求模型负责字段类型、长度和格式。认证依赖从已验证凭证构造可信身份；不能让客户端在 JSON 中传 `tenantId` 后直接相信。路由把 Pydantic 模型转换成命令，调用服务，再将结果转换成公开响应。
+## 本篇要完成的结果
 
-下面是根据 FastAPI 依赖与响应模型行为重写的最小示例。输入是来源 ID 和幂等键，输出是任务 ID。代码故意没有 ORM 查询，因为 HTTP 层不负责决定事务如何完成。
+我们假设系统已经有一个来源记录，用户要提交它进行异步处理：
 
-```py
-class SubmitBody(BaseModel):
+| 输入 | 预期结果 | 数据变化 |
+| --- | --- | --- |
+| 用户有权限，来源存在 | `202 Accepted` | 创建一条 `queued` 任务 |
+| 来源不存在 | `404` | 不创建任务 |
+| 用户无权访问来源 | `403` | 不泄露来源正文 |
+| 同一幂等键重复提交 | 返回第一次任务 | 不创建第二条 |
+| 数据库写入失败 | `5xx` | 当前事务回滚 |
+
+`202` 表示“请求已被接受，工作稍后完成”，不是“文档处理已经成功”。这一区分会影响前端轮询、任务状态和失败重试。
+
+## 第一步：先定义请求和响应
+
+路由收到的是不可信的 JSON。Pydantic 模型先验证字段形状，不能替代权限检查：`source_id` 格式正确，不代表这个用户可以读取它。
+
+```python
+from typing import Literal
+from pydantic import BaseModel, Field
+
+
+class CreateTaskBody(BaseModel):
     source_id: str = Field(min_length=1, max_length=128)
 
 
-class AcceptedResponse(BaseModel):
+class AcceptedTask(BaseModel):
     task_id: str
     state: Literal["queued"]
-
-
-@router.post("/documents/process", status_code=202)
-async def submit(
-    body: SubmitBody,
-    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
-    actor: Annotated[AuthContext, Depends(current_actor)],
-    service: Annotated[SubmissionService, Depends(submission_service)],
-) -> AcceptedResponse:
-    result = await service.execute(
-        SubmitCommand(body.source_id, idempotency_key, actor)
-    )
-    return AcceptedResponse(task_id=result.task_id, state="queued")
 ```
 
-Pydantic 只判断“输入长什么样”。“来源是否属于当前租户”依赖数据库和身份，应由服务与 Repository 判断。响应模型也应与 ORM 分开，避免新增内部字段后意外暴露存储键、路径或策略信息。
+`Field` 处理长度约束，`Literal` 让响应只能返回当前约定的状态。输入 DTO 只描述接口契约，不能把数据库 ORM 对象直接当响应返回，否则以后新增内部字段时可能意外暴露存储路径、租户标识或调度信息。
 
-## 步骤二：应用服务完成一个用例
+## 第二步：路由只做 HTTP 适配
 
-应用服务按固定顺序执行：检查动作权限，查询幂等记录，在可见范围内锁定来源，创建任务，保存事件，然后提交。Repository 不自行 `commit`，否则一个用例里的多次写入无法作为整体回滚。
+路由需要从请求中提取 Body、Header 和认证上下文，然后把它们组合成一个应用命令。下面省略认证实现，只保留边界：
 
-事务只包围数据库一致性操作。对象存储、OCR、模型调用等慢外部 I/O 不应放在长事务中。API 提交任务事实后返回 202，后台进程再处理耗时工作。客户端在提交后断开，不会撤销已经接受的任务。
+```python
+@router.post("/tasks", status_code=202)
+async def create_task(
+    body: CreateTaskBody,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    actor: Annotated[Actor, Depends(current_actor)],
+    service: Annotated[CreateTask, Depends(create_task_service)],
+) -> AcceptedTask:
+    result = await service.execute(
+        CreateTaskCommand(
+            source_id=body.source_id,
+            actor_id=actor.id,
+            tenant_id=actor.tenant_id,
+            idempotency_key=idempotency_key,
+        )
+    )
+    return AcceptedTask(task_id=result.task_id, state="queued")
+```
 
-依赖注入负责组装 Session、Repository 和 Service，领域对象本身不依赖 `Depends`。这样 Worker 和单测能直接创建 Service，不需要伪造 HTTP 请求。
+从上到下读这段函数：FastAPI 先验证 Body；`Header` 读取幂等键；`Depends` 组装当前用户和应用服务；路由把 HTTP 输入转换成命令；最后把业务结果转换成公共 DTO。这里没有 SQL、`commit()` 或 `HTTPException`，所以 Worker 可以直接调用 `service.execute()`，不用伪造一个 HTTP 请求。
 
-## 步骤三：管理 AsyncSession 生命周期
+## 第三步：应用服务完成一个用例
 
-每个请求或任务拥有独立 `AsyncSession`，不能在并发协程之间共享。Session 是工作单元，不是全局数据库客户端。事务边界由完整用例决定；请求退出且尚未提交时自动回滚。
+应用服务拥有一次“创建任务”的完整顺序：检查输入范围、查询来源、判断权限、处理幂等、写入任务。它返回可判断的业务结果，而不是在内部决定 404 或 403。
 
-`async def` 也不保证内部工作不会阻塞。只有异步数据库和 HTTP I/O 会主动让出事件循环。PDF 解析、OCR、压缩和大型 JSON 计算属于同步或 CPU 工作，应放入受限线程池、独立进程或任务 Worker，并设置时间与内存预算。
+```python
+class CreateTask:
+    def __init__(self, sources: SourceRepository, tasks: TaskRepository):
+        self.sources = sources
+        self.tasks = tasks
 
-流式响应尤其不要长期持有请求事务。先用短查询完成授权并生成流票据，结束 Session，再从独立事件存储按游标发送。客户端断开只清理连接，不把后台任务改成失败。
+    async def execute(self, command: CreateTaskCommand) -> CreateTaskResult:
+        previous = await self.tasks.by_key(command.tenant_id, command.idempotency_key)
+        if previous:
+            if previous.source_id != command.source_id:
+                return CreateTaskResult.conflict()
+            return CreateTaskResult.queued(previous.id)
 
-## 步骤四：统一错误语义
+        source = await self.sources.visible_to(command.source_id, command.tenant_id)
+        if source is None:
+            return CreateTaskResult.missing()
 
-领域和应用层抛出稳定错误，例如 `SourceNotFound`、`PermissionDenied`、`IdempotencyConflict`。API 的统一 Handler 将它们映射为 404、403、409 等协议结果。未知异常返回请求关联 ID 和通用消息，详细堆栈只保留在服务端日志。
+        task = await self.tasks.insert_queued(command, source)
+        return CreateTaskResult.queued(task.id)
+```
 
-| 失败位置 | 公共结果 | 数据结果 |
+幂等查询放在创建之前：网络超时后客户端重试，第二次请求可以复用第一条任务。若同一个键带了不同的 `source_id`，返回冲突比悄悄复用更安全。`visible_to` 把租户范围放进查询条件；只先查出对象、再在 Python 里过滤，容易在缓存或其他入口漏掉隔离条件。
+
+真实应用还需要让“检查幂等记录”和“插入任务”在并发下安全。通常会用数据库唯一约束兜底，并把 Repository 的写入放在同一个事务里；上面的片段只用于解释用例顺序。
+
+## 第四步：管理 AsyncSession 和事务
+
+`AsyncSession` 是一次数据库工作单元，不是全局连接。请求或 Worker 开始时创建，事务完成后释放。Repository 不应各自 `commit()`，否则一个用例的多次写入无法整体回滚。
+
+```python
+async def session_scope() -> AsyncIterator[AsyncSession]:
+    async with session_factory() as session:
+        async with session.begin():
+            yield session
+
+
+async def create_task_service(
+    session: Annotated[AsyncSession, Depends(session_scope)],
+) -> CreateTask:
+    return CreateTask(SourceRepository(session), TaskRepository(session))
+```
+
+`session_factory()` 创建独立 Session；`session.begin()` 建立事务上下文；函数正常退出时提交，抛出异常时回滚。事务只覆盖数据库一致性操作，PDF 解析、OCR、模型调用和对象存储上传不应长时间占住数据库事务。提交任务事实后，再由 Worker 处理慢工作。
+
+## 第五步：把领域错误映射成 HTTP 结果
+
+应用服务返回 `missing`、`forbidden`、`conflict` 等稳定结果，路由或统一异常处理器再决定 HTTP 协议表现：
+
+| 应用结果 | HTTP | 客户端含义 |
 | --- | --- | --- |
-| Pydantic 字段不合法 | 422 | 不开启业务写入 |
-| 身份无动作权限 | 403 | 不查询越权正文 |
-| 来源不在可见范围 | 404 | 不创建任务 |
-| 幂等键复用且参数不同 | 409 | 保留原任务 |
-| 插入事件失败 | 5xx | 整个事务回滚 |
-| 外部解析失败 | 任务进入失败状态 | API 已接受事实不消失 |
+| `missing` | 404 | 当前范围内没有这个来源 |
+| `forbidden` | 403 | 身份存在，但没有动作权限 |
+| `conflict` | 409 | 幂等键参数冲突或状态不允许 |
+| `queued` | 202 | 任务已接受，等待后台处理 |
+| 未知数据库异常 | 500 | 服务端错误，返回 request id |
 
-取消请求时应让 Python 的取消语义传播，完成必要资源清理后继续抛出，而不是用宽泛异常吞掉。日志记录 requestId、错误码和主体摘要，不记录 Token、上传正文和完整模型输入。
+不要把 SQLAlchemy 的完整错误、堆栈或连接信息直接返回。客户端需要稳定错误码，排查信息放在带 `request_id` 的服务端日志中。认证失败、来源不存在和无权限是否需要隐藏资源存在性，要根据系统威胁模型明确选择，而不是让异常类型偶然决定。
 
-## 怎样验证分层确实有用
+## 怎样验证这条链
 
-领域测试验证状态不变量，不启动 FastAPI；服务测试验证权限、幂等和调用顺序；Repository 集成测试连接隔离数据库，验证 SQL、锁和回滚；API 测试只关注请求契约、状态码和响应 DTO。各层测试证明的风险不同，不能互相替代。
+单元测试用内存 Repository 验证应用服务的分支；集成测试连接隔离数据库验证唯一约束、事务和查询范围；API 测试验证请求模型和状态码。三类测试证明的是不同风险。
 
-运行态还要验证多进程：每个 Worker 的连接池总量、Lifespan 资源初始化、readiness、终止信号和请求排空。定时器与恢复扫描器不应在每个 Web Worker 的 startup 中各启动一份。
+```text
+POST /tasks
+Idempotency-Key: request-001
+{"source_id":"source-001"}
 
-## 当前限制与下一步
+HTTP/1.1 202 Accepted
+{"task_id":"task-001","state":"queued"}
+```
 
-小接口不需要为了形式创建十层抽象。只有当一个边界能隔离协议、业务或数据变化时才值得存在。本篇的任务只保存了来源引用，下一篇会处理来源文件，逐步加入解析、条件 OCR、结构切片和候选发布。
+重复发送完全相同的请求，应返回同一个 `task_id`。把 `source_id` 改成另一个值，应得到 `409`，并确认数据库仍只有第一条任务。让 `insert_queued` 抛出异常，再查询任务表，应该看不到半条记录。
+
+## 初学者练习
+
+1. 把 `source_id` 的最大长度改小，观察 FastAPI 返回的 422 结构。
+2. 给 Repository 增加一次保存计数，验证无权限和重复请求不会重复写入。
+3. 写一个最小 Worker，直接调用 `CreateTask.execute()`，确认它不需要导入 FastAPI 的 `Request` 或 `Depends`。
+4. 在数据库唯一约束冲突时记录 request id，并区分“重复同参数”和“同键不同参数”。
+
+## 当前边界与下一步
+
+本篇只完成“创建任务事实”的请求链，没有展开认证 Token 生命周期、队列投递、任务租约和事件流。它们会改变可靠性和恢复语义，应在明确的下一篇中分别处理。分层也不是目录越多越好：如果一个小工具永远只有单一入口和单一存储，额外抽象可能增加阅读成本。
 
 ## 参考资料
 
 - [FastAPI Dependencies](https://fastapi.tiangolo.com/tutorial/dependencies/)
 - [FastAPI Bigger Applications](https://fastapi.tiangolo.com/tutorial/bigger-applications/)
-- [SQLAlchemy AsyncIO](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html)
 - [Pydantic Models](https://docs.pydantic.dev/latest/concepts/models/)
+- [SQLAlchemy AsyncIO](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html)

@@ -3,7 +3,7 @@ title: "Node 认证与 Token 生命周期"
 description: "从一次登录开始，理解 Session、Access Token、Refresh Token、轮换与退出怎样协同工作。"
 category: backend
 tags: ["Node.js", "Auth"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 20
 depth: core
 series: "Node.js 服务安全"
@@ -113,6 +113,21 @@ flowchart LR
 ## JWT 解决不了什么
 
 JWT 的签名能证明声明未被篡改，却不负责回答资源是否属于当前租户、对象当前是否允许修改、权限是否刚被撤销。认证只解决“你是谁”，授权还要结合动作、资源和当前策略。下一篇会用两条属于不同用户的数据，把授权范围一直下推到数据库查询。
+
+## 用四次请求走完 Token 生命周期
+
+准备一个测试用户，依次执行登录、访问受保护资源、刷新、退出。登录成功后服务端创建可撤销会话，Access Token 生命周期较短，Refresh Token 生命周期更长并与会话绑定。浏览器场景通常把 Refresh Token 放入 `Secure`、`HttpOnly`、合适 `SameSite` 的 Cookie；前端 JavaScript 不能设置或读取 `HttpOnly`。
+
+| 请求 | 服务端关键检查 | 预期状态变化 |
+| --- | --- | --- |
+| 登录 | 凭证、限流、账号状态 | 创建会话与 Token 族 |
+| 访问 API | 签名、`exp`、`iss`、`aud`、会话状态 | 不延长 Refresh 生命周期 |
+| 刷新 | Refresh 哈希、Token 族、是否已使用 | 轮换并使旧 Token 失效 |
+| 退出 | 当前会话或全部会话范围 | 撤销会话，清理 Cookie |
+
+刷新轮换要处理重放：旧 Refresh Token 再次出现时，可能表示并发刷新或泄露。服务端根据产品策略撤销该 Token 族并要求重新登录，而不是继续签发。多标签页可以协调一次刷新，仍不能用前端状态代替服务端裁决。
+
+测试时把系统时钟固定，覆盖过期 Access Token、错误受众、旧 Refresh 重放、账号停用和密钥轮换。GET 与 POST 的安全性不由方法名称决定，所有受保护请求都按相同身份规则验证；状态变更接口还需要 CSRF、防重放和业务授权。
 
 ## 参考资料
 

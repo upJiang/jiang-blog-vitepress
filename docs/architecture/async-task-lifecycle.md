@@ -3,7 +3,7 @@ title: "异步任务生命周期设计"
 description: "从一个报告任务开始，用 Task、Attempt、Lease 和 Event 处理重复、取消与中断恢复。"
 category: architecture
 tags: ["Async", "State Machine"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 20
 depth: core
 series: "系统方法"
@@ -79,6 +79,21 @@ Worker 原子领取任务，生成递增或不可重复的 fencing token，并�
 清理也有自己的生命周期：临时文件、未激活候选和分片按引用清单删除。清理失败不应反转业务成功，但要可见、可重试，也不能误删当前或回滚版本。
 
 下一篇进入 AI 系统最重要的另一条链路：证据。我们会把“模型生成了一段话”拆成可验证 Claim 和可见 Evidence。
+
+## 从一张状态表开始设计
+
+以生成报告为例，先写业务任务状态，而不是先选队列。任务可以从 `pending` 进入 `running`，最终到 `completed`、`failed`、`cancelled` 或 `timed_out`。每条转换写明触发者、前置状态和需要原子提交的数据。
+
+| 转换 | 触发者 | 需要同时写入 |
+| --- | --- | --- |
+| `pending -> running` | 获得租约的 Worker | owner、lease_until、started_at |
+| `running -> completed` | 当前 owner | 结果身份、终态事件、finished_at |
+| `running -> cancelled` | 用户请求/Worker 协作确认 | 取消原因、终态事件 |
+| `running -> timed_out` | Worker 或停滞扫描 | Deadline、最后检查点、终态事件 |
+
+Attempt 记录每次执行机会，Task 表示用户看到的一个业务意图；消息只是唤醒 Worker。Worker 在关键提交前比较 owner 和 lease，旧 Worker 即使迟到也不能覆盖新执行者。Checkpoint 只保存在稳定节点完成后的状态，不保存无法重复的半个副作用。
+
+做三次演练：消息重复到达、Worker 在完成后 ACK 前退出、用户取消与完成同时发生。断言任务只有一个终态、外部副作用可查询或幂等、事件序号连续。设计完成的产物应是一张状态转换表、错误分类和停滞恢复规则，而不只是“使用了异步队列”。
 
 ## 参考资料
 

@@ -3,7 +3,7 @@ title: "Go 与 Gin 的服务分层和错误模型"
 description: "从一个查询接口开始，用显式依赖和可判断错误构建可测试的 Gin 服务。"
 category: backend
 tags: ["Go", "Gin"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 110
 depth: core
 series: "Go 服务工程"
@@ -92,6 +92,23 @@ HTTP Server 设置读取头、空闲和请求体限制。收到 SIGTERM 后先�
 ## 下一步
 
 HTTP JSON 由服务端和客户端在运行时约定字段，跨服务系统常使用 Protobuf 生成强类型契约。下一篇将从新增一个字段开始，观察 gRPC 契约怎样保持新旧版本兼容。
+
+## 让错误跨层仍然可判断
+
+以查询任务接口为例，Handler 解析路径参数和身份，UseCase 请求 Repository 读取任务。Repository 返回 `not found`、数据库连接错误或正常对象；UseCase 还可能返回“当前用户不可见”。这些结果使用可比较错误类型或 `errors.Is` 链，不依赖字符串内容。
+
+| 错误 | HTTP 映射 | 日志内容 |
+| --- | --- | --- |
+| 参数无效 | 400 | 安全字段与验证原因 |
+| 未认证 | 401 | 认证阶段，不记录凭证 |
+| 无权限/不可见 | 按协议 403 或 404 | 主体和资源匿名标识 |
+| 资源不存在 | 404 | 查询类型 |
+| 版本冲突 | 409 | 期望与当前版本 |
+| 未知依赖错误 | 500 | 内部错误链和 trace ID |
+
+Handler 只把领域结果映射为协议，不把 SQL 错误原样返回。依赖通过构造函数装配，测试 UseCase 时传入假的 Repository；Gin 路由测试只关注状态、JSON 和认证上下文。
+
+再增加一个 gRPC 或后台任务入口复用 UseCase。若 UseCase 依赖 `*gin.Context`，复用会被阻断；改为标准 `context.Context` 传递 Deadline 与取消，业务输入使用明确命令结构。分层完成的标志是入口可替换、错误语义稳定，而不是目录数量。
 
 ## 参考资料
 

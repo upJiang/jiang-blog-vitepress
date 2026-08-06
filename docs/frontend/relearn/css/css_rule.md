@@ -8,68 +8,244 @@ order: 370
 depth: reference
 series: "重学前端"
 ---
-# CSS At-rules 与规则系统
+> CSS 的顶层样式表由两种规则组成的规则列表构成，一种被称为 at-rule，也就是 at 规则，另一种是 qualified rule，也就是普通规则。
 
-同一个卡片需要回答三种问题：视口是否狭窄、卡片容器是否狭窄、浏览器是否支持 Grid。它们分别属于 `@media`、`@container` 和 `@supports`。虽然都以 `@` 开头，判断对象和失败语义并不相同。
+## at 规则 @
 
-## 先给 CSS 规则分类
+- @charset ： https://www.w3.org/TR/css-syntax-3/
 
-普通 qualified rule 由选择器和声明块组成，例如 `.card { display: grid }`。At-rule 以 `@` 开头，有的包住一组规则，有的声明字体、关键帧或页面信息。浏览器遇到未知或无效规则时按语法恢复，通常只丢弃局部，而非整份样式表。
+- @import ：https://www.w3.org/TR/css-cascade-4/
 
-| 规则 | 判断或声明什么 | 常见用途 |
-| --- | --- | --- |
-| `@media` | 用户环境和视口 | 响应式、颜色偏好、打印 |
-| `@container` | 祖先查询容器 | 可复用组件布局 |
-| `@supports` | CSS 能力 | 渐进增强 |
-| `@layer` | 层叠来源顺序 | 管理基础、组件与覆盖 |
-| `@font-face` | 可下载字体 | 字体来源和范围 |
-| `@keyframes` | 动画时间线 | 多阶段动画 |
+- @media ：https://www.w3.org/TR/css3-conditional/
 
-## 步骤一：让同一组件响应三个条件
+- @page ： https://www.w3.org/TR/css-page-3/
 
-预期结果是浏览器支持 Grid 时启用网格，容器窄时改成单列，用户减少动态效果时取消非必要过渡。每个条件只处理自己的判断对象。
+- @counter-style ：https://www.w3.org/TR/css-counter-styles-3
 
-```css
-@layer base, components, overrides;
+- @keyframes ：https://www.w3.org/TR/css-animations-1/
 
-@layer components {
-  .card-list { container-type: inline-size; }
+- @fontface ：https://www.w3.org/TR/css-fonts-3/
 
-  @supports (display: grid) {
-    .cards { display: grid; grid-template-columns: repeat(2, 1fr); }
-  }
+- @supports ：https://www.w3.org/TR/css3-conditional/
 
-  @container (width < 30rem) {
-    .cards { grid-template-columns: 1fr; }
-  }
-}
+- @namespace ：https://www.w3.org/TR/css-namespaces-3/
 
-@media (prefers-reduced-motion: reduce) {
-  .card { transition: none; }
+### @charset
+
+> @charset 用于提示 CSS 文件使用的字符编码方式，它如果被使用，必须出现在最前面。这个规则只在给出语法解析阶段前使用，并不影响页面上的展示效果。
+
+```
+@charset "utf-8";
+```
+
+### @import
+
+> @import 用于引入一个 CSS 文件，除了 @charset 规则不会被引入，@import 可以引入另一个文件的全部内容。
+
+```
+@import "mystyle.css";
+@import url("mystyle.css");
+```
+
+```
+@import [ <url> | <string> ]
+        [ supports( [ <supports-condition> | <declaration> ] ) ]?
+        <media-query-list>? ;
+```
+
+通过代码，我们可以看出，import 还支持 supports 和 media query 形式。
+
+### @media
+
+> media 就是大名鼎鼎的 media query 使用的规则了，它能够对设备的类型进行一些判断。在 media 的区块内，是普通规则列表。
+
+```
+@media print {
+    body { font-size: 10pt }
 }
 ```
 
-输入是浏览器能力、组件容器宽度与用户偏好。关键逻辑是不同 at-rule 各自包住适用声明；输出是组件在相同 viewport 的不同容器中也能独立变化。Cascade Layer 预先声明顺序，让后续规则覆盖不依赖不断提高 specificity。
+### @page
 
-## 步骤二：理解加载与定义类规则
+> page 用于分页媒体访问网页时的表现设置，页面是一种特殊的盒模型结构，除了页面本身，还可以设置它周围的盒。比如打印机
 
-`@import` 必须出现在样式表允许的前部位置，会增加依赖发现层级；关键样式通常由 HTML link 直接加载。它也可带 media、supports 和 layer 条件，但仍要检查瀑布和缓存。
+```
+@page {
+  size: 8.5in 11in;
+  margin: 10%;
 
-`@font-face` 描述字体 family、source、style、weight、display 与 Unicode 范围。字体文件失败时应回退到可用系统字体，布局还要考虑字体指标变化。`@keyframes` 定义动画阶段，不负责业务状态；`@counter-style` 定义列表计数样式；`@page` 处理分页媒体。
+  @top-left {
+    content: "Hamlet";
+  }
+  @top-right {
+    content: "Page " counter(page);
+  }
+}
+```
 
-`@namespace` 主要用于 XML/SVG 等命名空间选择器。`@charset` 是历史编码声明，必须处在字节流开头且格式严格；现代部署更可靠的做法是 HTTP 与文件统一 UTF-8。旧 `@viewport` 方案不应作为现代移动布局结论，HTML viewport meta 与现行 CSS 规范各有边界。
+### @counter-style
 
-## 步骤三：理解声明如何得到最终值
+> counter-style 产生一种数据，用于定义列表项的表现。
 
-普通规则中的选择器决定匹配范围，声明由属性和值组成。最终结果还经过来源、important、layer、specificity、作用域和源码顺序的层叠，然后处理继承、计算值与 used value。
+```
+@counter-style triangle {
+  system: cyclic;
+  symbols: ‣;
+  suffix: " ";
+}
+```
 
-自定义属性保存 token 流，并在使用位置解析；未注册的自定义属性默认继承。`@property` 可以声明语法、初始值和继承行为，但要按兼容性渐进增强。无效变量可能直到 `var()` 被代入具体属性时才暴露。
+### @key-frames
 
-## 故意制造一次失败
+> keyframes 产生一种数据，用于定义动画关键帧。
 
-删除 `.card-list` 的 `container-type`，容器查询不再有可查询祖先，规则不会按预期触发。这个失败说明 `@container` 不是 viewport media query 的新名字，它依赖显式查询容器。
+```
+@keyframes diagonal-slide {
 
-再把不受支持的新属性直接作为唯一布局方案。浏览器会忽略无效声明；如果基础样式仍能完成任务，渐进增强成功，否则页面失去结构。`@supports` 应检测真正使用的能力，并在“不支持”路径下保持可用结果。
+  from {
+    left: 0;
+    top: 0;
+  }
+
+  to {
+    left: 100px;
+    top: 100px;
+  }
+
+}
+```
+
+### @fontface
+
+> fontface 用于定义一种字体，icon font 技术就是利用这个特性来实现的。
+
+```
+@font-face {
+  font-family: Gentium;
+  src: url(http://example.com/fonts/Gentium.woff);
+}
+
+p { font-family: Gentium, serif; }
+```
+
+### @support
+
+support 检查环境的特性，它与 media 比较类似。低版本不支持
+
+### @namespace
+
+用于跟 XML 命名空间配合的一个规则，表示内部的 CSS 选择器全都带上特定命名空间。
+
+### @viewport
+
+用于设置视口的一些特性，不过兼容性目前不是很好，多数时候被 HTML 的 meta 代替。
+
+### 其它
+
+除了以上这些，还有些目前不太推荐使用的 at 规则。
+
+- @color-profile 是 SVG1.0 引入的 CSS 特性，但是实现状况不怎么好。
+
+- @document 还没讨论清楚，被推迟到了 CSS4 中。
+
+- @font-feature-values 。
+
+## 普通规则
+
+qualified rule 主要是由选择器和声明区块构成。声明区块又由属性和值构成。
+
+- 普通规则
+
+  - 选择器
+
+  - 声明列表
+
+    - 属性
+
+    - 值
+
+      - 值的类型
+
+      - 函数
+
+### 选择器
+
+语法结构<br> <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3615a0fff44c479882a614b256dde600~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3615a0fff44c479882a614b256dde600~tplv-k3u1fbpfcp-watermark.image?)</a><br> <a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9294e2fdd7ca4bf8b3de9ae9fd25fca6~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9294e2fdd7ca4bf8b3de9ae9fd25fca6~tplv-k3u1fbpfcp-watermark.image?)</a>
+
+### 声明：属性和值
+
+> 声明部分是一个由“属性: 值”组成的序列。
+
+属性是由中划线、下划线、字母等组成的标识符，CSS 还支持使用反斜杠转义。我们需要注意的是：属性不允许使用连续的两个中划线开头，这样的属性会被认为是 CSS 变量。
+
+在`CSS Variables` 标准中，以双中划线开头的属性被当作变量，与之配合的则是 var 函数：
+
+```
+:root {
+  --main-color: #06c;
+  --accent-color: #006;
+}
+/* The rest of the CSS file */
+#foo h1 {
+  color: var(--main-color);
+}
+```
+
+CSS 属性值可能是以下类型。
+
+- CSS 范围的关键字：initial，unset，inherit，任何属性都可以的关键字。
+
+- 字符串：比如 content 属性。
+
+- URL：使用 url() 函数的 URL 值。
+
+- 整数 / 实数：比如 flex 属性。
+
+- 维度：单位的整数 / 实数，比如 width 属性。
+
+- 百分比：大部分维度都支持。
+
+- 颜色：比如 background-color 属性。
+
+- 图片：比如 background-image 属性。
+
+- 2D 位置：比如 background-position 属性。
+
+- 函数：来自函数的值，比如 transform 属性。
+
+CSS 支持一批特定的计算型函数：
+
+- calc()
+
+- max()
+
+- min()
+
+- clamp()
+
+- toggle()
+
+- attr()
+
+**calc()** 函数是基本的表达式计算，它支持加减乘除四则运算。在针对维度进行计算时，calc() 函数允许不同单位混合运算，这非常的有用。
+
+```
+section {
+  float: left;
+  margin: 1em; border: solid 1px;
+  width: calc(100%/3 - 2*1em - 2*1px);
+}
+```
+
+**max()、min() 和 clamp()** 则是一些比较大小的函数，max() 表示取两数中较大的一个，min() 表示取两数之中较小的一个，clamp() 则是给一个值限定一个范围，超出范围外则使用范围的最大或者最小值。
+
+toggle() 函数在规则选中多于一个元素时生效，它会在几个值之间来回切换，比如我们要让一个列表项的样式圆点和方点间隔出现，可以使用下面代码：
+
+```
+ul { list-style-type: toggle(circle, square); }
+```
+
+attr() 函数允许 CSS 接受属性值的控制。
 
 ## 参考资料
 

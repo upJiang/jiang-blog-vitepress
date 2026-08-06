@@ -1,114 +1,192 @@
 ---
-title: "Docker 与 Compose"
-description: "从启动 API 与数据库开始，理解镜像、网络、健康检查、持久数据和容器停止。"
+title: "Docker Compose：从两个容器跑通一个服务"
+description: "从 API 与 PostgreSQL 的最小组合开始，理解镜像、容器、网络、健康检查、数据卷和停止恢复。"
 category: devops
-tags: ["Docker", "Compose"]
-updated: 2026-08-05
+tags: ["Docker", "Compose", "容器"]
+updated: 2026-08-06
 order: 10
-depth: core
+depth: flagship
 series: "基础设施"
 ---
 
-# Docker 与 Compose
+# Docker Compose：从两个容器跑通一个服务
 
-本地要运行一个 API 和 PostgreSQL。直接在电脑安装所有依赖当然可以，但不同开发机的版本与配置很容易漂移。Docker 把程序与运行环境打成镜像，Compose 则声明多个容器怎样连接、启动和保存数据。
+第一次接触 Docker，很多人会把它理解成“换一种方式运行命令”。真正需要掌握的是：一个服务由哪些进程组成，它们如何发现彼此，数据放在哪里，服务不健康时谁负责报告，以及容器被替换后什么必须留下。
 
-本篇先让两个服务跑起来，再解释镜像身份、内部网络、健康检查、Volume 和 SIGTERM。目标是 API 容器可以替换，数据库数据仍然保留，依赖临时故障也不会被错误理解成“重新启动一切”。
+本篇用一个匿名 API 和 PostgreSQL 组成最小系统。你不需要先学习 Kubernetes；只要会打开终端、知道端口是什么，并能阅读 YAML，就可以跟着完成。最后你应该能够解释一次 `docker compose up` 到底启动了什么，并能判断“容器在运行”和“应用已经可以接收请求”为什么不是一回事。
 
-## 镜像和容器有什么区别
+## 先建立五个概念
 
-镜像是只读运行制品，容器是镜像的一次运行实例。源码提交本身不是部署制品；构建过程还包含运行时、锁定依赖和系统包。测试、候选和生产应提升同一个镜像 Digest，仅注入不同环境配置。
+- **镜像**：构建出来的只读文件系统和启动配置，类似“安装好的运行包”。镜像本身不会处理请求。
+- **容器**：镜像的一次运行实例。容器可以被删除和重建，因此不要把唯一数据只写在容器可写层。
+- **网络**：容器之间通信的隔离空间。在 Compose 网络里，服务名可以作为 DNS 名称使用。
+- **Volume**：由 Docker 管理的持久化存储。数据库文件应该放在 Volume 或外部存储，而不是依赖容器 ID。
+- **健康检查**：由容器运行时定期执行的探针。它描述探针能观察到的状态，不会自动修复业务问题。
 
-Tag 便于人识别，却可能移动；Digest 才指向确定内容。基础镜像固定版本并持续更新补丁。运行镜像只带运行所需文件，编译器、源码和包管理缓存留在构建阶段。
+这五个概念的关系可以先画成一张小图：
 
 ```mermaid
 flowchart LR
-  S[源码与锁文件] --> B[隔离构建]
-  B --> I[镜像 Digest]
-  I --> T[测试]
-  I --> C[候选]
-  I --> P[生产]
+  I[api 镜像] --> A[api 容器]
+  P[postgres 镜像] --> DB[postgres 容器]
+  A -->|app 网络| DB
+  DB --> V[postgres_data Volume]
+  A --> H[健康检查]
 ```
 
-## 步骤一：声明两个服务
+## 第一步：准备一个最小目录
 
-Compose 中 API 和数据库加入内部网络，通过服务名访问，不依赖会变化的容器 IP。只有需要从宿主机访问的网关或调试入口发布端口；数据库不必暴露到所有网卡。
+先建一个不会和现有项目混淆的目录。这里的 API 只是为了产生一个可观察的 HTTP 响应，重点是观察容器关系，不是实现业务。
 
-下面是教学用最小配置。镜像地址、Digest、Secret 和数据库名都需要替换成实际环境的受控值，不能原样上线。输入是两个经过验证的镜像，输出是内部可通信的 API 与持久数据库。
+```text
+compose-demo/
+  compose.yaml
+  api/
+    Dockerfile
+    server.py
+```
+
+`server.py` 的职责只有一件事：监听 `8000` 端口，并返回一个健康结果。数据库容器不需要知道宿主机目录，API 通过服务名 `postgres` 访问它；这个名字由 Compose 网络提供。
+
+## 第二步：先单独理解 API 镜像
+
+镜像构建文件描述“如何得到运行环境”，它不是 Compose 配置。下面的最小 Dockerfile 使用官方 Python 基础镜像、复制脚本，并把容器启动命令固定为 `python server.py`。
+
+```dockerfile
+FROM python:3.13-slim
+WORKDIR /app
+COPY server.py .
+EXPOSE 8000
+CMD ["python", "server.py"]
+```
+
+逐行看它做了什么：`FROM` 选择已有的运行时；`WORKDIR` 让后续路径都相对于 `/app`；`COPY` 只把当前示例需要的文件放进镜像；`EXPOSE` 是文档提示，不会自动把端口发布到宿主机；`CMD` 是容器默认启动命令。
+
+如果把 `server.py` 改了，旧镜像不会自动变化。必须重新构建镜像，或者在开发环境使用源码挂载。生产环境应使用明确版本的构建产物，不要依赖宿主机目录“碰巧存在”。
+
+## 第三步：声明 API、数据库和网络
+
+现在把两个镜像放进 `compose.yaml`。先读配置，再运行命令，这样出问题时你知道每一项属于哪一层。
 
 ```yaml
 services:
   api:
-    image: example-api@sha256:verified-digest
-    init: true
+    build: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_HOST: postgres
     depends_on:
       postgres:
         condition: service_healthy
     networks: [app]
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://api:8000/health/live"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    stop_grace_period: 30s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://api:8000/health')"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
 
   postgres:
     image: postgres:17
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo-only
+      POSTGRES_DB: demo
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks: [app]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 networks:
   app:
-    internal: true
 
 volumes:
   postgres_data:
 ```
 
-`depends_on` 改善启动顺序，却不保证数据库运行期间永远健康。API 仍要处理连接失败、有界重试并更新 readiness。普通 Compose 也不会因为写了编排器专属字段就自动拥有零停机滚动发布。
+`build: ./api` 表示 API 镜像由本地 Dockerfile 构建；`8000:8000` 只发布 API，数据库没有暴露宿主机端口；`DATABASE_HOST: postgres` 说明容器内访问数据库时使用服务名，而不是 `localhost`。在 API 容器里，`localhost` 指向 API 自己，不是 PostgreSQL。
 
-## 步骤二：区分配置、Secret 和浏览器变量
+`depends_on` 的健康条件只解决启动顺序：Compose 会等待数据库探针通过后再启动 API。它不保证数据库永远可用，所以 API 仍然需要连接失败处理。两个 `healthcheck` 也有不同含义：`pg_isready` 检查数据库是否接受连接，API 探针检查 HTTP 进程是否响应。
 
-环境配置描述端口、功能开关和外部地址；Secret 包含密码、Token 与私钥。Secret 不写进 Dockerfile 的 `ARG/ENV`、镜像 Layer、Compose 示例或日志。构建访问私有依赖时使用 BuildKit Secret mount，运行时由部署平台注入受限文件或短期凭证。
+## 第四步：验证配置，再启动
 
-前端静态包里的变量会在构建时进入 JavaScript，浏览器可读取，因此不能放 Secret。若同一静态镜像要跨环境使用，可以提供受控的非敏感运行配置文件，并设置合适缓存。
+不要一上来就反复重启。先让 Compose 展开变量并检查配置是否能被解析：
 
-## 步骤三：确定哪些数据需要保存
+```bash
+docker compose config
+docker compose up -d --build
+docker compose ps
+docker compose port api 8000
+docker compose exec api python -c \
+  "import urllib.request; print(urllib.request.urlopen('http://api:8000/health').status)"
+```
 
-容器应当可替换。数据库使用命名 Volume 或外部存储；缓存通常可以重建；日志进入 stdout 或有界采集；临时文件进入明确临时目录并在任务结束后清理。`docker compose down -v` 会删除 Compose Volume，不属于日常更新动作。
+你应当看到两个服务处于 `running`，健康状态逐渐变为 `healthy`。`docker compose port` 输出 API 在宿主机发布的地址；把它与 `/health` 拼接后放进浏览器，可以验证宿主机端口映射。最后一条命令在 API 容器内通过服务名访问自身，状态码应为 `200`。这里的 `api` 和 `postgres` 都是 Compose 服务名，前者没有用来连接数据库。`config` 失败通常是 YAML 缩进、变量缺失或字段拼写问题；`ps` 能告诉你容器是否启动，但只有 HTTP 请求成功，才能证明应用路由工作。
 
-备份不能等同于复制运行中的 Volume 目录。数据库使用一致性备份工具，并在隔离环境实际恢复。Volume 解决容器重建后的本机持久化，不解决主机损坏、误删和灾难恢复。
+查看启动过程：
 
-## 步骤四：健康检查与停止流程
+```bash
+docker compose logs --tail=100 postgres
+docker compose logs --tail=100 api
+docker compose exec api python -c "import os; print(os.environ['DATABASE_HOST'])"
+```
 
-liveness 判断进程是否卡死，readiness 判断当前能否接流量。Compose 只有一个健康状态，所以要明确探针代表哪一种语义。昂贵的全链路检查不适合 liveness，否则数据库短暂波动会引发所有应用重启。
+`logs` 观察容器标准输出；`exec` 在正在运行的容器里执行一次命令。这里打印的是非敏感的主机名，实际项目不要把密码、Token 或完整请求正文写入日志。
 
-容器主进程作为 PID 1 要接收 SIGTERM。收到信号后先变为 not-ready，停止接收新请求或任务，在有限时间内排空，再关闭连接池和遥测。长任务依靠持久任务记录、租约与幂等恢复，而不是无限延长停止时间。
+## 第五步：亲手验证 Volume 是否真的持久
 
-资源限制同样需要测量。内存上限可能触发 OOM Kill，CPU quota 会增加延迟；每实例连接池还要乘以实例数和滚动期间的新旧副本数。扩容应用却不核算数据库连接，会把性能问题变成连接风暴。
+Volume 的价值要通过“删除容器后数据仍然存在”来理解。进入数据库写一条标记记录，再只删除容器，不删除 Volume：
 
-## 正常结果和失败结果
+```bash
+docker compose exec postgres psql -U demo -d demo \
+  -c "create table if not exists notes (id serial primary key, body text not null);" \
+  -c "insert into notes(body) values ('volume-check');"
 
-| 场景 | 预期 |
-| --- | --- |
-| 第一次启动 | 数据库健康后 API 就绪 |
-| 数据库短暂重启 | API 暂时 not-ready，随后有界恢复 |
-| 重建 API 容器 | 数据库数据仍在 |
-| 删除临时容器 | 不影响命名 Volume |
-| API 收到 SIGTERM | 先摘流量，再排空退出 |
-| Secret 扫描镜像历史 | 不出现凭证或 `.env` |
-| 内存达到上限 | 有 OOM/资源告警和恢复路径 |
+docker compose down
+docker compose up -d
+docker compose exec postgres psql -U demo -d demo \
+  -c "select body from notes;"
+```
 
-验证包含 `docker compose config`、镜像用户与历史检查、真实启动、依赖重启和 SIGTERM。测试后只精确清理本次隔离容器和网络，不执行会影响其他项目的全局 prune。
+第二次查询仍能看到 `volume-check`，因为 `docker compose down` 默认删除容器和网络，不删除命名 Volume。若改成 `docker compose down -v`，Volume 也会被删除，下一次启动会得到空数据库。这个命令只适合明确的隔离实验，不能作为日常“清理一下”的快捷键。
 
-## 下一步
+## 发生故障时怎样定位
 
-容器已经在内部网络运行，用户仍需要一个稳定公网入口。下一篇用 Nginx 转发普通 API、静态站与 SSE，并解释为什么 VitePress 文章刷新时会出现 Nginx 404。
+下面按观察顺序处理，而不是先执行 `restart`：
+
+| 现象 | 先看什么 | 常见原因 |
+| --- | --- | --- |
+| API 容器退出 | `docker compose logs api` | 启动命令错误、依赖缺失、环境变量缺失 |
+| API 一直 `starting` | `docker inspect` 的 Health | 探针地址、端口或依赖条件写错 |
+| API 连接不上数据库 | 容器内 DNS 与应用日志 | 把 `localhost` 当成数据库主机、数据库尚未 ready |
+| 重建后数据没了 | `docker volume ls` | 使用了匿名卷、误执行 `down -v` 或未挂载 Volume |
+| 宿主机访问不了 | `docker compose ps` 与端口 | 没有发布端口、端口被其他进程占用 |
+
+故意把 API 配置中的 `DATABASE_HOST` 改成 `localhost`，重建后查看日志。容器本身可能仍然是 `running`，但应用连接会失败。这正是“进程活着”和“服务可用”两个状态的区别。修复服务名后，再用同一条命令验证，避免只凭状态图标判断恢复。
+
+## 停止、更新和生产边界
+
+开发环境可以用 `docker compose down` 释放容器，用 `up -d --build` 重建 API。更新数据库镜像或迁移前，应先做一致性备份并在隔离环境恢复一次；不要把 Volume 目录复制当作可靠备份。
+
+生产环境还需要候选容器、健康检查、日志和指标、备份恢复、资源上限、信号排空和回滚版本。Compose 可以表达一组服务的关系，但它本身不会提供跨主机调度、零停机发布或自动数据恢复。先把这些边界说清楚，再决定是否需要更复杂的平台。
+
+## 带走一张检查清单
+
+- 镜像是否来自可追踪的构建结果？
+- 数据库是否使用命名 Volume 或外部存储？
+- 容器之间是否使用服务名通信？
+- 健康检查检查的是进程、就绪还是完整业务？
+- `down`、`down -v` 和删除单个容器的影响是否清楚？
+- 故障时能否先从 `config`、`ps`、`logs`、`inspect` 得到证据？
+- 数据库备份是否在隔离环境真正恢复过？
 
 ## 参考资料
 
 - [Docker Compose](https://docs.docker.com/compose/)
 - [Compose Specification](https://compose-spec.io/)
-- [Docker Build secrets](https://docs.docker.com/build/building/secrets/)
-- [OWASP Docker Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
+- [Docker HEALTHCHECK](https://docs.docker.com/reference/dockerfile/#healthcheck)
+- [Docker volumes](https://docs.docker.com/engine/storage/volumes/)

@@ -3,7 +3,7 @@ title: "浏览器安全边界"
 description: "从一张自动携带 Cookie 的表单开始，理解同源、XSS、CSRF、CSP 与客户端存储。"
 category: frontend
 tags: ["Security", "Browser"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 800
 depth: core
 series: "质量与体验"
@@ -11,13 +11,13 @@ series: "质量与体验"
 
 # 浏览器安全边界
 
-用户已登录网站 A，又打开恶意网站 B。B 不能直接读取 A 的响应，却可能让浏览器向 A 发送自动携带 Cookie 的表单请求。这就是为什么“浏览器有同源策略”仍不足以阻止 CSRF。
+用户已登录网站 A，又打开恶意网站 B。B 无法直接读取 A 的响应，却可能让浏览器向 A 发送自动携带 Cookie 的表单请求。这就是为什么“浏览器有同源策略”仍不足以阻止 CSRF。
 
 本篇从这次跨站请求开始，区分同源、CORS、Cookie、CSRF 和 XSS，再用 CSP 与安全输出降低脚本注入风险。安全控制需要服务端与浏览器协作，前端隐藏按钮不构成授权。
 
 ## 同源策略保护什么
 
-Origin 由 scheme、host 和 port 组成。同源策略主要限制一个 Origin 的脚本读取另一个 Origin 的数据。跨站导航、表单和部分资源加载仍可能发送，因此“不能读”不等于“不能发”。
+Origin 由 scheme、host 和 port 组成。同源策略主要限制一个 Origin 的脚本读取另一个 Origin 的数据。跨站导航、表单和部分资源加载仍可能发送，因此“无法读取”不等于“请求不会发出”。
 
 ```mermaid
 flowchart LR
@@ -56,7 +56,7 @@ function renderMessage(container: HTMLElement, message: string) {
 }
 ```
 
-`textContent` 使用文本节点表达内容。若业务需要 Markdown/HTML，先定义允许语法、清洗结果，并对链接协议、图片来源和新窗口关系继续验证。
+`textContent` 使用文本节点表达内容。输入是任意用户字符串，关键逻辑是创建段落并写入文本节点，输出是不会被当作标签解析的可见文本；若业务需要 Markdown/HTML，先定义允许语法、清洗结果，并对链接协议、图片来源和新窗口关系继续验证。
 
 ## 步骤四：用 CSP 限制脚本来源
 
@@ -78,6 +78,22 @@ localStorage 可被同源脚本读取且长期存在，不适合保存长期高�
 | XSS 已发生 | HttpOnly 限制 Cookie 读取但系统仍需响应 |
 
 安全测试覆盖正常请求、跨站 Origin、Token 缺失、存储泄露、CSP 报告和对象级越权。自动扫描只能发现部分问题，威胁模型和手工边界测试仍不可少。
+
+## 用一个登录表单画浏览器信任边界
+
+浏览器自动携带 Cookie，所以攻击页面可能诱导用户向目标站发送状态变更请求；页面中未转义数据又可能变成脚本执行。先区分身份凭证、页面内容和跨站请求，再分别放置控制。
+
+| 风险 | 主要控制 | 无法替代的控制 |
+| --- | --- | --- |
+| Cookie 被脚本读取 | `HttpOnly` 由服务端设置 | 不能阻止浏览器自动跨站携带 |
+| CSRF | SameSite、CSRF Token、Origin 校验 | 不等于防 XSS |
+| XSS | 上下文转义、安全 DOM API、CSP | 不能只靠输入黑名单 |
+| 点击劫持 | `frame-ancestors` 等策略 | 不等于身份授权 |
+| 跨源读取 | CORS allowlist 与凭证规则 | CORS 不阻止请求被发送 |
+
+在隔离环境测试：同站正常提交、缺少 CSRF Token、跨站 Origin、把用户输入放进文本节点、尝试内联脚本。观察请求是否发送、响应是否可读、脚本是否执行和服务端日志。不要用“GET 比 POST 安全”概括；方法安全性还取决于副作用、认证、传输和服务端实现。
+
+Token 放在哪里由威胁模型决定。浏览器 Session 常使用 Secure、HttpOnly Cookie，再配合 CSRF 控制；localStorage 便于脚本读取，也会暴露给同源 XSS。任何选择都要有过期、撤销、退出和日志脱敏，前端无法替服务端设置 HttpOnly。
 
 ## 参考资料
 

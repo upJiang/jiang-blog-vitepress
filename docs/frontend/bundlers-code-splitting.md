@@ -3,7 +3,7 @@ title: "Rollup、esbuild 与代码分割"
 description: "从一次动态导入开始，理解构建工具职责、模块图、Tree Shaking 和 Chunk 边界。"
 category: frontend
 tags: ["Rollup", "esbuild"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 750
 depth: flagship
 series: "现代前端"
@@ -47,7 +47,7 @@ export async function openEditor(container: HTMLElement) {
 }
 ```
 
-动态 import 返回 Promise。网络失败、旧 HTML 引用已清理 Chunk 或发布切换都可能导致加载失败，因此部署要保留旧哈希资源一段时间，并采集 ChunkLoadError。
+动态 import 返回 Promise。网络失败、旧 HTML 引用已清理 Chunk 或发布切换都可能导致加载失败，因此部署要保留旧哈希资源一段时间，并采集 ChunkLoadError。`catch` 先给当前容器提供可理解状态，再把错误继续抛出，让监控和上层路由仍能记录失败，而不是把空白误当成功。
 
 ## 步骤二：理解 Tree Shaking 的前提
 
@@ -74,6 +74,23 @@ esbuild 使用 Go 实现，擅长高速解析、转换和打包；Rollup 以插�
 | 发布后 Chunk 404 | 静态资源保留与 HTML 缓存 |
 
 性能预算接入 CI，但阈值来自产品基线，不套固定 KB。依赖升级时同时比较体积与运行指标，保留可回退版本。
+
+## 从构建清单验证分割是否有效
+
+先保存修改前的构建产物清单：入口文件、同步 Chunk、异步 Chunk、压缩后大小和共享依赖。把编辑器改成动态导入后重新构建，预期首页同步链减少，编辑器形成异步边界；同时检查公共依赖是否被复制进多个 Chunk。
+
+| 检查项 | 需要回答的问题 |
+| --- | --- |
+| 入口同步体积 | 首次路由真正下载和执行多少 |
+| 异步 Chunk | 是否只在进入功能时请求 |
+| 共享 Chunk | 是否造成所有路由都提前下载 |
+| 请求数量 | 分割是否过细，出现大量小文件 |
+| Source Map | 错误是否仍能映射回源码 |
+| 旧资源保留 | 发布切换时旧 HTML 是否还能加载 |
+
+Tree Shaking 实验可以新增一个未使用导出，并在模块顶层加一个可观察副作用，比较 `sideEffects` 声明前后产物。若错误声明导致副作用消失，说明包元数据破坏了语义。优化时以实际 Bundle 分析和用户路径为准，不按 import 行数猜体积。
+
+最后用网络限速访问首页和编辑页，观察请求瀑布、解析执行和失败恢复。代码分割把成本移动到需要它的时刻，不会消灭成本；常用功能过度懒加载也会把延迟推给每位用户。
 
 ## 参考资料
 

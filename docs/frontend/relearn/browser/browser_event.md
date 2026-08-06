@@ -8,107 +8,165 @@ order: 570
 depth: reference
 series: "重学前端"
 ---
-# DOM 事件系统
+## 事件概述
 
-页面里有一个列表，按钮由接口动态添加。你给每个按钮绑定点击事件，后来发现新按钮没有反应；为了修复，又在外层监听一次，结果一次点击执行了两遍。
+在开始接触具体的 API 之前，我们要先了解一下事件。一般来说，事件来自输入设备，我们平时的个人设备上，输入设备有三种：
 
-要解决这类问题，先要知道浏览器点击元素后发生了什么。本篇用一个嵌套按钮观察事件目标、捕获和冒泡，再用同一套机制实现事件委托。最后区分“阻止传播”和“阻止默认行为”。
+- 键盘；
 
-## 先认识事件里的三个对象
+- 鼠标；
 
-**事件**是浏览器对一次交互的描述，例如 `click`、`input` 或 `keydown`。**事件目标** `target` 是交互最初指向的节点。**当前节点** `currentTarget` 是正在执行监听器的节点。
+- 触摸屏。
 
-假设按钮在一个面板里：点击按钮时，`target` 通常是按钮；当面板的监听器正在执行时，`currentTarget` 是面板。事件委托正是利用了这两个对象的差别。
+**这其中，触摸屏和鼠标又有一定的共性，它们被称作 pointer 设备，所谓 pointer 设备，是指它的输入最终会被抽象成屏幕上面的一个点。**但是触摸屏和鼠标又有一定区别，它们的精度、反应时间和支持的点的数量都不一样。
 
-## 点击后经历哪些阶段
+我们现代的 UI 系统，都源自 WIMP 系统。WIMP 即 Window Icon Menu Pointer 四个要素，它最初由施乐公司研发，后来被微软和苹果两家公司应用在了自己的操作系统上（关于这个还有一段有趣的故事，我附在文末了）。
 
-```mermaid
-flowchart LR
-  A[确定点击目标] --> B[沿祖先向下捕获]
-  B --> C[到达目标]
-  C --> D[沿祖先向上冒泡]
-  D --> E[执行可取消的默认行为]
+WIMP 是如此成功，以至于今天很多的前端工程师会有一个观点，认为我们能够“点击一个按钮”，实际上并非如此，我们只能够点击鼠标上的按钮或者触摸屏，是操作系统和浏览器把这个信息对应到了一个逻辑上的按钮，再使得它的视图对点击事件有反应。这就引出了我们第一个要讲解的机制：`捕获与冒泡`。
+
+注意：
+
+- JS 代码只能执行捕获或者冒泡其中的一个阶段
+
+- onclick 和 attachEvent 只能得到冒泡阶段
+
+- addEventListener (type, listener[, useCapture]) 第三个参数如果是 true，表示在事件捕获阶段调用事件处理程序；如果是 false（不写默认就是 false），表示在事件冒泡阶段电泳事件处理程序。
+
+- 在实际开发中，我们很少使用事件捕获(低版本 ie 不兼容)，我们更关注事件冒泡
+
+- 有些事件是没有冒泡的，比如 onblur、onfocus、onmouseover、onmouseleave
+
+## 捕获与冒泡
+
+很多文章会讲到捕获过程是从外向内，冒泡过程是从内向外，但是这里我希望讲清楚，为什么会有捕获过程和冒泡过程。
+
+我们刚提到，实际上点击事件来自触摸屏或者鼠标，鼠标点击并没有位置信息，但是一般操作系统会根据位移的累积计算出来，跟触摸屏一样，提供一个坐标给浏览器。
+
+那么，把这个坐标转换为具体的元素上事件的过程，就是捕获过程了。而冒泡过程，则是符合人类理解逻辑的：当你按电视机开关时，你也按到了电视机。
+
+所以我们可以认为，**捕获是计算机处理事件的逻辑，而冒泡是人类处理事件的逻辑**。
+
+以下代码展示了事件传播顺序：
+
+```
+<body>
+  <input id="i"/>
+</body>
 ```
 
-浏览器先通过命中测试确定目标，再构造传播路径。捕获阶段从外层向目标前进，目标阶段执行目标上的监听器，能够冒泡的事件再从目标向外层返回。
+```
+document.body.addEventListener("mousedown", () => {
+  console.log("key1")
+}, true)
 
-并非所有事件都会冒泡，默认行为也不是传播的一部分。例如点击链接通常会触发导航，这是浏览器在事件分发后执行的默认行为。
+document.getElementById("i").addEventListener("mousedown", () => {
+  console.log("key2")
+}, true)
 
-## 第一步：亲手观察捕获和冒泡
+document.body.addEventListener("mousedown", () => {
+  console.log("key11")
+}, false)
 
-下面页面只包含一个面板和一个按钮。四个监听器会把执行顺序、`target` 和 `currentTarget` 打印出来。
-
-```html
-<div id="panel">
-  <button id="save" type="button">保存</button>
-</div>
-
-<script type="module">
-  const panel = document.querySelector('#panel')
-  const save = document.querySelector('#save')
-
-  const log = label => event => console.log(label, {
-    phase: event.eventPhase,
-    target: event.target.id,
-    currentTarget: event.currentTarget.id,
-  })
-
-  panel.addEventListener('click', log('panel capture'), { capture: true })
-  save.addEventListener('click', log('button capture'), { capture: true })
-  save.addEventListener('click', log('button bubble'))
-  panel.addEventListener('click', log('panel bubble'))
-</script>
+document.getElementById("i").addEventListener("mousedown", () => {
+  console.log("key22")
+}, false)
 ```
 
-输入是一次按钮点击。输出顺序是外层捕获、按钮上的两个监听器、外层冒泡。按钮上的监听器都处于目标阶段；`target` 一直是 `save`，只有 `currentTarget` 会随着当前监听节点变化。
+我们监听了 body 和一个 body 的子元素上的鼠标按下事件，捕获和冒泡分别监听，可以看到，最终产生的顺序是：
 
-`addEventListener` 的第三个参数还支持 `once`、`passive` 和 `signal`。`once` 在执行后自动移除；`signal` 适合组件销毁时成组清理；`passive` 表示监听器不会取消默认行为，常用于浏览器需要尽快处理的滚动输入。
+- “key1”
 
-## 第二步：用冒泡实现事件委托
+- “key2”
 
-事件委托是把监听器放在稳定父元素上，再根据 `target` 判断用户点击了哪个子元素。这样动态添加的按钮也能工作。
+- “key22”
 
-```js
-const list = document.querySelector('#article-list')
+- “key11”
 
-list.addEventListener('click', event => {
-  if (!(event.target instanceof Element)) return
+这是捕获和冒泡发生的完整顺序。
 
-  const button = event.target.closest('button[data-article-id]')
-  if (!button || !list.contains(button)) return
+在一个事件发生时，捕获过程跟冒泡过程总是先后发生，跟你是否监听毫无关联。
 
-  const articleId = button.dataset.articleId
-  console.log('open article', articleId)
-})
+在我们实际监听事件时，我建议这样使用冒泡和捕获机制：**默认使用冒泡模式，当开发组件时，遇到需要父元素控制子元素的行为，可以使用捕获机制。**
+
+理解了冒泡和捕获的过程，我们再看监听事件的 API，就非常容易理解了。
+
+addEventListener 有三个参数：
+
+- 事件名称；
+
+- 事件处理函数；
+
+- 捕获还是冒泡。
+
+事件处理函数不一定是函数，也可以是个 JavaScript 具有 handleEvent 方法的对象，看下例子：
+
+```
+var o = {
+  handleEvent: event => console.log(event)
+}
+document.body.addEventListener("keydown", o, false);
 ```
 
-输入是列表子树中的任意点击。代码先确认目标是元素，再向上寻找带文章 ID 的按钮，并用 `contains` 保证按钮仍属于当前列表。输出是被点击文章的 ID；点击空白区域时什么也不做。
+第三个参数不一定是 bool 值，也可以是个对象，它提供了更多选项。
 
-这里使用 `closest`，是因为用户可能点到按钮里的图标或文字，而不是按钮节点本身。若事件来自 Shadow DOM，还要结合 `composedPath()` 理解封装边界，不能假设普通祖先链总能看到内部节点。
+- once：只执行一次。
 
-## 第三步：区分三种“阻止”
+- passive：承诺此事件监听不会调用 preventDefault，这有助于性能。
 
-| 方法 | 阻止什么 | 不会阻止什么 |
-| --- | --- | --- |
-| `preventDefault()` | 链接导航、表单提交等可取消默认行为 | 事件继续传播 |
-| `stopPropagation()` | 继续经过后续祖先节点 | 当前节点其他监听器、已执行监听器 |
-| `stopImmediatePropagation()` | 后续节点和当前节点后续监听器 | 已经执行的监听器 |
+- useCapture：是否捕获（否则冒泡）。
 
-调用 `preventDefault()` 前可以查看 `event.cancelable`。在 passive 监听器里调用它不会按预期取消默认行为，浏览器通常还会给出警告。
+实际使用，在现代浏览器中，还可以不传第三个参数，我建议默认不传第三个参数，因为我认为冒泡是符合正常的人类心智模型的，大部分业务开发者不需要关心捕获过程。除非你是组件或者库的使用者，那就总是需要关心冒泡和捕获了。
 
-全局使用 `stopPropagation()` 往往会让埋点、快捷键或外层组件收不到事件。组件冲突应先检查监听范围和职责，只有传播本身违反交互规则时才停止它。
+## 焦点
 
-## 正常结果和一次故意失败
+我们讲完了 pointer 事件是由坐标控制，而我们还没有讲到键盘事件。
 
-正常场景：列表首次渲染两个按钮，之后又动态插入第三个按钮。父容器只有一个监听器，三个按钮都能输出各自 ID。
+键盘事件是由焦点系统控制的，一般来说，操作系统也会提供一套焦点系统，但是现代浏览器一般都选择在自己的系统内覆盖原本的焦点系统。
 
-失败场景：监听器直接读取 `event.target.dataset.articleId`。用户点到按钮内的图标时，`target` 是图标，结果得到 `undefined`。修复不是给图标再绑一次事件，而是用 `closest` 找到承担操作语义的按钮。
+焦点系统也是视障用户访问的重要入口，所以设计合理的焦点系统是非常重要的产品需求，尤其是不少国家对可访问性有明确的法律要求。
 
-## 什么时候不使用事件委托
+在旧时代，有一个经典的问题是如何去掉输入框上的虚线框，这个虚线框就是 Windows 焦点系统附带的 UI 表现。
 
-子元素很少且生命周期明确时，直接监听更简单。高频事件若在巨大容器上做昂贵的 `closest` 查询，也要评估成本。对于不冒泡的事件，应确认是否有可替代事件或使用捕获阶段，不能直接套用点击委托。
+现在 Windows 的焦点已经不是用虚线框表示了，但是焦点系统的设计几十年间没有太大变化。
 
-下一篇浏览器内容会继续讨论 DOM API 与页面结构。先掌握事件路径，组件事件、快捷键和 Shadow DOM 的行为才不会变成“试出来的规则”。
+焦点系统认为整个 UI 系统中，有且仅有一个“聚焦”的元素，所有的键盘事件的目标元素都是这个聚焦元素。
+
+Tab 键被用来切换到下一个可聚焦的元素，焦点系统占用了 Tab 键，但是可以用 JavaScript 来阻止这个行为。
+
+浏览器 API 还提供了 API 来操作焦点，如：
+
+```
+document.body.focus();
+
+document.body.blur();
+```
+
+其实原本键盘事件不需要捕获过程，但是为了跟 pointer 设备保持一致，也规定了从外向内传播的捕获过程。
+
+## 自定义事件
+
+除了来自输入设备的事件，还可以自定义事件，实际上事件也是一种非常好的代码架构，但是 DOM API 中的事件并不能用于普通对象，所以很遗憾，我们只能在 DOM 元素上使用自定义事件。
+
+自定义事件的代码示例如下（来自 MDN）：
+
+```
+var evt = new Event("look", {"bubbles":true, "cancelable":false});
+document.dispatchEvent(evt);
+```
+
+这里使用 Event 构造器来创造了一个新的事件，然后调用 dispatchEvent 来在特定元素上触发。
+
+我们可以给这个 Event 添加自定义属性、方法。
+
+注意，这里旧的自定义事件方法（使用 document.createEvent 和 initEvent）已经被废弃。
+
+## 总结
+
+我们分别介绍了事件的捕获与冒泡机制、焦点机制和自定义事件。
+
+捕获与冒泡机制来自 pointer 设备输入的处理，捕获是计算机处理输入的逻辑，冒泡是人类理解事件的思维，捕获总是在冒泡之前发生。
+
+焦点机制则来自操作系统的思路，用于处理键盘事件。除了我们讲到的这些，随着输入设备的不断丰富，还有很多新的事件加入，如 Geolocation 和陀螺仪等.
 
 ## 参考资料
 

@@ -8,81 +8,149 @@ order: 360
 depth: reference
 series: "重学前端"
 ---
-# 链接、资源与嵌入内容
+> 替换型元素是把文件的内容引入，替换掉自身位置的一类标签。
 
-链接、图片、脚本、视频和 iframe 都会让浏览器处理 URL，但结果完全不同：链接等待用户导航，图片进入渲染，脚本获得执行能力，iframe 创建新的文档环境。学习资源标签的关键不是背属性，而是判断响应将进入哪里、拥有什么权限、失败后怎样降级。
+#### 为什么 link 一个 CSS 要用 href，而引入 js 要用 src 呢？
 
-## 先看一条资源决策链
+凡是替换型元素，都是使用 src 属性来引用文件的，链接型元素是使用 href 标签的。
 
-浏览器读取元素后，会解析绝对 URL，再结合元素类型、安全策略和响应信息决定处理方式。
+## script
 
-```mermaid
-flowchart LR
-  A[读取 URL 属性] --> B[按 base 解析绝对地址]
-  B --> C[应用 CSP、CORS 等策略]
-  C --> D[发起或等待请求]
-  D --> E[按 MIME 与元素处理响应]
-  E --> F[渲染、执行或创建子文档]
+script 标签的两种用法：
+
 ```
-
-调试时要沿这条链检查，而不是只看 Network 中有没有 200。状态成功但 MIME 错误、CORS 不允许或 CSP 拒绝，资源仍可能无法使用。
-
-## 步骤一：分清源码 URL 与最终 URL
-
-相对地址根据文档的 base URL 解析。HTML attribute 保存作者写下的值，DOM property 通常返回解析后的绝对地址。预期结果是：下面链接保留 `../guide` 原文，同时能得到包含协议和域名的最终 URL。
-
-```html
-<a id="guide-link" href="../guide/start?from=article#install">
-  安装指南
-</a>
-<script>
-  const link = document.querySelector('#guide-link')
-  console.log(link.getAttribute('href'))
-  console.log(link.href)
+<script type="text/javascript">
+console.log("Hello world!");
 </script>
+
+
+<script type="text/javascript" src="my.js"></script>
 ```
 
-输入是一个相对链接。关键逻辑由浏览器 URL 解析器完成；第一个输出是源码属性，第二个输出是基于 `document.baseURI` 的绝对地址。使用 DOM property 检查最终请求目标，使用 attribute 检查模板原文，两者不能混为一谈。
+这个例子中，我们展示了两种 script 标签的写法，一种是直接把脚本代码写在 script 标签之间，另一种是把代码放到独立的 js 文件中，用 src 属性引入。
 
-新标签页链接还要考虑 opener 和 Referer 策略。现代浏览器通常为 `target="_blank"` 提供隐式 noopener，公共组件仍可显式表达 `rel` 策略；是否发送来源信息应按安全和分析需求选择。
+## img
 
-## 步骤二：让图片和音视频可选择、可降级
+img 标签的作用是引入一张图片。这个标签是没有办法像 script 标签那样作为非替换型标签来使用的，它必须有 src 属性才有意义。
 
-响应式图片使用 `srcset` 提供候选，`sizes` 告诉浏览器预期布局宽度，`picture` 用于格式协商或 art direction。`sizes` 写错会下载过大图片；显式 `width`、`height` 能提前保留比例并减少布局偏移。
+如果一定不想要引入独立文件，可以使用 data uri，我们来看个实际的例子：
 
-首屏 LCP 图片通常不应 lazy-load，非首屏资源才适合延迟加载。`alt` 描述图片承担的信息；邻近文字已完整表达的装饰图使用空 `alt`。Data URL 会失去独立缓存并扩大 HTML/CSS，是否内联要根据真实测量决定。
+```
+ <img src='data:image/svg+xml;charset=utf8,<svg version="1.1" xmlns="http://www.w3.org/2000/svg"><rect width="300" height="100" style="fill:rgb(0,0,255);stroke-width:1;stroke:rgb(0,0,0)"/></svg>'/>
+```
 
-音视频可以提供多个 source 供浏览器选择。视频还应有字幕或同页文字替代，自动播放不应成为核心流程。`preload` 只是提示；长视频、鉴权媒体、Range 和 CDN 缓存都需要在真实网关上验证。
+这个例子中我们使用了 data uri 作为图片的 src，这样，并没有产生独立的文件，客观上做到了和内联相同的结果，这是一个常用的技巧。
 
-## 步骤三：把脚本当成执行权限
+此处要重点提到一个属性，**alt 属性**，这个属性很难被普通用户感知，对于视障用户非常重要，可以毫不夸张地讲，给 img 加上 alt 属性，已经做完了可访问性的一半。
 
-外部脚本获得页面执行环境，因此来源、CSP、CORS 与完整性比“能下载”更重要。Subresource Integrity 适合锁定版本固定的第三方制品，更新文件时要同步 hash；动态变化脚本不适合伪装成固定制品。
+img 标签还有一组重要的属性，那就是 **srcset 和 sizes**，它们是 src 属性的升级版（所以我们前面讲 img 标签必须有 src 属性，这是不严谨的说法）。
 
-`async` 适合互不依赖的 classic script，谁先下载完谁执行；`defer` 保持文档顺序并等待解析完成；module script 按依赖图准备。选择属性前先画出依赖关系，不能给所有脚本机械添加同一个选项。
+这两个属性的作用是在不同的屏幕大小和特性下，使用不同的图片源。下面一个例子也来自 MDN，它展示了 srcset 和 sizes 的用法
 
-## 步骤四：把 iframe 当作独立文档
+```
+<img srcset="elva-fairy-320w.jpg 320w,
+             elva-fairy-480w.jpg 480w,
+             elva-fairy-800w.jpg 800w"
+     sizes="(max-width: 320px) 280px,
+            (max-width: 480px) 440px,
+            800px"
+     src="elva-fairy-800w.jpg" alt="Elva dressed as a fairy">
+```
 
-iframe 适合预览、第三方页面和独立应用。它创建新的导航与文档上下文，需要标题、尺寸、加载失败处理以及清楚的通信边界。`sandbox` 默认施加限制，再通过 token 按需要开放；`allow` 控制部分 Permissions Policy 能力，不能替代 CSP。
+srcset 提供了根据屏幕条件选取图片的能力，但是其实更好的做法，是使用 picture 元素。
 
-跨源 iframe 受同源策略保护，父子页面协作应使用 `postMessage`，接收方验证 `event.origin`、消息类型与字段范围。`srcdoc` 只是内联来源，不会自动清洗不可信 HTML。
+## picture
 
-不要对同源内容同时开放 `allow-scripts` 与 `allow-same-origin` 后仍假设存在强隔离。父页面要限制谁能嵌入自己，应发送 `Content-Security-Policy: frame-ancestors ...`。
+picture 元素可以根据屏幕的条件为其中的 img 元素提供不同的源，它的基本用法如下：
 
-## 正常结果与失败演练
+```
+<picture>
+  <source srcset="image-wide.png" media="(min-width: 600px)">
+  <img src="image-narrow.png">
+</picture>
+```
 
-正常链路应在 Network 中看到预期最终 URL、initiator、MIME、缓存和优先级，页面也有图片替代文本、视频字幕与 iframe title。
+picture 元素的设计跟 audio 和 video 保持了一致（稍后我会为你讲解这两个元素），它跟 img 搭配 srcset 和 sizes 不同，它使用 source 元素来指定图片源，并且支持多个。
 
-故意让首选图片返回 404，可检查候选和后备内容；伪造一条 `postMessage`，接收方应因 origin 不匹配而忽略；让脚本返回错误 MIME 或违反 CSP，即使状态码为 200 也不应执行。这些失败比“资源是否下载成功”更接近真实安全边界。
+## video
 
-`object` 和 `embed` 的历史能力很宽，但插件时代已经结束。PDF 等内嵌能力受浏览器与响应头影响，关键流程应保留下载或独立打开的后备路径。
+在 HTML5 早期的设计中，video 标签跟 img 标签类似，也是使用 src 属性来引入源文件的，不过，我想应该是考虑到了各家浏览器支持的视频格式不同，现在的 video 标签跟 picture 元素一样，也是提倡使用 source 的。
 
-## 验证清单
+下面例子是一个古典的 video 用法：
 
-1. 检查最终 URL、请求发起者、MIME、CORS、CSP 与缓存。
-2. 使用慢网和窄屏观察图片候选、LCP 与布局偏移。
-3. 制造格式不支持、404 和跨域失败，确认降级路径。
-4. 覆盖 iframe 的 sandbox、消息伪造与加载失败。
-5. 用键盘和读屏检查链接目的、替代文本、字幕与子文档标题。
+```
+<video controls="controls" src="movie.ogg">
+</video>
+```
+
+这个例子中的代码用 src 来指定视频的源文件。但是因为一些历史原因，浏览器对视频的编码格式兼容问题分成了几个派系，这样，对于一些兼容性要求高的网站，我们使用单一的视频格式是不合适的。
+
+现在的 video 标签可以使用 **source** 标签来指定接入多个视频源。
+
+```
+<video controls="controls" >
+  <source src="movie.webm" type="video/webm" >
+  <source src="movie.ogg" type="video/ogg" >
+  <source src="movie.mp4" type="video/mp4">
+  You browser does not support video.
+</video>
+```
+
+从这个例子中，我们可以看到，source 标签除了支持 media 之外，还可以使用 type 来区分源文件的使用场景。
+
+video 中还支持一种标签：track。
+
+track 是一种播放时序相关的标签，它最常见的用途就是字幕。track 标签中，必须使用 srclang 来指定语言，此外，track 具有 kind 属性，共有五种。
+
+- subtitles：就是字幕了，不一定是翻译，也可能是补充性说明。
+
+- captions：报幕内容，可能包含演职员表等元信息，适合听障人士或者没有打开声音的人了解音频内容。
+
+- descriptions：视频描述信息，适合视障人士或者没有视频播放功能的终端打开视频时了解视频内容。
+
+- chapters：用于浏览器视频内容。
+
+- metadata：给代码提供的元信息，对普通用户不可见。
+
+一个完整的 video 标签可能会包含多种 track 和多个 source，这些共同构成了一个视频播放所需的全部信息。
+
+## audio
+
+跟 picture 和 video 两种标签一样，audio 也可以使用 source 元素来指定源文件。我们看一下例子：
+
+```
+<audio controls>
+  <source src="song.mp3" type="audio/mpeg">
+  <source src="song.ogg" type="audio/ogg">
+  <p>You browser does not support audio.</p>
+</audio>
+```
+
+但比起 video，audio 元素的历史问题并不严重，所以使用 src 也是没有问题的。
+
+## iframe
+
+> 这个标签能够嵌入一个完整的网，不过，在移动端，iframe 受到了相当多的限制，它无法指定大小，里面的内容会被完全平铺到父级页面上。
+
+同时很多网页也会通过 http 协议头禁止自己被放入 iframe 中。
+
+iframe 标签也是各种安全问题的重灾区。opener、window.name、甚至 css 的 opacity 都是黑客可以利用的漏洞。
+
+因此，在 2019 年，当下这个时间点，任何情况下我都不推荐在实际开发中用以前的 iframe。当然，不推荐使用是一回事，因为没人能保证不遇到历史代码，我们还是应该了解一下 iframe 的基本用法：
+
+```
+<iframe src="http://time.geekbang.org"></iframe>
+```
+
+这个例子展示了古典的 iframe 用法。
+
+在新标准中，为 iframe 加入了 sandbox 模式和 srcdoc 属性，这样，给 iframe 带来了一定的新场景。我们来看看例子：
+
+```
+<iframe sandbox srcdoc="<p>Yeah, you can see it <a href="/gallery?mode=cover&amp;amp;page=1">in my gallery</a>."></iframe>
+```
+
+这个例子中，使用 srcdoc 属性创建了一个新的文档，嵌入在 iframe 中展示，并且使用了 sandbox 来隔离。这样，这个 iframe 就不涉及任何跨域问题了。
 
 ## 参考资料
 

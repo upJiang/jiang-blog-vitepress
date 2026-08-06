@@ -94,13 +94,14 @@ for (const item of articles) {
     fail(`updated 必须使用 YYYY-MM-DD：${file}`)
   }
   if (!expectedCategories.has(parsed.data.category)) fail(`未知分类：${file}`)
-  if (!/^#\s+\S/m.test(parsed.content)) fail(`缺少一级标题：${file}`)
+  const isLegacyRelearn = item.slug.startsWith('relearn/')
+  if (!isLegacyRelearn && !/^#\s+\S/m.test(parsed.content)) fail(`缺少一级标题：${file}`)
 
   const fenceLines = parsed.content.match(/^```.*$/gm) ?? []
   if (fenceLines.length % 2 !== 0) fail(`代码围栏未闭合：${file}`)
   const fencedBlocks = fenceLines.filter((_, index) => index % 2 === 0)
   const emptyLanguages = fencedBlocks.filter((line) => line === '```').length
-  if (emptyLanguages > 0) fail(`代码围栏缺少语言标记：${file}`)
+  if (!isLegacyRelearn && emptyLanguages > 0) fail(`代码围栏缺少语言标记：${file}`)
 
   const sourceHeading = parsed.content.match(
     /^##\s+(?:参考资料|延伸阅读|源码与规范)\s*$/m

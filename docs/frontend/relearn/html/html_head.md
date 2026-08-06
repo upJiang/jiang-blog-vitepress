@@ -8,74 +8,133 @@ order: 330
 depth: reference
 series: "重学前端"
 ---
-# HTML Head 与元数据
+## 元信息类标签
 
-页面正文还没出现，浏览器已经需要决定字符怎样解码、移动端多宽、先下载哪些资源，搜索引擎也要识别标题和规范 URL。`head` 就是这些文档级信息的入口。把它当作标签仓库，容易留下乱码、重复下载或不可索引页面。
+> 所谓元信息，是指描述自身的信息，元信息类标签，就是 HTML 用于描述文档自身的一类标签，它们通常出现在 head 标签中，一般都不会在页面被显示出来（与此相对，其它标签，如语义类标签，描述的是业务）。
 
-## 浏览器在 head 中处理什么
+元信息多数情况下是给浏览器、搜索引擎等机器阅读的，有时候这些信息会在页面之外显示给用户，有时候则不会。
 
-一份页面通常按下面的顺序准备。它不是精确的网络时序图，而是帮助初学者理解各类元数据的职责。
+### head 标签
 
-```mermaid
-flowchart LR
-  A[识别编码] --> B[确定视口]
-  B --> C[读取标题与索引提示]
-  C --> D[解析资源地址]
-  D --> E[下载样式和脚本]
-  E --> F[继续构造正文]
+> head 标签本身并不携带任何信息，它主要是作为盛放其它语义类标签的容器使用。
+
+head 标签规定了自身必须是 html 标签中的**第一个标签**，它的内容必须包含一个 title，并且最多只能包含一个 base。如果文档作为 iframe，或者有其他方式指定了文档标题时，可以允许不包含 title 标签。
+
+### title 标签
+
+title 标签表示文档的标题
+
+### base 标签
+
+> base 标签实际上是个历史遗留标签。它的作用是**给页面上所有的 URL 相对地址提供一个基础**。
+
+base 标签最多只有一个，它改变全局的链接地址，它是一个非常危险的标签，容易造成跟 JavaScript 的配合问题，所以在实际开发中，我比较建议你使用 JavaScript 来代替 base 标签。
+
+### meta 标签
+
+> meta 标签是一组键值对，它是一种通用的元信息表示标签。
+
+在 head 中可以出现任意多个 meta 标签。一般的 meta 标签由 name 和 content 两个属性来定义。name 表示元信息的名，content 则用于表示元信息的值。
+
+```
+//这个标签表示页面所在的 web-application，名为 IsForums。
+<meta name=application-name content="lsForums">
 ```
 
-编码决定后续字节如何变成文字；viewport 影响移动布局；title、description、canonical 面向浏览器和搜索系统；stylesheet、script 和资源提示参与加载。它们互有关联，但不是越多越好。
+这里的 name 是一种比较自由的约定，HTTP 标准规定了一些 name 作为大家使用的共识，也鼓励大家发明自己的 name 来使用。
 
-## 步骤一：建立最小 head
+除了基本用法，meta 标签还有一些变体，主要用于简化书写方式或者声明自动化行为。
 
-目标结果是：中文不乱码，移动端按设备宽度布局，标签页标题能区分页面，并加载一份样式和模块脚本。下面的示例只保留完成这些任务所需的信息。
+#### 具有 charset 属性的 meta
 
-```html
+从 HTML5 开始，为了简化写法，meta 标签新增了 charset 属性。添加了 charset 属性的 meta 标签无需再有 name 和 content。
+
+```
+<meta charset="UTF-8" >
+```
+
+charset 型 meta 标签非常关键，它描述了 HTML 文档自身的编码形式。因此，我建议这个标签放在 head 的第一个。
+
+```
+<html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>异步任务生命周期 | AI 全栈</title>
-  <meta name="description" content="理解任务从创建到恢复的状态变化。">
-  <link rel="canonical" href="https://example.com/docs/task-lifecycle">
-  <link rel="stylesheet" href="/assets/site.css">
-  <script type="module" src="/assets/app.js"></script>
-</head>
+<meta charset="UTF-8">
+……
 ```
 
-输入是一组页面级元数据。浏览器先使用 UTF-8 和移动视口，再得到标题、摘要候选和资源地址；最终正文按样式呈现，模块脚本在依赖准备后执行。`meta charset` 应完整落在文档前 1024 字节内，HTTP 的 `Content-Type` 也应声明相同编码。
+这样，浏览器读到这个标签之前，处理的所有字符都是 ASCII 字符，众所周知，ASCII 字符是 UTF-8 和绝大多数字符编码的子集，所以，在读到 meta 之前，浏览器把文档理解多数编码格式都不会出错，这样可以最大限度地保证不出现乱码。
 
-## 步骤二：分清搜索字段的职责
+一般情况下，HTTP 服务端会通过 http 头来指定正确的编码方式，但是有些特殊的情况如使用 file 协议打开一个 HTML 文件，则没有 http 头，这种时候，charset meta 就非常重要了。
 
-`title` 会出现在标签页、历史记录、收藏和辅助技术中，也是搜索结果标题的重要候选。不同页面应有能描述具体内容的标题。
+#### 具有 http-equiv 属性的 meta
 
-`description` 是摘要候选，搜索引擎可能根据查询改写它；它不是排名保证。`canonical` 表达重复或高度相似 URL 的首选地址，也不是强制跳转。站内链接、服务端规范化与 Sitemap 仍要使用同一个公开 URL。
+> 具有 http-equiv 属性的 meta 标签，表示执行一个命令，这样的 meta 标签可以不需要 name 属性了。
 
-`robots` 指令面向合规爬虫，不能保护私密数据。需要保密的页面必须在服务端鉴权。`meta keywords` 也不能替代可抓取正文、稳定结构和有用内容。
+下面一段代码，相当于添加了 content-type 这个 http 头，并且指定了 http 编码方式。
 
-## 步骤三：理解资源为什么会互相影响
+```
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+```
 
-普通 classic script 会阻塞 HTML 解析；带 `defer` 的 classic script 下载时不阻塞，并按文档顺序在 `DOMContentLoaded` 前执行；`async` 谁先下载完谁先执行；module script 按模块依赖图准备，默认具有类似 defer 的行为。
+除了 content-type，还有以下几种命令：
 
-资源提示用于表达明确意图：`preload` 表示当前导航很快会消费资源，`modulepreload` 提前准备模块，`preconnect` 提前连接关键来源。配置错误可能造成重复下载或抢占首屏带宽，因此应在 Network 面板验证 initiator、优先级和实际消费时机。
+- content-language 指定内容的语言；
 
-## `base` 为什么需要单独说明
+- default-style 指定默认样式表；
 
-第一个带 `href` 的 `base` 会改变文档中相对 URL 的解析基准，包括链接、图片和表单地址。这个能力适合某些离线文档或统一资源根路径，但作用范围很大。
+- refresh 刷新；
 
-调试时应比较属性原文和解析结果：`getAttribute('src')` 返回源码值，元素的 `.src` 通常返回绝对 URL，`document.baseURI` 表示当前基准。SPA、嵌入页面和片段链接采用 `base` 前，需要用集成测试确认导航没有偏离。
+- set-cookie 模拟 http 头 set-cookie，设置 cookie；
 
-## `http-equiv` 不是任意响应头
+- x-ua-compatible 模拟 http 头 x-ua-compatible，声明 ua 兼容性；
 
-它只支持标准列出的少数 pragma。页面跳转优先使用服务端 3xx，因为状态码、缓存和历史语义更明确。`HttpOnly` Cookie 只能由服务端通过 `Set-Cookie` 设置，前端 JavaScript 既不能创建也不能读取。
+- content-security-policy 模拟 http 头 content-security-policy，声明内容安全策略
 
-CSP 可以用受限的 meta 形式交付，但只影响它之后解析的内容，且并非所有指令都支持。完整安全策略更适合放在 HTTP 响应头中，便于统一审计。
+#### name 为 viewport 的 meta
 
-## 正常结果和常见失败
+这类 meta 的 name 属性为 viewport，它的 content 是一个复杂结构，是用逗号分隔的键值对，键值对的格式是 key=value。
 
-正常结果可以从四处确认：标签页标题准确，移动端 200% 放大仍可用，Network 中没有资源重复下载，抓取到的 HTML 含关键标题和正文。
+```
+<meta name="viewport" content="width=500, initial-scale=1">
+```
 
-常见失败包括把 `user-scalable=no` 当作响应式方案、给所有来源添加 preconnect、用 `noindex` 代替权限控制，以及让所有路由共享同一标题。出现性能问题时先看请求瀑布；出现索引问题时同时检查响应状态、HTML、canonical 和 robots，不要只修改一个 meta 标签。
+这里只指定了两个属性，宽度和缩放，实际上 viewport 能控制的更多，它能表示的全部属性如下：
+
+- width：页面宽度，可以取值具体的数字，也可以是 device-width，表示跟设备宽度相等。
+
+- height：页面高度，可以取值具体的数字，也可以是 device-height，表示跟设备高度相等。
+
+- initial-scale：初始缩放比例。
+
+- minimum-scale：最小缩放比例。
+
+- maximum-scale：最大缩放比例。
+
+- user-scalable：是否允许用户缩放。
+
+对于已经做好了移动端适配的网页，应该把用户缩放功能禁止掉，宽度设为设备宽度，一个标准的 meta 如下：
+
+```
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+```
+
+#### 其它预定义的 meta
+
+在 HTML 标准中，还定义了一批 meta 标签的 name，可以视为一种有约定的 meta，我在这里列出来，你可以简单了解一下。
+
+- application-name：如果页面是 Web application，用这个标签表示应用名称。
+
+- author: 页面作者。
+
+- description：页面描述，这个属性可能被用于搜索引擎或者其它场合。
+
+- generator: 生成页面所使用的工具，主要用于可视化编辑器，如果是手写 HTML 的网页，不需要加这个 meta。
+
+- keywords: 页面关键字，对于 SEO 场景非常关键。
+
+- referrer: 跳转策略，是一种安全考量。
+
+- theme-color: 页面风格颜色，实际并不会影响页面，但是浏览器可能据此调整页面之外的 UI（如窗口边框或者 tab 的颜色）。
 
 ## 参考资料
 

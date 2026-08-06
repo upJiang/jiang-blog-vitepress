@@ -3,7 +3,7 @@ title: "Goroutine、Context、取消与背压"
 description: "从一个并行处理流水线开始，理解有界 goroutine、Context 取消、Channel 所有权和慢消费者。"
 category: backend
 tags: ["Go", "Concurrency"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 130
 depth: core
 series: "Go 服务工程"
@@ -65,7 +65,7 @@ func transform(
 }
 ```
 
-固定 Worker 数限制在途转换数量，Channel 容量只吸收短暂抖动。生产实现还要把转换错误传给 `errgroup` 或结果对象，并按业务选择 fail-fast 或部分成功。
+固定 Worker 数限制在途转换数量，Channel 容量只吸收短暂抖动。输入是只读 `Item` 流和 Worker 数，关键逻辑是每个 Worker 监听取消并由唯一汇总 goroutine 关闭输出，输出是可继续消费的 `Result` 流；生产实现还要把转换错误传给 `errgroup` 或结果对象，并按业务选择 fail-fast 或部分成功。
 
 ## 步骤三：让背压可见
 
@@ -99,6 +99,21 @@ func transform(
 ## 下一步
 
 并发正确后，还要知道时间花在哪里、缓存是否返回旧值。下一篇把一次 GORM 查询、Redis cache-aside 和 OpenTelemetry Trace 串起来，专门处理数据一致性与可诊断性。
+
+## 用有界 Worker 池观察取消传播
+
+准备二十个模拟任务，每个任务等待不同时间。不要为无限输入直接创建 goroutine；建立固定数量 Worker，从只读输入 Channel 获取任务，把结果写到单一所有者负责关闭的输出 Channel。调用方取消 Context 后，生产者、Worker 和汇总者都要从 `ctx.Done()` 退出。
+
+| 角色 | 拥有什么 | 退出条件 |
+| --- | --- | --- |
+| 生产者 | 输入来源 | 输入结束或 Context 取消 |
+| Worker | 单个任务执行 | Channel 关闭、取消或 Deadline |
+| 汇总者 | 结果集合 | 所有 Worker 完成后输出关闭 |
+| 调用方 | Context 与整体预算 | 收到结果、错误或超时 |
+
+Channel 由发送方中能够确定“不再发送”的所有者关闭，接收方不要擅自关闭。错误通道和结果通道都要有消费路径，避免某个 goroutine 因无人接收永久阻塞。并发上限应结合 CPU、连接池和下游限流，不等于数值越大越快。
+
+测试时在第一个错误后取消 Context，使用 `WaitGroup` 等待 Worker 结束，并检查 goroutine 数没有持续增长。再把消费者故意放慢，观察缓冲区满时生产者阻塞而不是无限积压。Context 传递取消、Deadline 和请求范围值，不用来存可选函数参数或作为全局状态袋。
 
 ## 参考资料
 

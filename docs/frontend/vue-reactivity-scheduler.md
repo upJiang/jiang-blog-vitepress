@@ -3,7 +3,7 @@ title: "Vue 3 响应式与调度"
 description: "从连续修改两次状态只渲染一次开始，理解依赖收集、触发和更新队列。"
 category: frontend
 tags: ["Vue 3", "Scheduler"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 710
 depth: core
 series: "现代前端"
@@ -16,6 +16,8 @@ series: "现代前端"
 本篇先观察页面结果，再拆开 Proxy、effect 与 Job Queue。教学示例只帮助理解主线；Vue 的真实实现还包含嵌套 effect、依赖清理、computed、watch 和组件更新顺序。
 
 ## 先看一次更新流程
+
+本篇目标是解释“状态改了，DOM 什么时候变”的现象。开始前需要会读 Vue 组件和事件处理器；不需要阅读 Vue 源码，先用一个按钮实验区分依赖收集、触发和调度。
 
 ```mermaid
 flowchart LR
@@ -86,6 +88,21 @@ computed 是带缓存的派生值。依赖变化时先标记为需要重新计�
 连续同步修改会合并到一次组件更新；条件依赖变化后旧分支应被清理；组件卸载后排队 Job 不应继续更新。若 watch 发出多个请求，要在 cleanup 中取消旧请求或使用序号防止乱序。
 
 验证时关注公开行为：渲染次数、DOM 时序、cleanup 和父子组件结果。阅读源码可以从 reactivity effect 测试和 runtime-core scheduler 测试进入，但文章结论应标明 Vue 版本，内部结构不作为永久 API。
+
+## 在浏览器里做三次时序实验
+
+先打开示例并在一次点击中连续写入 `1`、`2`，记录同步日志、`nextTick` 日志和页面最终值。第二次把 watch 设为默认 flush，在回调中读取 DOM；第三次改为 `flush: 'post'`。通过结果区分“响应式值已经变化”和“组件 DOM 已经提交”。
+
+| 观察点 | 预期解释 |
+| --- | --- |
+| 同步读取 `count.value` | 已经是最新值 2 |
+| 同步读取 DOM | 可能仍是上次渲染结果 |
+| `nextTick` 后读取 DOM | 当前组件更新队列已经刷新 |
+| post watch | 在组件 DOM 更新后执行 |
+
+再做依赖清理实验：渲染表达式为 `enabled ? a : b`，先修改 A 观察更新，再把 `enabled` 设为 false，随后修改 A 和 B。切换后 A 不应继续触发本组件，B 应成为新依赖。这个实验能直观看到 effect 每轮执行都要清理和重新收集依赖。
+
+工作中遇到“watch 为什么执行两次”或“DOM 还是旧的”，先记录 Vue 版本、开发/生产模式、flush 时机、状态写入调用栈和组件是否被重复挂载。不要先用 `setTimeout` 掩盖时序；确认需要等待的是 Vue 更新队列还是浏览器下一帧，再选择 `nextTick`、post watch 或 `requestAnimationFrame`。
 
 ## 参考资料
 

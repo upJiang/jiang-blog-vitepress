@@ -8,74 +8,140 @@ order: 450
 depth: reference
 series: "重学前端"
 ---
-# 原型与继承
+## 原型系统
 
-对象上明明没有 `speak`，调用时为什么仍能找到方法？因为属性读取会沿原型链向上查找。JavaScript 的 class 语法没有取消这套机制，它让我们用更清楚的语法创建实例、原型方法和继承关系。
+- 如果所有对象都有私有字段[[prototype]]，就是对象的原型；
 
-## 先分清三个容易混淆的名字
+- 读一个属性，如果对象本身没有，则会继续访问对象的原型，直到原型为空或者找到为止。
 
-- 对象内部的 `[[Prototype]]`：属性找不到时继续查找的对象，可用 `Object.getPrototypeOf()` 观察。
-- 构造函数的 `.prototype` 属性：普通对象，`new` 会把它连接到新实例的 `[[Prototype]]`。
-- `__proto__`：历史访问器，不适合新代码用来设计协议。
+ES6 提供的操纵原型方法：
 
-```mermaid
-flowchart LR
-  I[dog 实例] -->|[[Prototype]]| D[Dog.prototype]
-  D -->|[[Prototype]]| A[Animal.prototype]
-  A -->|[[Prototype]]| O[Object.prototype]
-  O --> N[null]
+- Object.create 根据指定的原型创建新对象，原型可以是 null；
+
+- Object.getPrototypeOf 获得一个对象的原型；
+
+- Object.setPrototypeOf 设置一个对象的原型。
+
+  ```
+  var cat = {
+      say(){
+          console.log("meow~");
+      },
+      jump(){
+          console.log("jump");
+      }
+  }
+
+  var tiger = Object.create(cat,  {
+      say:{
+          writable:true,
+          configurable:true,
+          enumerable:true,
+          value:function(){
+              console.log("roar!");
+          }
+      }
+  })
+
+  var anotherCat = Object.create(cat);
+  anotherCat.say(); //moew~
+
+  var anotherTiger = Object.create(tiger);
+  anotherTiger.say(); //roar!
+  ```
+
+## new
+
+new 运算接受一个构造器和一组调用参数，
+
+实际上做了几件事：
+
+- 以构造器的 prototype 属性（注意与私有字段[[prototype]]的区分）为原型，创建新对象；
+
+- 将 this 和调用参数传给构造器，执行；
+
+- 如果构造器返回的是对象，则返回，否则返回第一步创建的对象
+
+new 这样的行为，试图让函数对象在语法上跟类变得相似，但是，它客观上提供了两种方式，
+
+### 添加属性
+
+##### 一是在构造器中添加属性，二是在构造器的 prototype 属性上添加属性。
+
+```
+//直接在构造器中修改 this，给 this 添加属性
+function c1(){
+    this.p1 = 1;
+    this.p2 = function(){
+        console.log(this.p1);
+    }
+}
+var o1 = new c1;
+o1.p2();
+
+//修改构造器的 prototype 属性指向的对象，它是从这个构造器构造出来的所有对象的原型。
+function c2(){
+}
+c2.prototype.p1 = 1;
+c2.prototype.p2 = function(){
+    console.log(this.p1);
+}
+var o2 = new c2;
+o2.p2();
 ```
 
-读取 `dog.speak` 时，引擎从实例开始，逐层查到第一个同名属性。链走到 null 仍没找到，结果才是 undefined。
+## ES6 中的类
 
-## 步骤一：手工建立一条原型链
+> 推荐使用 ES6 的语法来定义类，而令 function 回归原本的函数语义。ES6 中引入了 class 关键字，并且在标准中删除了所有[[class]]相关的私有属性描述，类的概念正式从属性升级成语言的基础设施，从此，基于类的编程方式成为了 JavaScript 的官方编程范式。
 
-预期结果是：`dog` 自己只有 name，却能读取 animal 的 kind 和 speak；给 dog 增加同名 speak 后，会遮蔽上层方法，但不会修改 animal。
+```
+class Rectangle {
+  constructor(height, width) {
+    this.height = height;
+    this.width = width;
+  }
+  // Getter
+  get area() {
+    return this.calcArea();
+  }
+  // Method
+  calcArea() {
+    return this.height * this.width;
+  }
+}
+```
 
-```js
-const animal = {
-  kind: 'animal',
-  speak() { return `${this.name} makes a sound` }
+### 继承
+
+```
+class Animal {
+  constructor(name) {
+    this.name = name;
+  }
+  speak() {
+    console.log(this.name + ' makes a noise.');
+  }
 }
 
-const dog = Object.create(animal)
-dog.name = 'Milo'
+class Dog extends Animal {
+  constructor(name) {
+    super(name); //调用父类的构造函数
+  }
+	//覆盖父类的方法
+  speak() {
+    console.log(this.name + ' barks.');
+  }
+}
 
-console.log(dog.speak())
-console.log(Object.hasOwn(dog, 'speak')) // false
-console.log('speak' in dog)              // true
-
-dog.speak = function () { return `${this.name} barks` }
-console.log(dog.speak())
+let d = new Dog('Mitzie');
+d.speak(); // Mitzie barks.
 ```
 
-输入是以 animal 为原型创建的 dog。关键逻辑是 `Object.hasOwn()` 只检查自身，`in` 会查询整条链；输出先使用继承方法，再使用 dog 自己的遮蔽方法。写入普通属性通常落在接收者自身，但原型上的 setter 等情况会改变这一过程。
+## 总结
 
-## 步骤二：理解 new 怎样连接 prototype
+在新的 ES 版本中，我们不再需要模拟类了：我们有了光明正大的新语法。而原型体系同时作为一种编程范式和运行时机制存在。
 
-执行 `new Dog('Milo')` 时，运行时以 `Dog.prototype` 为原型创建实例，把实例作为 `this` 调用 Dog；构造器若没有返回另一个对象，就返回该实例。因此构造器适合初始化每个实例独有的数据，prototype 适合放所有实例共享的方法。
-
-运行中频繁使用 `Object.setPrototypeOf()` 可能破坏引擎优化，也让对象行为难以追踪。通常在创建时用 `Object.create()` 或 class 建好关系，而不是之后动态换链。
-
-`Object.create(null)` 创建没有 `Object.prototype` 的纯字典。它没有 `hasOwnProperty` 等继承方法，检查键应使用 `Object.hasOwn(dictionary, key)`。这也能避免把用户输入的 `__proto__` 当成普通对象访问器处理。
-
-## 步骤三：class 仍然建立原型关系
-
-class 的 constructor 初始化实例字段，普通方法放在类的 prototype 上，static 成员放在构造器自身。`extends` 建立构造器和 prototype 两条继承关系；派生类 constructor 在使用 `this` 前要调用 `super()`。
-
-class 方法不是构造器，class 本身也不能像普通函数一样直接调用。私有字段使用独立的品牌检查，不会沿普通属性反射暴露。这些是 class 带来的语言规则，但实例方法查找仍走原型链。
-
-## 继承何时会变得难维护
-
-三四层继承容易让初始化顺序、`super` 调用和覆盖方法互相影响。子类如果依赖父类内部实现，父类的小改动也可能改变所有后代。此时可以把日志、缓存、重试等能力设计成独立对象或函数，再由业务对象组合使用。
-
-组合不是永远优于继承。稳定的“is-a”关系和统一替换契约仍适合继承；关键是调用者能否只依赖明确公共行为，而不是层层读取父类内部状态。
-
-## 失败结果与安全边界
-
-直接合并不可信对象时，特殊属性名可能影响目标对象的原型或后续判断。应限制允许字段，使用安全合并方式，并只读取自身属性。跨 iframe 的对象来自另一个 Realm，即使形状相同，`instanceof` 也可能因构造器身份不同而失败。
-
-测试原型关系时同时断言行为和所有权：方法能否调用、属性来自自身还是继承、遮蔽后上层是否保持不变。只断言 `instanceof` 无法覆盖代理、跨 Realm 和结构化数据场景。
+我们可以自由选择原型或者类作为代码的抽象风格，但是无论我们选择哪种，理解运行时的原型系统都是很有必要的一件事。
 
 ## 参考资料
 

@@ -48,15 +48,15 @@ function go(path: string) {
         <p class="home-kicker">工程知识库</p>
         <h1 id="home-title">AI 全栈</h1>
         <p class="home-summary">
-          从一个能运行的例子开始，逐步拆解 Agent、前端、后端、搜索增长与交付。
-          每篇文章都写清执行过程、失败路径、验证方法和当前限制。
+          从具体问题和必要前置开始，逐步学习 Agent、前端、后端、搜索增长与交付。
+          内容按主题选择示例、实验或决策表，讲清验证方法和适用边界。
         </p>
         <div class="home-actions">
           <button class="home-button home-button--primary" type="button" @click="go('/docs/agent-practice/01-system-boundaries')">
             从 Agent 第一篇开始
           </button>
-          <button class="home-button" type="button" @click="go('/docs/architecture/')">
-            查看全部栏目
+          <button class="home-button" type="button" @click="go('/#topics-title')">
+            查看知识地图
           </button>
         </div>
       </div>

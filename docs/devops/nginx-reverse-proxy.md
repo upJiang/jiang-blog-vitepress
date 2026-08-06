@@ -3,13 +3,15 @@ title: "Nginx 与反向代理"
 description: "从代理一个 API 开始，处理可信请求头、静态站刷新、缓存、SSE 和安全切流。"
 category: devops
 tags: ["Nginx", "Proxy"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 20
 depth: core
 series: "基础设施"
 ---
 
 # Nginx 与反向代理
+
+本篇目标是让初学者能解释一个请求如何在静态文件、API 和事件流之间路由，并亲手验证配置。开始前需要知道域名、端口和 HTTP 状态码；示例以 VitePress 文章刷新 404 为贯穿问题，先理解路径映射，再接触缓存和切流。
 
 Nginx 位于浏览器和应用之间，可以终止 TLS、提供静态文件并把 `/api/` 转给后端。配置看起来只是路径转发，但错误的请求头、缓存和 fallback 会造成登录异常、SSE 延迟，或者文章刷新直接 404。
 
@@ -47,13 +49,16 @@ server {
     }
 
     location / {
+        if ($uri ~ ^(.+)/$) { return 308 $1; }
         try_files $uri $uri.html $uri/ =404;
         add_header Cache-Control "no-cache";
     }
 }
 ```
 
-这条 `$uri.html` 正是修复生产文章刷新 404 的关键。不能把所有未知博客地址都回退到首页，否则服务器对不存在文章返回 200，形成 Soft 404，也会掩盖内部坏链接。若构建产物使用目录 `index.html` 形式，则顺序按实际文件布局调整并测试。
+`root` 把 URL 映射到站点构建目录；`location /assets/` 单独管理带哈希静态资源；第一条 `if` 只把文章末尾斜杠规范化为无斜杠地址；`try_files` 依次尝试原文件、同名 `.html` 和目录。`=404` 保留真实不存在状态。
+
+这里的 `if` 只执行 `return`，用途明确；不要把复杂代理和变量改写堆进 Nginx `if`。这条 `$uri.html` 正是修复生产文章刷新 404 的关键。不能把所有未知博客地址都回退到首页，否则服务器对不存在文章返回 200，形成 Soft 404，也会掩盖内部坏链接。若构建产物使用目录 `index.html` 形式，则顺序按实际文件布局调整并测试。
 
 ## 步骤三：静态资源和 HTML 分开缓存
 
@@ -80,6 +85,23 @@ SSE 需要事件逐条到达。Nginx 的响应缓冲、压缩中间件、CDN 或
 | 配置语法错误 | `nginx -t` 阻止 reload |
 
 候选切流只改变 upstream 或代理指针，先保存旧配置，`nginx -t` 通过后平滑 reload。旧实例保留为回滚点，不需要顺带重启数据库、缓存或整套 Compose。
+
+## 从构建目录到公开 URL 做一次核对
+
+先在构建机确认 `.vitepress/dist/docs/agent-practice/01-system-boundaries.html` 存在。部署后确认 Nginx `root` 正好指向产物根目录，而不是仓库根目录或多套了一层 `dist`。路径映射关系应是：公开 URL `/docs/agent-practice/01-system-boundaries`，磁盘文件 `${root}/docs/agent-practice/01-system-boundaries.html`。
+
+修改线上配置时使用幂等脚本：只在旧规则出现一次时替换；修改前复制保留权限的备份；生成候选配置；`nginx -t` 通过后 reload；随后从本机 Nginx 入口发真实 GET。任何检查失败都恢复备份并再次测试语法、热加载。
+
+| 回归请求 | 预期结果 |
+| --- | --- |
+| `/` | 200，首页 HTML |
+| 无斜杠文章 | 200，命中同名 `.html` |
+| 带斜杠文章 | 308 到无斜杠，再得到 200 |
+| 显式 `.html` | 200，便于核对磁盘映射 |
+| 页面引用的哈希资源 | 200，长期缓存 |
+| 随机不存在地址 | 404，不返回首页正文 |
+
+健康检查使用 `--resolve` 直接命中本机 Nginx，可以在 DNS 或 CDN 之外确认源站规则；公开入口仍要在部署任务完成后单独回归。安装脚本不改变 GitHub Actions 的触发方式，主分支推送仍在完整验证通过后自动部署已验证制品。
 
 ## 参考资料
 

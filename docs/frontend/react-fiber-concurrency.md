@@ -3,7 +3,7 @@ title: "React Fiber 与并发渲染"
 description: "从一次输入卡顿开始，理解 Fiber、Render、Commit 与可中断更新的边界。"
 category: frontend
 tags: ["React", "Fiber"]
-updated: 2026-08-05
+updated: 2026-08-06
 order: 720
 depth: core
 series: "现代前端"
@@ -65,7 +65,7 @@ function Search({ items }: { items: string[] }) {
 }
 ```
 
-输入状态和查询状态分开，所以新按键可以覆盖仍在计算的旧 transition。`isPending` 表示 transition 尚未提交，不应用来假装精确进度。
+输入状态和查询状态分开，所以新按键可以覆盖仍在计算的旧 transition。`isPending` 表示 transition 尚未提交，不应用来假装精确进度。`visible` 仍在浏览器主线程计算；若一次过滤本身形成长任务，应先减少计算、建立索引或移到 Worker，并发渲染不会把同步函数自动拆成多线程。
 
 ## 步骤三：理解副作用时机
 
@@ -88,6 +88,22 @@ Suspense 让树在数据或代码尚未就绪时显示 fallback，并与流式�
 | 计算本身长期阻塞线程 | 并发 API 也无法抢占同步长任务 |
 
 使用 React Profiler 观察 Render 与 Commit，并在性能测试中区分交互延迟和总完成时间。不要用 `requestIdleCallback` 解释 React 当前调度器；公开概念以 React 文档为准，内部 Scheduler 实现通过源码测试核对版本。
+
+## 用 Profiler 分清“响应快”和“完成快”
+
+准备一万条模拟数据，先让输入与列表使用同一状态，记录按键到输入框更新、列表 Commit 完成和单次 Render 耗时。再加入 transition，保持数据和设备条件不变。预期是输入更快响应，但列表总计算量不一定减少。
+
+| 指标 | 回答的问题 |
+| --- | --- |
+| 输入事件到 Commit | 用户何时看到自己输入 |
+| transition pending 时长 | 低优先级结果等待多久 |
+| Render 耗时 | 组件计算是否过重 |
+| Commit 耗时 | DOM 写入与布局副作用是否过重 |
+| Long Task | 同步 JavaScript 是否阻塞调度机会 |
+
+接着在组件 Render 中故意加入一次计数副作用，开发环境下观察它可能被多次执行。把副作用移到用户事件或带 cleanup 的 Effect 后，重复 Render 不再改变外部世界。这个练习解释了“Render 可放弃”为什么要求组件纯净。
+
+选择 API 时先判断更新优先级：输入、焦点和点击反馈通常紧急；大型结果列表、非关键图表可以 transition；数据尚未就绪可通过框架支持的 Suspense 边界展示 fallback。若业务要求每次输入立即得到完整结果，应该优化算法和数据量，而不是把一切标成低优先级。
 
 ## 参考资料
 

@@ -33,49 +33,49 @@ export const sections: SectionMeta[] = [
   {
     key: 'ai-agent',
     title: 'AI 与 Agent',
-    description: '用最小实验理解模型、工具、上下文、RAG、评测和安全边界。',
+    description: '从大模型边界开始，通过实验理解工具、上下文、RAG、评测与安全治理。',
     path: '/docs/ai-agent/'
   },
   {
     key: 'agent-practice',
     title: 'Agent 实践',
-    description: '按请求、知识、检索、编排、恢复、评测和交付的顺序实现知识 Agent。',
+    description: '18 篇连续实践，从一次问答推进到知识、检索、编排、恢复、评测和交付。',
     path: '/docs/agent-practice/'
   },
   {
     key: 'seo',
     title: 'SEO 与增长',
-    description: '从需求与页面开始，逐步检查抓取、内容、数据、GEO 和搜索广告。',
+    description: '沿 18 个搜索问题学习需求、页面、抓取、内容、数据、GEO 与搜索广告。',
     path: '/docs/seo/'
   },
   {
     key: 'frontend',
     title: '前端',
-    description: '从浏览器与语言基础出发，逐步进入框架、构建系统和复杂交互。',
+    description: '保留算法与重学前端课程，并从浏览器现象进入框架、构建和复杂交互。',
     path: '/docs/frontend/'
   },
   {
     key: 'backend',
     title: '后端',
-    description: '用 Node.js、Python 和 Go 逐步实现 API、数据、异步任务与实时系统。',
+    description: '从一条请求或任务链学习 Node.js、Python、Go 的事务、权限、异步与数据系统。',
     path: '/docs/backend/'
   },
   {
     key: 'devops',
     title: '运维与交付',
-    description: '用容器、网关、CI、观测、候选切流和备份恢复完成一次交付。',
+    description: '从服务启动开始，逐步掌握容器、网关、CI、观测、切流和恢复演练。',
     path: '/docs/devops/'
   },
   {
     key: 'architecture',
     title: '架构实践',
-    description: '从具体失效场景推导分层、异步、证据、模块化与可靠性设计。',
+    description: '从具体场景推导边界、状态、证据、模块所有权与可靠性取舍。',
     path: '/docs/architecture/'
   },
   {
     key: 'engineering',
     title: '工程手册',
-    description: '用可复现问题练习调试、变更发布、资料检索和持续复审。',
+    description: '用可复现实验学习调试、变更发布与证据检索，并留下工作模板。',
     path: '/docs/engineering/'
   }
 ]
@@ -120,7 +120,7 @@ const aiAgentArticles: ArticleMeta[] = [
 ]
 
 const agentPracticeArticles: ArticleMeta[] = [
-  article('agent-practice', '一、定义系统', 10, '01-system-boundaries', '01｜从零认识 Agent：一个问题怎样变成答案', '先理解 Agent、工作流与普通聊天的区别，再跟踪一次知识问答从输入到输出的完整过程。', ['Agent', '入门'], 'core', '知识 Agent 分步实践'),
+  article('agent-practice', '一、定义系统', 10, '01-system-boundaries', '01｜从零认识 Agent：一个问题怎样变成答案', '从普通聊天、工作流和 RAG 的区别开始，理解 Agent 的适用场景、常用框架和一次请求的完整执行链。', ['Agent', '入门'], 'flagship', '知识 Agent 分步实践'),
   article('agent-practice', '一、定义系统', 20, '02-domain-model', '02｜把一次回答拆成可恢复的状态', '用会话、回合、事件、证据和 Claim 描述一次 Agent 执行，并区分三种状态。', ['Domain Model', 'State Machine'], 'core', '知识 Agent 分步实践'),
   article('agent-practice', '二、构建知识', 30, '03-document-parsing-ocr', '03｜解析文档，并只对缺失页面做 OCR', '从普通文本解析开始，逐步处理 PDF 扫描页、Office 结构、OCR 失败和内容回填。', ['Ingestion', 'OCR'], 'core', '知识 Agent 分步实践'),
   article('agent-practice', '二、构建知识', 40, '04-semantic-chunking', '04｜把文档切成保留结构的片段', '从标题、段落、列表、代码和表格识别开始，生成稳定片段并用覆盖率阻止内容丢失。', ['Chunking', 'Quality Gate'], 'core', '知识 Agent 分步实践'),
@@ -141,7 +141,7 @@ const agentPracticeArticles: ArticleMeta[] = [
 ]
 
 const seoArticles: ArticleMeta[] = [
-  article('seo', '一、认识搜索增长', 10, 'search-growth-model', 'SEO、SEM、GEO 分别解决什么问题', '从一次真实搜索开始，理解自然搜索、搜索广告和生成式搜索怎样共同服务业务。', ['SEO', 'SEM', 'GEO'], 'core', '搜索增长零基础教程'),
+  article('seo', '一、认识搜索增长', 10, 'search-growth-model', 'SEO、SEM、GEO：用户怎样找到一个网站', '从一个真实搜索问题开始，分清自然搜索、付费搜索和生成式搜索各自解决什么问题。', ['SEO', 'SEM', 'GEO', '搜索增长'], 'flagship', '搜索增长零基础教程'),
   article('seo', '一、认识搜索增长', 20, 'seo-project-evaluation', '一个项目值得做 SEO 吗', '在写文章前判断需求、业务匹配、竞争、交付能力和回报周期。', ['SEO', 'Project Evaluation'], 'core', '搜索增长零基础教程'),
   article('seo', '二、需求与页面', 30, 'crawl-index-ranking', '搜索引擎怎样发现、收录和排序网页', '沿发现、抓取、渲染、索引、排序和点击看懂一次搜索结果的产生。', ['SEO', 'Crawl'], 'core', '搜索增长零基础教程'),
   article('seo', '二、需求与页面', 40, 'keyword-intent-page-mapping', '怎样从用户问题找到关键词', '从真实问题识别搜索意图、建立关键词分类，并避免只看工具搜索量。', ['SEO', 'Keywords'], 'core', '搜索增长零基础教程'),
@@ -251,7 +251,7 @@ const backendArticles: ArticleMeta[] = [
   article('backend', 'Node.js', 30, 'node-acl-data-scope', 'Node ACL 与数据范围控制', '从两条不同归属的数据开始，把权限约束落实到策略、服务、查询与缓存。', ['Node.js', 'ACL'], 'core', 'Node.js 服务安全'),
   article('backend', 'Node.js', 40, 'node-queues-idempotency', 'Node 队列、幂等与重试', '从一次重复提交开始，理解任务记录、幂等键、至少一次投递、租约与有限重试。', ['Node.js', 'Queue']),
   article('backend', 'Node.js', 50, 'node-realtime', 'Node 实时通信服务', '从任务进度推送开始，理解 SSE、WebSocket、事件序列、断线重放与慢消费者。', ['Node.js', 'Realtime']),
-  article('backend', 'Python', 60, 'fastapi-layered-architecture', 'FastAPI 分层架构', '从一个创建任务接口开始，理解路由、应用服务、仓储和领域规则怎样协作。', ['Python', 'FastAPI'], 'flagship'),
+  article('backend', 'Python', 60, 'fastapi-layered-architecture', 'FastAPI 分层架构：从请求到事务', '从一个创建任务接口开始，理解请求模型、应用服务、仓储、事务和错误映射怎样协作。', ['Python', 'FastAPI', 'SQLAlchemy'], 'flagship'),
   article('backend', 'Python', 70, 'python-document-pipeline', 'Python 文档处理流水线', '从一份普通 PDF 开始，逐步完成格式识别、条件 OCR、结构切片、质量检查和候选发布。', ['Python', 'Document'], 'flagship'),
   article('backend', 'Python', 80, 'sqlalchemy-transaction-boundaries', 'SQLAlchemy 事务与数据访问边界', '从一次转账式更新理解 Session、事务、锁、并发冲突和外部副作用。', ['Python', 'SQLAlchemy'], 'core', 'Python 数据系统'),
   article('backend', 'Python', 90, 'postgres-pgvector-hybrid-search', 'PostgreSQL、pgvector 与混合检索', '从一个查不到同义表达的问题开始，组合关系过滤、全文检索、向量召回和名次融合。', ['PostgreSQL', 'pgvector'], 'flagship', 'Python 数据系统'),
@@ -263,7 +263,7 @@ const backendArticles: ArticleMeta[] = [
 ]
 
 const devopsArticles: ArticleMeta[] = [
-  article('devops', '基础设施', 10, 'docker-compose', 'Docker 与 Compose', '从启动 API 与数据库开始，理解镜像、网络、健康检查、持久数据和容器停止。', ['Docker', 'Compose']),
+  article('devops', '基础设施', 10, 'docker-compose', 'Docker Compose：从两个容器跑通一个服务', '从 API 与 PostgreSQL 的最小组合开始，理解镜像、容器、网络、健康检查、数据卷和停止恢复。', ['Docker', 'Compose', '容器'], 'flagship'),
   article('devops', '基础设施', 20, 'nginx-reverse-proxy', 'Nginx 与反向代理', '从代理一个 API 开始，处理可信请求头、静态站刷新、缓存、SSE 和安全切流。', ['Nginx', 'Proxy']),
   article('devops', '交付', 30, 'ci-cd', 'CI/CD 质量流水线', '从一次提交开始，理解检查、构建、制品提升、自动部署与失败阻断。', ['CI/CD', 'Artifact'], 'flagship'),
   article('devops', '可观测性', 40, 'observability', '日志、指标与链路追踪', '从一次慢请求出发，理解日志、Metric、Trace 和告警怎样共同定位问题。', ['Logging', 'Metrics', 'Tracing']),
@@ -272,7 +272,7 @@ const devopsArticles: ArticleMeta[] = [
 ]
 
 const architectureArticles: ArticleMeta[] = [
-  article('architecture', '系统方法', 10, 'layered-boundaries', '分层边界与依赖方向', '从一个职责混杂的发布函数开始，按变化原因和数据所有权推导系统边界。', ['Architecture', 'Boundaries']),
+  article('architecture', '系统方法', 10, 'layered-boundaries', '分层边界：代码为什么要按变化原因拆开', '从一个职责混杂的发布函数开始，理解入口、用例、领域规则和基础设施之间的依赖方向。', ['Architecture', 'Boundaries', '依赖方向'], 'flagship'),
   article('architecture', '系统方法', 20, 'async-task-lifecycle', '异步任务生命周期设计', '从一个报告任务开始，用 Task、Attempt、Lease 和 Event 处理重复、取消与中断恢复。', ['Async', 'State Machine']),
   article('architecture', 'AI 系统', 30, 'evidence-driven-systems', '证据驱动的 AI 系统', '从一条无法核对的回答开始，建立 Evidence、Claim、引用与验证边界。', ['Evidence', 'RAG'], 'flagship'),
   article('architecture', '平台工程', 40, 'modular-platform', '模块化能力平台', '从 HTTP、评测和 MCP 三份重复逻辑开始，设计共享 Runtime、稳定契约与独立适配器。', ['Platform', 'Modularity']),
