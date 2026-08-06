@@ -1,144 +1,78 @@
 ---
-title: "15｜SSE 流式事件、断线重放与背压"
-description: "以数据库事件序列为真相源，用 Redis 只做低延迟通知并支持 Last-Event-ID。"
+title: "15｜SSE 断线后从上一条事件继续"
+description: "用数据库事件序列作为真相源，让 Redis 只负责提醒，并实现 Last-Event-ID 与轮询降级。"
 category: agent-practice
-tags: ["SSE", "Event Log"]
-updated: 2026-08-04
+tags: ["SSE", "Event Replay"]
+updated: 2026-08-05
 order: 150
 depth: core
-series: "生产级知识 Agent 实战"
+series: "知识 Agent 分步实践"
 ---
-# 15｜SSE 流式事件、断线重放与背压
+# 15｜SSE 断线后从上一条事件继续
 
-Agent 前端希望实时看到阶段、引用和 token，但“模型 token 到了就直接写 HTTP response”无法支持刷新、多个标签页、反向代理缓冲和断线恢复。SSE 应该是持久化事件的一个读取协议：数据库事件序列是事实，Redis pub/sub 只负责提醒有新事件，客户端用 `Last-Event-ID` 从序列继续读取。
+浏览器已经收到两段答案，网络短暂中断。重连后如果服务端从头发送，文字会重复；如果只等待新消息，第 3 条事件可能永久丢失。
 
-## 事件格式
+本篇使用数据库事件序列作为真相源，Redis 只通知“有更新”。客户端通过 `Last-Event-ID` 告诉服务端最后确认的序号，重连后从下一条继续。
 
-```text
-id: 42
-event: answer.delta
-data: {"content":"已完成第一步","turn_id":"turn-1"}
+## SSE 是什么
 
-```
-
-事件 ID 必须是同一 Turn 内单调序列，不使用时间戳或随机 UUID 作为游标。事件类型要有限且版本化：`turn.created`、`stage.completed`、`evidence.added`、`answer.delta`、`turn.completed`、`turn.failed`、`heartbeat`。客户端未知事件应安全忽略并保留游标。
-
-```python
-def encode_event(sequence: int, event_type: str, payload: object) -> bytes:
-    body = json.dumps(payload, ensure_ascii=False, default=str)
-    return f"id: {sequence}\nevent: {event_type}\ndata: {body}\n\n".encode()
-```
-
-## 订阅前先做授权
-
-事件 endpoint 要按 turn id 查询 owner 和知识空间权限，不能只要 URL 能猜到就流式返回。授权通过后读取 `Last-Event-ID`，非法值返回 400；不要把错误详情写进 SSE 流，避免泄露其他 Turn 是否存在。
-
-## 数据库回放与 Redis 提醒
+Server-Sent Events 是服务器向浏览器持续发送文本事件的标准机制。它是单向连接，适合任务进度、答案增量和终态通知；浏览器到服务端的提问仍使用普通 HTTP。
 
 ```mermaid
 sequenceDiagram
-  participant B as Browser
-  participant API as SSE API
-  participant DB as Event Store
-  participant Q as Redis notify
-  participant W as Worker
-  W->>DB: append sequence=43
-  W->>Q: publish turn-1
-  API->>Q: subscribe turn-1
-  API->>DB: replay after cursor
-  DB-->>API: 43 event(s)
-  API-->>B: id:43 delta
+  participant B as 浏览器
+  participant A as API
+  participant D as 数据库事件
+  participant R as Redis 通知
+  B->>A: 连接，Last-Event-ID=2
+  A->>D: 查询 sequence > 2
+  D-->>A: 3、4
+  A-->>B: 回放 3、4
+  R-->>A: 最新序号提醒
+  A->>D: 再查询缺失事件
 ```
 
-Redis 消息丢失不影响正确性，因为 API 定期或收到提醒后查询数据库。Redis 不可用时回退为轮询；数据库事件表才是重放真相源。每次读取都按 `sequence > cursor ORDER BY sequence`，而不是依赖 Redis 消息内容。
+## 第一步：事件先写数据库
 
-## 流循环的终止条件
+每个回合分配单调递增序号，并用“回合 + 序号”保证唯一。答案增量、引用就绪和终态都先持久化，再通知在线订阅者。
 
-```python
-async def stream_turn(turn_id: str, cursor: int) -> AsyncIterator[bytes]:
-    last_activity = time.monotonic()
-    while True:
-        events = await repo.events_after(turn_id, cursor)
-        for event in events:
-            cursor = event.sequence
-            last_activity = time.monotonic()
-            yield encode_event(cursor, event.type, event.payload)
-        status = await repo.status(turn_id)
-        if status in TERMINAL and not events:
-            break
-        if time.monotonic() - last_activity >= HEARTBEAT_SECONDS:
-            last_activity = time.monotonic()
-            yield b": heartbeat\n\n"
-        await wait_for_notification_or_timeout(turn_id)
+Redis 不保存完整答案，也不承担唯一事实。通知丢失时，API 的定期数据库复查仍能发现新序号；Redis 不可用时可以退化为轮询。
+
+## 第二步：连接前先鉴权和检查所有权
+
+客户端提交 turn ID 不代表有权订阅。API 根据认证上下文确认回合所有者和访问范围，再读取事件。错误用户即使猜到 ID 也不能观察运行进度和引用。
+
+## 第三步：先回放，再等待提醒
+
+建立连接后先查询 `sequence > Last-Event-ID` 的历史事件，按序发送；追上最新序号后再等待 Redis 通知。每次收到通知仍回数据库查询，不信任通知里携带完整业务内容。
+
+终态事件发送后连接关闭。若重连时终态已经存在，服务端回放剩余事件后立即结束，不建立无意义长连接。
+
+## 第四步：客户端怎样去重
+
+浏览器保存最后处理成功的事件 ID。重复网络包或重连回放出现同序号时，客户端可以忽略；只在处理成功后推进本地序号，避免 UI 失败却跳过事件。
+
+事件内容要有稳定类型，例如 `answer.delta`、`references.ready`、`turn.completed` 和 `turn.failed`，不要让客户端从任意文本猜状态。
+
+## 做一次断线实验
+
+```text
+数据库已有：1 created，2 delta，3 delta，4 completed
+客户端已确认：2
+重连请求：Last-Event-ID: 2
+服务端输出：3 delta，4 completed，然后关闭
 ```
 
-“收到 terminal 就立即 break”可能丢掉同事务前后写入的事件；先回放到游标，确认 terminal 后没有更高序列，再关闭。心跳是注释行，不应被 UI 当成业务事件。
+另一个测试关闭 Redis，API 仍通过短间隔数据库复查返回新事件。数据库异常时连接应报告失败或重试，不能把缺失事件当成“暂时没有更新”。
 
-## 客户端重连
+## 当前实现的边界
 
-浏览器原生 EventSource 会自动带 `Last-Event-ID`，自定义 fetch 流则要自己保存游标。客户端 reducer 按 sequence 去重，遇到跳号时触发 snapshot/replay，而不是继续拼接。
+事件只在配置的保留期内可重放，超过窗口的客户端需要读取最终回合快照。SSE 适合服务器单向推送，不替代双向实时协作协议。
 
-```ts
-type AgentEvent = { id: number; type: string; payload: unknown }
-
-function applyEvent(state: ClientState, event: AgentEvent): ClientState {
-  if (event.id <= state.lastSequence) return state
-  if (event.id !== state.lastSequence + 1 && state.lastSequence !== 0) {
-    return { ...state, needsResync: true }
-  }
-  return reduceAgentEvent({ ...state, lastSequence: event.id }, event)
-}
-```
-
-客户端不能把 `answer.delta` 作为唯一答案来源。最终 `turn.completed` 应包含 answer artifact/version 或触发一次 GET snapshot；流式中断时 UI 明确标记 incomplete。
-
-## 代理和缓存配置
-
-SSE 响应需要 `Content-Type: text/event-stream`、`Cache-Control: no-cache, no-transform`、`X-Accel-Buffering: no` 等适配网关的头。Nginx、CDN 和服务框架可能缓冲小块，必须用真实链路验证首事件延迟和长连接超时。压缩也可能把多个事件攒在一起，按代理策略评估。
-
-## 背压与慢客户端
-
-Worker 不应无限等待一个断开的浏览器。事件先持久化，SSE 读取速度慢时可以丢弃通知但不能丢数据库事件；单连接发送缓冲要有上限，超过后关闭连接并让客户端重连回放。token delta 过细会增加数据库写放大，可以按时间/字符窗口合并，但每个 sequence 的语义必须固定。
-
-```python
-async def coalesce_deltas(deltas: list[str], max_chars: int = 120):
-    buffer = ""
-    for delta in deltas:
-        if len(buffer) + len(delta) > max_chars and buffer:
-            yield buffer
-            buffer = ""
-        buffer += delta
-    if buffer:
-        yield buffer
-```
-
-持久化合并应在事件定义中说明：如果把多个模型 token 合并成一条 delta，重放得到的是相同文本但不一定相同 token 边界。
-
-## 安全与隐私
-
-SSE 事件可能包含引用标题、错误消息和工具状态。按事件类型做字段白名单，不把内部 URL、提示策略或完整检索正文推给不该看的客户端。CORS、cookie、CSRF 和连接数限制同普通 API 一样重要。Turn ID 使用不可猜测值，但不可猜测不能替代授权。
-
-## 测试
-
-```python
-async def test_replay_after_cursor():
-    await append("turn-1", 1, "turn.created", {})
-    await append("turn-1", 2, "answer.delta", {"content": "A"})
-    events = [event async for event in stream_turn("turn-1", cursor=1)]
-    assert [event.id for event in events] == [2]
-
-async def test_terminal_event_is_replayed_before_close():
-    await append("turn-1", 4, "turn.completed", {})
-    events = [event async for event in stream_turn("turn-1", cursor=3)]
-    assert events[-1].type == "turn.completed"
-```
-
-浏览器验收覆盖刷新、断网、代理缓冲、两个客户端同时订阅、Redis 不可用、慢客户端、事件跳号和权限变化。抓包确认响应没有被压缩/缓存，Network 面板确认首事件与心跳实际到达。
+下一篇使用相同 Runtime 和事件快照建立可重复 Agent Eval。
 
 ## 参考资料
 
-- [WHATWG Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html)：EventSource、事件格式和重连语义。
-- [FastAPI StreamingResponse](https://fastapi.tiangolo.com/advanced/custom-response/#streamingresponse)：异步生成器与流式响应。
-- [MDN Server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)：浏览器端 EventSource 和 Last-Event-ID 行为。
-- [Nginx proxy buffering](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_buffering)：反向代理缓冲对流式响应的影响。
-
+- [WHATWG：Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html)
+- [MDN：Using server-sent events](https://developer.mozilla.org/docs/Web/API/Server-sent_events/Using_server-sent_events)
+- [Redis：Pub/Sub](https://redis.io/docs/latest/develop/interact/pubsub/)

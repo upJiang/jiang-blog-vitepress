@@ -1,168 +1,77 @@
 ---
 title: "链表合并与反转"
-description: "围绕 next 指针不变量完成链表结构变换。"
+description: "围绕 next 指针不变量完成链表反转与有序合并。"
 category: frontend
 tags: ["链表", "TypeScript"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 160
 depth: reference
 series: "算法与数据结构"
 ---
+
 # 链表合并与反转
 
-链表算法的难点不是访问值，而是每次改 `next` 前仍能找到未处理部分。画出 `previous/current/next`，写清每段链的含义，再修改指针。链表删除“是 O(1)”只在已知前驱/目标节点且无需查找时成立；从头定位仍是 O(n)。
+反转链表 `1 -> 2 -> 3` 时，若先执行 `current.next = previous`，又没有保存原来的 `current.next`，后面的 `2 -> 3` 就失去引用。链表题的核心不是背三行代码，而是每次改指针前知道哪些部分已经处理、哪些部分仍要访问。
+
+本篇先反转单链表，再用同一指针思维合并两个有序链表。节点默认无环且由当前算法拥有修改权；共享链表若原地改动，会影响其他引用者。
+
+## 反转的不变量
+
+循环开始时：`previous` 指向已经反转好的前缀，`current` 指向尚未处理的后缀。先保存 `next`，再把 current 接到 previous，最后两个指针向前移动。
+
+这里的“前缀”和“后缀”按节点身份划分，而不是按 value。循环每推进一次，恰好有一个节点从未处理后缀移动到已反转前缀；两个区域互不遗漏，也不重复。只要在改写 next 前保住后缀入口，剩余节点就始终可达。
+
+```mermaid
+flowchart LR
+  P[已反转前缀 previous] <-.- C[current]
+  C --> N[未处理后缀 next]
+  N --> X[其余节点]
+```
+
+## 步骤一：保存后继再改指针
+
+下面输入链表头，输出新的头。原链表节点被原地复用，时间 O(n)，额外空间 O(1)。
 
 ```ts
 interface ListNode<T> {
   value: T
   next: ListNode<T> | null
 }
-```
 
-## 合并两个有序链表
-
-Dummy 节点让结果头和普通节点使用相同连接逻辑：
-
-```ts
-function mergeSortedLists(
-  left: ListNode<number> | null,
-  right: ListNode<number> | null
-): ListNode<number> | null {
-  const dummy: ListNode<number> = { value: 0, next: null }
-  let tail = dummy
-
-  while (left !== null && right !== null) {
-    if (left.value <= right.value) {
-      tail.next = left
-      left = left.next
-    } else {
-      tail.next = right
-      right = right.next
-    }
-    tail = tail.next
-  }
-  tail.next = left ?? right
-  return dummy.next
-}
-```
-
-不变量：dummy.next 到 tail 是已经选出的有序前缀；left/right 分别指向各自未处理的最小节点；tail.next 尚未决定。每次接较小头保持有序。时间 O(m+n)，额外空间 O(1)，但复用并修改输入节点；若调用者仍需原链，应复制节点，空间 O(m+n)。
-
-递归版同样 O(m+n) 时间，但调用栈 O(m+n)，长链在 JS 中可能溢出，迭代更稳。
-
-## 反转单链表
-
-```ts
 function reverseList<T>(head: ListNode<T> | null): ListNode<T> | null {
-  let reversed: ListNode<T> | null = null
+  let previous: ListNode<T> | null = null
   let current = head
 
-  while (current !== null) {
-    const remaining = current.next
-    current.next = reversed
-    reversed = current
-    current = remaining
+  while (current) {
+    const next = current.next
+    current.next = previous
+    previous = current
+    current = next
   }
-  return reversed
+
+  return previous
 }
 ```
 
-循环开始时：`reversed` 是原前缀的反转；`current` 是未处理后缀头；两段包含原链全部节点且不重叠。必须先保存 remaining，再改 current.next，否则失去后缀。时间 O(n)、空间 O(1)。反转两次应恢复同一节点顺序，是很好的属性测试。
+处理 1 后，previous 是 `1 -> null`，current 是 2；处理 2 后，previous 是 `2 -> 1`，current 是 3。循环结束时后缀为空，previous 正好覆盖全部节点。
 
-## 删除排序链表重复值
+函数的输入头可能为 null，输出也可能为 null；非空输入返回原链表最后一个节点。关键逻辑只重连 next，没有创建业务节点，因此测试还应比较反转前后的节点引用集合完全相同。
 
-保留一个重复值时，当前与 next 相等就跳过 next：
+## 步骤二：有序合并只移动一个头
 
-```ts
-function deduplicateSorted<T>(
-  head: ListNode<T> | null,
-  equal: (a: T, b: T) => boolean = Object.is
-): ListNode<T> | null {
-  let current = head
-  while (current?.next) {
-    if (equal(current.value, current.next.value)) current.next = current.next.next
-    else current = current.next
-  }
-  return head
-}
-```
+两个升序链表合并时，较小头节点一定是剩余结果的第一个。使用 dummy 节点简化“结果头还没确定”的分支：比较两个头，将较小节点接到 tail，再移动对应链表。一个链表耗尽后，剩余链已经有序，可以整体接上。
 
-只有排序保证重复连续，此算法才正确。无序链需要 Set（空间 O(n)）或先排序（会改变顺序/复杂度）。
+若要求稳定合并，值相等时优先选择左链表。时间 O(m+n)，只重连节点时额外空间 O(1)。输入可能共享尾部时，原地合并需额外定义所有权，避免形成重复引用或环。
 
-若要求删除所有出现重复的值，头节点可能删除，需要 dummy 指向 head，previous 指向已确认唯一前缀尾：
+## 边界与失败结果
 
-```ts
-function removeAllDuplicates(head: ListNode<number> | null): ListNode<number> | null {
-  const dummy: ListNode<number> = { value: 0, next: head }
-  let previous = dummy
+空链表反转仍为空，单节点返回自身；合并时一侧为空直接返回另一侧。递归实现更接近定义，却占用 O(n) 调用栈，深链表在 JavaScript 中可能溢出，迭代更稳妥。
 
-  while (previous.next !== null) {
-    const value = previous.next.value
-    let cursor = previous.next
-    let count = 0
-    while (cursor !== null && cursor.value === value) {
-      cursor = cursor.next
-      count += 1
-    }
-    if (count > 1) previous.next = cursor
-    else previous = previous.next
-  }
-  return dummy.next
-}
-```
+测试不只比较值数组，还要检查节点数量没有变化、尾节点 next 为 null、没有形成环。故意删除 `const next` 或忘记移动 current，测试应分别出现丢节点或无限循环。
 
-previous 之前都是最终唯一节点。找到一整段相等值后，一次决定保留或跳过，不在删除过程中误移动 previous。时间 O(n)，空间 O(1)。
+下一篇使用两个保持固定间距的指针，在一次扫描中找到倒数节点。
 
-## 删除已知节点的语义限制
+## 参考资料
 
-有些题只给非尾节点 node，通过复制后继值并跳过后继“删除”：
-
-```ts
-function deleteGivenNode<T>(node: ListNode<T>): void {
-  if (node.next === null) throw new RangeError('tail cannot be deleted without predecessor')
-  node.value = node.next.value
-  node.next = node.next.next
-}
-```
-
-这并非真正删除传入对象身份，而是让它表示后继值，并移除后继对象。若外部持有节点引用、节点含不可复制 ID/资源或要求删除尾节点，这个技巧不成立。工程链表通常通过容器 API 删除，维护 size、所有权和迭代器失效。
-
-## 两两交换
-
-Dummy + 三个指针避免头部特判：
-
-```ts
-function swapPairs<T>(head: ListNode<T> | null): ListNode<T> | null {
-  const dummy: ListNode<T | null> = { value: null, next: head }
-  let before: ListNode<T | null> = dummy
-
-  while (before.next?.next) {
-    const first = before.next
-    const second = first.next!
-    first.next = second.next
-    second.next = first
-    before.next = second
-    before = first
-  }
-  return dummy.next
-}
-```
-
-每轮前 before.next 是未处理段；交换后 first 成为本对尾，下一轮 before=first。奇数末节点自然保留。
-
-## 共享、环与输入契约
-
-两个输入链若共享后缀，原地 merge 可能把同一节点接两次形成环；有环链会让普通 while 无限。算法题通常保证无环且节点不共享，必须写进前置条件。处理外部图状输入时先用 Set 检测节点身份，设置最大节点预算。
-
-## 验证
-
-用数组与链表互转建立 oracle，覆盖空、单节点、重复、全部相等、头部删除、奇数交换。验证节点身份：原地 merge 结果节点集合等于两输入节点集合且每个恰一次；reverse 不创建/丢失节点；所有遍历设置上限以捕获意外环。
-
-链表的每个正确解都能画成“已处理段、当前节点、未处理段”。如果改指针后无法说明三段分别在哪里，代码很可能只是在示例上碰巧工作。
-
-## 源码与规范
-
-- [ECMAScript 规范](https://tc39.es/ecma262/)：数组、字符串、Map/Set、排序与数值语义的语言依据。
-- [Open Data Structures](https://opendatastructures.org/)：数组、链表、栈、队列、树、哈希和图算法的公开教材与复杂度推导。
-- [VisuAlgo](https://visualgo.net/en)：数据结构与经典算法状态变化的可视化辅助；正确性仍以不变量和测试证明。
-- 个人实验材料已匿名化；本文只抽取通用机制，不建立项目映射。
+- [Open Data Structures: Linked Lists](https://opendatastructures.org/ods-javascript/3_Linked_Lists.html)
+- [ECMAScript Objects](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html)

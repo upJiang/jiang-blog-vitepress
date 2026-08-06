@@ -1,277 +1,77 @@
 ---
 title: "HTML 解析与 DOM 构建"
-description: "理解 tokenizer、tree builder 和容错解析"
+description: "从字节流理解 tokenizer、tree builder、容错与脚本阻塞"
 category: frontend
 tags: ["Browser","DOM"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 540
 depth: reference
 series: "重学前端"
 ---
 # HTML 解析与 DOM 构建
 
-这章主要来看两个过程：如何解析请求回来的 HTML 代码，DOM 树又是如何构建的。
+把不完整的 `<table><p>text<tr><td>x` 交给浏览器，Elements 中的树不会机械复制标签顺序。HTML 解析器按状态把字符变成 token，再按插入模式构造 DOM；遇到历史页面中的错误结构时，它会执行标准化恢复。
 
+## 从响应字节到 DOM
 
-
-## 解析代码
-
-HTML 的结构不算太复杂，我们日常开发需要的 90% 的“词”（指编译原理的术语 token，表示最小的有意义的单元），种类大约只有标签开始、属性、标签结束、注释、CDATA 节点几种。
-
-实际上有点麻烦的是，由于 HTML 跟 SGML 的千丝万缕的联系，我们需要做不少容错处理。“
-
-### 1. 词（token）是如何被拆分的
-
-首先我们来看看一个非常标准的标签，会被如何拆分：
-
-```text
-<p class="a">text text text</p>
+```mermaid
+flowchart LR
+  A[响应字节] --> B[确定编码并解码]
+  B --> C[Tokenizer 产生 token]
+  C --> D[Tree builder 选择插入模式]
+  D --> E[创建、关闭或重排节点]
+  E --> F[可观察 DOM]
 ```
 
-可以把这段代码依次拆成词（token）：
+常见 token 包括 start tag、end tag、character、comment 和 DOCTYPE。Tokenizer 有 data、tag open、attribute value、script data 等多种状态；Tree builder 维护打开元素栈、活动格式化元素和当前 insertion mode。一个简化栈模型解释不了表格和格式化元素恢复。
 
-- `<p “标签开始”的开始`；
+## 步骤一：观察源码与 DOM 的差异
 
-- class=“a” 属性；
+预期结果是浏览器补全 table 结构，并可能把不适合当前位置的文字/段落移到 table 前。我们只观察标准解析结果，不尝试用几十行 JavaScript 重写 HTML parser。
 
-- `> “标签开始”`的结束；
+实验在浏览器控制台运行，使用 `template` 是为了创建一个不直接影响当前正文的文档片段。它仍会调用浏览器原生 HTML fragment parser；我们比较的是输入字符串与输出 DOM，不把控制台打印的格式化缩进当作规范结果。若要验证完整文档的 head/body 或文档模式，应改用独立页面，因为片段解析没有完整导航的全部上下文。
 
-- text text text 文本；
+```js
+const template = document.createElement('template')
+template.innerHTML = '<table><p>text<tr><td>x'
 
-- `</p>`标签结束。
-
-这是一段最简单的例子，类似的还有什么呢？现在我们可以来来看看这些词（token）长成啥样子：
-
-
-
-根据这样的分析，现在我们讲讲浏览器是如何用代码实现，我们设想，代码开始从 HTTP 协议收到的字符流读取字符。
-
-在接受第一个字符之前，我们完全无法判断这是哪一个词（token），不过，随着我们接受的字符越来越多，拼出其他的内容可能性就越来越少。
-
-比如，假设我们接受了一个字符“ < ” 我们一下子就知道这不是一个文本节点啦。
-
-之后我们再读一个字符，比如就是 x，那么我们一下子就知道这不是注释和 CDATA 了，接下来我们就一直读，直到遇到“>”或者空格，这样就得到了一个完整的词（token）了。
-
-实际上，我们每读入一个字符，其实都要做一次决策，而且这些决定是跟“当前状态”有关的。在这样的条件下，浏览器工程师要想实现把字符流解析成词（token），最常见的方案就是使用状态机。
-
-### 2. 状态机
-
-绝大多数语言的词法部分都是用状态机实现的。那么我们来把部分词（token）的解析画成一个状态机看看：
-
-
-
-当然了，我们这里的分析比较粗略，真正完整的 HTML 词法状态机，比我们描述的要复杂的多。更详细的内容，你可以参考[HTML 官方文档](https://html.spec.whatwg.org/multipage/parsing.html#tokenization)，HTML 官方文档规定了 80 个状态（顺便一说，HTML 是我见过唯一一个标准中规定了状态机实现的语言，对大部分语言来说，状态机是一种实现而非定义）。
-
-这里我们为了理解原理，用这个简单的状态机就足够说明问题了。
-
-状态机的初始状态，我们仅仅区分 “< ”和 “非 <”：
-
-- 如果获得的是一个非 < 字符，那么可以认为进入了一个文本节点；
-
-- 如果获得的是一个 < 字符，那么进入一个标签状态。
-
-不过当我们在标签状态时，则会面临着一些可能性。
-
-- 比如下一个字符是“ ! ” ，那么很可能是进入了注释节点或者 CDATA 节点。
-
-- 如果下一个字符是 “/ ”，那么可以确定进入了一个结束标签。
-
-- 如果下一个字符是字母，那么可以确定进入了一个开始标签。
-
-- 如果我们要完整处理各种 HTML 标准中定义的东西，那么还要考虑“ ? ”“% ”等内容。
-
-我们可以看到，用状态机做词法分析，其实正是把每个词的“特征字符”逐个拆开成独立状态，然后再把所有词的特征字符链合并起来，形成一个联通图结构。
-
-接下来就是代码实现的事情了，在 C/C++ 和 JavaScript 中，实现状态机的方式大同小异：我们把每个函数当做一个状态，参数是接受的字符，返回值是下一个状态函数。（这里我希望再次强调下，状态机真的是一种没有办法封装的东西，所以我们永远不要试图封装状态机。）
-
-为了方便理解和试验，我们这里用 JavaScript 来讲解，图上的 data 状态大概就像下面这样的：
-
-```text
-var data = function(c){
-    if(c=="&") {
-        return characterReferenceInData;
-    }
-    if(c=="<") {
-        return tagOpen;
-    }
-    else if(c=="\0") {
-        error();
-        emitToken(c);
-        return data;
-    }
-    else if(c==EOF) {
-        emitToken(EOF);
-        return data;
-    }
-    else {
-        emitToken(c);
-        return data;
-    }
-};
-var tagOpenState = function tagOpenState(c){
-    if(c=="/") {
-        return endTagOpenState;
-    }
-    if(c.match(/[A-Z]/)) {
-        token = new StartTagToken();
-        token.name = c.toLowerCase();
-        return tagNameState;
-    }
-    if(c.match(/[a-z]/)) {
-        token = new StartTagToken();
-        token.name = c;
-        return tagNameState;
-    }
-    if(c=="?") {
-        return bogusCommentState;
-    }
-    else {
-        error();
-        return dataState;
-    }
-};
-//……
+console.log(template.content.firstElementChild?.outerHTML)
+console.log(template.content.textContent)
 ```
 
-这段代码给出了状态机的两个状态示例：data 即为初始状态，tagOpenState 是接受了一个 “ < ” 字符，来判断标签类型的状态。
+输入是一段表格上下文中的错误 HTML，关键逻辑是 `innerHTML` 使用 fragment parsing，并根据 template 内容上下文构造节点；输出中的标签补全和节点位置由解析算法决定。调试时同时比较原响应、View Source 和实际 DOM，模板缩进不能代替解析结果。
 
-这里的状态机，每一个状态是一个函数，通过“if else”来区分下一个字符做状态迁移。这里所谓的状态迁移，就是当前状态函数返回下一个状态函数。
+## 步骤二：理解状态机为什么必要
 
-这样，我们的状态迁移代码非常的简单：
+字符 `<` 在普通文本、script、注释和属性值中的含义不同，解析器需要根据当前状态决定下一个 token。字符引用也按上下文处理；脚本内容不会简单使用“找到最近 `</script>` 的正则”实现所有行为。
 
-```text
-var state = data;
-var char
-while(char = getInput())
-    state = state(char);
-```
+Tree builder 收到 token 后根据 in head、in body、in table 等模式处理。省略的 html/head/body、tbody 等元素可能被自动插入；`p` 会在某些 start tag 前自动关闭；格式化元素错误嵌套可能触发 adoption agency algorithm。
 
-这段代码的关键一句是“ state = state(char) ”，不论我们用何种方式来读取字符串流，我们都可以通过 state 来处理输入的字符流，这里用循环是一个示例，真实场景中，可能是来自 TCP 的输出流。
+这些规则解释了浏览器容错的一致性，也解释了服务端渲染与客户端水合为什么怕无效嵌套：服务器字符串与框架预期树可能不同。
 
-状态函数通过代码中的 emitToken 函数来输出解析好的 token（词），我们只需要覆盖 emitToken，即可指定对解析结果的处理方式。
+## 步骤三：脚本怎样影响流式解析
 
-词法分析器接受字符的方式很简单，就像下面这样：
+浏览器可以边接收边解析 HTML。遇到没有 async/defer 的 classic 外链脚本时，解析通常暂停，等待脚本下载与执行，因为脚本可能通过 `document.write()` 改变后续输入。样式表还可能阻塞依赖样式的脚本执行。
 
-```text
-function HTMLLexicalParser(){
+defer 脚本下载时不阻塞解析，按文档顺序在解析完成后、DOMContentLoaded 前执行；async 下载完成后执行，不保证顺序；module 按依赖图准备，默认具有 defer 式行为。动态插入脚本还有自己的 async 与执行规则。
 
-    //状态函数们……
-    function data() {
-        // ……
-    }
+浏览器可能使用 preload scanner 提前发现资源，但这是优化，不改变可观察解析语义。依赖它补救深层脚本注入或迟发现 LCP 资源，性能仍会不稳定。
 
-    function tagOpen() {
-        // ……
-    }
-    // ……
-    var state = data;
-    this.receiveInput = function(char) {
-        state = state(char);
-    }
-}
-```
+## 步骤四：innerHTML 的边界
 
-至此，我们就把字符流拆成了词（token）了。
+`innerHTML` 使用片段解析，上下文元素会影响结果，例如 table、select 和 SVG。它会替换子树并可能触发自定义元素生命周期，不会保留旧子节点上用 `addEventListener` 注册的监听器。
 
-## 构建 DOM 树
+把不可信字符串交给 innerHTML 会形成注入风险。普通文本使用 `textContent`；确需富文本时使用经过审计的 sanitizer、Trusted Types 和 CSP 等分层控制。解析器容错不是安全清洗器。
 
-接下来我们要把这些简单的词变成 DOM 树，这个过程我们是使用栈来实现的，任何语言几乎都有栈，为了给你跑着玩，我们还是用 JavaScript 来实现吧，毕竟 JavaScript 中的栈只要用数组就好了。
+## 失败结果与验证
 
-```text
-function HTMLSyntaticalParser(){
-    var stack = [new HTMLDocument];
-    this.receiveInput = function(token) {
-        //……
-    }
-    this.getOutput = function(){
-        return stack[0];
-    }
-}
-```
+故意把 `div` 放进 `p`，检查 DOM 中 p 是否提前关闭；把 `tr` 放到错误上下文，观察它是否被忽略或重排。随后运行 HTML validator，区分“浏览器恢复后的结果”和“作者写法是否符合要求”。
 
-我们这样来设计 HTML 的语法分析器，receiveInput 负责接收词法部分产生的词（token），通常可以由 emitToken 来调用。
-
-在接收的同时，即开始构建 DOM 树，所以我们的主要构建 DOM 树的算法，就写在 receiveInput 当中。当接收完所有输入，栈顶就是最后的根节点，我们 DOM 树的产出，就是这个 stack 的第一项。
-
-为了构建 DOM 树，我们需要一个 Node 类，接下来我们所有的节点都会是这个 Node 类的实例。
-
-在完全符合标准的浏览器中，不一样的 HTML 节点对应了不同的 Node 的子类，我们为了简化，就不完整实现这个继承体系了。我们仅仅把 Node 分为 Element 和 Text（如果是基于类的 OOP 的话，我们还需要抽象工厂来创建对象），
-
-```text
-function Element(){
-    this.childNodes = [];
-}
-function Text(value){
-    this.value = value || "";
-}
-```
-
-前面我们的词（token）中，以下两个是需要成对匹配的：
-
-- tag start
-
-- tag end
-
-根据一些编译原理中常见的技巧，我们使用的栈正是用于匹配开始和结束标签的方案。
-
-根据一些编译原理中常见的技巧，我们使用的栈正是用于匹配开始和结束标签的方案。
-
-同样我们来看看直观的解析过程：
-
-```text
-<html maaa=a >
-    <head>
-        <title>cool</title>
-    </head>
-    <body>
-        <img src="a" />
-    </body>
-</html>
-```
-
-通过这个栈，我们可以构建 DOM 树：
-
-- 栈顶元素就是当前节点；
-
-- 遇到属性，就添加到当前节点；
-
-- 遇到文本节点，如果当前节点是文本节点，则跟文本节点合并，否则入栈成为当前节点的子节点；
-
-- 遇到注释节点，作为当前节点的子节点；
-
-- 遇到 tag start 就入栈一个节点，当前节点就是这个节点的父节点；
-
-- 遇到 tag end 就出栈一个节点（还可以检查是否匹配）。
-
-## 结语
-
-我们主要研究了解析代码和构建 DOM 树两个步骤。在解析代码的环节里，我们一起详细地分析了一个词（token）被拆分的过程，并且给出了实现它所需要的一个简单的状态机。
-
-在构建 DOM 树的环节中，基本思路是使用栈来构建 DOM 树为了方便你动手实践，我用 JavaScript 实现了这一过程。
-
-## 现代规范校订
-
-浏览器实现会持续演进，文中的流程是职责模型，不应理解为所有浏览器都采用完全相同的线程数量或执行细节。网络部分应以 HTTP/2 与 HTTP/3 的现代连接模型为主。
-
-## 规范要点与现代边界
-
-HTML tokenizer 和 tree builder 会按规范处理省略标签、错误嵌套和表格上下文，因此源代码树和 DOM 树可能不同。调试解析问题要比较响应文本、Elements 面板和 DOM API 结果；可访问性树又是另一份派生结构，不能用 DOM 层级直接替代。
-
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
-
-## 运行验证
-
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
-
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
+若页面首屏停顿，Performance 中查看 Parser、Evaluate Script 和网络瀑布，确认是 parser-blocking script、CSS 依赖还是主线程长任务。只看到 DOMContentLoaded 变晚，不能直接断言网络慢。
 
 ## 参考资料
 
-- https://html.spec.whatwg.org/
-- https://developer.mozilla.org/en-US/docs/Web/API
+- [HTML Standard：Parsing HTML documents](https://html.spec.whatwg.org/multipage/parsing.html)
+- [HTML Standard：The stack of open elements](https://html.spec.whatwg.org/multipage/parsing.html#the-stack-of-open-elements)
+- [HTML Standard：Scripting](https://html.spec.whatwg.org/multipage/scripting.html)
+- [Web Platform Tests：HTML parsing](https://github.com/web-platform-tests/wpt/tree/master/html/syntax/parsing)

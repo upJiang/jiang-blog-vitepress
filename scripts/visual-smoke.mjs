@@ -61,8 +61,9 @@ try {
   assert((await page.locator('text=重学前端').count()) > 0, '前端栏目缺少重学前端分组')
 
   await page.goto(`${baseURL}/docs/seo/`, { waitUntil: 'networkidle' })
-  assert((await page.locator('.article-index-list a').count()) === 12, 'SEO 栏目应展示 12 篇文章')
-  assert((await page.locator('text=SEO 与 SEM 协同').count()) > 0, 'SEO 栏目缺少协同增长分组')
+  assert((await page.locator('.article-index-list a').count()) === 18, 'SEO 栏目应展示 18 篇文章')
+  assert((await page.locator('text=一、认识搜索增长').count()) > 0, 'SEO 栏目缺少入门分组')
+  assert((await page.locator('text=七、执行计划').count()) > 0, 'SEO 栏目缺少执行计划分组')
 
   await page.goto(`${baseURL}/docs/ai-agent/agent-lifecycle`, { waitUntil: 'networkidle' })
   await page.locator('.mermaid svg').first().waitFor({ timeout: 10_000 })

@@ -3,323 +3,86 @@ title: "JavaScript 语法结构"
 description: "区分脚本、模块、声明、语句和表达式"
 category: frontend
 tags: ["JavaScript","Grammar"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 490
 depth: reference
 series: "重学前端"
 ---
 # JavaScript 语法结构
 
-## 脚本和模块
+同一行 `await load()` 放进 module 可以合法解析，放进普通 script 却可能报 SyntaxError。语法是否有效不仅取决于字符，还取决于当前 **Parse Goal**：浏览器把源码当 Script、Module 还是函数体解析。
 
+## 从源码到执行要经过什么
 
-
-### 区别
-
-- 脚本是可以由浏览器或者 node 环境引入执行的，模块只能由 JavaScript 代码用 import 引入执行。
-
-- 从概念上，我们可以认为脚本具有主动性的 JavaScript 代码段，是控制宿主完成一定任务的代码；而模块是被动性的 JavaScript 代码段，是等待被调用的库。
-
-- 我们对标准中的语法产生式做一些对比，不难发现，实际上模块和脚本之间的区别仅仅在于是否包含 import 和 export，模块有，脚本没有。
-
-在 script 标签的引入方式中，默认加载的文件是脚本，如果要引入模块，必须给 script 标签添加 type=“module”。如果引入脚本，则不需要 type。
-
-```text
-//加载的是模块
-<script type="module" src="xxxxx.js"></script>
+```mermaid
+flowchart LR
+  A[源字符] --> B[词法分析得到 token]
+  B --> C[按 Script 或 Module 语法解析]
+  C --> D[建立声明与作用域]
+  D --> E[求值语句和表达式]
+  E --> F[产生值、状态或异常]
 ```
 
-**在 script 标签写 export 为什么会报错？** 答案：script 标签如果不加 type=“module”，默认认为我们加载的文件是脚本而非模块，如果我们在脚本中写了 export，当然会抛错。
+语法错误发生在求值前。打包器可以转换源码，但转换后的产物仍要符合目标 JavaScript 环境；“工具能编译”不等于浏览器原生支持原写法。
 
-## 模块中的 import 和 export
+## 步骤一：比较 Script 与 Module
 
-### export
+目标结果是：classic script 通过普通 script 标签执行，module 通过 `type="module"` 执行，并能使用静态 import/export。module 默认采用严格模式，顶层 this 为 undefined，顶层声明也不会像 classic script 的部分 var 声明那样成为 window 属性。
 
-两种声明方式： **独立使用 export 声明**:就是一个 export 关键字加上变量名列表
+阅读示例前还要确认运行环境。这里以现代浏览器为准，两个文件都通过 HTTP 提供；直接双击本地文件时，module 可能受 origin 与 CORS 限制。classic 与 module 也有不同的下载、执行和错误上报语义，示例只先观察解析目标、作用域和依赖入口，网络细节放到浏览器 HTTP 文章处理。
 
-```text
-export {a, b, c};
+```html
+<script src="/classic.js"></script>
+<script type="module" src="/entry.js"></script>
 ```
 
-**声明型语句前添加 export 关键字**:这里的 export 可以加在任何声明性质的语句之前，整理如下：
+```js
+// entry.js
+import { formatTitle } from './format.js'
 
-- var
-
-- function (含 async 和 generator)
-
-- class
-
-- let
-
-- const
-
-export 还有一种特殊的用法，就是跟 default 联合使用。export default 表示导出一个默认变量值，它可以用于 function 和 class。这里导出的变量是没有名称的，可以使用 import x from "./a.js"这样的语法，在模块中引入。
-
-export default 还支持一种语法，后面跟一个表达式，例如：
-
-```text
-var a = {};
-export default a;
+export const title = formatTitle('Agent 教程')
+console.log(this) // undefined
 ```
 
-但是，这里的行为跟导出变量是不一致的，这里导出的是值，导出的就是普通变量 a 的值，以后 a 的变化与导出的值就无关了，修改变量 a，不会使得其他模块中引入的 default 值发生改变。
+输入是两种脚本元素和一个模块文件。关键区别是 module 使用独立语法目标、依赖图和作用域；输出会等待模块依赖准备后执行。模块请求遵循 CORS，默认 defer 式执行，并且同一 URL 在一个模块图中按模块语义处理。
 
-在 import 语句前无法加入 export，但是我们可以直接使用 export from 语法。
+## 步骤二：理解 import 与 export
 
-```text
-export a from "a.js"
-```
+静态 import/export 只允许出现在模块顶层，使工具和浏览器能在执行前建立依赖与 live binding。导出绑定是“活的”：导出方更新绑定，导入方读取会看到新值；导入者不能直接给导入绑定赋值。
 
-### import
+default export 每个模块最多一个，named export 可以多个。`export *` 不自动转发 default，并可能遇到同名冲突。动态 `import()` 是表达式，返回 Promise，适合条件或按需加载；它不要求写在模块顶层。
 
-两种声明方式：
+Top-level await 会让当前模块的完成依赖异步结果，并向依赖它的模块传播等待。它适合确实需要在模块初始化完成前取得的状态，滥用会拉长整条依赖链，甚至形成难排查的循环等待。
 
-```text
-import "mod"; //引入一个模块
-import v from "mod";  //把模块默认的导出值放入变量v
-```
+## 步骤三：区分声明、语句和表达式
 
-**直接声明**,直接 import 一个模块，只是保证了这个模块代码被执行，引用它的模块是无法获得它的任何信息的。
+声明建立绑定，例如 `let`、`const`、`function`、`class` 和 import；语句控制执行，例如 if、for、return、throw、try；表达式求值得到值，例如调用、成员访问、赋值和条件表达式。
 
-**带 from 的 import**，它能引入模块的一些信息，引入模块中的一部分信息，可以把它们变成本地的变量。
+相同 token 在上下文中可能属于不同语法。例如 `{}` 可以是 block，也可以出现在对象字面量表达式中；`function` 开头可能是声明或函数表达式。需要把表达式放在容易被解析成声明的位置时，可用括号明确语法目的。
 
-带 from 的 import 细分又有三种用法：
+## 步骤四：声明为什么会表现出“提升”
 
-- import x from "./a.js" 引入模块中导出的默认值。
+执行代码前，环境会按声明实例化算法建立绑定。`var` 绑定会初始化为 undefined；let/const/class 绑定已创建但在初始化前处于 temporal dead zone；function 声明的处理还取决于 Script、Module、函数体和 block 等上下文。
 
-- import {a as x, modify} from "./a.js"; 引入模块中的变量。
+“提升”是描述现象的教学词，不代表源码被移动。下面结果来自绑定创建与初始化时机不同：var 在赋值前可读到 undefined，let 在声明行前读取会抛 ReferenceError，class 也存在 TDZ。
 
-- import \* as x from "./a.js" 把模块中所有的变量以类似对象属性的方式引入。
+函数体还有参数环境、arguments、默认参数与函数声明的交互。默认参数在自己的参数作用域求值，不能简单用“函数体最前面赋值”模拟全部行为。
 
-第一种方式还可以跟后两种组合使用。记忆方式就是只有默认的引入能够跟其它的组合
+## 指令序言是什么
 
-- import d, {a as x, modify} from "./a.js"
+函数体或 Script 开头连续的字符串字面量表达式可组成 Directive Prologue，`"use strict"` 是标准识别的指令。它只有在序言位置才生效；普通字符串写在其他语句之后不会切换严格模式。
 
-- import d, \* as x from "./a.js"
+ES module 天然严格。严格模式会让某些静默失败变成异常，普通函数无 receiver 调用时 this 为 undefined，并禁止部分历史语法。它不是安全沙箱，也不会自动验证输入。
 
-语法要求不带 as 的默认值永远在最前。注意，这里的变量实际上仍然可以受到原来模块的控制。
+## 故意制造一次失败
 
-```text
-export var a = 1; //导出的是变量a
-export function modify(){
-    a = 2;
-}
+把静态 import 放进 if 语句，解析阶段就会失败，因为静态依赖只能位于模块顶层。条件加载应使用动态 import，并处理加载失败与版本不匹配。
 
-
-import {a, modify} from "./a.js";
-console.log(a); //1
-modify();
-console.log(a); //2
-```
-
-当我们调用修改变量的函数后，b 模块变量也跟着发生了改变。这说明导入与一般的赋值不同，导入后的变量只是改变了名字，它仍然与原来的变量是同一个。
-
-export var a = 1 导出的是变量 a，当 a 在别的模块被改变了，那么之后在其它模块去使用它也会是改变后的值，也就是共用变量了<br> 如果不想要共用变量，可以只导出值，export 支持这样的写法
-
-```text
-var a = {};
-export default a;  //导出的是变量a的值，之后a变化，其它模块再使用a不受影响
-```
-
-注意：import 进来的变量不能直接赋值，它相当于私有变量，必须深拷贝出来后再进行赋值
-
-## 函数体
-
-> 执行函数的行为通常是在 JavaScript 代码执行时，注册宿主环境的某些事件触发的，而执行的过程，就是执行函数体（函数的花括号中间的部分）。
-
-函数体实际上有四种
-
-- 普通函数体
-
-```text
-function foo(){
-    //Function body
-}
-```
-
-- 异步函数体
-
-```text
-async function foo(){
-    //Function body
-}
-```
-
-- 生成器函数体
-
-```text
-function *foo(){
-    //Function body
-}
-```
-
-- 异步生成器函数体
-
-```text
-async function *foo(){
-    //Function body
-}
-```
-
-上面四种函数体的区别在于：能否使用 await 或者 yield 语句。
-
-关于函数体、模块和脚本能使用的语句 
-
-## 预处理
-
-> JavaScript 执行前，会对脚本、模块和函数体中的语句进行预处理。预处理过程将会提前处理 var、函数声明、class、const 和 let 这些语句，以确定其中变量的意义。
-
-### var 声明
-
-> var 声明永远作用于脚本、模块和函数体这个级别，在预处理阶段，不关心赋值的部分，只管在当前作用域声明这个变量（var 的变量提升是只声明但不赋值）
-
-**var 的作用除了脚本跟函数体，能够穿透一切语句结构，它只认脚本、模块和函数体三种语法结构，在预处理过程中，如果遇到函数体级别的声明，就不会去访问外层作用域中的声明**所以下面三种代码的 a 变量都输出为 undefined
-
-```text
-var a = 1;
-
-function foo() {
-    console.log(a);  //undefined
-    var a = 2;
-}
-
-foo();
-```
-
-```text
-var a = 1;
-
-function foo() {
-    console.log(a); //undefined
-    if(false) {
-        var a = 2;  //if被穿透，不认这个if条件，所以跟上面其实是一致的
-    }
-}
-
-foo();
-```
-
-```text
-var a = 1;
-
-function foo() {
-    var o= {a:3}
-    with(o) {
-        var a = 2;
-    }
-    console.log(o.a); //2，当执行到var a = 2时，作用域变成了 with 语句内，这时候的 a 被认为访问到了对象 o 的属性 a
-    console.log(a); //undefined，with也被穿透，所以仍然是undefined
-}
-
-foo();
-```
-
-在执行阶段，当执行到 var a = 2 时，作用域变成了 with 语句内，这时候的 a 被认为访问到了对象 o 的属性 a，所以最终执行的结果，我们得到了 2 和 undefined。<br> 这个行为是 JavaScript 公认的设计失误之一，一个语句中的 a 在预处理阶段和执行阶段被当做两个不同的变量，严重违背了直觉，但是今天，在 JavaScript 设计原则“don’t break the web”之下，已经无法修正了，所以你需要特别注意。
-
-因为早年 JavaScript 没有 let 和 const，只能用 var，又因为 var 除了脚本和函数体都会穿透，人民群众发明了“立即执行的函数表达式（IIFE）”这一用法，用来产生作用域，例如：
-
-```text
-for(var i = 0; i < 20; i ++) {
-    void function(i){
-        var div = document.createElement("div");
-        div.innerHTML = i;
-        div.onclick = function(){
-            console.log(i);
-        }
-        document.body.appendChild(div);
-    }(i);
-}
-```
-
-通过 IIFE 在循环内构造了作用域，每次循环都产生一个新的环境记录，这样，每个 div 都能访问到环境中的 i。所以能正常打印，1，2，3。。。
-
-如果不使用 IIFE，那么将会全部打印 20，因为全局只有一个 i，而 i 在 for 循环中会被穿透，执行完循环后就变成了 20
-
-### function 声明
-
-> 在全局（脚本、模块和函数体），function 声明表现跟 var 相似，不同之处在于，function 声明不但在作用域中加入变量，还会给它赋值。
-
-```text
-console.log(foo); //正常打印foo
-function foo(){
-
-}
-```
-
-function 声明出现在 if 等语句中的情况有点复杂，它仍然作用于脚本、模块和函数体级别，在预处理阶段，仍然会产生变量，它不再被提前赋值：
-
-```text
-console.log(foo); //undefined,如果没有函数声明，则会抛出错误。
-if(true) {
-    function foo(){
-
-    }
-}
-```
-
-这说明 **function 在预处理阶段仍然发生了作用，在作用域中产生了变量，没有产生赋值，赋值行为发生在了执行阶段。**
-
-### class 声明
-
-class 的声明作用不会穿透 if 等语句结构，所以只有写在全局环境才会有声明作用
-
-```text
-console.log(c);  //报错：Uncaught ReferenceError: c is not defined
-class c{
-
-}
-```
-
-```text
-var c = 1;
-function foo(){
-    console.log(c);  //报错，这说明class 声明也是会被预处理的，它会在作用域中创建变量，并且要求访问它时抛出错误。
-    class c {}
-}
-foo();
-```
-
-## 指令序言机制
-
-> 脚本和模块都支持一种特别的语法，叫做指令序言（Directive Prologs）。JavaScript 的指令序言是只有一个字符串直接量的表达式语句，**它只能出现在脚本、模块和函数体的最前面**,可以是单引号或者双引号。
-
-这里的指令序言最早是为了 use strict 设计的，它规定了一种给 JavaScript 代码添加元信息的方式。
-
-```text
-"use strict";
-function f(){
-    console.log(this);
-};
-f.call(null);
-```
-
-这段代码展示了严格模式的用法，我这里定义了函数 f，f 中打印 this 值，然后用 call 的方法调用 f，传入 null 作为 this 值，我们可以看到最终结果是 null 原封不动地被当做 this 值打印了出来，这是严格模式的特征。
-
-如果我们去掉严格模式的指令需要，打印的结果将会变成 global。
-
-## 现代规范校订
-
-规范内部术语用于解释语言行为，不等同于浏览器或引擎必须采用的具体数据结构。工程代码同时需要 TypeScript 静态约束和运行时输入校验。
-
-## 规范要点与现代边界
-
-语句、声明和表达式的区别会影响可组合性、提升和控制流。模块拥有自己的顶层作用域和严格模式，脚本则使用不同的加载与全局语义。解析错误发生在执行前，运行时异常发生在执行中；构建工具的转译不能改变这些基本边界。
-
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
-
-## 运行验证
-
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
-
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
+另一个失败是把 classic script 改成 module 后仍依赖顶层 var 出现在 window。修复方式是显式 import/export 或显式公共接口，而不是把模块行为改回隐式全局共享。
 
 ## 参考资料
 
-- https://tc39.es/ecma262/
-- https://developer.mozilla.org/en-US/docs/Web/JavaScript
+- [ECMAScript：ECMAScript Language Scripts and Modules](https://tc39.es/ecma262/#sec-ecmascript-language-scripts-and-modules)
+- [ECMAScript：Declarations and the Variable Statement](https://tc39.es/ecma262/#sec-declarations-and-the-variable-statement)
+- [MDN：JavaScript modules](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Modules)
+- [HTML Standard：Scripting](https://html.spec.whatwg.org/multipage/scripting.html)

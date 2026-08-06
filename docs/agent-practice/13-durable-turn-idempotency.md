@@ -1,147 +1,92 @@
 ---
-title: "13｜持久化回合、幂等与并发准入"
-description: "先持久化再执行，用唯一键、租约和所有权锁保证一次回合只被一个执行者推进。"
+title: "13｜让重复请求只执行一次"
+description: "从一次网络重试开始，加入幂等键、提交后派发、并发准入和执行所有权租约。"
 category: agent-practice
 tags: ["Idempotency", "Concurrency"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 130
 depth: core
-series: "生产级知识 Agent 实战"
+series: "知识 Agent 分步实践"
 ---
-# 13｜持久化回合、幂等与并发准入
+# 13｜让重复请求只执行一次
 
-前端点一次发送，网络却可能重试三次；消息队列可能重复投递；Worker 进程可能在模型返回后、数据库提交前崩溃。Agent 入口必须把“用户意图已经创建”与“执行正在进行”分开。最稳的顺序是：校验权限和版本，事务创建 Turn，提交，再派发执行；所有重试使用同一幂等键。
+用户只点击一次发送，浏览器却因超时重试；任务已经进入队列，消息代理又重复投递。若每次都创建新回合，用户会收到两份答案，模型成本也被重复消耗。
 
-## 幂等键的范围
+本篇用幂等键识别同一次业务请求，再用准入名额和所有权租约控制并发。当前实现是数据库提交后直接派发 Celery，派发失败会把回合写成失败；没有把 Transactional Outbox 描述成现有能力。
 
-幂等键不能只在客户端生成 UUID 后全局唯一。它的语义通常是 `(space_id, user_id, idempotency_key)`，防止不同用户误共享，也让同一用户可以在不同知识空间复用字符串。
+## 先分清三个问题
 
-```sql
-CREATE UNIQUE INDEX uq_turn_request
-ON agent_turns(space_id, user_id, idempotency_key)
-WHERE idempotency_key <> '';
+**幂等**解决重复请求是否产生重复业务效果。**准入**限制系统和单个用户同时运行多少任务。**所有权租约**确保同一回合某一时刻只有一个 Worker 推进。
+
+```mermaid
+flowchart LR
+  A[请求 + 幂等键] --> B[并发准入]
+  B --> C[事务内创建回合]
+  C --> D[提交数据库]
+  D --> E[派发 Celery]
+  E --> F[Worker 领取租约]
+  F --> G[执行并续租]
 ```
 
-创建接口遇到冲突时返回原 Turn 的 ID、状态和事件游标，而不是 409 让客户端自行猜测。若原请求的 payload 与重试 payload 不一致，应返回 `idempotency_key_reused`，避免同一个 key 静默改变问题。
+## 第一步：定义幂等键的范围
 
-## 创建事务的顺序
+幂等键不能全系统共用。它通常与用户、会话和操作类型组成唯一范围。同一范围再次提交相同键时，返回原回合；相同键却携带不同问题时，返回冲突，避免误复用。
 
-```python
-async def create_turn(request: CreateTurnRequest, auth: AuthContext) -> Turn:
-    async with session.begin():
-        access = await policy.snapshot(auth, request.space_id)
-        release = await release_repo.active(request.space_id)
-        policy_version = await policy_repo.select(request.space_id, auth, request.idempotency_key)
-        existing = await turn_repo.by_idempotency(request.space_id, auth.user_id, request.idempotency_key)
-        if existing:
-            return assert_same_payload(existing, request)
-        turn = await turn_repo.insert(
-            request=request,
-            access=access,
-            release_id=release.id,
-            policy_version_id=policy_version.id,
-        )
-    await outbox.publish("agent.turn.created", {"turn_id": turn.id})
-    return turn
+```text
+第一次：user=u1，conversation=c1，key=k9，question=如何申请权限
+  -> 创建 turn-1
+
+重试：同范围、同 key、同问题
+  -> 返回 turn-1
+
+冲突：同范围、同 key、不同问题
+  -> idempotency_conflict
 ```
 
-事务提交前不能把消息交给 Worker，因为 Worker 可能先读不到 Turn；提交后直接 publish 又存在消息丢失窗口。可靠方案是同事务写 outbox，relay 投递并按消息 ID 幂等；最小实现至少有 pending 扫描器和投递状态。
+## 第二步：准入发生在创建重任务之前
 
-## 执行所有权和租约
+系统先检查全局和用户并发名额，再创建回合。拿不到名额时返回明确的忙碌结果，不先创建大量 pending 回合占用数据库和队列。
 
-数据库状态 `running` 不能阻止第二个 Worker，因为进程可能崩溃。执行层使用带 TTL 的 owner lock：获得锁的 Worker 定期续租，失联后锁过期，reaper 才允许新 Worker 接管。
+准入名额有租期，Worker 运行中续租，进入终态后释放。进程崩溃时名额最终过期，停滞扫描还能进一步清理。
 
-```lua
--- Redis Lua：只有 owner 仍匹配时才续租
-if redis.call('GET', KEYS[1]) ~= ARGV[1] then
-  return 0
-end
-redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]))
-return 1
-```
+## 第三步：提交数据库后再派发队列
 
-租约不是绝对互斥证明。模型请求或网络分区可能超过 TTL，旧 Worker 续租失败后仍在运行。因此每个副作用写入还要带 owner/attempt token，数据库条件更新只接受当前 owner；纯读节点可以安全重复，写节点必须二次确认。
+回合与初始事件先在数据库事务中提交，随后调用 Celery 派发。这样 Worker 不会抢先读取一个尚未提交的回合。
 
-## 全局和用户准入
+派发失败时，服务端把已创建回合更新为失败并写终态事件，客户端不会永远停在“排队中”。这里仍存在提交成功与派发之间的间隙；当前方案依靠明确失败与恢复扫描，不宣称具有 Outbox 的原子交付语义。
 
-Agent 的并发控制需要两个维度：全局正在执行数量和单用户正在执行数量。Redis sorted set 以过期时间为 score，Lua 脚本在一次原子操作中清理过期、检查已有 turn、检查两个上限并写入 lease。不能先 `ZCARD` 再 `ZADD`，否则并发请求会突破上限。
+## 第四步：Worker 领取执行所有权
 
-```python
-@dataclass(frozen=True)
-class AdmissionDecision:
-    allowed: bool
-    reason: Literal["", "global_limit", "user_limit"] = ""
-```
+队列重复投递后，多个 Worker 可能同时拿到同一个 turn ID。开始执行前，Worker 通过带过期时间的 owner lease 竞争所有权；只有持有者能够推进状态和写运行结果。
 
-lease 续期失败时要区分 Redis 暂时不可用与真正失去所有权。高风险方案宁可停止新执行，不能让多个 Worker 同时推进同一 Turn。
+执行期间同时续租所有权与准入名额。续租失败表示运行基础已经不可靠，Worker 停止继续调用昂贵工具，并进入可恢复或失败路径。
 
-## 终态只写一次
+## 第五步：终态只写一次
 
-完成、失败、取消和过期都是 terminal event。使用数据库 advisory lock 或唯一部分索引，保证“重复 finish”只产生一个终态事件；状态更新也必须满足当前状态仍可转换。
+完成、失败、取消和过期都属于终态。数据库条件更新和唯一约束保证只有第一个合法终态成功，晚到的重复任务读回现有结果。
 
-```sql
-UPDATE agent_turns
-SET status = :next, completed_at = CASE WHEN :next = 'completed' THEN now() END
-WHERE id = :turn_id
-  AND status IN ('pending', 'running', 'cancel_requested')
-RETURNING id;
-```
+这条规则比在 Worker 内检查一个布尔值可靠，因为并发进程可能同时读到旧值。
 
-如果返回 0，读取既有终态并让调用者幂等返回；不要覆盖已经 completed 的答案，也不要把 cancel_requested 强行改为 failed。
+## 故意制造两类失败
 
-## Deadline 与 reaper
+| 故障 | 预期行为 |
+| --- | --- |
+| Celery 派发抛错 | 回合进入 failed，产生唯一终态事件 |
+| 同一任务投递两次 | 一个 Worker 获得租约，另一个退出 |
+| 客户端重复提交 | 返回同一回合，不重复派发 |
+| 幂等键复用不同问题 | 返回冲突，不覆盖原问题 |
+| Worker 停止续租 | 租约过期，交给恢复流程判断 |
 
-请求级 deadline 写入 Turn。Worker 和每个外部调用使用同一个绝对时间；reaper 定期领取超过 deadline 或心跳 stale 的非终态 Turn。reaper 不能直接删除运行任务，而应先获得 owner lock，写 expired 事件，再释放准入。
+这些测试可以使用假的消息客户端和并发数据库操作，不依赖在线模型。
 
-```python
-async def remaining_seconds(deadline: datetime) -> float:
-    return max(0.0, (deadline - datetime.now(UTC)).total_seconds())
-```
+## 当前实现的边界
 
-客户端 HTTP 超时只影响连接，不影响后台 Turn；用户主动取消则写 `cancel_requested`，由 Worker 在安全点响应。
+当前没有 Transactional Outbox，因此数据库提交与队列派发不是一个分布式事务。若业务要求更强投递保证，可以在后续演进中引入 Outbox，但需要额外发布器、幂等消费和积压监控。
 
-## 事件序列
-
-每个 Turn 维护 `next_event_sequence`，数据库原子递增后写 `turn.created`、`stage.completed`、`answer.delta` 和 terminal event。事件 payload 只包含客户端需要和审计允许的字段，完整证据正文不应在普通事件中无限重复。
-
-```python
-async def append_event(turn_id: str, event_type: str, payload: dict) -> int:
-    sequence = await repo.allocate_sequence(turn_id)
-    await repo.insert_event(turn_id, sequence, event_type, payload)
-    return sequence
-```
-
-序列是重放游标，不等于时间戳；客户端应按 sequence 去重。事件缺失或序列不连续时，客户端重新拉取快照或数据库回放，而不是自行拼接答案。
-
-## 测试
-
-```python
-async def test_duplicate_create_returns_same_turn():
-    first, second = await gather(create("k"), create("k"))
-    assert first.id == second.id
-
-async def test_only_owner_can_renew(lock):
-    assert await lock.renew("owner-a") is True
-    assert await lock.renew("owner-b") is False
-
-async def test_reaper_does_not_expire_completed_turn(repo):
-    await repo.finish(turn_id, "completed")
-    await repo.reap_expired(now=future())
-    assert await repo.status(turn_id) == "completed"
-```
-
-故障注入要覆盖数据库提交后进程退出、outbox relay 重复投递、租约过期、Redis 不可用、Worker 双启动、取消与完成竞态。正确性不能靠“队列通常只投递一次”的假设。
-
-## 边界演练
-
-幂等键的唯一性、租约过期和客户端重试要通过并发测试验证；恢复时根据业务状态和执行记录判断是否可以继续，而不是重新发送未知副作用。
-
-每次演练都保存请求 ID、版本、状态变化、错误分类和恢复结果，确认监控信号与用户可见状态一致。
+下一篇处理 Worker 已经执行一部分后中断，怎样结合 Deadline、取消和 Checkpoint 恢复。
 
 ## 参考资料
 
-- [PostgreSQL INSERT ON CONFLICT](https://www.postgresql.org/docs/current/sql-insert.html)：数据库级幂等插入。
-- [Redis distributed locks](https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/)：锁、租约与失效语义。
-- [Transactional Outbox pattern](https://microservices.io/patterns/data/transactional-outbox.html)：事务状态与消息投递的一致性。
-- [Celery tasks](https://docs.celeryq.dev/en/stable/userguide/tasks.html)：任务重试、确认和幂等实践。
-
+- [Celery：Tasks](https://docs.celeryq.dev/en/stable/userguide/tasks.html)
+- [PostgreSQL：Explicit Locking](https://www.postgresql.org/docs/current/explicit-locking.html)
+- [AWS Builders Library：Making retries safe](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)

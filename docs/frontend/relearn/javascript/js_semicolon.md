@@ -1,153 +1,78 @@
 ---
 title: "自动分号插入"
-description: "用语法规则而不是风格争论理解 ASI"
+description: "用解析规则而不是代码风格争论理解 ASI"
 category: frontend
 tags: ["JavaScript","ASI"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 510
 depth: reference
 series: "重学前端"
 ---
 # 自动分号插入
 
-## 自动插入分号规则
+JavaScript 可以省略很多分号，但这不表示解析器会在每个换行后补一个字符。Automatic Semicolon Insertion（ASI）是一组语法解析规则，只在规定条件下让某些语句结束。代码看起来分成两行，仍可能被解析为一个表达式。
 
-- 要有换行符，且下一个符号是不符合语法的，那么就尝试插入分号。
+## ASI 什么时候参与
 
-- 有换行符，且语法中规定此处不能有换行符，那么就自动插入分号。
+可以用三个问题理解：当前 token 继续下去是否违反语法？这里是否遇到 `}` 或输入结束？前一个产生式是否规定此处不能有 LineTerminator？满足规范条件时，解析器按规则把语句视为结束。
 
-- 源代码结束处，不能形成完整的脚本或者模块结构，那么就自动插入分号。
-
-```text
-let a = 1
-void function(a){
-    console.log(a);
-}(a);
-
+```mermaid
+flowchart LR
+  A[读取下一 token] --> B{当前语法能继续?}
+  B -->|能| C[继续同一语句]
+  B -->|不能| D{换行、右花括号或文件末尾?}
+  D -->|满足 ASI 条件| E[在此结束语句]
+  D -->|不满足| F[SyntaxError]
 ```
 
-第一行插入分号，因为要有换行符，且下一个符号是不符合语法的
+ASI 有保护条件，不会为了让任意错误程序变合法而无限插入。空语句、for 头部分号等位置也有各自语法。
 
-```text
-var a = 1, b = 1, c = 1;
-a
-++
-b
-++
-c
-```
+## 步骤一：运行两个危险边界
 
-结果在 a 后面插入分号， a;++b;++c，这是因为[no LineTerminator here]规则影响的
+预期结果是 first 返回 undefined，因为 return 与表达式之间有换行；第二段若直接连接，`[1, 2]` 可能被当作前一表达式的属性访问/后续操作，而不是天然的新语句。
 
-```text
-(function(a){
-    console.log(a);
-})()
-(function(a){
-    console.log(a);
-})()
-```
-
-这段代码意图上显然是形成两个 IIFE。
-
-我们来看第三行结束的位置，JavaScript 引擎会认为函数返回的可能是个函数，那么，在后面再跟括号形成函数调用就是合理的，因此这里不会自动插入分号。这是一些鼓励不写分号的编码风格会要求大家写 IIFE 时必须在行首加分号的原因。
-
-## 不写分号需要注意的情况
-
-### 以括号开头的语句
-
-```text
-(function(a){
-    console.log(a);
-})()/*这里没有被自动插入分号*/
-(function(a){
-    console.log(a);
-})()
-```
-
-这段代码看似两个独立执行的函数表达式，但是其实第三组括号被理解为传参，导致抛出错误。
-
-### 以数组开头的语句
-
-```text
-var a = [[]]/*这里没有被自动插入分号*/
-[3, 2, 1, 0].forEach(e => console.log(e))
-```
-
-这段代码本意是一个变量 a 赋值，然后对一个数组执行 forEach，但是因为没有自动插入分号，被理解为下标运算符和逗号表达式，我这个例子展示的情况，甚至不会抛出错误，这对于代码排查问题是个噩梦。
-
-### 以正则表达式开头的语句
-
-```text
-var x = 1, g = {test:()=>0}, b = 1/*这里没有被自动插入分号*/
-/(a)/g.test("abc")
-console.log(RegExp.$1)
-```
-
-这段代码本意是声明三个变量，然后测试一个字符串中是否含有字母 a，但是因为没有自动插入分号，正则的第一个斜杠被理解成了除号，后面的意思就都变了。
-
-### 以 Template 开头的语句
-
-```text
-var f = function(){
-  return "";
+```js
+function first() {
+  return
+  { ok: true }
 }
-var g = f/*这里没有被自动插入分号*/
-`Template`.match(/(a)/);
-console.log(RegExp.$1)
+
+const value = getValue()
+;[1, 2].forEach((item) => console.log(item))
+
+console.log(first(), value)
 ```
 
-这段代码本意是声明函数 f，然后赋值给 g，再测试 Template 中是否含有字母 a。但是因为没有自动插入分号，函数 f 被认为跟 Template 一体的，进而被莫名其妙地执行了一次。
+输入含 return 后换行和数组开头行。关键规则是 return、throw、break、continue、yield 等部分语法对 LineTerminator 敏感；数组前的显式防御分号保证它开始新语句。输出 first 为 undefined，数组按两项遍历。
 
-## 现代规范校订
+## 哪些行首需要特别留意
 
-规范内部术语用于解释语言行为，不等同于浏览器或引擎必须采用的具体数据结构。工程代码同时需要 TypeScript 静态约束和运行时输入校验。
+省略分号风格中，以 `(`、`[`、模板标签反引号、正则相关斜线、`+` 或 `-` 等开头的行可能继续前一表达式。IIFE、数组处理和 tagged template 最常见。不是看到这些字符就一定错误，而是要检查前一语句能否与它组合成合法语法。
 
-## 规范要点与现代边界
+postfix `++`/`--` 与操作数之间不能有 LineTerminator。箭头函数参数和 `=>` 之间也有限制。`async` 与 function/箭头之间的换行会改变解析。了解受限产生式比背“换行自动加分号”更准确。
 
-是否使用分号是风格选择，ASI 的具体结果是规范语义。危险场景包括以括号、方括号、模板、正负号或反引号开头的新行；团队应统一格式化工具并在语句边界使用明确结构。自动格式化不能替代理解 return、yield 和箭头函数的语法限制。
+## 加分号还是不加
 
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
+两种团队风格都可以生成正确程序：显式分号风格让边界更直观；无分号风格依赖格式化器并在危险行首增加防御分号。关键是仓库统一，由 formatter 和 lint 自动执行。
 
-## 运行验证
+压缩器、转译器和代码生成器不能只拼字符串。生成片段之间要保留语法边界，并通过 parser/打印器输出；库制品还需在目标 module 格式和压缩配置中运行测试。
 
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
+## 故意制造一次失败
 
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
+删除数组行前的防御分号，让前一行变为一个返回函数或可索引值的表达式。代码可能不报语法错，却在运行时调用/索引出意外结果。AST 会直接显示两行被组合成同一个 ExpressionStatement。
+
+另一个失败是 `throw` 后换行。与 return 不同，它会形成 SyntaxError，而不是抛出 undefined。这个差异说明 ASI 受具体产生式约束，不能用一条“换行即结束”规则推导。
+
+## 如何验证
+
+1. 用目标版本 parser 输出 AST，确认语句边界。
+2. 让 formatter 处理最小样例，观察它是否加括号或分号。
+3. 在经过同一转译、压缩和 bundling 的产物上测试。
+4. 对 IIFE、数组行首和 return/throw 换行保留回归用例。
 
 ## 参考资料
 
-- https://tc39.es/ecma262/
-- https://developer.mozilla.org/en-US/docs/Web/JavaScript
-
-## ASI 的安全写法
-
-ASI 只在解析器遇到受限产生式时插入分号。以 `(`、`[`、模板、正则或一元运算符开头的新语句，可能继续解释为前一语句的一部分；`return`、`throw`、`yield` 后换行也有特殊语义。团队可以选择无分号风格，但必须由格式化工具和 lint 规则统一输出，不能把“看起来能运行”当作规范证明。
-
-```js
-const getValue = () => {
-  return
-    { ok: true } // 实际返回 undefined
-}
-
-const items = getItems()
-;[...items].forEach(render) // 以分号明确新语句
-```
-
-最小复现时把源代码交给同一个目标引擎和构建链，比较解析后的 AST 或运行结果；压缩、转译和自动分号插入可能改变表面格式。发布前使用 prettier/eslint 固定风格，并为 IIFE、链式调用和多行表达式保留明确边界。
-
-## 解析器视角
-
-ASI 不是运行时补字符串，而是语法解析阶段在特定位置允许的分号插入。`return` 后换行会让返回语句结束，箭头函数体、类字段和模板标签又有自己的语法约束。要排查一段有争议的代码，先用目标版本的 parser 输出 AST，再运行经过同样转译和压缩链路的产物。
-
-工程上最稳妥的规则是保持团队一致：要么由格式化工具显式加分号，要么遵循无分号风格并对危险行首统一加保护分号。无论选择哪种，都应在 lint、代码评审和构建中自动执行，避免个人偏好成为隐藏的语义差异。
-
-代码评审时不要只指出“缺少分号”，应展示解析后的实际语义和最小失败样例。对外发布的库还应使用稳定的构建目标和源码映射，确保消费者看到的错误位置与原始语句边界一致。
-这类规则最终服务于可读性和可维护性；当语义复杂时，显式拆分语句比坚持某一种风格更重要。
-新代码应由统一格式化工具持续验证。
+- [ECMAScript：Rules of Automatic Semicolon Insertion](https://tc39.es/ecma262/#sec-rules-of-automatic-semicolon-insertion)
+- [ECMAScript：Restricted Productions](https://tc39.es/ecma262/#sec-automatic-semicolon-insertion)
+- [MDN：Lexical grammar - ASI](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Lexical_grammar#automatic_semicolon_insertion)
+- [Prettier：Semicolons](https://prettier.io/docs/options#semicolons)

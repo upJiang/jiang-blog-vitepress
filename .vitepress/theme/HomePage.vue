@@ -11,11 +11,11 @@ import {
 const router = useRouter()
 
 const featuredPaths = [
-  'ai-agent/agent-lifecycle',
-  'ai-agent/hybrid-retrieval',
-  'architecture/evidence-driven-systems',
-  'frontend/component-library-design-system',
-  'devops/safe-delivery-recovery'
+  'agent-practice/01-system-boundaries',
+  'agent-practice/06-hybrid-retrieval',
+  'frontend/relearn/browser/browser_event',
+  'seo/crawl-index-ranking',
+  'devops/candidate-validation-traffic-switching'
 ]
 
 const featured = computed(() =>
@@ -45,37 +45,37 @@ function go(path: string) {
   <main class="knowledge-home">
     <section class="home-hero" aria-labelledby="home-title">
       <div class="home-hero__content">
-        <p class="home-kicker">Engineering knowledge base</p>
+        <p class="home-kicker">工程知识库</p>
         <h1 id="home-title">AI 全栈</h1>
         <p class="home-summary">
-          围绕 AI 应用与 Agent 构建，连接前端、Python、Node.js、数据系统和可靠交付。
-          这里记录可验证的原理、架构边界和工程决策。
+          从一个能运行的例子开始，逐步拆解 Agent、前端、后端、搜索增长与交付。
+          每篇文章都写清执行过程、失败路径、验证方法和当前限制。
         </p>
         <div class="home-actions">
-          <button class="home-button home-button--primary" type="button" @click="go('/docs/ai-agent/')">
-            开始阅读
+          <button class="home-button home-button--primary" type="button" @click="go('/docs/agent-practice/01-system-boundaries')">
+            从 Agent 第一篇开始
           </button>
           <button class="home-button" type="button" @click="go('/docs/architecture/')">
-            架构实践
+            查看全部栏目
           </button>
         </div>
       </div>
 
       <div class="home-signal" aria-label="知识库概览">
-        <span class="home-signal__label">CURRENT FOCUS</span>
-        <span class="home-signal__value">Agent Engineering</span>
+        <span class="home-signal__label">当前主线</span>
+        <span class="home-signal__value">Agent 工程实践</span>
         <dl>
           <div>
-            <dt>Articles</dt>
+            <dt>文章</dt>
             <dd>{{ articles.length }}</dd>
           </div>
           <div>
-            <dt>Domains</dt>
+            <dt>栏目</dt>
             <dd>{{ sections.length }}</dd>
           </div>
           <div>
-            <dt>Runtime</dt>
-            <dd>Web + AI</dd>
+            <dt>技术主线</dt>
+            <dd>AI + Web</dd>
           </div>
         </dl>
       </div>
@@ -83,7 +83,7 @@ function go(path: string) {
 
     <section class="home-section" aria-labelledby="featured-title">
       <div class="home-section__heading">
-        <p>Featured</p>
+        <p>从这里开始</p>
         <h2 id="featured-title">重点文章</h2>
       </div>
       <div class="featured-list">
@@ -100,7 +100,7 @@ function go(path: string) {
 
     <section class="home-section topic-section" aria-labelledby="topics-title">
       <div class="home-section__heading">
-        <p>Knowledge map</p>
+        <p>全部栏目</p>
         <h2 id="topics-title">知识地图</h2>
       </div>
       <div class="topic-grid">
@@ -113,7 +113,7 @@ function go(path: string) {
     </section>
 
     <footer class="home-footer">
-      <span>持续整理工程知识与实践</span>
+      <span>文章按实际校订日期持续更新</span>
       <a href="https://beian.miit.gov.cn" rel="noreferrer">粤ICP备18079096号</a>
     </footer>
   </main>

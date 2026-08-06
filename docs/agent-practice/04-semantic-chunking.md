@@ -1,257 +1,104 @@
 ---
-title: "04｜语义切片与质量门禁"
-description: "保留标题、表格、列表和上下文关系，用可量化门禁阻止坏切片发布。"
+title: "04｜把文档切成保留结构的片段"
+description: "从标题、段落、列表、代码和表格识别开始，生成稳定片段并用覆盖率阻止内容丢失。"
 category: agent-practice
 tags: ["Chunking", "Quality Gate"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 40
 depth: core
-series: "生产级知识 Agent 实战"
+series: "知识 Agent 分步实践"
 ---
-# 04｜语义切片与质量门禁
+# 04｜把文档切成保留结构的片段
 
-固定每 500 个字符切一刀，是最容易实现、也最容易把知识切坏的方案。它会把标题与正文分开、把表格行拆断、让列表项失去父标题，并且在中英文混排和代码段中产生难以检索的碎片。切片的目的不是让文本短，而是让每个候选同时拥有足够的回答上下文、可独立排序的主题和可回到源文档的定位。
+模型的上下文有限，检索也不能每次返回整本手册，所以文档要被切成片段。若每 500 个字符直接切一刀，表格会断行，代码围栏会缺失，“HTTP 200”也会失去“健康检查”这一章节语境。
 
-## 先定义 Chunk 的可用性
+本篇先识别标题、段落、列表、代码和表格，再按长度拆分。输出片段会保存标题路径、父级与相邻关系，并用稳定 ID 支持重复导入。
 
-一个可发布的 chunk 至少满足四个条件：
-
-1. 它是语义单元或语义单元的连续分片，不在句子、代码行、表格行中间任意截断；
-2. 它携带标题路径、源版本、文档和可见范围；
-3. 它能够通过 `previous/next` 或父级摘要恢复邻接上下文；
-4. 它有稳定 ID，重建相同版本时不会因为运行顺序改变而随机变化。
-
-```python
-class ChunkRecord(BaseModel):
-    id: str
-    document_id: str
-    source_version_id: str
-    ordinal: int
-    kind: Literal["paragraph", "list", "table", "code", "heading"]
-    content: str
-    display_content: str
-    section_path: tuple[str, ...]
-    parent_chunk_id: str | None = None
-    previous_id: str | None = None
-    next_id: str | None = None
-    metadata: dict[str, object] = Field(default_factory=dict)
-```
-
-`content` 用于检索和 embedding，`display_content` 用于引用展示，二者可以不同。例如检索文本包含父标题和表头，展示文本保留原始排版；不要在生成回答时把仅用于召回的重复标题当作用户原文的额外事实。
-
-## 解析标题栈
-
-Markdown/HTML 标题是最便宜、最有价值的上下文。遍历 block 时维护 heading stack：遇到同级或更高 heading 就弹出后级路径，遇到正文则复制当前路径。标题本身可以创建轻量 section chunk，帮助查询“某章节有哪些内容”。
-
-```python
-def section_path(blocks: list[ParsedBlock]) -> list[tuple[ParsedBlock, tuple[str, ...]]]:
-    stack: list[tuple[int, str]] = []
-    result = []
-    for block in blocks:
-        if block.kind == "heading":
-            level = int(block.metadata.get("level", 1))
-            while stack and stack[-1][0] >= level:
-                stack.pop()
-            stack.append((level, block.text.strip()))
-        result.append((block, tuple(text for _, text in stack)))
-    return result
-```
-
-不能假设标题级别永远连续。缺少 `h2` 时保留作者实际路径；解析错误要写 warning，而不是偷偷修正成另一套文档结构。section path 的顺序也应该进入稳定 ID，避免同名章节互相覆盖。
-
-## 语义单元和长度上限
-
-先按段落、列表、代码、表格等类型分组，再处理超长单元。长度应按模型 token 而非 Python 字符粗估；中文、emoji、URL 和代码的 token 比例不同。每个类型使用不同分割器：普通段落按句号/换行寻找边界，代码按函数或 fenced block，表格按完整行。
-
-```python
-def split_units(text: str, budget: int, counter: TokenCounter) -> list[str]:
-    sentences = re.split(r"(?<=[。！？.!?])\s+|\n{2,}", text.strip())
-    chunks: list[str] = []
-    current: list[str] = []
-    for sentence in sentences:
-        candidate = "\n".join([*current, sentence])
-        if current and counter.text(candidate) > budget:
-            chunks.append("\n".join(current))
-            current = [sentence]
-        else:
-            current.append(sentence)
-    if current:
-        chunks.append("\n".join(current))
-    return chunks
-```
-
-这是教学实现，不是万能分词器。真正工程要覆盖一个句子本身超过预算的情况：按标点继续拆，最后才允许按 token 截断，并将 `oversized=true` 交质量门禁。绝不能静默丢掉尾部。
-
-## 表格必须整体理解
-
-“某权限下可以做什么”常常由第一行表头定义。把每行单独 embedding 会让“角色”与“动作”关系变成孤立词。一个实用策略是生成三种表示：完整表格摘要、带表头的行 chunk、结构化字段。行 chunk 仍携带表头和 section path，结构化字段用于精确过滤。
-
-```python
-def table_row_text(headers: list[str], row: list[str]) -> str:
-    pairs = [f"{header}: {value}" for header, value in zip(headers, row, strict=False)]
-    return "表格列定义：" + "；".join(pairs)
-```
-
-跨页表格要先检测重复表头并合并，不能把每一页看成独立表。合并失败应标记 warning，宁可降低召回信任，也不要生成看似完整的错误关系。
-
-## 列表和代码的边界
-
-列表项往往依赖父列表标题和前置说明。每个 item 可以单独检索，但应把父标题和列表级别作为 metadata；嵌套列表使用 `1.2` 等路径，避免排序丢失。代码块不要被普通文本的标点切割，语言、文件名、行号和相邻解释应保留。
+## 准备一个最小文档
 
 ```text
-section: "部署 > 健康检查"
-kind: code
-language: python
-line_start: 42
-content: "..."
+# 部署手册
+## 健康检查
+候选服务启动后先检查状态接口。
+
+表格：检查项=HTTP，预期=200
 ```
 
-代码是证据还是示例也要区分。答案可以引用代码块来说明实现，但不能把注释中的“TODO”当成系统已经支持的事实。
+读者看到“HTTP 200”时，需要知道它属于“部署手册 / 健康检查”。这条标题路径就是切片需要保留的上下文。
 
-## Parent context 与邻接上下文
+## 先看切片流程
 
-大 chunk 召回成本高，小 chunk 缺上下文。常见折中是“小块排序 + 父标题/摘要补充 + 相邻块有限扩展”。扩展不能无上限，否则一个命中会把整篇文档塞进上下文。
-
-```python
-def expand_context(hit: ChunkRecord, by_id: dict[str, ChunkRecord], radius: int = 1) -> str:
-    ordered = [hit]
-    cursor = hit.previous_id
-    for _ in range(radius):
-        if not cursor or cursor not in by_id:
-            break
-        ordered.insert(0, by_id[cursor])
-        cursor = by_id[cursor].previous_id
-    cursor = hit.next_id
-    for _ in range(radius):
-        if not cursor or cursor not in by_id:
-            break
-        ordered.append(by_id[cursor])
-        cursor = by_id[cursor].next_id
-    return "\n\n".join(chunk.content for chunk in ordered)
+```mermaid
+flowchart LR
+  A[解析后的文档] --> B[识别语义块]
+  B --> C[按句子和上限拆分]
+  C --> D[生成表格整体与行]
+  D --> E[补父级和相邻关系]
+  E --> F[稳定 ID 与质量门禁]
 ```
 
-相邻扩展必须检查同一文档版本、同一可见范围和同一 section；不能因为 chunk ID 相邻就跨越权限边界。引用展示可以只显示 hit，内部 prompt 使用扩展上下文，并记录实际进入 prompt 的 evidence ID 集合。
+## 第一步：先按结构切，再处理长度
 
-## 稳定 ID 与去重
+扫描器维护标题栈。遇到 H1/H2 时更新路径，遇到正文、列表、代码或表格时生成语义块。普通段落优先在句号、问号、分号和空行处切分；只有单个单元仍超过硬上限时，才退化为固定长度。
 
-随机 UUID 会让同一文档重建后无法比较差异，也让缓存命中率下降。稳定 ID 可以由 document、source version、source id、section path、ordinal 和内容 hash 组合：
+这样能够保持句子完整。代码块拆分后还要补齐围栏与语言，避免后续展示和模型输入把代码误认为普通文字。
 
-```python
-def stable_chunk_id(document_id: str, version_id: str, ordinal: int, content: str) -> str:
-    raw = "|".join((document_id, version_id, str(ordinal), normalize(content)))
-    return "chunk:" + hashlib.sha256(raw.encode()).hexdigest()[:32]
+## 第二步：表格为什么需要两种片段
+
+用户可能问“这张表总体说明什么”，也可能问“request_timeout 的值是多少”。因此短表保存整体，表格每一行还会生成结构化字段。
+
+```text
+table_full：检查项 | 预期
+table_row：检查项=HTTP；预期=200
+table_row：检查项=数据库；预期=可连接
 ```
 
-版本 ID 必须参与哈希：同一内容在新版本中的引用不应与旧版本混淆。`normalize` 只处理空白和 Unicode 规范化，不要删除会影响代码或标识符的字符。
+整体片段保持列关系，行片段适合精确字段查询。它们共享表格身份，融合时不会被当成三份完全无关的证据。
 
-## 可量化质量门禁
+## 第三步：叶子片段与父级片段分工
 
-切片函数输出 `CoverageManifest`，在发布前检查：
+叶子片段短而具体，适合召回；父级片段保存章节标题和摘要，帮助模型恢复语境。检索先命中叶子，再按需要补父级，不是一开始把整章都塞进上下文。
 
-| 门禁 | 目的 | 失败处理 |
+同一来源的叶子片段还保存前后 ID。扩展相邻内容时仍要重新应用同一知识版本和权限范围，不能因为“它是邻居”就绕过过滤。
+
+## 第四步：稳定 ID 怎样支持重放
+
+片段 ID 由来源版本、标题路径、片段类型和规范化内容计算。相同版本重复处理得到相同 ID；正文或结构变化后生成新 ID。
+
+```text
+chunk_id = hash(
+  source_version + section_path + chunk_type + normalized_content
+)
+```
+
+这个公式表达真实行为，不暴露私有字段。稳定 ID 用于幂等导入、缓存、证据引用和评测重放。
+
+## 第五步：发布前检查内容有没有丢
+
+切片器同时统计内容单元、已保留单元、重复片段、孤立相邻关系和超长片段。候选未达到配置门槛时不进入在线版本。
+
+| 检查 | 正常结果 | 失败例子 |
 | --- | --- | --- |
-| no empty | 禁止空 chunk | 拒绝版本 |
-| no duplicate | 防止重复召回污染排序 | 拒绝或合并并记录 |
-| bounded tokens | 防止超预算 | 拒绝并定位 chunk |
-| linked neighbors | 支持有限扩展 | 拒绝孤立链 |
-| section preserved | 保留语义路径 | 拒绝缺标题的强制类型 |
-| source coverage | 源内容被合理覆盖 | 告警或拒绝 |
-| table integrity | 表头与行一致 | 拒绝损坏表 |
+| 内容覆盖 | 原文单元都能在片段中定位 | 表格某行消失 |
+| 重复 | 相同片段不重复保存 | 整体表被生成两次 |
+| 相邻关系 | 前后 ID 指向存在片段 | 删除片段后仍被引用 |
+| 长度 | 不超过硬上限 | 单段异常长文本 |
+| 结构 | 代码和表格保持可解释 | 围栏或表头丢失 |
 
-```python
-def quality_errors(manifest: CoverageManifest) -> list[str]:
-    errors = []
-    if manifest.empty_chunks:
-        errors.append(f"empty chunks: {manifest.empty_chunks}")
-    if manifest.duplicate_chunks:
-        errors.append(f"duplicate chunks: {manifest.duplicate_chunks}")
-    if manifest.oversized_chunks:
-        errors.append(f"oversized chunks: {manifest.oversized_chunks}")
-    if manifest.orphan_links:
-        errors.append(f"orphan links: {manifest.orphan_links}")
-    if manifest.preservation_rate < 0.98:
-        errors.append(f"preservation: {manifest.preservation_rate:.3f}")
-    return errors
-```
+## 故意破坏一张表
 
-0.98 只是模拟门禁，真实值要根据文档集和业务风险标定。关键是门禁可重复、失败信息可定位，而不是选一个看起来漂亮的百分比。
+测试样本包含空单元格、转义竖线和长行。正常结果应保留表头和每一行字段。若手工删除一个行片段，覆盖检查会报告缺失；若删除中间叶子，关系检查会报告孤立链接。
 
-## 反例驱动测试
+这些检查是确定性的，不靠模型看一眼后给“质量不错”的主观分数。真正的召回效果还要在第 16 篇用评测集验证。
 
-```python
-def test_heading_path_is_carried_to_child():
-    chunks = build_chunks(markdown("# A\n## B\n正文"))
-    assert chunks[0].section_path == ("A", "B")
+## 当前实现的边界
 
-def test_table_row_keeps_header():
-    chunks = build_chunks(markdown("|角色|动作|\n|---|---|\n|审阅者|查看|"))
-    assert "角色" in chunks[0].content
+中文句子使用确定性标点规则；短表保留整体，长表需要分段；片段长度没有行业通用最佳值，需要结合实际检索问题校准。
 
-def test_oversized_code_block_is_reported():
-    result = build_chunks(markdown("```python\n" + "x=1\n" * 500 + "```"))
-    assert result.coverage.oversized_chunks
-
-def test_neighbor_does_not_cross_version():
-    assert expand_context(chunk_from_version("v2"), by_id) == chunk_v2_only
-```
-
-生产数据还要抽样人工审读：同一问题在标题、正文、表格和 OCR 页面中分别验证，记录“正确召回但错误上下文”和“没有召回”的样本。没有这一步，质量门禁只能证明数据结构完整，不能证明知识可用。
-
-## 发布前的解释性报告
-
-每个版本生成报告：源数、chunk 数、每类 chunk 数、字符/token 覆盖、表格和 OCR 页、重复率、异常 ID、与上一版本新增/删除/变化的比例。报告本身进入构建产物，便于评测发现“Recall 下降是因为切片变化，而不是模型变化”。
-
-## 为什么不把 overlap 当作默认答案
-
-固定 overlap 能缓解边界断句，但会重复 embedding、污染词法统计、让同一事实在 top K 中出现多次。更合理的做法是先按语义边界切割，只有在“跨块指代明显、段落超过预算、代码/表格需要连续上下文”时加有限 overlap，并在 metadata 中记录 overlap 来源。重排和引用显示仍以原始 chunk 为单位。
-
-```python
-def should_overlap(left: ParsedBlock, right: ParsedBlock) -> bool:
-    if left.kind != right.kind:
-        return False
-    if left.kind in {"table", "code"}:
-        return True
-    return left.text.rstrip().endswith(("，", "、", ":", ","))
-```
-
-这个判断只是示例，真实阈值要由切片 fixture 和 recall 对照实验校准。重叠内容必须可追踪，否则无法解释为什么某个文档的索引体积突然翻倍。
-
-## 切片的回归报告
-
-每次切片器变更都对同一 fixture 输出 diff：新增/删除 chunk ID、section path 变化、token 分布、表格完整性、代码边界和 source coverage。把“切片器版本”写入 release manifest，评测失败时可以回答是解析变更还是检索变更。
-
-```python
-def chunk_diff(old: list[ChunkRecord], new: list[ChunkRecord]) -> dict[str, set[str]]:
-    old_ids, new_ids = {item.id for item in old}, {item.id for item in new}
-    return {"added": new_ids - old_ids, "removed": old_ids - new_ids}
-```
-
-不要只关注 chunk 数量。少量但更完整的 chunk 可能提升关系召回，数量变多也可能只是重复标题。报告应同时包含抽样问题的 Recall@K 和人工审读链接。
-
-## 何时需要人工复核
-
-以下情况自动门禁不足：跨页表格列错位、扫描图中低置信数字、复杂代码示例、同一标题多个版本、法律/合规内容的删除与替换。导入任务应把这些 warning 转为 review queue，而不是让“解析成功”直接激活。人工复核结果保存为 source version 的 metadata，下一次重建可以复用已确认的分段边界。
-
-## 实施细节与失败路径
-
-切片质量要在发布前抽样审阅，也要在检索后按查询反向评估。对标题、列表、表格、代码和跨页引用分别统计断裂率；遇到解析失败、OCR 噪声或文本过长时进入隔离队列。切片版本、解析器版本和元数据修订必须写入索引构建记录，避免用新切片解释旧评测结果。
-
-实现时把关键不变量写成可执行约束：输入状态必须包含版本、权限和截止时间；节点输出必须能被序列化；外部副作用必须有幂等键和结果记录；终态必须同时写入业务状态与可重放事件。对每一条约束准备一个正常样例、一个边界样例和一个故障样例，并在 CI 中运行。
-
-| 关注点 | 正常路径 | 故障路径 | 验收证据 |
-| --- | --- | --- | --- |
-| 数据版本 | 使用固定 release | 发布中途失败 | 回合可复现 |
-| 权限范围 | 查询带范围快照 | 范围被撤销 | 越界证据为零 |
-| 外部依赖 | 在 deadline 内完成 | 超时或限流 | 分类错误与重试记录 |
-| 终态 | 答案、引用、事件一致 | Worker 崩溃 | 重放后状态一致 |
-
-```text
-请求 -> 持久化事实 -> 执行节点 -> 验证产物 -> 写入终态 -> 事件重放
-```
+下一篇将片段写入候选知识版本，完成校验后再切换为在线版本。
 
 ## 参考资料
 
-- [LangChain：Text splitters](https://python.langchain.com/docs/concepts/text_splitters/)：不同分割策略和递归分割的适用边界。
-- [LlamaIndex：Node parsing](https://docs.llamaindex.ai/en/stable/module_guides/loading/node_parsers/)：文档节点、元数据和父子关系的公开实现思路。
-- [PostgreSQL：Full Text Search](https://www.postgresql.org/docs/current/textsearch.html)：结构化文本检索对 token 与文档表示的要求。
-- [Web Platform Tests](https://github.com/web-platform-tests/wpt)：用可重复 fixture 验证解析与结构保真的测试方法。
+- [LangChain：Text splitters](https://docs.langchain.com/oss/python/integrations/splitters)
+- [CommonMark Spec](https://spec.commonmark.org/)
+- [NIST：Secure Hash Standard](https://csrc.nist.gov/pubs/fips/180-4/upd1/final)

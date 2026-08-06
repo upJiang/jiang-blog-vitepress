@@ -1,7 +1,7 @@
 ---
 layout: page
 title: SEO 与增长
-description: 从搜索需求、技术抓取到内容、GEO、SEM 和可验证的增长闭环。
+description: 从需求与页面开始，逐步检查抓取、内容、数据、GEO 和搜索广告。
 sidebar: false
 aside: false
 footer: false

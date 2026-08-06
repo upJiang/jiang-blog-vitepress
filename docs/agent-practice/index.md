@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Agent 实践
-description: 从零实现一个可检索、可恢复、可评测、可安全交付的生产级知识 Agent。
+description: 按请求、知识、检索、编排、恢复、评测和交付的顺序实现知识 Agent。
 sidebar: false
 aside: false
 footer: false

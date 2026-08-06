@@ -1,7 +1,7 @@
 ---
 layout: page
 title: 架构实践
-description: 从真实复杂系统中抽象出的边界、证据、异步与可靠性方法。
+description: 从具体失效场景推导分层、异步、证据、模块化与可靠性设计。
 sidebar: false
 aside: false
 footer: false

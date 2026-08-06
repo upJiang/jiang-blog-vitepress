@@ -1,139 +1,86 @@
 ---
-title: "17｜Trace、指标、成本与策略治理"
-description: "贯通 HTTP、模型、检索、图节点和持久状态，用版本化策略控制成本与质量。"
+title: "17｜从一次请求追到最终引用"
+description: "把 HTTP、图节点、检索、模型、首事件、引用和终态关联到同一条 Trace。"
 category: agent-practice
-tags: ["Observability", "Governance"]
-updated: 2026-08-04
+tags: ["Observability", "Trace"]
+updated: 2026-08-05
 order: 170
 depth: core
-series: "生产级知识 Agent 实战"
+series: "知识 Agent 分步实践"
 ---
-# 17｜Trace、指标、成本与策略治理
+# 17｜从一次请求追到最终引用
 
-Agent 失败时，单看 HTTP 500 或最终答案没有用。需要知道：请求进入了哪个 policy，预处理耗时多少，哪条检索分支空了，模型调用几次，哪些 Claim 未支持，首 token 何时产生，是否发生了 fallback，最终用了哪一版知识。可观测性不是“多打印日志”，而是让一次 Turn 的因果链可重放且不泄露敏感内容。
+用户说“回答很慢”。慢在排队、检索、模型首 Token、验证，还是浏览器断线重放？只有一个总耗时，开发者只能猜。
 
-## Trace 结构
+本篇从 turn ID 开始，把 HTTP、队列、图节点、检索、模型、事件和终态连接到一条 Trace。可观测数据用于定位，不记录完整 Prompt、密钥和私密正文。
+
+## 先分清日志、指标和 Trace
+
+**日志**记录离散事件，**指标**聚合数量与耗时，**Trace**连接一次请求跨组件的执行路径。三者通过 request ID、turn ID、task ID 和 trace ID 关联。
 
 ```mermaid
 flowchart LR
-  H[HTTP span] --> T[turn span]
-  T --> P[preprocess spans]
-  T --> R[retrieval branch spans]
-  T --> M[model spans]
-  T --> V[validation spans]
-  T --> F[finalize span]
+  A[HTTP 入口] --> B[回合与队列]
+  B --> C[图节点]
+  C --> D[检索与模型]
+  D --> E[事件持久化]
+  E --> F[引用与终态]
 ```
 
-统一 trace id 和 turn id 贯穿 API、Worker、数据库事件和模型适配器。每个 span 记录 stage、release、policy、mode、attempt、latency、status 和计数，不把完整 prompt、密钥或私有正文作为普通 attribute。
+## 第一步：入口建立关联身份
 
-```python
-with tracer.start_as_current_span("agent.research") as span:
-    span.set_attributes({
-        "agent.turn_id": turn_id,
-        "agent.release_id": release_id,
-        "agent.branch_id": branch_id,
-        "agent.candidate_count": len(candidates),
-        "agent.cache_hit": cache_hit,
-    })
-```
+API 接收请求后生成或接收 request ID，创建回合后获得 turn ID，派发队列后记录 task ID。不要用用户问题文本作为关联键。
 
-## Metrics 关注分布和比例
+日志字段包括阶段、状态、耗时、版本和错误分类。用户 ID 只在有必要且经过控制的环境保存，公开报表使用聚合或脱敏标识。
 
-至少有：Turn 终态计数、总/首事件延迟 histogram、模型调用和 token、检索候选数、evidence 数、Claim 支持率、citation accuracy、ACL block、injection detection、cache hit、checkpoint resume 和队列深度。计数器使用低基数 label（mode、status、channel），不要把 user_id、query 或 turn_id 作为 Prometheus label。
+## 第二步：每个图节点记录开始与结束
 
-```python
-AGENT_TURNS = Counter("agent_turns_total", "terminal turns", ["status", "mode"])
-FIRST_EVENT = Histogram("agent_first_event_seconds", "first event latency", ["mode"])
-CLAIM_SUPPORT = Gauge("agent_claim_support_rate", "supported claims", ["policy"])
-```
+节点 Span 记录节点名、研究轮次、输入/输出数量、耗时和结果状态，不记录完整内部状态。这样可以看出计划器慢、检索分支超时，还是验证发生修复。
 
-质量指标应从 durable snapshots 周期性聚合，不能只依赖某个进程内存；进程重启和多副本必须得到一致数据。
+并行分支作为子 Span，共享父 Trace。Reducer 合并后记录候选去重前后数量，便于发现重复爆炸。
 
-## Logs 与隐私
+## 第三步：检索和模型各记录什么
 
-结构化日志记录事件类型、错误码、耗时和对象 ID。问题文本和 evidence 内容做采样、脱敏或哈希；访问日志保留必要字段和保留期。日志中的异常字符串也可能包含用户上传的 prompt injection，不要把它当成可信模板再执行。
+检索记录通道、候选数、知识版本、是否降级、重排是否执行和最终证据数量。访问范围只记录不可逆指纹或计数，不记录私密资源列表。
 
-## 成本预算
+模型调用记录模型标识、请求类型、输入/输出 Token、排队与首 Token 时间、总耗时和错误类别。Prompt 与证据正文默认不进入普通日志。
 
-成本不只来自模型 token，还包括 embedding、rerank、OCR、数据库、队列和存储。每个 Turn 维护预算：最大研究轮数、分支数、模型调用数、输入/输出 token、外部工具调用数和 deadline。事件记录实际使用量，超过预算就停止新增工作并走降级。
+## 第四步：单独观察首事件和终态
 
-```python
-class CostBudget(BaseModel):
-    model_calls: int = 8
-    input_tokens: int = 30_000
-    output_tokens: int = 4_000
-    tool_calls: int = 4
+用户体验不仅由总耗时决定。入口到第一条可见事件、第一段答案到引用就绪、引用到终态之间的间隔都值得单独观测。
 
-def consume(budget: CostBudget, usage: Usage) -> CostBudget:
-    next_budget = budget.model_copy(update={
-        "model_calls": budget.model_calls - usage.model_calls,
-        "input_tokens": budget.input_tokens - usage.input_tokens,
-        "output_tokens": budget.output_tokens - usage.output_tokens,
-        "tool_calls": budget.tool_calls - usage.tool_calls,
-    })
-    if min(next_budget.model_calls, next_budget.input_tokens,
-           next_budget.output_tokens, next_budget.tool_calls) < 0:
-        raise BudgetExceeded
-    return next_budget
-```
+终态 Trace 保存完成、失败、取消或过期，以及引用数量与验证结果。它不复制答案正文。
 
-## 策略版本治理
+## 一次慢请求怎样定位
 
-提示词、模型路由、检索权重、阈值、记忆开关和安全规则组成 policy version。修改任一项都生成新版本，不能直接编辑 active JSON。版本有 draft/challenger/champion/retired 状态和 changelog；每个 Turn 固定记录 policy id。
-
-champion/challenger 分流用稳定 hash，让同一用户在对比窗口保持一致。推广条件由 Eval gate 决定，不能通过“线上感觉更自然”直接切换。质量、安全和成本门槛任何一个失败都应拒绝。
-
-## 告警应该指向动作
-
-“错误数升高”不是可执行告警。把指标映射到 runbook：
-
-| 信号 | 可能原因 | 首个动作 |
+| 观测 | 结果 | 推断 |
 | --- | --- | --- |
-| 首事件 P95 上升 | 队列、预处理或模型连接 | 按 stage trace 定位 |
-| Claim 支持率下降 | 切片/retrieval/policy 变化 | 比较 release/policy |
-| forbidden source > 0 | ACL/cache 回归 | 立即阻断候选策略 |
-| checkpoint resume 失败 | schema/连接池/版本 | 停止自动恢复，保留回滚 |
-| token 成本突增 | prompt 膨胀/循环 | 检查预算和研究轮次 |
+| 准入等待 | 很短 | 不是系统排队 |
+| 全文检索 | 正常 | 稀疏通道正常 |
+| 向量分支 | 超时并降级 | 主要延迟来源之一 |
+| 模型首 Token | 正常 | 生成启动正常 |
+| 引用验证 | 正常 | 终态收尾正常 |
 
-告警本身不要附带私密答案内容；使用 trace id 和受控审计入口。
+这组结果允许团队只调查向量服务和超时策略，而不是重写整套 Agent。
 
-## 采样和关联
+## 告警要指向动作
 
-所有错误 Turn 全量保留最小诊断信息，成功 Turn 按比例采样完整 trace。采样不能丢掉安全事件、质量失败和 challenger 数据。通过 trace id 关联 SSE、数据库事件、模型供应商 request id 和队列 task id，避免仅靠时间戳拼接。
+“Agent 错误率高”太宽泛。更可执行的告警是：某模型供应商超时率超过基线、终态缺失数量增长、事件持久化失败、ACL 硬门禁失败或停滞回合积压。
 
-## 成本与质量的联合报告
+告警包含影响范围、当前版本、Runbook 和恢复标准。低样本的单次波动进入观察，不触发频繁切换。
 
-按 mode、policy、release、document type 分组报告 token、延迟、Recall、支持率和拒答率。优化不能只追求成本最低：如果把证据预算砍半让引用准确率下降，应该明确 trade-off，而不是把“节省 token”称作成功。
+## 验证脱敏边界
 
-## 测试与隐私验收
+测试会发送包含疑似密钥、个人信息和提示注入文本的请求，再检查日志与 Trace 导出中没有原文。另一个测试确认错误栈不会把认证头与工具返回全文打印出来。
 
-```python
-def test_metric_labels_have_bounded_cardinality():
-    assert metric_labels("agent_turns_total") == {"status", "mode"}
+## 当前实现的边界
 
-def test_trace_redacts_prompt_and_secret():
-    exported = export_trace(turn_with_secret())
-    assert "api_key" not in exported
-    assert "private document body" not in exported
-```
+可观测性不能自动解释因果，采样也可能漏掉低频问题。高风险安全事件需要专门审计记录，与普通性能日志分开治理。
 
-运行一次敏感词扫描，验证 Markdown、事件 payload、日志和构建产物没有本机路径、私网地址、凭证格式和私有项目名。生产审计系统与公开博客同样遵守最小披露原则。
-
-## 边界演练
-
-可观测性数据本身也要分级和脱敏。Trace 记录版本、节点和耗时，指标记录聚合结果，日志记录可检索错误上下文；提示词、凭证和敏感正文不能因为调试方便而全量写入。
-
-每次演练都保存请求 ID、版本、状态变化、错误分类和恢复结果，确认监控信号与用户可见状态一致。
-
-## 脱敏与采样边界
-
-Trace 需要能关联请求、回合、图节点和外部依赖，但不等于保存完整提示词和文档正文。生产环境优先记录哈希、长度、版本、耗时、状态和错误分类；需要调试正文时使用短期、审批和脱敏采样。指标维度必须有限，不能把用户输入、URL 参数或高基数文档 ID 直接作为 label。治理策略也应版本化，模型路由、预算、重试和采样变更都能回到对应版本。
+下一篇完成发布：在候选环境验证新版本，保留备份和上一版本，再逐步切换与回滚。
 
 ## 参考资料
 
-- [OpenTelemetry Concepts](https://opentelemetry.io/docs/concepts/observability-primer/)：Trace、Metric、Log 的关联。
-- [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/specs/semconv/)：服务与数据库观测字段规范。
-- [Prometheus metric types](https://prometheus.io/docs/concepts/metric_types/)：Counter、Gauge、Histogram 的选择。
-- [OpenAI pricing](https://openai.com/api/pricing/)：模型 token 成本治理需要使用当前官方价格核对。
-
-治理检查还要验证降级路径：模型不可用时是否切换到允许的替代模型，预算耗尽时是否安全拒答，采样率变化时是否仍能定位一次失败。策略发布采用版本号、审批和小流量观察，旧版本保留到评测和回放窗口结束。
+- [OpenTelemetry：Traces](https://opentelemetry.io/docs/concepts/signals/traces/)
+- [OpenTelemetry：Metrics](https://opentelemetry.io/docs/concepts/signals/metrics/)
+- [OWASP：Logging Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html)

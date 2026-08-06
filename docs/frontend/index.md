@@ -1,7 +1,7 @@
 ---
 layout: page
-title: 前端工程
-description: 浏览器基础、算法、框架、构建系统与复杂前端工程。
+title: 前端
+description: 从浏览器与语言基础出发，逐步进入框架、构建系统和复杂交互。
 sidebar: false
 aside: false
 footer: false

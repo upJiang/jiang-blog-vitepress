@@ -1,135 +1,91 @@
 ---
 title: "CSS 布局与格式化上下文"
-description: "从正常流、定位和格式化上下文理解布局"
+description: "从正常流、包含块和内容约束选择 Flex、Grid 与定位"
 category: frontend
 tags: ["CSS","Layout"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 390
 depth: reference
 series: "重学前端"
 ---
 # CSS 布局与格式化上下文
 
-## 正常流
+侧栏固定宽度，正文填满剩余空间，看起来是一个简单两列布局。把正文换成长 URL、把页面缩窄或放大到 200%，旧式负 margin 方案就可能溢出。布局方案要由内容和几何约束选择，不由截图位置反推。
 
-**我们可以用一句话来描述正常流的排版行为，那就是：依次排列，排不下了换行。**
+## 先理解浏览器从哪里开始排版
 
-## 正常流的原理
+普通块级元素沿块方向排列，行内内容形成行盒。每个盒子的百分比、定位偏移和尺寸都要找到包含块；`display`、浮动、定位和 overflow 等属性又可能建立新的格式化上下文。
 
-在 CSS 标准中，规定了如何排布每一个文字或者盒的算法，这个算法依赖一个排版的“当前状态”，CSS 把这个当前状态称为“格式化上下文（formatting context）”。
+```mermaid
+flowchart LR
+  A[DOM 与计算样式] --> B[确定格式化上下文]
+  B --> C[找到包含块和可用空间]
+  C --> D[计算盒尺寸与位置]
+  D --> E[处理溢出和滚动]
+```
 
-我们可以认为排版过程是这样的：
+Flex 和 Grid 不是“代替全部正常流”。Flex 适合沿一个主要轴分配空间，Grid 适合同时控制行列；它们的子项仍受最小内容尺寸、书写模式和溢出规则约束。
 
-- 格式化上下文 + 盒 / 文字 = 位置
+## 步骤一：实现一个能收缩的两列布局
 
-- formatting context + boxes/charater = positions
+预期结果是宽屏显示侧栏与正文，窄屏自动堆叠；正文含长链接时只在自身内部换行或滚动，不把整个页面撑宽。
 
-当我们要把正常流中的一个盒或者文字排版，需要分成三种情况处理。
-
-- **当遇到块级盒**：排入块级格式化上下文。
-
-- **当遇到行内级盒或者文字**：首先尝试排入行内级格式化上下文，如果排不下，那么创建一个行盒，先将行盒排版（行盒是块级，所以到第一种情况），行盒会创建一个行内级格式化上下文。
-
-- **遇到 float 盒**：把盒的顶部跟当前行内级上下文上边缘对齐，然后根据 float 的方向把盒的对应边缘对到块级格式化上下文的边缘，之后重排当前行盒。
-
-我们以上讲的都是一个块级格式化上下文中的排版规则，实际上，页面中的布局没有那么简单，一些元素会在其内部创建新的块级格式化上下文，这些元素有
-
-- 浮动元素；
-
-- 绝对定位元素；
-
-- 非块级但仍能包含块级元素的容器（如 inline-blocks, table-cells, table-captions）；
-
-- 块级的能包含块级元素的容器，且属性 overflow 不为 visible。
-
-写一个自适应宽
-
-```text
-<div class="outer">
-    <div class="fixed"></div>
-    <div class="auto"></div>
-</div>
-
-
-.fixed {
-    display:inline-block;
-    vertical-align:top;
+```css
+.page {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  gap: 1.5rem;
 }
-.auto {
-    margin-left:-200px;
-    padding-left:200px;
-    box-sizing:border-box;
-    width:100%;
-    display:inline-block;
-    vertical-align:top;
+
+.content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 42rem) {
+  .page {
+    grid-template-columns: 1fr;
+  }
 }
 ```
 
-## 现代规范校订
+输入是侧栏、正文和容器可用宽度。`minmax(0, 1fr)` 与 `min-width: 0` 允许正文轨道小于默认最小内容宽度；输出是长内容不会强迫页面横向溢出。媒体条件只改变布局，不改变 DOM 阅读顺序。
 
-现代 CSS 还应结合 Cascade Layers、容器查询、逻辑属性和新的颜色空间理解。历史语法可以帮助理解演进，但实现决策必须以目标浏览器支持矩阵为准。
+## 步骤二：区分 Flex 和 Grid
 
-## 规范要点与现代边界
+导航栏、按钮组等主要沿一条轴排列的内容适合 Flex。需要让标题、正文和操作跨多行对齐的卡片列表更适合 Grid。两者都支持 gap、对齐与顺序控制，但视觉 order 不应破坏键盘和阅读顺序。
 
-布局问题应先判断所属格式化上下文，再选择 Grid、Flex、正常流、定位或多列。不要用负 margin 和绝对定位修补本应由父容器解决的约束。调试时分别观察可用空间、轨道计算、最小尺寸和溢出，确认布局变化是否导致 CLS 或键盘顺序问题。
+Flex item 默认 `min-width: auto`，Grid track 的 `1fr` 也受最小内容影响。遇到“明明有剩余空间却溢出”，先检查 min-content 约束，再决定 `min-width: 0`、`minmax(0, 1fr)` 或内容换行策略。
 
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
+## 步骤三：知道何时建立 BFC
 
-## 运行验证
+块格式化上下文（BFC）会隔离一部分内部布局，例如包含浮动、避免外部浮动环绕，并改变 margin collapsing 条件。`display: flow-root` 是表达“建立新的块格式化上下文”的清楚方式。
 
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
+历史上常用 `overflow: hidden` 清除浮动，但它同时裁剪溢出，可能截断焦点环和浮层。理解副作用后再选择触发方式，不要把 BFC 当作神秘修复开关。
 
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
+## 步骤四：定位与浮动各有用途
+
+`position: absolute` 让元素脱离普通流，并相对定位包含块放置，适合徽标、局部覆盖和明确锚点；它不适合靠固定坐标搭整页响应式布局。`fixed` 与 viewport 相关，移动端还要考虑视觉视口和软键盘。
+
+float 最初用于让文字环绕内容，如今仍适合文章插图。应用主布局优先使用 Flex/Grid，避免 clearfix、负 margin 与浮动宽度相互依赖。
+
+## 故意制造一次失败
+
+把正文轨道改成 `1fr` 并移除 `min-width: 0`，再插入一段不可断长字符串。若页面出现横向滚动，说明最小内容约束仍在生效。修复后要同时验证代码块、表格和焦点轮廓，因为简单对所有内容使用 `overflow: hidden` 会隐藏真实问题。
+
+另一个失败是用 CSS `order` 把操作按钮移到标题前。视觉顺序改变，Tab 和读屏顺序仍按 DOM，用户会感到焦点跳动。正确做法通常是让 DOM 反映逻辑顺序，再用布局完成对齐。
+
+## 排障顺序
+
+1. 在 DevTools 查看目标元素的 containing block 和 computed display。
+2. 确认问题来自可用空间、最小内容、margin collapsing 还是定位。
+3. 检查是哪一个元素真正产生 overflow。
+4. 逐项关闭定位、固定尺寸与 transform，缩成最小页面。
+5. 覆盖长内容、200% 缩放、RTL 与键盘顺序。
 
 ## 参考资料
 
-- https://www.w3.org/TR/css-syntax-3/
-- https://developer.mozilla.org/en-US/docs/Web/CSS
-
-## 布局决策与实验
-
-正常流是默认的布局基线。先让内容按照块级和行内格式化上下文排列，再根据需要引入 Flex 或 Grid；只有元素需要脱离文档流、覆盖在其他内容上时才考虑定位。`float` 是历史的文字环绕机制，不应作为现代页面的主布局方案。创建 BFC 可以隔离浮动、阻止外边距折叠或裁剪溢出，但它不会自动解决父子尺寸和可访问性问题。
-
-```html
-<main class="layout">
-  <aside>目录</aside>
-  <article>正文会根据剩余空间排布，不依赖负 margin。</article>
-</main>
-```
-
-```css
-.layout {
-  display: grid;
-  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
-  gap: 2rem;
-}
-@media (max-width: 48rem) {
-  .layout { grid-template-columns: 1fr; }
-}
-```
-
-实验时分别缩放视口、增加长文本、切换字体和打开键盘导航，观察最小尺寸、溢出、焦点顺序与 CLS。若布局只能靠固定高度或负 margin 才不跳动，说明约束模型还没有建立。
-
-## 复杂布局的排障顺序
-
-先在 DevTools 中查看元素的 computed `display`、尺寸和滚动容器，再暂时关闭 `position`、`float`、`overflow` 和固定高度，观察问题属于哪个格式化上下文。Flex 子项默认有 `min-width: auto`，长文本可能阻止收缩；Grid 轨道使用 `minmax(0, 1fr)` 可以显式允许内容区域变窄。外边距折叠、包含块和百分比高度要结合父元素的实际尺寸判断，不能只看 CSS 声明。
-
-布局验收还要覆盖动态内容、缩放 200%、RTL、打印和屏幕阅读器。视觉没有溢出不代表 DOM 顺序和焦点顺序正确；需要把视觉位置、阅读顺序和交互顺序分别记录。
-
-当多个布局方案都能通过截图时，优先选择约束更少、内容增长更稳定的方案。把尺寸、间距和断点提取为设计令牌，避免组件之间出现一套只在某个屏幕宽度成立的魔法数字；通过视觉回归和真实内容样本持续验证。
-特别要记录浏览器缩放和系统字体变化，因为这些条件经常暴露固定高度、错误百分比和不可滚动区域。
-长标题、超长 URL 和异步加载内容也应进入回归样本。
-如果内容本身决定容器高度，就不要把高度写死。
-优先让浏览器根据内容计算尺寸。
-断点只在确有布局变化时增加。
-用真实内容而不是占位短句测试布局。
-包含英文、数字和长链接。
-测试空数据和错误状态。
-并验证窄屏。
-再看打印。
+- [CSS Display Module Level 3](https://www.w3.org/TR/css-display-3/)
+- [CSS Flexible Box Layout](https://www.w3.org/TR/css-flexbox-1/)
+- [CSS Grid Layout](https://www.w3.org/TR/css-grid-2/)
+- [CSS Overflow Module Level 3](https://www.w3.org/TR/css-overflow-3/)

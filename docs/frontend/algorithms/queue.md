@@ -1,169 +1,78 @@
 ---
 title: "队列与滑动窗口"
-description: "用先进先出和单调结构处理流式数据与窗口问题。"
+description: "用先进先出和单调队列处理任务流与窗口最大值。"
 category: frontend
 tags: ["队列", "滑动窗口", "TypeScript"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 150
 depth: reference
 series: "算法与数据结构"
 ---
+
 # 队列与滑动窗口
 
-队列按照进入顺序处理工作，适合 BFS、任务缓冲和流式窗口。JavaScript 数组 `push + shift` 语义正确但 shift 通常移动后续元素；算法实现应使用头索引或环形缓冲。窗口问题还要区分普通 FIFO、双端队列和计数 Map，它们维护的不变量不同。
+普通任务队列按到达顺序处理，第一个进入的任务最先离开。滑动窗口最大值则多一个要求：窗口每向右移动一步，要快速知道仍在窗口中的最大元素。每次扫描整个窗口需要 `O(nk)`，单调队列可以降到 `O(n)`。
 
-## 两个栈实现队列
+本篇先实现不使用 `shift()` 的 FIFO Queue，再用双端队列保存窗口候选下标。关键不变量是队列中的值从大到小，队首始终是当前最大值。
 
-输入栈负责接收，输出栈负责弹出。只有输出栈为空时，才把输入栈全部倒入：
+## 为什么普通数组 shift 不理想
 
-```ts
-class QueueFromStacks<T> {
-  private readonly input: T[] = []
-  private readonly output: T[] = []
+JavaScript 数组尾部操作适合栈，头部 `shift()` 通常需要移动后续索引。FIFO 可以保留一个 head 指针，出队只增加 head；当无效前缀足够大时再一次性压缩，获得摊还常数成本。
 
-  enqueue(value: T): void { this.input.push(value) }
+滑动窗口还要从队尾删除较小元素，因此需要 Deque。教学实现可以用数组加两个索引；生产项目也可使用经过验证的双端队列库。
 
-  dequeue(): T | undefined {
-    this.fillOutput()
-    return this.output.pop()
-  }
-
-  peek(): T | undefined {
-    this.fillOutput()
-    return this.output.at(-1)
-  }
-
-  get size(): number { return this.input.length + this.output.length }
-
-  private fillOutput(): void {
-    if (this.output.length > 0) return
-    while (this.input.length > 0) this.output.push(this.input.pop()!)
-  }
-}
+```mermaid
+flowchart LR
+  N[新元素下标] --> E[移除队首过期下标]
+  E --> S[移除队尾不大于新值的下标]
+  S --> A[新下标入队]
+  A --> M[队首就是窗口最大值]
 ```
 
-output 中栈顶是全队最早元素；一旦开始输出，后来 enqueue 的元素留在 input，不能提前倒入破坏顺序。单次倒栈 O(n)，但每个元素只从 input 到 output 一次，再弹出一次，所以一系列操作摊还 O(1)，空间 O(n)。若每次 dequeue 都把元素来回倒，会退化 O(n)。
+## 步骤一：只保存可能成为最大值的下标
 
-## 头索引 FIFO
+若新值大于或等于队尾值，旧队尾更早过期且不更大，以后永远不可能成为最大值，可以删除。下标还能判断元素是否已经离开窗口，仅保存值无法区分重复元素的位置。
 
-```ts
-class ArrayQueue<T> {
-  private items: T[] = []
-  private head = 0
-
-  enqueue(value: T): void { this.items.push(value) }
-
-  dequeue(): T | undefined {
-    if (this.head === this.items.length) return undefined
-    const value = this.items[this.head++]
-    if (this.head >= 1024 && this.head * 2 >= this.items.length) {
-      this.items = this.items.slice(this.head)
-      this.head = 0
-    }
-    return value
-  }
-
-  get size(): number { return this.items.length - this.head }
-}
-```
-
-偶尔压缩释放已消费引用，避免队列长期持有大对象。高吞吐固定容量使用环形数组，并定义满时策略：拒绝、覆盖、阻塞或背压，不能无限增长。
-
-## BFS：队列表示待处理前沿
-
-图的最短无权路径利用 BFS 按距离层次扩展：
+下面输入数组和窗口宽度 k，输出每个完整窗口的最大值。Deque 使用下标数组与 head，所有下标最多入队、出队一次。
 
 ```ts
-function shortestDistance(
-  graph: ReadonlyMap<string, readonly string[]>,
-  start: string,
-  target: string
-): number | null {
-  if (start === target) return 0
-  const queue = new ArrayQueue<{ node: string; distance: number }>()
-  const visited = new Set([start])
-  queue.enqueue({ node: start, distance: 0 })
+function maxSlidingWindow(values: readonly number[], k: number): number[] {
+  if (!Number.isInteger(k) || k <= 0 || k > values.length) return []
 
-  while (queue.size > 0) {
-    const current = queue.dequeue()!
-    for (const neighbor of graph.get(current.node) ?? []) {
-      if (visited.has(neighbor)) continue
-      if (neighbor === target) return current.distance + 1
-      visited.add(neighbor)
-      queue.enqueue({ node: neighbor, distance: current.distance + 1 })
-    }
-  }
-  return null
-}
-```
-
-节点在入队时标 visited，避免同层多个父节点重复入队。队列中所有节点距离非递减，所以第一次发现 target 就是最短边数。时间 O(V+E)，空间 O(V)。带不同非负权重需 Dijkstra 优先队列，不能继续普通 BFS。
-
-## 单调 Deque：固定窗口最大值
-
-Deque 中存索引，索引递增、值单调不增。新元素到来先移除过期队首，再移除不可能成为最大值的队尾：
-
-```ts
-function slidingMaximum(values: readonly number[], window: number): number[] {
-  if (!Number.isInteger(window) || window <= 0 || window > values.length) return []
-  const deque = new Array<number>(values.length)
+  const deque: number[] = []
+  const output: number[] = []
   let head = 0
-  let tail = 0
-  const result: number[] = []
 
   for (let right = 0; right < values.length; right += 1) {
-    while (head < tail && deque[head]! <= right - window) head += 1
-    while (head < tail && values[deque[tail - 1]!]! <= values[right]!) tail -= 1
-    deque[tail++] = right
-    if (right + 1 >= window) result.push(values[deque[head]!]!)
+    const left = right - k + 1
+    while (head < deque.length && deque[head]! < left) head += 1
+
+    while (
+      head < deque.length &&
+      values[deque[deque.length - 1]!]! <= values[right]!
+    ) deque.pop()
+
+    deque.push(right)
+    if (left >= 0) output.push(values[deque[head]!]!)
   }
-  return result
+
+  return output
 }
 ```
 
-相等时删除旧索引是安全的：新索引值相同且更晚离开窗口。若题目还要最早最大值下标，则保留相等旧索引（使用 `<`）。每个索引最多两端各处理一次，时间 O(n)，空间 O(window)。
+对 `[1,3,-1,-3,5]`、`k=3`，窗口最大值依次是 `[3,3,5]`。新值 5 到来时，队尾所有更小候选都会被移除；它们既更旧又更小，删除不会丢失未来答案。
 
-## 可变窗口：计数与收缩条件
+## 复杂度与边界
 
-求和至少 target 的最短正数子数组：窗口元素全为正，因此右移使和不减，满足后可收缩 left：
+虽然代码有两个 while，每个下标只从队首或队尾移除一次，所以总时间 O(n)，Deque 最多 k 个下标，空间 O(k)。k 为 1 时输出原数组副本；k 超出范围或非正整数时当前接口返回空数组，也可以按业务选择抛错。
 
-```ts
-function minimumLengthAtLeast(values: readonly number[], target: number): number {
-  let left = 0
-  let sum = 0
-  let best = Infinity
+单调递减队列求最大值，单调递增队列求最小值。BFS 使用普通 Queue，层序遍历可在每层开始时读取当前队列长度。背压型工程队列还需要容量和拒绝策略，算法 Queue 的无限内存假设不能直接带到服务系统。
 
-  for (let right = 0; right < values.length; right += 1) {
-    if (values[right]! <= 0) throw new RangeError('values must be positive')
-    sum += values[right]!
-    while (sum >= target) {
-      best = Math.min(best, right - left + 1)
-      sum -= values[left++]!
-    }
-  }
-  return Number.isFinite(best) ? best : 0
-}
-```
+## 怎样验证不变量
 
-不变量：while 结束后当前窗口和小于 target；刚才所有满足窗口已尝试删除尽可能多左端。若允许负数，收缩后和可能变大，单调性消失，需要前缀和 + 单调队列等方法。
+每轮结束检查队列下标递增、对应值递减，且所有下标都在当前窗口内。小数组与朴素 `Math.max(...slice)` 交叉验证，覆盖重复最大值、负数、单元素与 k 等于数组长度。
 
-最长不重复子串则用 Map 记录最后位置；“窗口内至多 K 种字符”用频率 Map，收缩时计数归零删除。窗口模板只有在扩张/收缩条件具备单调性时成立。
+## 参考资料
 
-## 流式队列与背压
-
-工程队列还需要容量与失败语义。生产者快于消费者时无限数组最终耗尽内存。固定容量队列选择：阻塞/await、拒绝、丢最新、丢最旧或合并可覆盖事件。进度事件可只留最新，订单写入不能丢。
-
-并发 worker 取队列要保证同一任务租约、超时恢复和幂等；这已超出单机数据结构，但核心仍是“队首事实”和容量不变量。
-
-## 验证
-
-两个栈队列与简单数组 oracle 随机执行 enqueue/dequeue/peek 比较；BFS 用链、环、不连通和多条等长路径；单调窗口与 O(nk) oracle 随机比较；可变窗口故意放负数确认输入约束触发。
-
-复杂度测试不要只数 while 嵌套：单调 Deque 的内层 pop 总次数不超过 n。队列题的核心是说明元素何时进入候选、何时永久失去资格，以及先进先出为何保证层次/时间顺序。
-
-## 源码与规范
-
-- [ECMAScript 规范](https://tc39.es/ecma262/)：数组、字符串、Map/Set、排序与数值语义的语言依据。
-- [Open Data Structures](https://opendatastructures.org/)：数组、链表、栈、队列、树、哈希和图算法的公开教材与复杂度推导。
-- [VisuAlgo](https://visualgo.net/en)：数据结构与经典算法状态变化的可视化辅助；正确性仍以不变量和测试证明。
-- 个人实验材料已匿名化；本文只抽取通用机制，不建立项目映射。
+- [Open Data Structures: Queues and Deques](https://opendatastructures.org/ods-javascript/2_Stacks_Queues_and_Deques.html)
+- [ECMAScript Array](https://tc39.es/ecma262/multipage/indexed-collections.html)

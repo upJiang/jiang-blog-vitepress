@@ -1,176 +1,113 @@
 ---
-title: "03｜文档解析、OCR 与内容保真"
-description: "统一处理文本、HTML、PDF 和 Office 文档，并识别需要 OCR 的失败页面。"
+title: "03｜解析文档，并只对缺失页面做 OCR"
+description: "从普通文本解析开始，逐步处理 PDF 扫描页、Office 结构、OCR 失败和内容回填。"
 category: agent-practice
 tags: ["Ingestion", "OCR"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 30
 depth: core
-series: "生产级知识 Agent 实战"
+series: "知识 Agent 分步实践"
 ---
-# 03｜文档解析、OCR 与内容保真
+# 03｜解析文档，并只对缺失页面做 OCR
 
-知识 Agent 的上限经常由导入链路决定。解析阶段若丢掉表头、标题层级、页码和列表关系，后续换更强 embedding 或 LLM 也无法恢复。文档导入不是“提取一串 text”，而是把不同格式投影为可验证的中间表示，并为丢失、重复和 OCR 不确定性保留证据。
+一个 PDF 的第一页能复制文字，第二页是扫描图片。如果把整份文件都交给 OCR，不仅成本更高，还可能把第一页已经准确的文字识别错；如果完全不用 OCR，第二页又会永远缺失。
 
-## 统一输入清单
+本篇完成一条分层解析流程：先使用普通解析器，识别哪些 PDF 页缺少文本，只对这些页做 OCR，再把结果放回原页。OCR 关闭或返回空内容时，导入失败，不发布残缺知识。
 
-一次导入先生成 DocumentManifest。它记录逻辑文档、来源、顺序、深度、内容类型、可见范围和内容哈希；解析器不直接写在线 chunk 表。
+## 先认识解析与 OCR
 
-```python
-class DocumentSource(BaseModel):
-    source_id: str
-    title: str
-    content_type: str
-    bytes_hash: str
-    order: int
-    depth: int = 0
-    parent_source_id: str = ""
-    visibility_subjects: tuple[str, ...] = ()
+**解析**是从文件结构中读取文字、标题、表格和页码。**OCR** 是光学字符识别，用于从图片中识别文字。扫描 PDF 往往只有图片层，因此普通文本解析拿不到正文。
 
-class DocumentManifest(BaseModel):
-    document_id: str
-    sources: list[DocumentSource]
-    imported_at: datetime
+```mermaid
+flowchart LR
+  A[读取文件] --> B[按格式普通解析]
+  B --> C{存在缺字扫描页吗}
+  C -->|没有| D[输出统一文档]
+  C -->|有| E[只渲染缺字页]
+  E --> F[OCR 识别]
+  F --> G[回填原页]
+  G --> D
 ```
 
-`bytes_hash` 判断原始输入是否改变，解析后再计算规范化内容 hash。二者不能混用：解析器升级可能让相同源文件产生更好的结构，必须允许重建索引。
+## 第一步：把不同文件变成同一种结果
 
-## 中间表示要保留结构
+文本、Markdown、HTML、PDF、DOCX、XLSX 和 PPTX 的内部结构不同，后续切片器不应分别理解所有格式。解析层统一输出正文、格式、元数据、告警和解析器版本。
 
-统一结构可以是带扩展 metadata 的 Markdown，但不能仅返回字符串。每个 block 保存类型、来源定位和顺序：
-
-```python
-class ParsedBlock(BaseModel):
-    kind: Literal["heading", "paragraph", "list", "table", "code", "image_text"]
-    text: str
-    page: int | None = None
-    section_path: tuple[str, ...] = ()
-    source_locator: str = ""
-    confidence: float | None = None
-
-class ParsedDocument(BaseModel):
-    blocks: list[ParsedBlock]
-    warnings: list[str]
-    source_format: str
+```text
+ParsedDocument
+  content：后续切片使用的正文
+  format：pdf、docx、html 等
+  metadata：页数、工作表、表格等结构
+  warnings：不阻断导入的异常
+  parser_version：这次使用的解析规则版本
 ```
 
-页码不是装饰。PDF 引用需要定位到页；PPTX 需要幻灯片号；XLSX 需要工作表和区域。后续 chunk 合并时必须保留 locator 集合，不能只记合并后文本。
+输入是原始字节、文件名和 MIME 类型，输出始终是同一结构。旧版二进制 Office 文件当前明确返回不支持，不假装解析成功。
 
-## 不同格式的真实难点
+## 第二步：普通解析器先尽量保留结构
 
-### 文本与 Markdown
+HTML 移除脚本、样式和模板内容，再保留标题、段落、列表、代码与表格；DOCX 读取标题样式、列表和表格；电子表格保留工作表名与单元格关系；PPTX 按幻灯片顺序读取文本和表格。
 
-先处理 BOM 和编码。服务端不能假设所有上传都是 UTF-8；可明确只接受 UTF-8 并给出错误，也可用可靠探测器后记录选择。Markdown 的 fenced code、表格、链接和标题要在语义解析前识别，避免按空行粗暴切开代码。
+这些结构会影响后续检索。“超时时间是多少”需要表头和单元格关系，“这条说明属于哪一章”需要标题路径。解析阶段如果只抽出一长串纯文本，切片阶段已经无法完整恢复。
 
-### HTML
+## 第三步：PDF 先逐页提取文字
 
-HTML 解析要使用真正的 parser，删除脚本、样式和隐藏控制内容，再按 DOM 结构提取标题、段落、列表、表格和链接。不能用一个正则去标签；实体解码、错误嵌套与 `pre` 内容都会出错。外部 HTML 始终按不可信输入处理，资源 URL 仅作为 metadata，不在 Worker 中自动访问二次链接。
+示例 PDF 有两页。普通解析后得到：
 
-```python
-from bs4 import BeautifulSoup
+```text
+## Page 1
+申请人提交访问原因和使用期限。
 
-def parse_html(data: bytes) -> ParsedDocument:
-    soup = BeautifulSoup(data, "html.parser")
-    for node in soup(["script", "style", "template", "noscript"]):
-        node.decompose()
-    # 真实实现继续按元素类型输出 block，而不是 soup.get_text() 一把梭。
+## Page 2
+
+ocr_required_pages: [2]
 ```
 
-### DOCX 与 PPTX
+第一页保留原始文本，第二页有图片却没有文本，因此进入待 OCR 列表。页面标题是定位符，后面识别出的文字会插在 `Page 2` 下方，而不是统一追加到文件末尾。
 
-Office 文档不是连续段落。DOCX 要保留 heading style、表格、列表级别与关系链接；PPTX 要按 slide 和 shape 顺序读取，同时避免把页脚模板在每页重复索引。文本框视觉顺序可能与 XML 顺序不同，解析器应记录限制并允许人工抽检。
+## 第四步：只 OCR 缺失页面
 
-### XLSX
-
-工作表是二维数据。把每个 cell 拼成一长串会丢失字段关系。先修正合并单元格和矩形区域，生成 Markdown 表格或结构化字段；公式需要决定保存公式、缓存值还是两者。宏文件只读解析，不执行 VBA。
-
-### PDF
-
-PDF 存储绘制指令，不保证阅读顺序。文字版 PDF 也可能有多栏错序、页眉重复、连字符断词和字体映射问题。先按 page 提取 text block，做阅读顺序和重复页眉处理，再判定哪些页面需要 OCR。
-
-## OCR 不是“文本为空就整本识别”
-
-整本 OCR 成本高，也可能覆盖原本更准确的文字层。采用页级判定：页面字符数过低、可见图像占比高、提取结果出现大量替换字符或字形乱码时，标记 OCR candidate。
+运行时依次检查 OCR 是否启用、缺失页数是否超过上限、页面是否成功渲染、识别结果是否为空。通过后才回填正文。
 
 ```python
-def needs_ocr(text: str, image_area_ratio: float) -> bool:
-    normalized = "".join(text.split())
-    replacement_ratio = normalized.count("�") / max(len(normalized), 1)
-    return (
-        len(normalized) < 30
-        or replacement_ratio > 0.05
-        or (image_area_ratio > 0.8 and len(normalized) < 120)
-    )
+async def fill_missing_pages(pdf, parsed):
+    for page_number in parsed.ocr_required_pages:
+        image = render_page(pdf, page_number)
+        text = (await ocr(image)).strip()
+        if not text:
+            raise OCRRequired(page_number)
+        parsed.insert_after_page(page_number, text)
+    return parsed
 ```
 
-这些阈值必须用自己的文档集校准，不是标准常数。OCR 结果带模型名、版本、页号、置信度和图像 hash。低置信片段可以进入搜索候选，但回答校验应降低信任或要求更多证据。
+这是根据真实行为重写的最小示例。输入是普通解析结果和原始 PDF，关键逻辑只遍历缺字页；输出仍是统一文档。任何一页识别为空都会失败关闭，避免残缺版本进入索引。
 
-## 页面替换而非尾部追加
+## 正常结果和一次故意失败
 
-混合 PDF 的常见 bug 是先提取全部文本，再把 OCR 结果附到文末。这样同一页既有错误文字又有正确 OCR，且引用定位错乱。正确做法是按 page 建块，对指定页替换或并排保留两个版本，并明确选择策略。
+正常结果中，OCR 客户端只收到第 2 页，第一页文字不变；最终元数据把已应用页记录为 `[2]`，待处理列表清空。
 
-```python
-def replace_page(blocks: list[ParsedBlock], page: int, ocr_text: str) -> list[ParsedBlock]:
-    kept = [block for block in blocks if block.page != page]
-    kept.append(ParsedBlock(
-        kind="image_text",
-        text=ocr_text,
-        page=page,
-        source_locator=f"page:{page}",
-    ))
-    return sorted(kept, key=lambda block: (block.page or 0, block.source_locator))
-```
+故意关闭 OCR 后，导入明确返回“第 2 页需要 OCR”，而不是成功但忽略第二页。当前测试还覆盖视觉服务返回空内容的情况，两条路径都会停止发布。
 
-## 外部内容的安全处理
+## 怎样验证解析质量
 
-解析 Worker 面对的是攻击面：压缩炸弹、超大页数、恶意 XML、路径穿越文件名、公式注入、嵌入对象和 prompt injection 文本。至少执行：
-
-- 在读取前限制文件大小、页数、展开大小和处理时长；
-- 解析库运行在无特权容器，禁止访问云 metadata 和内网；
-- 文件名仅作展示，存储键由服务端生成；
-- Office 宏不执行，外部关系不自动抓取；
-- 原始文件和解析结果做病毒/内容策略扫描；
-- 文档内“忽略系统指令”等文字标记为不可信数据，不触发工具。
-
-解析成功也不代表可以发布。所有内容先进入 building version，经过切片、向量和质量门禁后再原子激活。
-
-## 内容保真清单
-
-为每次解析计算 CoverageManifest：
-
-| 指标 | 含义 | 典型失败 |
+| 样本 | 应保留什么 | 失败信号 |
 | --- | --- | --- |
-| source characters | 规范化源文本字符数 | 编码或 parser 丢内容 |
-| indexed characters | 进入候选 chunk 的字符数 | 切片遗漏尾段 |
-| preservation rate | 去重后内容保留比例 | 表格/列表未处理 |
-| tables found/indexed | 表格保留数 | XLSX 或 HTML 表格丢失 |
-| pages OCRed | OCR 页集合 | 扫描页未识别或过度 OCR |
-| warnings | 可审计异常 | 公式、图片、字体问题 |
+| HTML | 标题、列表、表格 | 脚本和样式进入正文 |
+| 普通 PDF | 页码与文本 | 页序错乱 |
+| 扫描 PDF | 只 OCR 缺失页 | 整份重复 OCR 或空页发布 |
+| DOCX | 标题样式与表格 | 全部压成一段 |
+| XLSX | 工作表、表头、单元格 | 行列关系丢失 |
 
-保留率不能简单用 `indexed/source`，因为标题父链被复制进多个 chunk 后可能超过 100%。应在规范化语义单元层计算覆盖，再单独统计重复。
+测试使用内存样本和假的 OCR 客户端，不发送真实业务文档。
 
-## 测试
+## 当前实现的边界
 
-建立小而有攻击性的 fixture 集，而不是只测一个漂亮 PDF：
+DOCX 与 PPTX 内嵌图片当前只产生告警，不自动 OCR；OCR 只改善可检索文字，不承诺恢复原始版式；单文件与电子表格有资源上限，避免异常文件占满 Worker 内存。
 
-```python
-@pytest.mark.parametrize("fixture, expected", [
-    ("two-column.pdf", {"pages": 2, "ocr": []}),
-    ("mixed-scan.pdf", {"pages": 3, "ocr": [2]}),
-    ("merged-cells.xlsx", {"tables": 1}),
-    ("heading-table.docx", {"headings": 2, "tables": 1}),
-])
-def test_parser_preserves_structure(fixture, expected):
-    parsed = parse_fixture(fixture)
-    assert_structure(parsed, expected)
-```
-
-此外覆盖损坏文件、加密 PDF、零字节文件、超大图片、重复页眉、跨页表格、HTML 中的恶意脚本、宏工作簿。测试断言不要只写“结果非空”，要检查页码、标题路径、表头、警告和 OCR 替换位置。
+下一篇会把统一文档切成保留标题、表格和相邻关系的稳定片段。
 
 ## 参考资料
 
-- [PDF 2.0 specification](https://pdfa.org/resource/iso-32000-pdf/)：PDF 页面内容模型与规范入口。
-- [Office Open XML overview](https://learn.microsoft.com/en-us/office/open-xml/open-xml-sdk)：DOCX、XLSX、PPTX 包结构与处理模型。
-- [Beautiful Soup documentation](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)：基于解析树处理错误 HTML 的 API。
-- [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)：上传文件的类型、存储、隔离和限制原则。
-
+- [PyMuPDF：Text recipes](https://pymupdf.readthedocs.io/en/latest/recipes-text.html)
+- [python-docx](https://python-docx.readthedocs.io/en/latest/)
+- [openpyxl：Optimised Modes](https://openpyxl.readthedocs.io/en/stable/optimized.html)

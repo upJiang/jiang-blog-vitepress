@@ -1,113 +1,90 @@
 ---
 title: "HTML 标准与语言设计"
-description: "理解 HTML 的容错模型、元素语义和现行标准"
+description: "从源码到 DOM，理解 HTML 的解析、容错与元素行为"
 category: frontend
 tags: ["HTML","Standard"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 310
 depth: reference
 series: "重学前端"
 ---
 # HTML 标准与语言设计
 
-HTML 不是“标签清单”，而是一组把字节流转换为可交互文档的协议。它同时规定作者可以写什么、浏览器遇到错误输入怎样恢复、元素暴露什么 DOM 接口，以及这些元素怎样参与导航、表单、脚本和可访问性。理解这几个层次，可以避免把“浏览器能显示”误认为“文档符合标准”。
+把一段 HTML 交给浏览器，它能显示出来，不代表源码会原样变成 DOM。浏览器会识别字符、拆分标签，并在结构错误时按标准修复。理解这条链路，才能解释“Elements 面板为什么和源码不同”，也能避免 SSR、水合和无障碍问题。
 
-## 一份文档经历了什么
+## 先分清 HTML、DOM 和浏览器
 
-服务端首先通过 `Content-Type` 声明表示类型。`text/html` 进入 HTML 解析器；`application/xhtml+xml` 进入 XML 解析器，两者对大小写、未闭合标签和错误恢复的行为不同。文件扩展名并不能覆盖 HTTP 响应头。
+HTML 是描述文档的语言，DOM 是浏览器解析后提供给 JavaScript 的对象树。`<button>` 不只是一个外观标签，它还对应 `HTMLButtonElement`，自带键盘、焦点和表单行为。
+
+浏览器在收到页面后，大致经历下面五步：
 
 ```mermaid
 flowchart LR
-  B[字节流] --> E[编码探测与解码]
-  E --> T[tokenization]
-  T --> C[tree construction]
-  C --> D[DOM]
-  D --> A[CSSOM / accessibility tree / script APIs]
+  A[响应字节] --> B[按编码解码]
+  B --> C[识别标签和文本]
+  C --> D[按规则构造 DOM]
+  D --> E[样式、脚本与可访问树]
 ```
 
-HTML tokenizer 根据当前状态把字符转换为 start tag、end tag、comment、character 等 token。tree builder 再按 insertion mode 和“打开元素栈”等状态构造 DOM。它不是简单地见到开始标签就压栈、见到结束标签就弹栈；表格、模板、格式化元素和外来内容都有专门规则。
+其中“构造 DOM”不是简单的字符串转对象。解析器会维护当前所在位置、打开的元素以及表格等特殊上下文，所以错误输入也会得到确定结果。
 
-下面的源码虽然不符合作者规范，HTML 解析器仍会确定性恢复：
+## 用一个错误嵌套观察解析结果
 
-```html
-<p>第一段<div>块级内容</div>段尾
-```
+假设我们想把 `div` 放进一段文字中。按照 HTML 的内容模型，`p` 不能包含 `div` 这样的块级结构。浏览器不会停下来报错，而会在遇到 `div` 时提前结束 `p`。
 
-在浏览器控制台检查：
+先记住预期：源码看起来只有一个 `p` 开始标签；运行后，DOM 中会出现被浏览器补出的结束位置。下面用临时容器做实验，不会修改当前页面的正文。
 
 ```js
 const host = document.createElement('div')
 host.innerHTML = '<p>第一段<div>块级内容</div>段尾'
+
 console.log(host.innerHTML)
+console.log([...host.children].map((node) => node.tagName))
 ```
 
-解析算法会在处理 `div` start tag 时关闭 `p`，结果不会等同于源码的视觉缩进。这说明 DOM 是解析结果，不是源文本的机械映射；操作 `innerHTML` 还会走 fragment parsing，而不是复用页面导航的所有步骤。
+输入是一段不符合内容模型的 HTML。`innerHTML` 触发片段解析，关键行为是解析器在 `div` 前关闭 `p`；输出的 DOM 结构因此和源码缩进不同。这个例子说明调试结构问题时应查看实际 DOM，不能只看模板文件。
 
-## 一致性要求与错误恢复
+## 为什么标准既限制作者又要求浏览器容错
 
-标准面向至少两类实现者：页面作者和用户代理。作者一致性要求帮助工具及早发现无效结构；用户代理要求让互联网上已有的错误页面仍能以一致方式工作。浏览器容错不代表错误无成本：无效嵌套可能导致 DOM 与预期不同、辅助技术语义丢失、SSR hydration 不一致。
+HTML 标准同时面对两类对象：写页面的人，以及实现浏览器的人。
 
-| 层次 | 示例问题 | 验证方式 |
+- 作者规则告诉我们哪些结构有效，便于编辑器、校验器和团队尽早发现错误。
+- 浏览器规则规定错误输入如何恢复，避免同一份旧页面在不同浏览器中生成完全不同的树。
+
+容错解决的是兼容性，不是质量问题。无效嵌套仍可能让 CSS 选择器失效、读屏顺序改变，或让服务端输出的树与客户端框架预期不一致。
+
+## HTML 和 XML 的解析规则不同
+
+响应头为 `text/html` 时使用 HTML 解析器；`application/xhtml+xml` 才使用 XML 解析器。文件扩展名和代码风格不能覆盖 MIME 类型。
+
+这一区别最容易在自闭合写法中看到。`img`、`meta` 本来就是 void element，不需要结束标签；普通 HTML 元素写成 `<div />`，斜线也不会让它获得 XML 的自闭合语义。SVG、MathML 进入外来内容状态后，又会采用各自的名称和闭合规则。
+
+## 元素语义也是标准的一部分
+
+解析只回答“树怎么生成”，元素定义还回答“它怎样工作”。例如按钮关联表单后，未指定 `type` 时通常具有提交行为；链接需要 `href` 才具有完整链接语义。用 `div` 模拟按钮，要自己补齐焦点、Enter/Space 激活、禁用状态和辅助技术映射。
+
+判断一个 HTML 结论时，可以按四层检查：
+
+| 层次 | 要回答的问题 | 常用工具 |
 | --- | --- | --- |
-| 语法 | 属性是否允许无引号 | HTML syntax 章节与 validator |
-| 解析 | 错误嵌套生成何种 DOM | parsing algorithm 与最小页面 |
-| DOM | `HTMLButtonElement` 暴露什么接口 | Web IDL、控制台与类型定义 |
-| 行为 | 按钮何时提交表单 | 元素 activation behavior |
-| 映射 | 元素如何进入可访问树 | HTML-AAM 与浏览器 accessibility 面板 |
+| 源码 | 写法是否符合作者规则 | HTML validator |
+| 解析 | 最终生成了什么 DOM | Elements、`outerHTML` |
+| 行为 | 元素如何响应操作 | 键盘测试、DOM API |
+| 语义 | 辅助技术读到什么 | Accessibility tree |
 
-## HTML 与 DOM 不是同一个东西
+## 常见误解与失败结果
 
-DOM 是宿主无关的节点和事件接口；HTML 在它之上定义具体元素、解析算法和行为。脚本可以创建不可能由 HTML 源码直接解析得到的结构，也可以创建自定义元素。反过来，源码中的字符实体、可省略标签和注释不会一一成为同名 DOM 对象。
+如果只验证“页面能显示”，错误嵌套可能一直潜伏到组件组合或水合阶段。看到浏览器自动补标签时，也不要把它当成浏览器随意猜测；恢复步骤由解析算法规定。
 
-```js
-const element = document.createElement('button')
-console.log(element instanceof HTMLElement) // true
-console.log(element instanceof HTMLButtonElement) // true
-element.type = 'button'
-element.textContent = '保存'
-```
+还要避开三个常见结论：HTML 现在采用 Living Standard，不应把“HTML5”理解为永远冻结的版本；DOM 是解析结果，不是源文件的镜像；`/>` 不是 `text/html` 中普通元素的通用闭合操作符。
 
-这里 `type="button"` 很重要：按钮关联到表单且未指定 `type` 时，默认可能成为提交按钮。语义元素同时携带键盘、焦点、表单和无障碍行为，用 `div` 加点击事件无法自动获得这些契约。
+## 怎样继续验证
 
-## HTML、SVG 与 MathML 的边界
-
-HTML 可以嵌入 SVG 和 MathML 外来内容，但解析状态会切换，大小写和属性处理规则也随之变化。`<svg/>` 在 SVG 外来内容中可以闭合元素；`<div/>` 在 `text/html` 中的斜线不会给普通 HTML 元素创造 XML 自闭合语义。
-
-```html
-<div id="host" />后续文本
-<svg viewBox="0 0 10 10" aria-label="状态图">
-  <circle cx="5" cy="5" r="4" />
-</svg>
-```
-
-用 Elements 面板观察会发现“后续文本”仍位于 `div` 内。这类差异也是 JSX 生成 HTML、服务端模板和富文本清洗器必须谨慎处理的原因。
-
-## 如何验证一个 HTML 结论
-
-先固定响应 MIME 与字符编码，保存最小输入，再分别观察源文本、解析后的 DOM、元素属性与可访问树。需要跨浏览器结论时，查询或编写 Web Platform Test；只在单个 DevTools 中看到结果，最多证明该版本实现的行为。
-
-```js
-const snapshot = (selector) => {
-  const node = document.querySelector(selector)
-  return {
-    outerHTML: node?.outerHTML,
-    nodeName: node?.nodeName,
-    constructor: node?.constructor.name
-  }
-}
-console.table(snapshot('#host'))
-```
-
-## 常见误区
-
-- “HTML5 是固定版本”不准确。工程上应跟随 HTML Living Standard，并检查具体特性的兼容性和测试状态。
-- “能渲染就是合法 HTML”混淆了错误恢复与作者一致性。
-- “DOM 树就是源码树”忽略了解析器自动插入、重排和关闭元素。
-- “所有 `/>` 都是自闭合”把 XML 规则错误套到了 `text/html`。
+先把问题缩成一个独立页面，固定 `Content-Type` 和字符编码，再比较 View Source、Elements、DOM 属性与可访问树。跨浏览器行为应查询或编写 Web Platform Tests；单个浏览器版本的现象只能证明该实现当时的结果。
 
 ## 参考资料
 
-- [WHATWG HTML：Infrastructure](https://html.spec.whatwg.org/multipage/infrastructure.html)：HTML 的术语、符合性和依赖模型。
-- [WHATWG HTML：Parsing HTML documents](https://html.spec.whatwg.org/multipage/parsing.html)：tokenization、tree construction 与错误恢复算法。
-- [WHATWG DOM Standard](https://dom.spec.whatwg.org/)：节点、事件和 DOM 接口的独立规范。
-- [Web Platform Tests：html 目录](https://github.com/web-platform-tests/wpt/tree/master/html)：HTML 解析和元素行为的跨实现测试。
+- [WHATWG HTML：Parsing HTML documents](https://html.spec.whatwg.org/multipage/parsing.html)：tokenization、tree construction 与错误恢复。
+- [WHATWG HTML：Semantics](https://html.spec.whatwg.org/multipage/dom.html#semantics-2)：元素语义与内容模型。
+- [WHATWG DOM Standard](https://dom.spec.whatwg.org/)：节点、事件和 DOM 接口。
+- [Web Platform Tests：HTML](https://github.com/web-platform-tests/wpt/tree/master/html)：跨浏览器公开测试。

@@ -148,7 +148,8 @@ a {
 }
 
 .vp-doc div[class*="language-"] {
-  margin: 28px 0;
+  margin: 24px 0;
+  overflow: hidden;
   border: 1px solid var(--vp-c-divider);
   border-radius: 6px;
   background: var(--vp-code-block-bg);
@@ -158,6 +159,12 @@ a {
 .vp-doc div[class*="language-"] pre,
 .vp-doc div[class*="language-"] code {
   background: transparent;
+}
+
+.vp-doc div[class*="language-"] pre {
+  max-height: 680px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .vp-doc div[class*="language-"] code {
@@ -173,7 +180,19 @@ a {
   font-family: var(--vp-font-family-mono);
   font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.vp-doc div[class*="language-"] > button.copy {
+  border: 1px solid var(--vp-c-divider);
+  background-color: var(--vp-c-bg-elv);
+}
+
+.vp-doc div[class*="language-"] > button.copy:hover,
+.vp-doc div[class*="language-"] > button.copy.copied {
+  border-color: var(--vp-c-brand-1);
+  background-color: var(--vp-c-bg-elv);
 }
 
 .vp-doc div[class*="language-"] .line-numbers-wrapper {
@@ -518,7 +537,7 @@ a {
   line-height: 1.72;
 }
 
-.section-header > strong {
+.section-count {
   position: absolute;
   right: 0;
   bottom: 58px;
@@ -526,6 +545,12 @@ a {
   font-family: var(--vp-font-family-mono);
   font-size: 12px;
   font-weight: 500;
+}
+
+.section-header > .section-reading-hint {
+  margin-top: 10px;
+  color: var(--vp-c-text-3);
+  font-size: 14px;
 }
 
 .article-group {
@@ -615,7 +640,7 @@ a {
     padding: 0 0 44px;
   }
 
-  .section-header > strong {
+  .section-count {
     position: static;
     display: block;
     margin-top: 24px;

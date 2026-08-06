@@ -1,9 +1,9 @@
 ---
 title: "Node ACL 与数据范围控制"
-description: "把角色、资源范围和查询约束落实到服务与数据访问边界。"
+description: "从两条不同归属的数据开始，把权限约束落实到策略、服务、查询与缓存。"
 category: backend
 tags: ["Node.js", "ACL"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 30
 depth: core
 series: "Node.js 服务安全"
@@ -11,195 +11,100 @@ series: "Node.js 服务安全"
 
 # Node ACL 与数据范围控制
 
-授权失败通常不是缺少一个 `@Roles('admin')`，而是角色、动作、资源和数据范围没有形成一致模型。RBAC 可以表达“编辑者允许更新文档”，却不能回答“他能更新哪个租户、哪个集合、哪个状态的文档”。ACL/ABAC 与查询下推补全这个边界。
+假设数据库里有两份文档：文档 A 属于当前用户所在的团队，文档 B 属于另一个团队。用户请求列表时，如果接口先查出全部文档，再由 Controller 隐藏文档 B，越权数据已经进入应用、日志或缓存，安全边界太晚了。
 
-## 授权决策的四个输入
+本篇要把“当前用户能看什么”变成数据库查询条件。最终，详情、列表、搜索、导出和缓存都使用同一份范围，权限撤销后也不会继续命中旧结果。
 
-```ts
-type AuthorizationRequest = {
-  subject: { id: string; tenantId: string; roles: string[]; attributes: Record<string, string> }
-  action: 'document:read' | 'document:update' | 'document:publish'
-  resource: { id: string; tenantId: string; scopeId: string; ownerId: string; state: string }
-  environment: { time: string; authenticationLevel: string; policyVersion: string }
-}
-```
+## 认证和授权有什么区别
 
-角色提供粗粒度权限，资源 ACL/范围提供对象边界，属性和状态决定条件。例如编辑者可更新所属范围内的 draft，但 publish 需要 publisher 角色与近期 MFA。授权结果不仅是 boolean，还应返回原因与可下推范围。
+认证回答“请求者是谁”，授权回答“这个人能对这个对象做什么”。授权通常组合四类信息：主体、动作、资源和环境。主体包括用户、租户和角色；动作例如读取或发布；资源包含归属、状态和范围；环境包含当前时间、认证强度和策略版本。
 
-| 模型 | 擅长 | 局限 |
-| --- | --- | --- |
-| RBAC | 角色到动作的稳定映射 | 资源范围表达弱 |
-| ACL | 主体/组到具体资源 | 大规模管理成本 |
-| ABAC | 按属性和环境组合 | 策略复杂、难解释 |
-| ReBAC | 组织/项目/成员关系 | 需要关系模型与查询引擎 |
-
-系统通常组合使用，而不是选一个名词覆盖全部。
-
-## 查询前过滤，而不是查出后判断
-
-列表与检索必须把范围变成查询条件。单对象查询也应同时带 tenant 与 scope：
-
-```ts
-type VisibleDocumentQuery = {
-  documentId: string
-  tenantId: string
-  actorId: string
-  allowedScopeIds: readonly string[]
-}
-
-async function findVisibleById(input: VisibleDocumentQuery): Promise<DocumentRecord | null> {
-  return db.document.findFirst({
-    where: {
-      publicId: input.documentId,
-      tenantId: input.tenantId,
-      scopeId: { in: [...input.allowedScopeIds] },
-      deletedAt: null
-    }
-  })
-}
-```
-
-先 `findUnique(id)` 再 `if (tenantId !== ...)`，会让 ORM Hook、缓存、日志和错误处理先接触越权对象。Repository 的安全查询接口把范围设为必填，减少调用者漏条件。
+RBAC 用角色表达粗粒度动作，ACL 记录主体与具体资源关系，ABAC 根据属性组合条件，ReBAC 根据组织或成员关系判断。真实系统可以组合它们，不需要先选择一个缩写覆盖所有问题。
 
 ```mermaid
-sequenceDiagram
-  participant C as Controller
-  participant P as Policy
-  participant S as Service
-  participant R as Repository
-  C->>P: action + security context
-  P-->>S: authorized scope constraint
-  S->>R: command + tenant + scopes
-  R-->>S: visible record or none
-  S-->>C: use-case result
+flowchart LR
+  R[请求与身份] --> P[Policy 生成范围]
+  P --> S[Service 执行业务]
+  S --> Q[Repository 下推条件]
+  Q --> D[(数据库)]
+  D --> O[只返回可见结果]
 ```
 
-## Policy 返回约束，而不只返回 true
+## 步骤一：把范围定义成数据
 
-列表接口若先读取所有记录再逐条 `can()` 会形成 N+1 和泄露风险。策略层返回可编译约束：
+最简单的 Guard 常返回 `true` 或 `false`，这适合判断“是否拥有进入后台的角色”，却无法告诉列表查询该过滤哪些行。更实用的做法是让 Policy 返回有限、可检查的范围类型。
+
+输入是可信身份上下文，输出可以是“无权限”“租户内全部”“指定范围”或“本人拥有”。下面是根据通用授权行为重写的最小示例，它没有拼接 SQL，也没有把客户端传入的租户当作可信来源。
 
 ```ts
-type ScopeConstraint =
+type Scope =
   | { kind: 'none' }
-  | { kind: 'all-in-tenant'; tenantId: string }
-  | { kind: 'scopes'; tenantId: string; scopeIds: string[] }
+  | { kind: 'tenant'; tenantId: string }
+  | { kind: 'scopes'; tenantId: string; ids: string[] }
   | { kind: 'owned'; tenantId: string; ownerId: string }
 
-function readableConstraint(context: SecurityContext): ScopeConstraint {
-  if (!context.permissions.has('document:read')) return { kind: 'none' }
-  if (context.permissions.has('document:read:any')) {
-    return { kind: 'all-in-tenant', tenantId: context.tenantId }
+function readableScope(ctx: SecurityContext): Scope {
+  if (!ctx.permissions.has('document:read')) return { kind: 'none' }
+  if (ctx.permissions.has('document:read:any')) {
+    return { kind: 'tenant', tenantId: ctx.tenantId }
   }
-  return { kind: 'scopes', tenantId: context.tenantId, scopeIds: [...context.visibleScopeIds] }
+  return {
+    kind: 'scopes',
+    tenantId: ctx.tenantId,
+    ids: [...ctx.visibleScopeIds]
+  }
 }
 ```
 
-Repository 只接受有限 constraint union 并翻译为 ORM/SQL。禁止把策略字符串拼接进 SQL。复杂 ReBAC 可由授权引擎返回对象集合/关系条件，但最终仍需与业务查询在数据层结合。
+联合类型把策略结果限制在几种已知形态，Repository 可以逐一翻译成 ORM 条件。这样做的原因不是让类型更复杂，而是让“缺少范围”无法悄悄退化为全量查询。
 
-## 写操作要同时检查状态不变量
+## 步骤二：查询时就过滤
 
-拥有 update 权限不代表任何状态都能改。应用服务加载可见对象后，领域实体检查当前版本与状态转换：
+Repository 的安全查询入口要把租户和范围设为必填。单对象查询也同时携带公开 ID、租户和范围，不先 `findUnique(id)` 再比较归属。对于无权知道存在的对象，接口可以统一返回 404，减少资源枚举；内部审计仍记录真实拒绝原因。
 
-```ts
-async function publishDocument(command: PublishCommand, context: SecurityContext) {
-  policy.assertAction(context, 'document:publish')
-  return unitOfWork.run(async (repositories) => {
-    const record = await repositories.documents.lockVisible(command.documentId, context)
-    if (!record) throw new NotFoundError()
-    const document = Document.restore(record)
-    document.publish({ expectedVersion: command.expectedVersion })
-    await repositories.documents.save(document)
-  })
-}
-```
+列表查询不要读取所有记录后逐条调用 `can()`。那会产生 N+1 查询，分页总数也可能泄露隐藏对象。正确顺序是先把 Scope 编译成数据库条件，再排序和分页。复杂关系可以交给授权引擎计算，但最终范围仍要进入数据查询。
 
-权限、对象可见性和领域状态是三道不同门禁。乐观版本阻止两个授权用户互相覆盖。高风险动作还要求近期认证或批准。
+## 步骤三：写操作再检查状态
 
-## 403 还是 404
+用户能看到一份文档，不代表可以在任何状态下修改它。发布动作通常有三层判断：Policy 允许 `publish`，Repository 能在当前范围内找到对象，领域规则允许 `draft -> published`。并发修改还需版本条件，避免两个已授权用户互相覆盖。
 
-对调用者本就不应知道存在的资源，可统一返回 404，减少枚举；对已知资源但动作禁止的场景返回 403 有助产品解释。策略要一致，响应时间和错误内容不要泄露“资源存在但属于别人”。审计内部记录真实拒绝原因。
+| 检查 | 回答的问题 | 常见失败 |
+| --- | --- | --- |
+| 动作权限 | 用户是否拥有发布能力 | 角色不包含 publish |
+| 对象范围 | 文档是否属于可见范围 | 跨租户或跨团队 |
+| 状态规则 | 当前对象能否进入目标状态 | 已归档文档再次发布 |
+| 并发版本 | 读取后是否被别人修改 | expectedVersion 过期 |
 
-批量接口也要防枚举：输入 100 个 ID 时，不返回哪些属于其他租户，只返回可见结果或统一拒绝。排序、过滤字段和分页大小使用白名单，避免查询注入和资源耗尽。
+这几层不能合并成一个装饰器字符串。Controller 只适配 HTTP，普通 TypeScript Policy 和 Service 才能被队列、WebSocket 或其他入口复用。
 
-## 缓存是授权链的一部分
+## 步骤四：缓存也要认识权限
 
-缓存结果带 tenant、范围摘要、主体/角色、策略版本、资源版本：
+若缓存键只有 `documentId`，用户 A 生成的详情可能被用户 B 命中。缓存键至少包含租户、范围摘要、策略版本和资源版本。权限变化时发布失效信号；高风险数据还可以在命中后重新检查当前策略版本。
 
-```ts
-function documentCacheKey(input: {
-  tenantId: string
-  actorScopeDigest: string
-  policyVersion: string
-  documentId: string
-  resourceVersion: number
-}): string {
-  return ['document', input.tenantId, input.actorScopeDigest, input.policyVersion,
-    input.documentId, input.resourceVersion].join(':')
-}
-```
+搜索结果、向量召回、对象存储签名地址和 DataLoader 都属于数据通道。只保护 REST Repository，却让搜索全局召回，仍然会越权。返回引用前再做一次范围复核，可以防止旧缓存或异步索引把不可见来源带入结果。
 
-权限变更发布失效事件，删除主体/范围相关缓存。仅靠 TTL 会产生撤权窗口；高风险数据可以不缓存主体结果，或每次验证策略版本。缓存命中后仍映射公共 DTO，不返回内部记录。
+PostgreSQL Row-Level Security 可以作为纵深保护，但它依赖每个事务正确设置租户上下文，并防止连接池复用残留。它不能替代应用层对动作和状态的解释。
 
-搜索、向量、对象存储签名 URL 与 GraphQL DataLoader 也属于缓存/查询层，必须携带范围。不能只保护 REST Repository，而让搜索通道全局召回。
+## 正常结果和失败结果
 
-## NestJS 的职责分配
+| 请求 | 预期结果 |
+| --- | --- |
+| Reader 读取同范围文档 | 200，返回公共 DTO |
+| Reader 读取同租户其他范围 | 404，不暴露对象存在 |
+| 相同公开 ID 出现在其他租户 | 仍只查询当前租户 |
+| Editor 修改已归档文档 | 状态冲突，不写数据库 |
+| 权限撤销后再次读取 | 旧缓存失效或复核后拒绝 |
+| 批量传入可见与不可见 ID | 只返回可见集合，不报告隐藏归属 |
 
-- Authentication Guard：构造可信主体；
-- Policy Guard/Decorator：声明动作并做粗粒度门禁；
-- Application Service：结合用例、状态与事务；
-- Repository：下推 tenant/scope 过滤；
-- Interceptor/Filter：稳定响应和审计关联，不决定权限。
+权限测试要覆盖详情、列表、搜索、导出、缓存和协议入口，而不是只测一个 Guard。还要准备同租户不同范围、跨租户相同 ID、撤权后的缓存命中和并发更新四类样本。检查数据库查询条件和返回体，确认越权正文从未进入应用结果。
 
-不要把所有权限写成 Controller 装饰器。装饰器无法表达从请求 ID 解析的资源范围，且队列/MCP 入口无法复用。核心 policy 是普通 TypeScript 服务，HTTP Guard 只是适配。
+## 当前边界
 
-## 多租户数据库保护
-
-应用过滤是主路径，还可使用 PostgreSQL Row-Level Security 作为纵深防御。RLS 依赖每个事务正确设置主体/租户，并防连接池复用时上下文残留；迁移和管理连接使用独立角色。
-
-数据库唯一约束也包含 tenant，例如 `(tenant_id, external_key)`，防止跨租户冲突。对象存储键使用不可猜内部标识和租户前缀，下载签名在授权后短期生成。
-
-## 审计
-
-审计事件记录主体摘要、租户、动作、资源公共引用、策略版本、决策、原因、请求 ID 和时间，不保存资源正文与令牌。授权拒绝率突降也要告警，可能是检查被绕过。
-
-策略变更保存版本与 diff，支持用历史策略回放“当时为何允许”。但紧急撤权以当前安全策略为准，不能为了复现继续返回旧权限数据。
-
-## 验证：权限矩阵
-
-| 主体/场景 | 同范围 | 其他范围同租户 | 跨租户 | 撤权后缓存 |
-| --- | --- | --- | --- | --- |
-| Reader | 读允许、写拒绝 | 拒绝 | 拒绝 | 立即拒绝 |
-| Editor | draft 读写 | 拒绝 | 拒绝 | 立即拒绝 |
-| Publisher | publish 合法状态 | 状态非法拒绝 | 拒绝 | 立即拒绝 |
-| Tenant Admin | 租户内按策略 | 允许 | 拒绝 | 策略版本刷新 |
-
-```ts
-it.each([
-  ['same tenant and visible scope', fixtures.visibleDocument, 200],
-  ['same tenant but hidden scope', fixtures.hiddenDocument, 404],
-  ['another tenant with same public id', fixtures.crossTenantDocument, 404]
-])('%s', async (_name, documentFactory, expectedStatus) => {
-  const document = await documentFactory()
-  const response = await api.get(`/documents/${document.publicId}`, fixtures.readerCookie())
-  expect(response.status).toBe(expectedStatus)
-})
-```
-
-还要覆盖撤权与并发、搜索/导出/批量接口、DataLoader、对象下载、队列和 MCP 入口。同一个安全上下文在所有协议下应得到同样范围。
-
-## 常见误区
-
-- 验证 JWT 后就认为所有资源可访问。
-- RBAC 角色字符串代替资源范围和状态检查。
-- 先查记录后判断 tenant，越权数据已进入应用。
-- 列表逐条 `can()`，产生 N+1 且难以下推。
-- 缓存键没有主体/范围/策略版本，撤权后仍命中。
-- REST 有 ACL，但搜索、导出、对象下载或队列绕过。
-- `admin` 默认跨所有租户，缺少独立管理边界。
+小型系统用 Policy 与 Repository 组合已经足够。关系网络很复杂时，可以引入专门的关系授权引擎，但迁移前要先回答一致性、缓存撤销、查询下推和故障降级。下一篇进入异步队列，看看请求重试和 Worker 重投为什么会让同一操作执行两次。
 
 ## 参考资料
 
-- [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)：默认拒绝、逐请求校验和对象范围授权。
-- [OWASP API1: Broken Object Level Authorization](https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/)：对象级越权的威胁与测试方式。
-- [PostgreSQL Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)：数据层行级范围策略。
-- [NestJS Authorization](https://docs.nestjs.com/security/authorization)：Guard、Metadata 与策略适配边界。
+- [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)
+- [OWASP API1: Broken Object Level Authorization](https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/)
+- [PostgreSQL Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+- [NestJS Authorization](https://docs.nestjs.com/security/authorization)

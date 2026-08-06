@@ -1,125 +1,93 @@
 ---
 title: "ARIA 与可访问性语义"
-description: "坚持原生优先并在必要时补充角色、状态与关系"
+description: "从一个切换按钮理解角色、名称、状态和键盘行为"
 category: frontend
 tags: ["ARIA","Accessibility"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 350
 depth: reference
 series: "重学前端"
 ---
 # ARIA 与可访问性语义
 
-ARIA 的作用是向无障碍 API 补充 role、state、property 和元素关系。它不会改变 DOM 行为，不会自动提供键盘交互，也不会修复错误的焦点管理。第一条工程原则因此不是“多加 ARIA”，而是优先使用具有正确原生语义和行为的 HTML 元素。
+一个“固定到顶部”按钮，鼠标点击后图标变色，但读屏软件仍说它是普通按钮。问题不在 CSS，而在状态没有暴露给无障碍 API。ARIA 用来补充角色、名称、状态和元素关系；它不会替我们实现点击、键盘或焦点管理。
 
-## 语义、行为和状态必须同时成立
+## 先理解四个概念
+
+- **Role**：元素是什么，例如 button、dialog、status。
+- **Name**：这个元素叫什么，例如“关闭设置”。
+- **State**：当前处于什么状态，例如是否按下、展开或选中。
+- **Relationship**：它与谁有关，例如哪个说明文字描述输入框。
+
+原生 HTML 往往已经提供 role 和行为。ARIA 的首要用法是补充原生语义没有表达的部分，而不是给每个元素都添加属性。
+
+```mermaid
+flowchart LR
+  A[业务状态改变] --> B[更新可见界面]
+  A --> C[更新原生或 ARIA 状态]
+  B --> D[鼠标用户得到结果]
+  C --> E[键盘和辅助技术得到结果]
+```
+
+视觉与 ARIA 应来自同一个业务状态。只更新其中一边，就会让不同用户看到两个互相矛盾的界面。
+
+## 步骤一：实现一个切换按钮
+
+目标结果是：按钮默认未按下，点击后界面与 `aria-pressed` 同步变化；再次点击恢复。原生 `button` 已处理焦点以及 Enter、Space 激活，我们只补充“可切换”和当前状态。
 
 ```html
-<button type="button" aria-pressed="false">固定到顶部</button>
+<button id="pin-button" type="button" aria-pressed="false">
+  固定到顶部
+</button>
+<script>
+  const button = document.querySelector('#pin-button')
+
+  button.addEventListener('click', () => {
+    const pressed = button.getAttribute('aria-pressed') === 'true'
+    button.setAttribute('aria-pressed', String(!pressed))
+  })
+</script>
 ```
 
-原生 `button` 已提供焦点与键盘激活，ARIA 只补充“可切换按钮”的按下状态。状态变化时应用必须同步更新属性：
+输入是一次按钮激活，关键逻辑是读取旧状态并写回相反值；输出可以在 accessibility tree 中观察到 `pressed` 状态变化。使用原生按钮的原因是复用浏览器行为，只维护业务独有的切换状态。
 
-```js
-const button = document.querySelector('button[aria-pressed]')
+## 步骤二：让控件拥有准确名称
 
-button.addEventListener('click', () => {
-  const next = button.getAttribute('aria-pressed') !== 'true'
-  button.setAttribute('aria-pressed', String(next))
-})
-```
+可访问名称可能来自关联的 `label`、按钮内容、`aria-labelledby` 或 `aria-label`，优先级由 Accessible Name 规范定义。名称应描述用途，并尽量与屏幕上的可见文字一致。
 
-如果业务确实只能从无语义元素起步，`role="button"` 仍不会使其自动响应 Enter/Space、进入 Tab 顺序或表现 disabled。这意味着实现者必须补齐所有交互，并持续对照 ARIA Authoring Practices。通常改用原生按钮更可靠。
+有文字的“保存”按钮通常无需重复 `aria-label`；只有图标而没有可见文字时，可以提供“关闭”等名称。对话框适合用 `aria-labelledby` 引用可见标题，用 `aria-describedby` 连接补充说明。不要同时堆叠互相冲突的名称来源。
 
-## role 不是任意标签
+## 步骤三：把关系和行为分开
 
-每个 role 都有允许、要求和继承的状态属性。例如 checkbox 的 `aria-checked` 使用 `true`、`false`、`mixed` 或未定义状态，`checked` 不是合法值。角色和属性不匹配时，辅助技术可能忽略信息。
+`aria-controls` 表达“这个按钮控制哪个区域”，不会自动显示区域。`aria-expanded` 描述当前是否展开，也不会切换 `hidden`。应用仍要修改实际 DOM，并让视觉状态和 ARIA 状态使用同一个布尔值。
 
-| UI 概念 | 优先实现 | 常见状态 | 额外行为责任 |
-| --- | --- | --- | --- |
-| 普通按钮 | `button` | `disabled` | 浏览器已提供激活行为 |
-| 切换按钮 | `button` | `aria-pressed` | 点击后同步状态 |
-| 复选框 | `input[type=checkbox]` | `checked/indeterminate` | 原生表单协议 |
-| 展开按钮 | `button` | `aria-expanded`、`aria-controls` | 控制目标可见性和焦点 |
-| 对话框 | `dialog` 或对话框模式 | `aria-modal`、名称 | 初始焦点、关闭、焦点恢复 |
+同理，`role="dialog"` 不会创建完整模态框。原生 `dialog.showModal()` 能进入 top layer 并使外部文档 inert，但应用还要设置名称、选择初始焦点、支持关闭，并在关闭后把焦点还给触发按钮。
 
-不要把普通文本加入 Tab 顺序只为让读屏“读到”。读屏有浏览模式和焦点模式，非交互内容本来就能被导航。滥用 `tabindex="0"` 会制造冗长的键盘停止点。
+## 动态消息什么时候需要朗读
 
-## 可访问名称是算法结果
+保存结果等与当前操作直接相关、又不会获得焦点的消息，可以放进 `role="status"` 区域。严重且需要立即打断的告警才考虑 alert。高频进度、流式 token 和鼠标移动不适合逐条播报，应节流成有意义的阶段。
 
-控件名称可能来自关联 `label`、元素内容、`aria-labelledby`、`aria-label` 等多个来源，优先级由 Accessible Name and Description Computation 定义，而不是“只有可 Tab 元素才读 aria-label”。名称应描述控件用途，并尽量复用可见文本。
+实践中通常先把空状态容器放入 DOM，再更新其文本。辅助技术对动态插入整个容器的支持存在差异，不能只看屏幕上是否出现文字。
 
-```html
-<h2 id="dialog-title">删除文档</h2>
-<p id="dialog-description">删除后只能从版本历史恢复。</p>
-<dialog aria-labelledby="dialog-title" aria-describedby="dialog-description">
-  <button type="button" value="cancel">取消</button>
-  <button type="button" value="confirm">删除</button>
-</dialog>
-```
+## 失败结果：ARIA 写对了，交互仍不可用
 
-`aria-labelledby` 可引用多个 id，并通常优先于 `aria-label`。不要同时堆叠多个相互冲突的名称来源。图标按钮没有可见文字时可使用 `aria-label="关闭"`；若已有文字，通常无需重复标记。
+如果把 `div` 标记为 button，它仍不会自动获得 Tab 焦点、Enter/Space 激活和 disabled 行为。如果 checkbox 使用不合法的 `aria-checked="checked"`，辅助技术也可能忽略状态。ARIA 角色对允许和要求的属性有明确约束。
 
-## 关系属性不是行为引用
+这类失败说明 DOM 属性存在不等于可访问。测试至少分四层：只用键盘完成任务、在 accessibility tree 检查计算后的 role/name/state、运行自动规则、使用真实读屏走一次流程。自动测试能防止明显回退，无法替代人工判断名称是否清楚、焦点是否自然。
 
-`aria-controls` 表达控件与目标的关系，但不会帮你显示目标；`aria-expanded` 描述当前展开状态，但不会自动切换；`aria-describedby` 提供补充描述，但不会做表单校验。业务状态是单一事实源，视觉、DOM 和 ARIA 必须从同一状态更新。
+## 常见组件的选择顺序
 
-```js
-const trigger = document.querySelector('#filter-trigger')
-const panel = document.querySelector('#filter-panel')
-
-function setExpanded(expanded) {
-  trigger.setAttribute('aria-expanded', String(expanded))
-  panel.hidden = !expanded
-}
-```
-
-只更新 CSS class 而遗漏 ARIA，会让视觉状态与辅助技术状态分裂；只更新 ARIA 而不改变可见内容，同样是错误。
-
-## Dialog 不会自动产生完整焦点陷阱
-
-仅写 `role="dialog"` 不会创建模态行为。原生 `<dialog>.showModal()` 会进入 top layer，并使外部文档 inert，但应用仍需设置可访问名称、选择合理的初始焦点、支持关闭，并在关闭后把焦点恢复到触发元素。复杂内容还要决定焦点放在第一个控件还是静态标题上。
-
-```js
-const openButton = document.querySelector('#open-settings')
-const dialog = document.querySelector('#settings-dialog')
-
-openButton.addEventListener('click', () => dialog.showModal())
-dialog.addEventListener('close', () => openButton.focus())
-```
-
-Escape 关闭由原生 dialog 的 cancel 行为支持，产品若拦截必须有明确原因。嵌套弹层、异步关闭和卸载触发器时，需要单独测试焦点恢复失败路径。
-
-## 动态信息与 live region
-
-不是每个状态变化都应该朗读。与当前操作直接相关、不会获得焦点的结果，可用 `role="status"`（通常是 polite）通知；必须立即打断的严重告警才考虑 alert。先把容器放进 DOM，再改变其文本，通常比连容器一起动态插入更容易被观察。
-
-```html
-<p id="save-status" role="status" aria-atomic="true"></p>
-```
-
-```js
-document.querySelector('#save-status').textContent = '设置已保存'
-```
-
-高频进度、流式 token 或鼠标移动不应逐次进入 live region，否则会形成信息洪泛。应节流并只播报对任务有意义的阶段。
-
-## 验证不能只靠 DOM
-
-至少覆盖键盘操作、浏览器 accessibility tree、自动规则和真实读屏。对自定义 widget，按 APG 的 keyboard interaction 表逐项建立测试；对名称和状态，在 Chrome/Firefox Accessibility 面板确认计算结果；对跨实现差异，查询 ARIA-AT 或 WPT。
-
-```ts
-// Playwright 示例：检查面向辅助技术的最终名称和状态
-await expect(page.getByRole('button', { name: '固定到顶部' }))
-  .toHaveAttribute('aria-pressed', 'false')
-```
-
-自动化能证明契约没有明显回退，但不能替代读屏用户完成真实任务。发布门禁应把两者分开记录。
+| 界面任务 | 优先元素 | 需要补充的状态或行为 |
+| --- | --- | --- |
+| 普通动作 | `button` | 通常无需 ARIA |
+| 切换动作 | `button` | `aria-pressed` 与业务状态同步 |
+| 布尔输入 | `input[type=checkbox]` | 原生 checked/indeterminate |
+| 展开区域 | `button` | `aria-expanded`，并实际隐藏目标 |
+| 模态对话框 | `dialog` 或 APG 模式 | 名称、初始焦点、关闭和焦点恢复 |
 
 ## 参考资料
 
-- [WAI-ARIA 1.2](https://www.w3.org/TR/wai-aria-1.2/)：角色、状态、属性及其约束的规范定义。
-- [ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/)：常见 widget 的模式与键盘交互参考。
-- [Accessible Name and Description Computation 1.2](https://www.w3.org/TR/accname-1.2/)：可访问名称与描述的计算算法。
-- [ARIA-AT Community Group](https://github.com/w3c/aria-at)：辅助技术互操作性测试与公开用例。
-
+- [WAI-ARIA 1.2](https://www.w3.org/TR/wai-aria-1.2/)：角色、状态和属性约束。
+- [ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/)：组件交互与键盘模式。
+- [Accessible Name and Description Computation](https://www.w3.org/TR/accname-1.2/)：名称和描述计算。
+- [ARIA-AT](https://github.com/w3c/aria-at)：辅助技术互操作性测试。

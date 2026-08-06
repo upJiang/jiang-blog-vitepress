@@ -1,244 +1,77 @@
 ---
 title: "CSS 与文档资源"
-description: "理解样式表加载、资源引用和媒体条件"
+description: "理解 link、样式表加载、资源提示和超链接关系"
 category: frontend
 tags: ["CSS","Resource"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 420
 depth: reference
 series: "重学前端"
 ---
 # CSS 与文档资源
 
-> HTML 中，链接有两种类型。一种是超链接型标签，一种是外部资源链接。
+`stylesheet`、`preload` 和 `prefetch` 都写在 `link` 中，却不做同一件事。前者把响应作为当前样式表，后两者只向浏览器表达资源意图。标签存在不代表请求一定发出，也不代表后续消费一定复用。
 
-链接的家族中有 a 标签、area 标签和 link 标签。
+## 先分清导航关系和资源关系
 
+`a` 与 `area` 通常创建用户可以激活的超链接；`link` 描述当前文档与另一个资源或文档的关系。浏览器根据元素、`rel`、`as`、媒体条件、CORS 和响应 MIME 决定是否抓取以及怎样处理。
 
-
-## link 标签
-
-link 标签也是元信息的一种，在很多时候，它也是不会对浏览器产生任何效果的，link 标签会生成一个链接，它可能生成超链接，也可能生成外部资源链接（唯一一个会生成外部资源链接的链接）。
-
-link 标签的链接类型主要通过 rel 属性来区分
-
-### 超链接类 link 标签
-
-> 超链接型 link 标签是一种被动型链接，在用户不操作的情况下，它们不会被主动下载。
-
-ink 标签具有特定的 rel 属性，会成为特定类型的 link 标签。产生超链接的 link 标签包括：具有 rel=“canonical” 的 link、具有 rel="alternate"的 link、具有 rel=“prev” rel="next"的 link 等等。
-
-#### canonical 型 link
-
-```text
-<link rel="canonical" href="...">
+```mermaid
+flowchart LR
+  A[link rel] --> B{关系类型}
+  B -->|stylesheet| C[下载并参与 CSS]
+  B -->|preload/modulepreload| D[为当前导航提前准备]
+  B -->|prefetch| E[低优先级准备后续导航]
+  B -->|canonical/alternate| F[表达文档关系]
+  B -->|icon| G[提供站点图标候选]
 ```
 
-这个标签提示页面它的主 URL，在网站中常常有多个 URL 指向同一页面的情况，搜索引擎访问这类页面时会去掉重复的页面，这个 link 会提示搜索引擎保留哪一个 URL。
+资源提示是提示，不是下载承诺。省流、网络状态、缓存和浏览器策略都可能改变执行。
 
-#### alternate 型 link
+## 步骤一：加载并提前发现关键样式
 
-```text
-<link rel="alternate" href="...">
+目标结果是主样式表直接生效，打印样式只在打印媒体使用，模块依赖由 modulepreload 提前准备。下面的 preload 字体还要与实际 CSS 中的 URL、CORS 模式和类型完全匹配，才能复用。
+
+```html
+<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/print.css" media="print">
+<link rel="modulepreload" href="/assets/editor.js">
+<link
+  rel="preload"
+  href="/assets/text.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+>
 ```
 
-这个标签提示页面它的变形形式，这个所谓的变形可能是当前页面内容的不同格式、不同语言或者为不同的设备设计的版本，这种 link 通常也是提供给搜索引擎来使用的。
+输入是四种当前页面资源声明。关键逻辑是 relation 决定处理模型，`as` 和 `type` 帮助选择优先级与安全策略；输出应在 Network 中看到正确 initiator，字体后续消费不重复请求。把 `as="script"` 错写到字体上，通常会导致无法复用或控制台警告。
 
-alternate 型的 link 的一个典型应用场景是，页面提供 rss 订阅时，可以用这样的 link 来引入：
+## 步骤二：理解文档关系
 
-```text
-<link rel="alternate" type="application/rss+xml" title="RSS" href="...">
-```
+`canonical` 表达重复或相似 URL 的首选地址，不能代替服务端重定向和一致站内链接。`alternate` 可配合语言、媒体或不同表示使用，例如 hreflang 页面需要互相返回并使用可抓取绝对 URL。
 
-#### prev 型 link 和 next 型 link
+`prev`、`next` 仍是通用链接关系，但 Google 已不再把它们作为分页索引信号。分页页面是否可发现，应依赖真实链接、独立 URL、正文与索引策略，而不是把历史 SEO 建议当现行保证。
 
-> 在互联网应用中，很多网页都属于一个序列，比如分页浏览的场景，或者图片展示的场景，每个网页是序列中的一个项。
+icon 可以提供尺寸和类型候选；浏览器和平台还可能读取 Web App Manifest。`pingback` 等关系属于特定协议，只有系统确实实现对应能力时才有意义。
 
-这种时候，就适合使用 prev 和 next 型的 link 标签，来告诉搜索引擎或者浏览器它的前一项和后一项，这有助于页面的批量展示。
+## 步骤三：正确使用 a 与 area
 
-因为 next 型 link 告诉浏览器“这是很可能访问的下一个页面”，HTML 标准还建议对 next 型 link 做预处理
+`a` 有 `href` 时才具有完整超链接能力，支持复制地址、在新标签页打开和浏览器历史。触发当前页面动作使用 button。链接文本应说明目的，避免一页出现大量无法区分的“点击这里”。
 
-#### 其它超链接类的 link
+`area` 在 image map 中定义可点击区域，需要有替代文本和可理解的后备导航。响应式图片坐标、缩放和键盘可用性使它不适合大多数现代交互图；SVG 或普通链接列表通常更容易维护。
 
-其它超链接类 link 标签都表示一个跟当前文档相关联的信息，可以把这样的 link 标签视为一种带链接功能的 meta 标签。
+下载链接的 `download` 属性受同源、响应头和浏览器策略影响，不是强制保存开关。`target="_blank"` 要表达 opener 与 Referer 策略，并在新上下文打开后保持清楚的链接目的。
 
-- rel=“author” 链接到本页面的作者，一般是 mailto: 协议
+## 正常与失败验证
 
-- rel=“help” 链接到本页面的帮助页
+正常样式请求具有 `text/css` 响应、可接受的 CORS 和缓存字段，媒体条件改变时样式按预期启用。预加载资源被真正消费者以相同 URL 和请求模式复用。
 
-- rel=“license” 链接到本页面的版权信息页
-
-- rel=“search” 链接到本页面的搜索页面（一般是站内提供搜索时使用）
-
-### 外部资源类 link 标签
-
-外部资源型 link 标签会被主动下载，并且根据 rel 类型做不同的处理。外部资源型的标签包括：具有 icon 型的 link、预处理类 link、modulepreload 型的 link、stylesheet、pingback。
-
-#### icon 型 link
-
-> 这类链接表示页面的 icon。多数浏览器会读取 icon 型 link，并且把页面的 icon 展示出来。
-
-icon 型 link 是唯一一个外部资源类的元信息 link，其它元信息类 link 都是超链接，这意味着，icon 型 link 中的图标地址默认会被浏览器下载和使用。
-
-如果没有指定这样的 link，多数浏览器会使用域名根目录下的 favicon.ico，即使它并不存在，所以从性能的角度考虑，**建议一定要保证页面中有 icon 型的 link**。
-
-只有 icon 型 link 有有效的 sizes 属性，HTML 标准允许一个页面出现多个 icon 型 link，并且用 sizes 指定它适合的 icon 尺寸。
-
-#### 预处理类 link
-
-> 我们都知道，导航到一个网站需要经过 dns 查询域名、建立连接、传输数据、加载进内存和渲染等一系列的步骤。
-
-预处理类 link 标签就是允许我们控制浏览器，提前针对一些资源去做这些操作，以提高性能（当然如果你乱用的话，性能反而更差）。
-
-列一下这些 link 类型：
-
-- dns-prefetch 型 link 提前对一个域名做 dns 查询，这样的 link 里面的 href 实际上只有域名有意义。
-
-- preconnect 型 link 提前对一个服务器建立 tcp 连接。
-
-- prefetch 型 link 提前取 href 指定的 url 的内容。
-
-- preload 型 link 提前加载 href 指定的 url。
-
-- prerender 型 link 提前渲染 href 指定的 url。
-
-#### modulepreload 型的 link
-
-> modulepreload 型 link 的作用是预先加载一个 JavaScript 的模块。这可以保证 JS 模块不必等到执行时才加载。
-
-这里的所谓加载，是指完成下载并放入内存，并不会执行对应的 JavaScript。
-
-```text
-<link rel="modulepreload" href="app.js">
-<link rel="modulepreload" href="helpers.js">
-<link rel="modulepreload" href="irc.js">
-<link rel="modulepreload" href="fog-machine.js">
-<script type="module" src="app.js">
-```
-
-这个例子来自 HTML 标准，我们假设 app.js 中有 import “irc” 和 import “fog-machine”, 而 irc.js 中有 import “helpers”。这段代码使用 moduleload 型 link 来预加载了四个 js 模块。
-
-尽管，单独使用 script 标签引用 app.js 也可以正常工作，但是我们通过加入对四个 JS 文件的 link 标签，使得四个 JS 文件有机会被并行地下载，这样提高了性能。
-
-#### stylesheet 型 link
-
-```text
-<link rel="stylesheet" href="xxx.css" type="text/css">
-```
-
-基本用法是从一个 CSS 文件创建一个样式表。**这里 type 属性可以没有，如果有，必须是"text/css"才会生效**。
-
-rel 前可以加上 alternate，成为 rel=“alternate stylesheet”，此时必须再指定 title 属性。
-
-这样可以为页面创建一份变体样式，一些浏览器，如 Firefox 3.0，支持从浏览器菜单中切换这些样式，当然了，大部分浏览器不支持这个功能，所以仅仅从语义的角度了解一下这种用法即可。
-
-#### pingback 型 link
-
-这样的 link 表示本网页被引用时，应该使用的 pingback 地址，这个机制是一份独立的标准，遵守 pingback 协议的网站在引用本页面时，会向这个 pingback url 发送一个消息。
-
-## a 标签
-
-> a 标签是“anchor”的缩写，它是锚点的意思，所谓锚点，实际上也是一种比喻的用法，古代船舶用锚来固定自己的位置，避免停泊时被海浪冲走，所以 anchor 标签的意思也是标识文档中的特定位置。
-
-a 标签其实同时充当了链接和目标点的角色，当 a 标签有 href 属性时，它是链接，当它有 name 时，它是链接的目标。
-
-具有 href 的 a 标签跟一些 link 一样，会产生超链接，也就是在用户不操作的情况下，它们不会被主动下载的被动型链接。
-
-重点的内容是，a 标签也可以有 rel 属性，我们来简单了解一下，首先是跟 link 相同的一些 rel，包括下面的几种。
-
-- alternate
-
-- author
-
-- help
-
-- license
-
-- next
-
-- prev
-
-- search
-
-这些跟 link 语义完全一致，不同的是，a 标签产生的链接是会实际显示在网页中的，而 link 标签仅仅是元信息。
-
-除了这些之外，a 标签独有的 rel 类型：
-
-- tag 表示本网页所属的标签；
-
-- bookmark 到上级章节的链接。
-
-a 标签还有一些辅助的 rel 类型，用于提示浏览器或者搜索引擎做一些处理：
-
-- nofollow 此链接不会被搜索引擎索引；
-
-- noopener 此链接打开的网页无法使用 opener 来获得当前页面的窗口；
-
-- noreferrer 此链接打开的网页无法使用 referrer 来获得当前页面的 url；
-
-- opener 打开的网页可以使用 window.opener 来访问当前页面的 window 对象，这是 a 标签的默认行为。
-
-a 标签基本解决了在页面中插入文字型和整张图片超链接的需要，但是如果我们想要在图片的某个区域产生超链接，那么就要用到另一种标签了——area 标签。
-
-## area 标签
-
-> area 标签与 a 标签非常相似，不同的是，它不是文本型的链接，而是**区域型的链接**。
-
-area 标签支持的 rel 与 a 完全一样
-
-area 是整个 html 规则中唯一支持非矩形热区的标签，它的 shape 属性支持三种类型。
-
-- 圆形：circle 或者 circ，coords 支持三个值，分别表示中心点的 x,y 坐标和圆形半径 r。
-
-- 矩形：rect 或者 rectangle，coords 支持两个值，分别表示两个对角顶点 x1，y1 和 x2，y2。
-
-- 多边形：poly 或者 polygon，coords 至少包括 6 个值，表示多边形的各个顶点。
-
-因为 area 设计的时间较早，所以不支持含有各种曲线的路径，但是它也是唯一一个支持了非矩形触发区域的元素，所以，对于一些效果而言，area 是必不可少的。
-
-area 必须跟 img 和 map 标签配合使用。使用示例如下（例子来自 html 标准）。
-
-```text
-<p>
- Please select a shape:
- <img src="shapes.png" usemap="#shapes"
-      alt="Four shapes are available: a red hollow box, a green circle, a blue triangle, and a yellow four-pointed star.">
- <map name="shapes">
-  <area shape=rect coords="50,50,100,100"> <!-- the hole in the red box -->
-  <area shape=rect coords="25,25,125,125" href="red.html" alt="Red box.">
-  <area shape=circle coords="200,75,50" href="green.html" alt="Green circle.">
-  <area shape=poly coords="325,25,262,125,388,125" href="blue.html" alt="Blue triangle.">
-  <area shape=poly coords="450,25,435,60,400,75,435,90,450,125,465,90,500,75,465,60"
-        href="yellow.html" alt="Yellow star.">
- </map>
-</p>
-```
-
-这个例子展示了在一张图片上画热区并且产生链接，分别使用了矩形、圆形和多边形三种 area。
-
-## 现代规范校订
-
-现代 CSS 还应结合 Cascade Layers、容器查询、逻辑属性和新的颜色空间理解。历史语法可以帮助理解演进，但实现决策必须以目标浏览器支持矩阵为准。
-
-## 规范要点与现代边界
-
-样式表是文档关键路径的一部分。预加载、媒体条件、层叠层和模块化拆分要和实际渲染目标一致；错误的 preload 会浪费连接，过多 @import 会延迟发现资源。公共页面应让关键样式在脚本失败时仍然可读，并为缓存版本化。
-
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
-
-## 运行验证
-
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
-
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
+故意把字体 preload 的 `crossorigin` 删除，或让服务器返回错误 MIME。若出现重复请求或资源拒绝，说明“Network 里看到 200”不足以证明关系有效。检查响应头、initiator、priority、from cache 和控制台，而不是继续添加更多 preload。
 
 ## 参考资料
 
-- https://www.w3.org/TR/css-syntax-3/
-- https://developer.mozilla.org/en-US/docs/Web/CSS
+- [WHATWG HTML：Link types](https://html.spec.whatwg.org/multipage/links.html)
+- [WHATWG HTML：The link element](https://html.spec.whatwg.org/multipage/semantics.html#the-link-element)
+- [MDN：Preloading content](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload)
+- [Google Search Central：Pagination](https://developers.google.com/search/docs/specialty/ecommerce/pagination-and-incremental-page-loading)

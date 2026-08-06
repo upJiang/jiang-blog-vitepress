@@ -1,268 +1,83 @@
 ---
 title: "CSSOM 与样式计算"
-description: "理解样式表解析、层叠、继承和计算值"
+description: "区分声明、层叠、计算值、实际几何和 CSSOM View"
 category: frontend
 tags: ["Browser","CSSOM"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 550
 depth: reference
 series: "重学前端"
 ---
 # CSSOM 与样式计算
 
-DOM 中的所有的属性都是用来表现语义的属性，CSSOM 的则都是表现的属性，width 和 height 这类显示相关的属性
+元素写着 `width: 50%`，`element.style.width` 返回 `50%`，`getComputedStyle()` 可能返回像素，`getBoundingClientRect()` 又可能得到带小数的实际几何。它们观察的是不同阶段，不能统称为“CSS 属性值”。
 
-顾名思义，CSSOM 是 CSS 的对象模型，在 W3C 标准中，它包含两个部分：描述样式表和规则等 CSS 的模型部分（CSSOM），和跟元素视图相关的 View 部分（CSSOM View）。
+## 样式如何得到最终结果
 
-在实际使用中，CSSOM View 比 CSSOM 更常用一些，因为我们很少需要用代码去动态地管理样式表。
-
-## CSSOM
-
-我们通常创建样式表也都是使用 HTML 标签来做到的，我们用 style 标签和 link 标签创建样式表，例如：
-
-```text
-<style title="Hello">
-a {
-  color:red;
-}
-</style>
-<link rel="stylesheet" title="x" href="data:text/css,p%7Bcolor:blue%7D">
+```mermaid
+flowchart LR
+  A[样式表与内联声明] --> B[选择器匹配]
+  B --> C[层叠与继承]
+  C --> D[计算值]
+  D --> E[布局得到 used value]
+  E --> F[盒几何与滚动信息]
 ```
 
-我们创建好样式表后，还有可能要对它进行一些操作。如果我们以 DOM 的角度去理解的话，这些标签在 DOM 中是一个节点，它们有节点的内容、属性，这两个标签中，CSS 代码有的在属性、有的在子节点。这两个标签也遵循 DOM 节点的操作规则，所以可以使用 DOM API 去访问。
+CSSOM 提供样式表、规则和声明的对象接口；CSSOM View 提供 viewport、滚动和盒几何接口。浏览器可能为返回 API 值做序列化，规范术语与具体字符串形式要分开理解。
 
-但是，这样做的后果是我们需要去写很多分支逻辑，并且，要想解析 CSS 代码结构也不是一件简单的事情，所以，这种情况下，我们直接使用 CSSOM API 去操作它们生成的样式表，这是一个更好的选择。
+## 步骤一：比较三种宽度
 
-我们首先了解一下 CSSOM API 的基本用法，一般来说，我们需要先获取文档中所有的样式表：
+预期结果是内联声明保留 50%，computed style 反映层叠与计算后的可用值，矩形给出当前布局坐标和边框盒尺寸。父容器宽度或 transform 改变时，这些值可能进一步分化。
 
-```text
-document.styleSheets
-```
+运行前准备一个固定宽度父容器和 `.box { width: 50%; padding: 8px; border: 1px solid }`，并记录 `box-sizing`。这样每个 API 都面对同一个元素和同一帧布局，差异来自观察阶段而不是页面仍在加载字体或动画。改变浏览器缩放后，小数与取整结果也可能变化，应连同环境一起记录。
 
-document 的 styleSheets 属性表示文档中的所有样式表，这是一个只读的列表，我们可以用方括号运算符下标访问样式表，也可以使用 item 方法来访问，它有 length 属性表示文档中的样式表数量。
+```js
+const box = document.querySelector('.box')
 
-样式表只能使用 style 标签或者 link 标签创建（对 XML 来说，还可以使用，咱们暂且不表）。
-
-我们虽然无法用 CSSOM API 来创建样式表，但是我们可以修改样式表中的内容。
-
-```text
-document.styleSheets[0].insertRule("p { color:pink; }", 0)
-document.styleSheets[0].removeRule(0)
-```
-
-更进一步，我们可以获取样式表中特定的规则（Rule），并且对它进行一定的操作，具体来说，就是使用它的 cssRules 属性来实现：
-
-```text
-document.styleSheets[0].cssRules
-```
-
-这里取到的规则列表，同样是支持 item、length 和下标运算。
-
-不过，这里的 Rules 可就没那么简单了，它可能是 CSS 的 at-rule，也可能是普通的样式规则。不同的 rule 类型，具有不同的属性。
-
-我们在 CSS 语法部分，已经为你整理过 at-rule 的完整列表，多数 at-rule 都对应着一个 rule 类型：
-
-- CSSStyleRule
-
-- CSSCharsetRule
-
-- CSSImportRule
-
-- CSSMediaRule
-
-- CSSFontFaceRule
-
-- CSSPageRule
-
-- CSSNamespaceRule
-
-- CSSKeyframesRule
-
-- CSSKeyframeRule
-
-- CSSSupportsRule
-
-具体的规则支持的属性，建议你可以用到的时候，再去查阅 MDN 或者 W3C 的文档，在我们的文章中，仅为你详细介绍最常用的 CSSStyleRule。
-
-CSSStyleRule 有两个属性：selectorText 和 style，分别表示一个规则的选择器部分和样式部分。
-
-selector 部分是一个字符串，这里显然偷懒了没有设计进一步的选择器模型，我们按照选择器语法设置即可。
-
-style 部分是一个样式表，它跟我们元素的 style 属性是一样的类型，所以我们可以像修改内联样式一样，直接改变属性修改规则中的具体 CSS 属性定义，也可以使用 cssText 这样的工具属性。
-
-此外，CSSOM 还提供了一个非常重要的方法，来获取一个元素最终经过 CSS 计算得到的属性：
-
-```text
-window.getComputedStyle(elt, pseudoElt);
-```
-
-其中第一个参数就是我们要获取属性的元素，第二个参数是可选的，用于选择伪元素。
-
-好了，到此为止，我们可以使用 CSSOM API 自由地修改页面已经生效的样式表了。接下来，我们来一起关注一下视图的问题。
-
-## CSSOM View
-
-CSSOM View 这一部分的 API，可以视为 DOM API 的扩展，它在原本的 Element 接口上，添加了显示相关的功能，这些功能，又可以分成三个部分：窗口部分，滚动部分和布局部分，下面我来分别带你了解一下。
-
-### 窗口 API
-
-窗口 API 用于操作浏览器窗口的位置、尺寸等。
-
-- moveTo(x, y) 窗口移动到屏幕的特定坐标；
-
-- moveBy(x, y) 窗口移动特定距离；
-
-- resizeTo(x, y) 改变窗口大小到特定尺寸；
-
-- resizeBy(x, y) 改变窗口大小特定尺寸。
-
-此外，窗口 API 还规定了 window.open() 的第三个参数：
-
-```text
-window.open("about:blank", "_blank" ,"width=100,height=100,left=100,right=100" )
-```
-
-一些浏览器出于安全考虑没有实现，也不适用于移动端浏览器，这部分你仅需简单了解即可。下面我们来了解一下滚动 API。
-
-### 滚动 API
-
-要想理解滚动，首先我们必须要建立一个概念，在 PC 时代，浏览器`可视区域的滚动`和`内部元素的滚动`关系是比较模糊的，但是在移动端越来越重要的今天，两者必须分开看待，两者的性能和行为都有区别。
-
-#### 视口滚动 API
-
-可视区域（视口）滚动行为由 window 对象上的一组 API 控制，我们先来了解一下：
-
-- scrollX 是视口的属性，表示 X 方向上的当前滚动距离，有别名 pageXOffset；
-
-- scrollY 是视口的属性，表示 Y 方向上的当前滚动距离，有别名 pageYOffset；
-
-- scroll(x, y) 使得页面滚动到特定的位置，有别名 scrollTo，支持传入配置型参数 {top, left}；
-
-- scrollBy(x, y) 使得页面滚动特定的距离，支持传入配置型参数 {top, left}。
-
-通过这些属性和方法，我们可以读取视口的滚动位置和操纵视口滚动。不过，要想监听视口滚动事件，我们需要在 document 对象上绑定事件监听函数：
-
-```text
-document.addEventListener("scroll", function(event){
-  //......
+console.table({
+  inline: box.style.width,
+  computed: getComputedStyle(box).width,
+  borderBox: box.getBoundingClientRect().width,
+  clientWidth: box.clientWidth,
+  offsetWidth: box.offsetWidth
 })
 ```
 
-视口滚动 API 是页面的顶层容器的滚动，大部分移动端浏览器都会采用一些性能优化，它和元素滚动不完全一样，请大家一定建立这个区分的意识。
+输入是一个具有内联百分比宽度的元素。关键区别是 style 只看内联声明，computed 经过层叠，rect 包含 transform 后的 viewport 几何，client/offset 使用各自盒模型并通常为整数；输出不能互相替代。测量前要说明 box-sizing、边框、滚动条和缩放条件。
 
-#### 元素滚动 API
+## 步骤二：理解样式表对象
 
-接下来我们来认识一下元素滚动 API，在 Element 类（参见 DOM 部分），为了支持滚动，加入了以下 API。
+`document.styleSheets` 暴露关联样式表，CSSStyleSheet 含规则列表，CSSStyleRule 连接 selectorText 与 CSSStyleDeclaration。跨源样式表即使应用成功，脚本读取 `cssRules` 也可能因同源策略抛 SecurityError。
 
-- scrollTop 元素的属性，表示 Y 方向上的当前滚动距离。
+可以用 `insertRule()`、`deleteRule()` 或 constructable stylesheet 修改规则，但大量运行时拼接会增加作用域和回收复杂度。组件状态通常通过 class/data attribute 切换，让样式表保持稳定；主题可使用自定义属性更新 token。
 
-- scrollLeft 元素的属性，表示 X 方向上的当前滚动距离。
+## 步骤三：层叠、继承和自定义属性
 
-- scrollWidth 元素的属性，表示元素内部的滚动内容的宽度，一般来说会大于等于元素宽度。
+层叠比较来源、important、layer、specificity、scope 与源码顺序。继承只发生在属性定义允许时；`inherit`、`initial`、`unset`、`revert` 和 `revert-layer` 又有不同回退含义。
 
-- scrollHeight 元素的属性，表示元素内部的滚动内容的高度，一般来说会大于等于元素高度。
+自定义属性保存 token，并默认继承。`var(--token, fallback)` 的 fallback 只在变量缺失或无效时参与，不等同于 JavaScript 的 `||`。循环引用或代入后属性语法无效，会让声明在 computed-value time 失效。
 
-- scroll(x, y) 使得元素滚动到特定的位置，有别名 scrollTo，支持传入配置型参数 {top, left}。
+## 步骤四：读取布局为何可能变慢
 
-- scrollBy(x, y) 使得元素滚动到特定的位置，支持传入配置型参数 {top, left}。
+JavaScript 写入 class/style 后，浏览器可以延迟样式和布局。紧接着读取 `offsetWidth`、rect 或部分 computed style，为了返回当前值，浏览器可能同步刷新待处理工作。循环中交替“写、读、写、读”会产生 layout thrashing。
 
-- scrollIntoView(arg) 滚动元素所在的父元素，使得元素滚动到可见区域，可以通过 arg 来指定滚到中间、开始或者就近。
+改进方法是批量读取旧状态、计算、再批量写入；跨帧视觉更新可用 requestAnimationFrame。不要为了避免一次布局把全部测量搬进定时器，先用 Performance trace 证明强制布局来自哪里。
 
-除此之外，可滚动的元素也支持 scroll 事件，我们在元素上监听它的事件即可：
+## viewport 与滚动接口
 
-```text
-element.addEventListener("scroll", function(event){
-  //......
-})
-```
+`window.innerWidth`、VisualViewport、documentElement clientWidth 表达的视口概念并不完全相同，移动端缩放和软键盘尤其明显。滚动位置还受 scroll container、书写模式、overscroll 和小数精度影响。
 
-这里你需要注意一点，元素部分的 API 设计与视口滚动命名风格上略有差异，你在使用的时候不要记混。
+`scrollIntoView()` 只发起滚动行为，固定 header、scroll-margin、减少动态偏好和焦点仍需设计。IntersectionObserver 适合异步观察相交，不提供每像素同步测量保证。
 
-#### 布局 API
+## 失败与验证
 
-最后我们来介绍一下布局 API，这是整个 CSSOM 中最常用到的部分，我们同样要分成全局 API 和元素上的 API。
+制造 500 个元素，在循环中每次改 class 后立即读 offsetWidth，再改为先批量写后统一读。Performance 中比较 Recalculate Style 与 Layout 次数，而不是只测一轮 `Date.now()`。
 
-##### 全局尺寸信息
-
-window 对象上提供了一些全局的尺寸信息，它是通过属性来提供的，我们一起来了解一下来这些属性。
-
-
-
-- window.innerHeight, window.innerWidth 这两个属性表示视口的大小。
-
-- window.outerWidth, window.outerHeight 这两个属性表示浏览器窗口占据的大小，很多浏览器没有实现，一般来说这两个属性无关紧要。
-
-- window.devicePixelRatio 这个属性非常重要，表示物理像素和 CSS 像素单位的倍率关系，Retina 屏这个值是 2，后来也出现了一些 3 倍的 Android 屏。
-
-- window.screen （屏幕尺寸相关的信息）
-
-  - window.screen.width, window.screen.height 设备的屏幕尺寸。
-
-  - window.screen.availWidth, window.screen.availHeight 设备屏幕的可渲染区域尺寸，一些 Android 机器会把屏幕的一部分预留做固定按钮，所以有这两个属性，实际上一般浏览器不会实现的这么细致。
-
-  - window.screen.colorDepth, window.screen.pixelDepth 这两个属性是固定值 24，应该是为了以后预留。
-
-虽然 window 有这么多相关信息，在我看来，我们主要使用的是 `innerHeight`、`innerWidth` 和 `devicePixelRatio` 三个属性，因为我们前端开发工作只需要跟视口打交道，其它信息大概了解即可。
-
-##### 元素的布局信息
-
-最后我们来到了本节课一开始提到的问题，我们是否能够取到一个元素的宽（width）和高（height）呢？
-
-实际上，我们首先应该从脑中消除“元素有宽高”这样的概念，我们课程中已经多次提到了，有些元素可能产生多个盒，事实上，只有盒有宽和高，元素是没有的。
-
-所以我们获取宽高的对象应该是“盒”，于是 CSSOM View 为 Element 类添加了两个方法：
-
-- getClientRects();
-
-- getBoundingClientRect()。
-
-**getClientRects** 会返回一个列表，里面包含元素对应的每一个盒所占据的客户端矩形区域，这里每一个矩形区域可以用 x, y, width, height 来获取它的位置和尺寸。
-
-**getBoundingClientRect** ，这个 API 的设计更接近我们脑海中的元素盒的概念，它返回元素对应的所有盒的包裹的矩形区域，需要注意，这个 API 获取的区域会包括当 overflow 为 visible 时的子元素区域。
-
-根据实际的精确度需要，我们可以选择何时使用这两个 API。
-
-这两个 API 获取的矩形区域都是相对于视口的坐标，这意味着，这些区域都是受滚动影响的。
-
-如果我们要获取相对坐标，或者包含滚动区域的坐标，需要一点小技巧：
-
-```text
-var offsetX = document.documentElement.getBoundingClientRect().x - element.getBoundingClientRect().x;
-```
-
-如这段代码所示，我们只需要获取文档跟节点的位置，再相减即可得到它们的坐标。
-
-这两个 API 的兼容性非常好，定义又非常清晰，建议你如果是用 JavaScript 实现视觉效果时，尽量使用这两个 API。
-
-**总结**
-
-像 HTML 和 CSS 分别承担了语义和表现的分工，DOM 和 CSSOM 也有语义和表现的分工。
-
-CSSOM 是 CSS 的对象模型，在 W3C 标准中，它包含两个部分：描述样式表和规则等 CSS 的模型部分（CSSOM），和跟元素视图相关的 View 部分（CSSOM View）。
-
-## 现代规范校订
-
-浏览器实现会持续演进，文中的流程是职责模型，不应理解为所有浏览器都采用完全相同的线程数量或执行细节。网络部分应以 HTTP/2 与 HTTP/3 的现代连接模型为主。
-
-## 规范要点与现代边界
-
-CSSOM 保存规则和声明，最终样式还要经过层叠、继承、计算值和 used value。读取布局属性可能触发强制同步布局，批量修改应先读后写或使用 requestAnimationFrame 分帧。Shadow DOM 会改变样式作用域和事件路径，不能靠全局选择器猜测组件内部。
-
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
-
-## 运行验证
-
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
-
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
+遇到尺寸差异时记录 viewport、DPR、zoom、box-sizing、transform 和滚动条，再选择正确 API。没有一个“真实宽度”适合所有目的：布局约束、屏幕命中和动画几何关心的阶段不同。
 
 ## 参考资料
 
-- https://html.spec.whatwg.org/
-- https://developer.mozilla.org/en-US/docs/Web/API
+- [CSS Object Model](https://www.w3.org/TR/cssom-1/)
+- [CSSOM View Module](https://www.w3.org/TR/cssom-view-1/)
+- [CSS Cascading and Inheritance](https://www.w3.org/TR/css-cascade-5/)
+- [MDN：CSS Object Model](https://developer.mozilla.org/docs/Web/API/CSS_Object_Model)

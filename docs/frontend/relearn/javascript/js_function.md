@@ -1,256 +1,103 @@
 ---
 title: "JavaScript 函数"
-description: "比较普通函数、箭头函数、生成器和异步函数"
+description: "从调用方式理解 this、普通函数、箭头函数、生成器和异步函数"
 category: frontend
 tags: ["JavaScript","Function"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 460
 depth: reference
 series: "重学前端"
 ---
 # JavaScript 函数
 
-## 函数家族
+把对象方法赋值给一个变量再调用，`this` 为什么丢了？因为普通函数的 `this` 主要由调用方式决定，不由它写在哪个对象里决定。箭头函数又采用外层词法 `this`，所以两者不能机械互换。
 
-#### 普通函数：用 function 关键字定义的函数。
+## 先认识函数家族
 
-```text
-function foo(){
-    // code
+普通函数拥有 `[[Call]]`，通常也能被 `new` 构造；对象或 class 方法可调用但不是构造器；箭头函数没有自己的 `this`、`arguments`、`super` 和 `new.target`，也不能构造。生成器可以暂停并返回迭代器，async 函数总是返回 Promise。
+
+```mermaid
+flowchart LR
+  A[定义一段行为] --> B{需要构造实例?}
+  B -->|是| C[class 或可构造普通函数]
+  B -->|否| D{需要动态 this?}
+  D -->|是| E[普通函数或方法]
+  D -->|否| F[箭头函数]
+  E --> G{需要暂停或异步协议?}
+  F --> G
+  G --> H[generator / async function]
+```
+
+这张图是选择入口，不是语法优劣排名。函数种类应根据调用契约决定。
+
+## 步骤一：观察 this 怎样被绑定
+
+预期结果是作为方法调用时得到对象名称，通过 `call` 时得到显式对象；把方法拆出来直接调用，在 module/strict 环境中 `this` 为 undefined。
+
+```js
+function describe(prefix) {
+  return `${prefix}: ${this?.name ?? 'no receiver'}`
+}
+
+const profile = { name: 'Jiang', describe }
+const detached = profile.describe
+
+console.log(profile.describe('method'))
+console.log(describe.call({ name: 'Example' }, 'call'))
+console.log(detached('plain'))
+```
+
+输入是同一个函数的三种调用表达式。关键逻辑是调用点提供 receiver；输出依次对应 profile、显式 call 参数和无 receiver。`bind()` 会创建固定 this 与部分参数的新函数，`apply()` 则用数组式参数调用；生产代码直接使用原生方法，不需要手写版本替代规范边界。
+
+## 步骤二：箭头函数何时合适
+
+箭头函数从创建位置捕获词法 this，适合作为需要沿用外层接收者的回调。它不会因 `call`、`apply` 或 `bind` 改变 this，也没有构造能力。
+
+把对象方法直接写成箭头函数时，它不会自动绑定该对象；把 class 实例回调写成字段箭头会为每个实例创建函数，却可避免传给事件系统后丢 receiver。是否采用要比较实例数量、身份稳定性和解除监听需求，不能只用“箭头更现代”判断。
+
+## 步骤三：理解 new 与 class 方法
+
+普通函数经 `new` 调用时，运行时创建对象、把它连到函数的 prototype、以新对象为 this 执行，并按构造返回规则决定结果。函数体可读取 `new.target` 区分普通调用与构造调用。
+
+class constructor 只能经 `new` 调用，实例方法位于 prototype；派生 constructor 在使用 this 前要先 `super()`。static 方法的 receiver 是类构造器，不是实例。私有字段还会做品牌检查，拆借方法到不兼容对象会抛错。
+
+## 步骤四：生成器和异步函数解决什么
+
+生成器函数调用后返回 iterator，执行在 `next()` 时推进，`yield` 暂停并交换值。它适合表达惰性序列和可暂停遍历，不表示后台并行。
+
+async 函数调用后立即返回 Promise；同步 return 成为 fulfilled 值，抛错成为 rejection，`await` 暂停当前 async 函数并在 Promise reaction 中恢复。取消不属于 Promise 内建状态，需要 AbortSignal 或领域任务协议另行表达。
+
+下面把“逐项拉取”写成 async generator，调用方既能等待异步来源，也能逐项消费，而不是一次把全部内容读进内存。
+
+```js
+async function* pages(loadPage) {
+  for (let page = 1; ; page += 1) {
+    const items = await loadPage(page)
+    if (items.length === 0) return
+    yield items
+  }
+}
+
+for await (const items of pages(fetchPage)) {
+  render(items)
 }
 ```
 
-#### 箭头函数：用 => 运算符定义的函数。
+输入是一个返回 Promise 的分页加载函数，关键逻辑是每次 await 一页并 yield 一批；输出由 `for await` 按到达顺序消费。失败会以 rejection 传播，调用方还需决定重试、取消和已渲染内容的保留方式。
 
-```text
-const foo = () => {
-    // code
-}
-```
+## 常见失败
 
-#### 方法：在 class 中定义的函数。
+- 把方法传给事件系统后无法正确移除，因为 add/remove 使用了两个不同 bind 结果。
+- 用箭头函数实现需要动态 receiver 的公共方法，导致 call 无效。
+- 只捕获同步 throw，遗漏 async 函数的 rejected Promise。
+- 把 generator 当成并行任务，忽略它仍在调用线程推进。
+- 在回调中隐式依赖 this，使重构调用方式后行为改变。
 
-```text
-class C {
-    foo(){
-        //code
-    }
-}
-```
-
-#### 类：用 class 定义的类，实际上也是函数。
-
-```text
-class Foo {
-    constructor(){
-        //code
-    }
-}
-```
-
-#### 异步函数：普通函数、箭头函数和生成器函数加上 async 关键字。
-
-```text
-async function foo(){
-    // code
-}
-const foo = async () => {
-    // code
-}
-async function foo*(){
-    // code
-}
-```
-
-## this 关键字的行为
-
-this 是执行上下文中很重要的一个组成部分。同一个函数调用方式不同，得到的 this 值也不同
-
-```text
-function showThis(){
-    console.log(this);
-}
-
-var o = {
-    showThis: showThis
-}
-
-showThis(); // global
-o.showThis(); // o
-```
-
-**调用函数时使用的引用，决定了函数执行时刻的 this 值。**
-
-## 剪头函数中的 this
-
-```text
-const showThis = () => {
-    console.log(this);
-}
-
-var o = {
-    showThis: showThis
-}
-
-showThis(); // global
-o.showThis(); // global
-```
-
-## class 中的 this
-
-```text
-class C {
-    showThis() {
-        console.log(this);
-    }
-}
-var o = new C();
-var showThis = o.showThis;
-
-showThis(); // undefined
-o.showThis(); // o
-
-等同于严格模式下：
-"use strict"
-function showThis(){
-    console.log(this);
-}
-
-var o = {
-    showThis: showThis
-}
-
-showThis(); // undefined
-o.showThis(); // o
-```
-
-#### 为什么输出 undefined？
-
-答：因为 class 设计成了默认按 strict 模式执行，this 严格按照调用时传入的值，可能为 null 或者 undefined。
-
-JavaScript 用一个栈来管理执行上下文，这个栈中的每一项又包含一个链表。如下图所示：
-
- 当函数调用时，会入栈一个新的执行上下文，函数调用结束时，执行上下文被出栈
-
-而 this 则是一个更为复杂的机制，JavaScript 标准定义了 [[thisMode]] 私有属性。
-
-[[thisMode]] 私有属性有三个取值。
-
-- lexical：表示从上下文中找 this，这对应了箭头函数。
-
-- global：表示当 this 为 undefined 时，取全局对象，对应了普通函数。
-
-- strict：当严格模式时使用，this 严格按照调用时传入的值，可能为 null 或者 undefined。
-
-函数创建新的执行上下文中的词法环境记录时，会根据[[thisMode]]来标记新纪录的[[ThisBindingStatus]]私有属性。
-
-代码执行遇到 this 时，会逐层检查当前词法环境记录中的[[ThisBindingStatus]]，当找到有 this 的环境记录时获取 this 的值。
-
-这样的规则的实际效果是，嵌套的箭头函数中的代码都指向外层 this，例如：
-
-```text
-var o = {}
-o.foo = function foo(){
-    console.log(this);
-    return () => {
-        console.log(this);
-        return () => console.log(this);
-    }
-}
-
-o.foo()()(); // o, o, o
-```
-
-这个例子中，我们定义了三层嵌套的函数，最外层为普通函数，两层都是箭头函数。这里调用三个函数，获得的 this 值是一致的，都是对象 o。
-
-## 操作 this 的内置函数
-
-Function.prototype.call 和 Function.prototype.apply <br/> 可以指定函数调用时传入的 this 值，示例如下：
-
-```text
-//这里 call 和 apply 作用是一样的，只是传参方式有区别。会立即执行
-function foo(a, b, c){
-    console.log(this); //如果传进来的this是null或者undefined，那么将会输出global
-    console.log(a, b, c);
-}
-foo.call({}, 1, 2, 3);
-foo.apply({}, [1, 2, 3]);
-
-//bind
-function foo(a, b, c){
-    console.log(this);
-    console.log(a, b, c);
-}
-foo.bind({}, 1, 2, 3)();
-```
-
-### 相似之处
-
-1、都是用来改变函数的 this 对象的指向的。<br/> 2、第一个参数都是 this 要指向的对象。<br/> 3、都可以利用后续参数传参。
-
-### 区别
-
-1.call、apply 与 bind 都用于改变 this 绑定，但 call、apply 在改变 this 指向的同时还会执行函数，而 bind 在改变 this 后是返回一个全新的 boundFcuntion 绑定函数，这也是为什么上方例子中 bind 后还加了一对括号 ()的原因。
-
-2.bind 属于硬绑定，返回的 boundFunction 的 this 指向无法再次通过 bind、apply 或 call 修改；call 与 apply 的绑定只适用当前调用，调用完就没了，下次要用还得再次绑。
-
-3.call 与 apply 功能完全相同，唯一不同的是 call 方法传递函数调用形参是以散列形式，而 apply 方法的形参是一个数组。在传参的情况下，call 的性能要高于 apply，因为 apply 在执行时还要多一步解析数组。
-
-wx.say.bind(this) 不能立即执行，无效，必须 wx.say.bind(this)("aaa"),参数置后<br/> wx.say.call(this,"aaa","bbb") 立即执行<br/> wx.say.apply(this,["aaa","bbb"]) 立即执行,参数为数组
-
-## 手写 call,apply,bind
-
-```text
-Function.prototype.myCall =
-    function (ctx) {
-    ctx = ctx || window;
-    ctx.fn = this;
-    let args = Array.from(arguments).slice(1);
-    let res = ctx.fn(...args);
-    delete ctx.fn;
-    return res;
-};
-Function.prototype.myApply = function (ctx) {
-    ctx = ctx || window;
-    ctx.fn = this;
-    let args = Array.from(arguments[1]);
-    let res = ctx.fn(...args);
-    delete ctx.fn;
-    return res;
-};
-Function.prototype.myBind = function (ctx) {
-    let args = Array.from(arguments).slice(1);
-    let that = this;
-    return function (...oargs)
-        {
-            return that.apply(ctx, [...args, ...oargs]);
-        };
- };
-```
-
-## 现代规范校订
-
-规范内部术语用于解释语言行为，不等同于浏览器或引擎必须采用的具体数据结构。工程代码同时需要 TypeScript 静态约束和运行时输入校验。
-
-## 规范要点与现代边界
-
-函数的 this、参数、返回值和副作用应通过调用方式与类型签名表达。箭头函数没有自己的 this，生成器提供可暂停迭代，异步函数把异常放进 Promise。封装函数时区分同步抛错、异步拒绝、取消和超时，避免调用者只能捕获一类失败。
-
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
-
-## 运行验证
-
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
-
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
+公共函数应通过参数、返回类型、副作用、同步抛错、异步拒绝、取消和超时说明完整契约。
 
 ## 参考资料
 
-- https://tc39.es/ecma262/
-- https://developer.mozilla.org/en-US/docs/Web/JavaScript
+- [ECMAScript：ECMAScript Function Objects](https://tc39.es/ecma262/#sec-ecmascript-function-objects)
+- [ECMAScript：Arrow Function Definitions](https://tc39.es/ecma262/#sec-arrow-function-definitions)
+- [MDN：Functions](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Functions)
+- [MDN：Iterators and generators](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Iterators_and_generators)

@@ -1,7 +1,7 @@
 ---
 layout: page
-title: 后端工程
-description: Node.js 与 Python 并重的 API、数据、任务和实时系统实践。
+title: 后端
+description: 用 Node.js、Python 和 Go 逐步实现 API、数据、异步任务与实时系统。
 sidebar: false
 aside: false
 footer: false

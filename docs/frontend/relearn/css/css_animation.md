@@ -1,135 +1,90 @@
 ---
 title: "CSS 动画与过渡"
-description: "区分 transition、animation 与合成友好属性"
+description: "从状态变化理解 transition、animation、性能和减弱动态效果"
 category: frontend
 tags: ["CSS","Animation"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 410
 depth: reference
 series: "重学前端"
 ---
 # CSS 动画与过渡
 
-## animation 属性和 transition 属性
+按钮悬停时从灰色变蓝，面板打开时从下方进入，这两种效果看起来相似，却适合不同工具。`transition` 连接两个已知状态，`animation` 描述一条可以重复和分段的时间线。选错工具通常不会报错，却会让中断、状态同步和无障碍变难。
 
-了解一下 animation 属性的基本用法:
+## 先判断你要表达哪种变化
 
-```text
-@keyframes mykf
-{
-  from {background: red;}
-  to {background: yellow;}
-}
-
-div
-{
-    animation:mykf 5s infinite;
-}
+```mermaid
+flowchart LR
+  A[界面状态改变] --> B{只有起点和终点?}
+  B -->|是| C[transition]
+  B -->|否，需要多段时间线| D[keyframes animation]
+  C --> E[验证中断与 reduced motion]
+  D --> E
 ```
 
-这里展示了 animation 的基本用法，实际上 animation 分成六个部分：
+过渡需要属性的计算值发生改变才会触发，适合 hover、展开、选中等反馈。关键帧动画由 `@keyframes` 定义中间阶段，适合加载提示或需要多段动作的效果。两者都只负责视觉，不会自动改变业务状态或焦点。
 
-- animation-name 动画的名称，这是一个 keyframes 类型的值
+## 步骤一：给面板增加短过渡
 
-- animation-duration 动画的时长；
-
-- animation-timing-function 动画的时间曲线；
-
-- animation-delay 动画开始前的延迟；
-
-- animation-iteration-count 动画的播放次数；
-
-- animation-direction 动画的方向。
-
-transition 与 animation 相比来说，是简单得多的一个属性。它有四个部分：
-
-- transition-property 要变换的属性；
-
-- transition-duration 变换的时长；
-
-- transition-timing-function 时间曲线；
-
-- transition-delay 延迟。
-
-这里的四个部分，可以重复多次，指定多个属性的变换规则。
-
-实际上，有时候我们会把 transition 和 animation 组合，抛弃 animation 的 timing-function，以编排不同段用不同的曲线。
-
-```text
-@keyframes mykf {
-  from { top: 0; transition:top ease}
-  50% { top: 30px;transition:top ease-in }
-  75% { top: 10px;transition:top ease-out }
-  to { top: 0; transition:top linear}
-}
-```
-
-## 现代规范校订
-
-现代 CSS 还应结合 Cascade Layers、容器查询、逻辑属性和新的颜色空间理解。历史语法可以帮助理解演进，但实现决策必须以目标浏览器支持矩阵为准。
-
-## 规范要点与现代边界
-
-动画应表达状态变化而不是掩盖状态不清。优先使用 transform 和 opacity 等合成友好属性，避免对布局属性做高频动画；为 prefers-reduced-motion 提供降级；过渡只在状态确实发生时触发。调试时检查合成层数量、长任务和动画结束后的焦点位置。
-
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
-
-## 运行验证
-
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
-
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
-
-## 参考资料
-
-- https://www.w3.org/TR/css-syntax-3/
-- https://developer.mozilla.org/en-US/docs/Web/CSS
-
-## 动画的运行时边界
-
-`transition` 适合两个已知状态之间的短暂变化，`animation` 适合由关键帧和迭代次数描述的时间线。两者都不会自动管理业务状态、焦点或可访问名称。应在状态类变化时触发动画，而不是依赖页面加载后永久播放；结束后要保持最终状态，避免用户看到视觉状态和 DOM 状态不一致。
+预期结果是：`data-open` 从 `false` 变为 `true` 时，面板在 160ms 内淡入并回到原位；用户要求减少动态效果时，内容仍立即可见。
 
 ```css
 .panel {
   opacity: 0;
-  transform: translateY(.5rem);
+  transform: translateY(0.5rem);
   transition: opacity 160ms ease, transform 160ms ease;
 }
+
 .panel[data-open="true"] {
   opacity: 1;
-  transform: none;
+  transform: translateY(0);
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .panel { transition-duration: 1ms; }
+  .panel {
+    transition-duration: 1ms;
+  }
 }
 ```
 
-性能验证要同时看主线程长任务、合成层、内存和输入响应。对 width、height、top、left 等几何属性做高频动画可能反复触发布局；改用 transform 也不是无条件更快，过多图层会增加栅格化和显存成本。使用 DevTools Performance 记录真实设备，并检查动画中断后键盘焦点仍然可见。
+输入是 `data-open` 的状态变化，关键逻辑是只过渡 `opacity` 和 `transform`；输出是短暂视觉反馈，最终 DOM 状态仍由属性表达。明确列出属性比 `transition: all` 更容易审查，也避免以后新增尺寸样式时意外参与动画。
 
-## 动画状态机
+## 步骤二：理解动画的六个部分
 
-复杂组件应把 `closed`、`opening`、`open` 和 `closing` 当作可观察状态，动画只是状态之间的视觉过渡。用户在动画中再次点击、按 Escape、切换路由或关闭 `prefers-reduced-motion` 时，状态机必须有确定结果。监听 `animationend` 或 transition 事件时校验事件目标，并在卸载时清理监听器；不能用一个全局定时器假定每台设备的时长一致。
+`animation-name` 指向关键帧，`duration` 表示一轮时长，`timing-function` 控制插值，`delay` 控制开始等待，`iteration-count` 控制次数，`direction` 控制播放方向。`fill-mode` 还会影响开始前和结束后采用哪一帧样式。
 
-图片、字体和阴影也会影响动画的首帧和绘制成本。使用 Performance 面板检查帧率、长任务、栅格化和布局次数，再决定是否拆分节点或减少效果。动画结束后应把内容保持在最终可访问状态，并让屏幕阅读器感知真正的展开/收起属性。对于加载、提交和错误反馈，优先用静态状态、进度文本和可取消操作表达结果，动画只做短暂反馈。这样即使浏览器禁用动画、设备性能不足或用户开启减少动效，功能和状态仍然完整。
-状态变化的原因应由 DOM 属性或组件状态表达，不能只靠颜色和位移让用户猜测。
-当动画被取消时，组件仍要保持可操作并及时清理监听器。
-减少动效时保留状态反馈，不要让用户失去对进度的判断。
-键盘和触摸输入都要能中断或完成状态切换。
-动画时长应服务反馈而非拖延操作。
-为低端设备保留无动画路径。
-也要检查动画结束后的焦点和滚动位置。
-避免只验证理想路径。
-关注中断和恢复。
-保证状态可见。
-并兼顾键盘操作。
-也保留降级。
-动画不应阻塞核心操作。
-反馈要及时。
-且可取消。
-。
+一条动画可以在不同关键帧区间使用不同时间函数。它适合描述“进入、停顿、退出”等多阶段过程；如果只有两个状态，transition 通常更直观。
+
+## 步骤三：把动画放回业务状态机
+
+复杂组件可能处于 `closed`、`opening`、`open`、`closing`。动画只是状态之间的反馈。用户在播放中再次点击、按 Escape、切换路由或开启 reduced motion 时，状态机仍要得出确定结果。
+
+监听 `animationend` 或 `transitionend` 时，要确认事件来自目标属性和目标元素，并在组件卸载时清理监听。不要用一个定时器假设所有设备都按同样时长完成；页面后台运行、样式变化和用户设置都会影响事件时机。
+
+## 性能为什么不能只背 transform
+
+改变 `width`、`height`、`top`、`left` 等几何属性，可能重复触发布局与绘制；`transform` 和 `opacity` 往往更容易在合成阶段处理。但创建过多合成层也会增加栅格化和内存成本，所以“只用 transform 就一定快”同样不准确。
+
+使用 DevTools Performance 记录静止、播放和中断三段，观察长任务、布局、绘制、栅格化和图层数量。动画还应保持输入响应与焦点可见，不能只比较帧率。
+
+## 故意制造一次失败
+
+在面板打开动画中再次点击关闭。如果组件只等待第一次结束事件，视觉可能回到关闭，业务状态却仍写着 open。测试应断言最终属性、可见性和焦点三者一致。
+
+再开启系统的“减少动态效果”。正常结果是核心内容和进度仍可理解；如果动画被移除后页面永远停在透明或位移状态，说明动画错误地承担了业务状态。
+
+## 验收清单
+
+1. 动画关闭时，功能仍完整可用。
+2. 播放中再次操作会进入确定状态。
+3. Escape、路由切换和卸载会清理监听器。
+4. reduced motion 下保留必要状态反馈。
+5. 动画结束后焦点与滚动位置没有丢失。
+
+## 参考资料
+
+- [CSS Transitions Level 2](https://www.w3.org/TR/css-transitions-2/)
+- [CSS Animations Level 2](https://www.w3.org/TR/css-animations-2/)
+- [MDN：Using CSS animations](https://developer.mozilla.org/docs/Web/CSS/CSS_animations/Using_CSS_animations)
+- [web.dev：Animations](https://web.dev/learn/css/animations/)

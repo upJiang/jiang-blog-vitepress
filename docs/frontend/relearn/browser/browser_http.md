@@ -1,250 +1,81 @@
 ---
 title: "浏览器网络与 HTTP"
-description: "从导航请求到 HTTP/2、HTTP/3 理解现代网络栈"
+description: "从一次导航理解请求、缓存、HTTPS、HTTP/2 与 HTTP/3"
 category: frontend
 tags: ["Browser","HTTP"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 530
 depth: reference
 series: "重学前端"
 ---
 # 浏览器网络与 HTTP
 
-## 浏览器到底是如何工作的?
+在地址栏输入 URL 后，浏览器不是立刻“发送一个 HTTP 包”。它先解析地址、查缓存和策略，再建立或复用连接，发送请求并处理响应。页面随后还会发现 CSS、脚本、字体和图片，形成更多带优先级与依赖的请求。
 
-> 实际上，对浏览器的实现者来说，他们做的事情，就是把一个 URL 变成一个屏幕上显示的网页。
+## 先看一次导航的主流程
 
-这个过程是这样的：
-
-1. 浏览器首先使用 HTTP 协议或者 HTTPS 协议，向服务端请求页面；
-2. 把请求回来的 HTML 代码经过解析，构建成 DOM 树；
-3. 计算 DOM 树上的 CSS 属性；
-4. 最后根据 CSS 属性对元素逐个进行渲染，得到内存中的位图；
-5. 一个可选的步骤是对位图进行合成，这会极大地增加后续绘制的速度；
-6. 合成之后，再绘制到界面上。
-
-
-
-我们从 HTTP 请求回来开始，这个过程并非一般想象中的一步做完再做下一步，而是一条流水线。
-
-从 HTTP 请求回来，就产生了流式的数据，后续的 DOM 树构建、CSS 计算、渲染、合成、绘制，都是尽可能地流式处理前一步的产出：即不需要等到上一步骤完全结束，就开始处理上一步的输出，这样我们在浏览网页时，才会看到逐步出现的页面。
-
-## HTTP 协议
-
-浏览器首先要做的事就是根据 URL 把数据取回来，取回数据使用的是 HTTP 协议，实际上这个过程之前还有 DNS 查询
-
-HTTP 标准由 IETF 组织制定，跟它相关的标准主要有两份：
-
-- HTTP1.1 https://tools.ietf.org/html/rfc2616
-
-- HTTP1.1 https://tools.ietf.org/html/rfc7234
-
-HTTP 协议是基于 TCP 协议出现的，对 TCP 协议来说，TCP 协议是一条双向的通讯通道，HTTP 在 TCP 的基础上，规定了 Request-Response 的模式。这个模式决定了通讯必定是由浏览器端首先发起的。
-
-大部分情况下，浏览器的实现者只需要用一个 TCP 库，甚至一个现成的 HTTP 库就可以搞定浏览器的网络通讯部分。**HTTP 是纯粹的文本协议，它是规定了使用 TCP 协议来传输文本格式的一个应用层协议**。
-
-## 实验
-
-我们的实验需要使用 telnet 客户端，这个客户端是一个纯粹的 TCP 连接工具（安装方法）。
-
-首先我们运行 telnet，连接到极客时间主机，在命令行里输入以下内容：
-
-```text
-telnet time.geekbang.org 80
+```mermaid
+flowchart LR
+  A[解析 URL 与策略] --> B[查缓存和 Service Worker]
+  B --> C[DNS 与连接协商]
+  C --> D[TLS 和 HTTP 版本]
+  D --> E[发送请求]
+  E --> F[接收状态、头和正文]
+  F --> G[解析页面并发现子资源]
 ```
 
-这个时候，TCP 连接已经建立，我们输入以下字符作为请求：
+实际浏览器会并发、预连接、复用缓存，代理和 Service Worker 也可能介入。这张图只建立排障顺序，不能作为某个引擎的固定线程模型。
 
-```text
-GET / HTTP/1.1
-Host: time.geekbang.org
-```
+## 步骤一：读懂一组请求与响应
 
-按下两次回车，我们收到了服务端的回复：
+HTTP 消息由方法/目标或状态行、字段和可选正文组成。HTTP/2 和 HTTP/3 在线路上使用二进制帧，不再发送 HTTP/1.1 的文本格式，但开发者面对的方法、状态和字段语义仍大体延续。
 
-```text
-HTTP/1.1 301 Moved Permanently
-Date: Fri, 25 Jan 2019 13:28:12 GMT
-Content-Type: text/html
-Content-Length: 182
-Connection: keep-alive
-Location: https://time.geekbang.org/
-Strict-Transport-Security: max-age=15768000
+方法表达请求意图：GET 获取表示，HEAD 只取响应元数据，POST 提交由资源处理的数据，PUT 通常替换目标状态，PATCH 做部分修改，DELETE 请求删除。安全方法与幂等性是协议语义，不是“是否需要鉴权”的结论。
 
-<html>
-<head><title>301 Moved Permanently</title></head>
-<body bgcolor="white">
-<center><h1>301 Moved Permanently</h1></center>
-<hr><center>openresty</center>
-</body>
-</html>
-```
+GET 和 POST 没有天然安全等级差异。查询参数可能进入历史、日志和 Referer，POST 正文也能被客户端、代理和服务端读取；敏感传输依赖 HTTPS，权限依赖服务端认证授权，副作用还要处理 CSRF、重放和幂等。
 
-这就是一次完整的 HTTP 请求的过程了，我们可以看到，在 TCP 通道中传输的，**完全是文本**。
+## 步骤二：按状态码决定下一步
 
-在请求部分，第一行被称作 request line，它分为三个部分，HTTP Method，也就是请求的 “方法”，请求的路径和请求的协议和版本。
+1xx 表示临时信息，2xx 表示请求得到成功处理，3xx 表示重定向或缓存相关结果，4xx 表示当前请求问题，5xx 表示服务端未完成请求。具体语义要看具体状态，而不是只看首位。
 
-在响应部分，第一行被称作 response line，它也分为三个部分，协议和版本、状态码和状态文本。
+例如 200 与 204 都是成功，但后者没有响应内容；202 表示已接收处理，不表示后台任务最终成功；304 只用于条件请求，客户端复用已有表示；401 通常需要认证，403 表示服务器理解但拒绝授权；429 应配合限流策略，客户端重试还要考虑 `Retry-After` 与抖动。
 
-紧随在 request line 或者 response line 之后，是请求头 / 响应头，这些头由若干行组成，每行是用冒号分隔的名称和值。
+重定向中，301/308 常表达永久目标，302/303/307 的方法保留语义不同。应用应使用明确状态，并验证浏览器、fetch 与代理对非 GET 方法的实际处理。
 
-在头之后，以一个空行（两个换行符）为分隔，是请求体 / 响应体，请求体可能包含文件或者表单数据，响应体则是 HTML 代码。
+## 步骤三：理解浏览器缓存
 
-## HTTP 协议格式
+新鲜缓存可以直接复用，不发条件请求；过期后，浏览器可带 `If-None-Match` 或 `If-Modified-Since` 验证，服务端返回 304 后继续使用本地正文。`Cache-Control` 决定新鲜度与共享边界，ETag 是表示验证器。
 
-根据上面的分析，我们可以知道 HTTP 协议，大概可以划分成如下部分。  我们简单看一下，在这些部分中，path 是请求的路径完全由服务端来定义，没有很多的特别内容；而 version 几乎都是固定字符串；response body 是我们最熟悉的 HTML
+`no-cache` 表示复用前需要验证，不等于“不存储”；`no-store` 才要求不存储。带身份信息的响应要仔细设置 `private`、`Vary` 和共享 CDN 策略，避免不同用户表示互相污染。静态指纹资源适合长期 immutable 缓存，HTML 通常需要更快发现新版本。
 
-## HTTP Method（方法）
+## 步骤四：Cookie、CORS 与 CSP 各管什么
 
-我们首先来介绍一下 request line 里面的方法部分。这里的方法跟我们编程中的方法意义类似，表示我们此次 HTTP 请求希望执行的操作类型。方法有以下几种定义：
+Cookie 由响应 `Set-Cookie` 创建，并按 Domain、Path、Secure、HttpOnly、SameSite 等规则附加到后续请求。前端无法设置或读取 HttpOnly Cookie；Secure 限制安全传输，SameSite 影响跨站发送，三者解决不同问题。
 
-- GET
+CORS 控制浏览器脚本是否可以读取跨源响应，不阻止服务器收到请求，也不是服务端权限系统。非简单请求可能先发 preflight；允许 credentials 时，`Access-Control-Allow-Origin` 不能使用通配符。
 
-- POST
+CSP 限制页面可以加载和执行哪些内容，用来降低 XSS 等风险；它不代替输出编码。CSRF 防护则关注浏览器自动携带凭证的跨站请求，可组合 SameSite、CSRF token、Origin 验证和重新认证。
 
-- HEAD
+## 步骤五：HTTPS、HTTP/2 和 HTTP/3 改了什么
 
-- PUT
+HTTPS 是 HTTP over TLS，提供传输机密性、完整性和服务器身份验证。它不证明业务响应正确，也不阻止端点本身记录内容。证书、协议版本和 cipher 的选择由服务器、浏览器与平台安全基线共同决定。
 
-- DELETE
+HTTP/2 在一条连接上多路复用多个流，并使用 HPACK 压缩头部，减少 HTTP/1.1 多连接与应用层队头问题。TCP 丢包仍可能影响同一连接中的数据。历史上的 Server Push 已被主流浏览器移除或关闭，不应作为现代主要优化；资源发现优先检查 HTML、preload、103 Early Hints 和缓存。
 
-- CONNECT
+HTTP/3 基于 QUIC，在独立流之间降低传输层队头影响，并改善连接迁移。它不自动让所有页面更快，握手、服务器支持、网络和资源依赖仍需用真实数据验证。
 
-- OPTIONS
+## 正常结果与失败演练
 
-- TRACE
+在 DevTools Network 中为同一 URL 连续加载：第一次可能 200，第二次显示 memory/disk cache，过期后可能通过 304 验证。保留 Disable cache 的状态说明，否则截图无法比较。
 
-浏览器通过地址栏访问页面都是 **GET** 方法。表单提交产生 **POST** 方法。
+制造两个失败：让响应缺少正确 `Vary`，用不同 Accept-Encoding 或 Origin 访问，检查缓存是否混用；再让 CORS preflight 拒绝，观察请求失败位置。状态 200 但脚本读不到响应，说明传输成功、浏览器安全策略和应用可用性是三层事实。
 
-**HEAD** 则是跟 GET 类似，只返回响应头，多数由 JavaScript 发起。
-
-**PUT** 和 **DELETE** 分别表示添加资源和删除资源，但是实际上这只是语义上的一种约定，并没有强约束。
-
-**CONNECT** 现在多用于 HTTPS 和 WebSocket。
-
-**OPTIONS** 和 **TRACE** 一般用于调试，多数线上服务都不支持。
-
-## HTTP Status code（状态码）和 Status text（状态文本）
-
-接下来我们看看 response line 的状态码和状态文本。常见的状态码有以下几种。
-
-- 1xx：临时回应，表示客户端请继续。
-
-- 2xx：请求成功。
-
-  - 200：请求成功。
-
-- 3xx: 表示请求的目标有变化，希望客户端进一步处理。
-
-  - 301&302：永久性与临时性跳转。
-
-  - 304：跟客户端缓存没有更新。
-
-- 4xx：客户端请求错误。
-
-  - 403：无权限。
-
-  - 404：表示请求的页面不存在。
-
-  - 418：It’s a teapot. 这是一个彩蛋，来自 ietf 的一个愚人节玩笑。
-
-- 5xx：服务端请求错误。
-
-  - 500：服务端错误。
-
-  - 503：服务端暂时性错误，可以一会再试。
-
-对我们前端来说，1xx 系列的状态码是非常陌生的，原因是 1xx 的状态被浏览器 HTTP 库直接处理掉了，不会让上层应用知晓。
-
-2xx 系列的状态最熟悉的就是 200，这通常是网页请求成功的标志，也是大家最喜欢的状态码。
-
-3xx 系列比较复杂，301 和 302 两个状态表示当前资源已经被转移，只不过一个是永久性转移，一个是临时性转移。实际上 301 更接近于一种报错，提示客户端下次别来了。
-
-304 又是一个每个前端必知必会的状态，产生这个状态的前提是：客户端本地已经有缓存的版本，并且在 Request 中告诉了服务端，当服务端通过时间或者 tag，发现没有更新的时候，就会返回一个不含 body 的 304 状态。
-
-## HTTP Head (HTTP 头)
-
-HTTP 头可以看作一个键值对。原则上，HTTP 头也是一种数据，我们可以自由定义 HTTP 头和值。不过在 HTTP 规范中，规定了一些特殊的 HTTP 头，我们现在就来了解一下它们。
-
-在 HTTP 标准中，有完整的请求 / 响应头规定，这里我们挑几个重点的说一下：
-
-我们先来看看 Request Header。
-
-
-
-接下来看一下 Response Header。
-
-
-
-这里仅仅列出了我认为比较常见的 HTTP 头，这些头是我认为前端工程师应该做到不需要查阅，看到就可以知道意思的 HTTP 头。完整的列表还是请你参考我给出的 rfc2616 标准。
-
-## HTTP Request Body
-
-HTTP 请求的 body 主要用于提交表单场景。实际上，HTTP 请求的 body 是比较自由的，只要浏览器端发送的 body 服务端认可就可以了。一些常见的 body 格式是：
-
-- application/json
-
-- application/x-www-form-urlencoded
-
-- multipart/form-data
-
-- text/xml
-
-我们使用 HTML 的 form 标签提交产生的 HTML 请求，默认会产生 application/x-www-form-urlencoded 的数据格式，当有文件上传时，则会使用 multipart/form-data。
-
-## HTTPS
-
-在 HTTP 协议的基础上，HTTPS 和 HTTP2 规定了更复杂的内容，但是它基本保持了 HTTP 的设计思想，即：使用上的 **Request-Response** 模式。
-
-我们首先来了解下 HTTPS。HTTPS 有两个作用
-
-- 确定请求的目标服务端身份
-
-- 保证传输的数据不会被网络中间节点窃听或者篡改
-
-HTTPS 的标准也是由 RFC 规定的，你可以查看它的[详情链接](https://tools.ietf.org/html/rfc2818)
-
-HTTPS 是使用**加密通道**来传输 HTTP 的内容。但是 HTTPS 首先与服务端建立一条 **TLS 加密通道**。TLS 构建于 TCP 协议之上，它实际上是对传输的内容做一次加密，所以从传输内容上看，HTTPS 跟 HTTP 没有任何区别。
-
-## HTTP 2
-
-HTTP 2 是 HTTP 1.1 的升级版本，你可以查看它的[详情链接](https://tools.ietf.org/html/rfc7540)
-
-HTTP 2.0 最大的改进有两点，一是**支持服务端推送**，二是**支持 TCP 连接复用**。
-
-- 服务端推送能够在客户端发送第一个请求到服务端时，提前把一部分内容推送给客户端，放入缓存当中，这可以避免客户端请求顺序带来的并行度不高，从而导致的性能问题。
-
-- TCP 连接复用，则使用同一个 TCP 连接来传输多个 HTTP 请求，避免了 TCP 连接建立时的三次握手开销，和初建 TCP 连接时传输窗口小的问题。
-
-#### 如何查看请求是不是使用 http2.0
-
-network 中任意右键一个请求 --》 Header Options --> 勾选中 Protocol --》请求列会多出 Protocol ,其中 h2 的就是 http2.0
-
-或者直接看 Response Header/Request Header , 没有 view source 就是 http2.0
-
-## 现代规范校订
-
-浏览器实现会持续演进，文中的流程是职责模型，不应理解为所有浏览器都采用完全相同的线程数量或执行细节。网络部分应以 HTTP/2 与 HTTP/3 的现代连接模型为主。
-
-## 规范要点与现代边界
-
-浏览器网络不只是“请求加响应”：导航还包含 DNS、连接、TLS、协商、缓存、重定向、响应解析和安全策略。HTTP 方法语义、缓存新鲜度、Cookie 属性、CORS 和 CSP 分别解决不同问题，不能用 GET/POST 或 HTTPS 一个维度概括全部安全性。
-
-把结论放回可复现条件：浏览器版本、文档模式、输入数据、网络和设备都会影响结果。遇到与旧教材不同的行为，先查现行规范和实现说明，再用最小样例验证；如果规范只定义可观察结果，就不要把某个引擎的内部结构写成跨浏览器保证。
-
-## 运行验证
-
-| 验证项 | 方法 | 通过条件 |
-| --- | --- | --- |
-| 语义 | 对照现行规范和 MDN 兼容性说明 | 结论有适用范围 |
-| 行为 | 最小页面、Node 脚本或 DevTools 复现 | 结果与预期一致 |
-| 工程 | 运行类型检查、测试和性能采样 | 没有新增回归 |
-
-```text
-现象 -> 假设 -> 最小复现 -> 观测证据 -> 修复 -> 回归测试
-```
+Network 面板的 Protocol 列可以显示 h2、h3 等协商结果；也可查看安全信息和响应字段。不要用“Header 没有 view source”猜 HTTP 版本。
 
 ## 参考资料
 
-- https://html.spec.whatwg.org/
-- https://developer.mozilla.org/en-US/docs/Web/API
+- [HTTP Semantics：RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
+- [HTTP Caching：RFC 9111](https://www.rfc-editor.org/rfc/rfc9111)
+- [HTTP/2：RFC 9113](https://www.rfc-editor.org/rfc/rfc9113)
+- [HTTP/3：RFC 9114](https://www.rfc-editor.org/rfc/rfc9114)
+- [Fetch Standard](https://fetch.spec.whatwg.org/)

@@ -31,9 +31,10 @@
     "preview": "vitepress preview --port 4173",
     "typecheck": "vue-tsc --noEmit",
     "content:check": "tsx scripts/check-content.ts",
+    "content:quality": "tsx scripts/check-content-quality.ts",
     "build:check": "node scripts/check-build.mjs",
     "privacy:check": "node scripts/check-privacy.mjs",
     "visual:check": "node scripts/visual-smoke.mjs",
-    "verify": "yarn content:check && yarn privacy:check && yarn typecheck && vitepress build && yarn build:check"
+    "verify": "yarn content:check && yarn content:quality && yarn privacy:check && yarn typecheck && vitepress build && yarn build:check"
   }
 }

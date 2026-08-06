@@ -58,6 +58,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - name: Checkout deployment configuration
+        uses: actions/checkout@v4
+
       - name: Download verified site
         uses: actions/download-artifact@v4
         with:
@@ -75,3 +78,23 @@ jobs:
           TARGET: ${{ secrets.DEPLOY_PATH || '/www/wwwroot/blog.junfeng530.xyz/' }}
           SOURCE: site/
           ARGS: -rlgoDzvc --delete
+
+      - name: Install VitePress clean URL handling
+        uses: easingthemes/ssh-deploy@v5.1.1
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY || secrets.PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.DEPLOY_HOST || '129.211.13.9' }}
+          REMOTE_USER: ${{ secrets.DEPLOY_USER || 'root' }}
+          TARGET: /tmp/jiang-blog-nginx-${{ github.sha }}/
+          SOURCE: deploy/
+          ARGS: -rlgoDzvc
+          SCRIPT_AFTER_REQUIRED: true
+          SCRIPT_AFTER: |
+            set -eu
+            staged_dir="/tmp/jiang-blog-nginx-${{ github.sha }}"
+            nginx_config="${{ secrets.DEPLOY_NGINX_CONFIG_PATH || '/www/server/nginx/conf/nginx.conf' }}"
+            trap 'rm -rf "$staged_dir"' EXIT
+
+            bash "$staged_dir/install-nginx-clean-urls.sh" \
+              "$nginx_config" \
+              "/docs/agent-practice/01-system-boundaries"

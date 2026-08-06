@@ -1,156 +1,83 @@
 ---
-title: "18｜容器化交付、迁移、旁路验证与回滚"
-description: "把数据库迁移、候选环境、健康门禁、流量切换和恢复演练写进发布协议。"
+title: "18｜从候选容器到失败回滚"
+description: "沿真实更新脚本讲清预检、备份、构建、候选验证、迁移、滚动替换和回滚。"
 category: agent-practice
 tags: ["Deployment", "Rollback"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 180
 depth: core
-series: "生产级知识 Agent 实战"
+series: "知识 Agent 分步实践"
 ---
-# 18｜容器化交付、迁移、旁路验证与回滚
+# 18｜从候选容器到失败回滚
 
-Agent 发布不是把镜像换成新 tag。它同时改变 API、Worker、图状态、checkpoint schema、事件协议、索引 release、模型 policy 和数据库迁移。任何一个版本不兼容，都可能让正在运行的 Turn 无法恢复。安全交付的核心是候选环境、兼容迁移、旁路验证、受控切流和可执行回滚。
+代码构建成功，不代表新版本能读取数据库、连接队列、启动 Agent Worker 或完成一次知识问答。直接替换正式容器，失败时才发现迁移不兼容，会把验证压力转移给真实用户。
 
-## 版本清单
+本篇沿一条已实现的更新脚本讲发布：预检、备份、生成不可变版本、启动候选、验证、迁移、滚动替换和回滚。具体服务器与项目名称不会公开。
 
-一次 release 生成不可变 manifest：
-
-```yaml
-release: agent-2026-08-04.1
-api_image_digest: sha256:...
-worker_image_digest: sha256:...
-frontend_asset_hash: ...
-schema_migration: 042_add_turn_events
-graph_schema: state-v3
-policy_version: policy-17
-knowledge_release: knowledge-2026-08-04
-```
-
-不要用 `latest` 表示生产版本，也不要让 API 和 Worker 自动拉取不同分支的代码。manifest 进入构建产物和部署记录，能回答“这次 Turn 使用了哪套代码/策略/知识”。
-
-## 迁移必须向前后兼容
-
-长运行 Turn 可能由旧 Worker 创建、新 Worker 恢复。数据库迁移遵循 expand/contract：先添加可选字段和兼容读取，部署代码同时写旧/新格式，回填并观察，确认旧版本不再运行后才删除旧字段。
-
-```sql
--- expand：先增加可空列，不破坏旧 Worker
-ALTER TABLE agent_turns ADD COLUMN policy_version_id text;
-
--- contract：观察窗口后，才收紧约束/删除遗留列
-ALTER TABLE agent_turns ALTER COLUMN policy_version_id SET NOT NULL;
-```
-
-迁移脚本必须可审计、可重复执行或明确只执行一次；生产机不负责编译镜像。数据库备份要在迁移前创建并验证恢复可读性。
-
-## 候选与旁路
-
-新版本先以独立容器/端口启动，连接同一依赖网络但不接公网流量。旁路 Worker 必须避免重复后台任务，使用独立节点名和日志目录；候选的健康检查从容器内和代理侧分别执行。
+## 先看发布阶段
 
 ```mermaid
 flowchart LR
-  C[CI verified artifact] --> S[sidecar candidate]
-  S --> H[health + contract checks]
-  H -- fail --> X[stop candidate, keep old]
-  H -- pass --> P[proxy upstream switch]
-  P --> O[observe]
-  O -- regression --> R[restore old upstream]
+  A[环境预检] --> B[备份与版本]
+  B --> C[构建业务镜像]
+  C --> D[候选容器]
+  D --> E[健康与业务验证]
+  E --> F[兼容迁移]
+  F --> G[滚动替换]
 ```
 
-候选验证至少包含：API status、首页、鉴权、创建 Turn 幂等、最小检索、SSE 重放、取消、checkpoint 恢复、评测 smoke 和数据库迁移状态。对于计费/真实副作用系统，使用临时用户和最小请求，禁止用真实用户做高成本验证。
+任一步失败都停止继续，并保留当前正式服务。候选通过不等于已经切流，它只是证明新产物在旁路环境具备基本运行条件。
 
-## 健康检查不是 HTTP 200
+## 第一步：预检当前环境
 
-`/health` 只能说明进程响应。Agent 候选还要检查：
+脚本先确认代码更新可接受、关键配置存在、磁盘与依赖服务可用，正式容器和回滚信息能够识别。来源不明的容器、镜像和数据不会被自动清理。
 
-- 数据库连接和 migration version；
-- Redis 读写/脚本能力；
-- 模型适配器配置存在但不泄露密钥；
-- 图能 compile，checkpoint pool 能打开；
-- release 可查询且 ACL 过滤正确；
-- event sequence 能递增、SSE 能回放。
+代码更新只接受预期分支和可解释的快进关系，避免把服务器工作区中的未知差异覆盖掉。
 
-重型 embedding、OCR 或模型调用不要放进 liveness probe；它们应在旁路合同测试中运行并限制成本。
+## 第二步：创建可识别版本和备份
 
-## 切流前保留回滚点
+每次发布生成不可变版本标识，镜像、候选容器和日志都使用该标识关联。数据库变更前创建回滚备份并校验备份产物存在、大小与校验信息合理。
 
-切流前记录旧 upstream、容器名、镜像 digest、数据库版本和备份路径。只修改代理 upstream，优先热加载；不要整体 `compose down` 或重启数据库/Redis。新容器保持可运行到观察期结束。
+有备份文件不等于恢复可用。恢复流程仍需要定期演练，并记录恢复所需依赖和时间。
 
-```bash
-nginx -t
-nginx -s reload
-curl --fail https://example.com/api/status
-curl --fail https://example.com/
-```
+## 第三步：候选容器不接正式流量
 
-命令只是示例，真实环境要替换为受控 secrets 和生产入口。切流后立即回归 API、首页、未授权访问、临时用户最小请求和 dashboard/metrics；不能只看代理返回 200。
+新 API、后台管理和不同队列 Worker 以候选名称启动，不替换当前容器。候选使用隔离的任务队列或禁用会与正式实例冲突的调度行为。
 
-## 回滚条件和动作
+健康检查至少覆盖 API 状态、静态页面、数据库连接和各类 Worker 响应。随后运行低风险业务冒烟，例如创建匿名测试回合、完成混合检索并得到唯一终态。
 
-回滚触发条件要提前写成可判定阈值：健康检查失败、权限泄漏、事件序列异常、checkpoint 恢复失败率上升、P95 超预算、核心 API 5xx 超阈值。回滚优先改 upstream 指向旧容器，不删除新容器、不停依赖、不删除数据库数据。
+## 第四步：迁移要向前兼容
 
-```text
-1. freeze new candidate traffic
-2. restore upstream to old digest
-3. nginx -t && reload
-4. verify API status, homepage, authentication and stream
-5. keep candidate logs and trace ids
-6. decide whether database rollback is necessary
-```
+滚动发布期间可能同时存在新旧进程，因此迁移先增加新结构并保持旧代码可运行。删除字段、收紧约束和大规模数据回填拆到后续版本。
 
-数据库 schema 若采用 expand/contract，通常无需回滚；若迁移不可逆，必须有经过演练的恢复方案。不要把“重新部署旧镜像”当作完整数据库回滚。
+迁移执行失败时不继续替换容器。是否需要恢复数据库，要根据迁移是否提交和兼容性判断，不能机械地把备份直接覆盖在线数据。
 
-## 备份与恢复演练
+## 第五步：逐个替换并持续验证
 
-备份完成不等于可恢复。按 RPO/RTO 演练：恢复数据库到隔离环境，验证 Turn、事件、claims、checkpoint、release 和索引关系；随机抽取已完成 Turn 重放；检查敏感数据权限。演练结果记录恢复耗时、缺失对象和改进项。
+候选通过后，应用平面按角色逐个替换，每次都等待健康检查。切换过程中监控错误、终态缺失、队列积压和核心业务冒烟。
 
-## 版本兼容的事件协议
+旧版本容器和镜像保留为明确回滚点，稳定后只保留当前版本与一个经过验证的上一版本，避免长期堆积不可识别产物。
 
-客户端可能还在连接旧 SSE。事件 payload 增加可选字段，删除字段前等待客户端兼容；事件类型版本化或提供 schema version。Worker/API 混部时，旧 Worker 遇到新状态字段应安全忽略，不能把未知值当 failed。
+## 故意让候选失败
 
-```python
-class EventEnvelope(BaseModel):
-    schema_version: int = 2
-    sequence: int
-    event_type: str
-    payload: dict[str, object]
-```
+| 注入故障 | 预期行为 |
+| --- | --- |
+| API 健康检查失败 | 不迁移、不切换，删除本次候选 |
+| 某 Worker 无响应 | 停止发布，正式 Worker 保持运行 |
+| 业务冒烟无终态 | 候选判定失败，不接流量 |
+| 迁移失败 | 停止替换，分析事务状态 |
+| 切换后回归失败 | 恢复上一版本并再次验证 |
 
-## 供应链和权限
+回滚完成后仍要检查 API、首页、队列和一次最小知识问答，不能只看到容器状态为 running 就结束。
 
-CI 使用锁定依赖和最小权限，构建 SBOM/签名（若组织支持），部署只拉取已验证 digest。SSH、镜像仓库和数据库凭证用 Secret/环境管理，不把它们写进 Compose、日志或博客。生产部署脚本只执行允许的更新路径，禁止在生产机编译。
+## 当前实现的边界
 
-## 验收脚本
+这是一条单环境容器发布流程，不声称实现跨地域容灾或零数据损失。数据库备份、对象存储和外部依赖各有独立恢复策略。
 
-```python
-async def smoke(candidate: Candidate) -> None:
-    assert await candidate.get("/api/status").status == 200
-    turn = await candidate.create_turn(idempotency_key=random_key())
-    duplicate = await candidate.create_turn(idempotency_key=turn.key)
-    assert duplicate.id == turn.id
-    events = await candidate.replay(turn.id, after=0)
-    assert events[-1].type in {"turn.completed", "turn.failed"}
-    assert await candidate.scope_leak_case() is False
-```
-
-浏览器侧还要验证搜索、侧栏、代码复制、深色模式和长文章布局；服务侧验证日志、metrics、trace、备份和回滚。所有截图放 `/tmp`，验收后删除，不进入仓库。
+至此，系列从 Agent 概念走到知识准备、检索、编排、权限、恢复、评测和交付。回看任一篇时，都可以沿 turn ID、知识版本和证据 ID 找到它在整条链中的位置。
 
 ## 参考资料
 
-- [Docker Compose production](https://docs.docker.com/compose/production/)：多服务生产配置与不可变镜像思路。
-- [Kubernetes probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)：liveness/readiness/startup 探针边界。
-- [PostgreSQL backup and restore](https://www.postgresql.org/docs/current/backup.html)：备份、恢复与演练基础。
-- [GitHub Actions security hardening](https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions)：CI 最小权限和凭证治理。
-- [OpenTelemetry deployment considerations](https://opentelemetry.io/docs/collector/deployment/)：观测采集器的部署与可靠性。
-
-## 发布回滚演练记录
-
-每次候选发布都应保存一份 runbook 结果：候选 digest、迁移前后版本、健康检查时间、最小请求的 Turn/事件序列、SSE 重连结果、备份校验、旧 upstream 和观察期指标。演练一次“切流后 checkpoint 恢复失败”，确认回滚只切代理、不删除新容器、不影响数据库和 Redis；演练一次“权限 Eval 出现失败”，确认候选无法晋级。
-
-## 发布后的观察窗口
-
-观察窗口内按 mode、policy 和 release 比较首事件、总延迟、终态分布、Claim 支持率、引用错误、队列深度、token 和错误码。新版本没有足够流量时，不能用“暂时没报警”证明稳定；应运行固定 synthetic case。窗口结束后只清理明确属于旧修复的临时制品，保留当前版本和至少一个已验证回滚版本。
-
-## 交付完成的定义
-
-发布完成不是代理 reload 成功，而是：新版本旁路健康、数据库可恢复、关键 Eval 通过、候选切流后公网回归通过、旧版本仍可回滚、临时数据已清理、指标进入观察期且文档记录完整。任何一项缺失都应保持旧 upstream，继续排查而不是把半成功写成成功。
+- [Docker：Healthcheck](https://docs.docker.com/reference/dockerfile/#healthcheck)
+- [PostgreSQL：Backup and Restore](https://www.postgresql.org/docs/current/backup.html)
+- [Celery：Monitoring and Management](https://docs.celeryq.dev/en/stable/userguide/monitoring.html)

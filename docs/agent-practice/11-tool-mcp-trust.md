@@ -1,167 +1,82 @@
 ---
-title: "11｜工具、MCP 与不可信结果"
-description: "把工具输出视为数据，用契约、超时、幂等、权限和注入检测包住副作用。"
+title: "11｜通过 MCP 暴露只读知识能力"
+description: "从 initialize 到 tools/call，逐步实现认证、只读工具、权限复用和不可信结果处理。"
 category: agent-practice
-tags: ["Tool Calling", "MCP"]
-updated: 2026-08-04
+tags: ["MCP", "Read-only Tools"]
+updated: 2026-08-05
 order: 110
 depth: core
-series: "生产级知识 Agent 实战"
+series: "知识 Agent 分步实践"
 ---
-# 11｜工具、MCP 与不可信结果
+# 11｜通过 MCP 暴露只读知识能力
 
-工具调用让 Agent 能查实时系统、执行计算或触发动作，但也把模型从“生成文本”带到了真实副作用边界。工具名和 JSON Schema 只能约束形状，不能授予权限；MCP 的资源、工具和提示能力也不等于业务授权。设计工具系统时，必须把模型当成不完全可靠的调用者，把工具结果当成不可信数据。
+管理端已经能查询知识。如果另一个 Agent 客户端也需要这份能力，是复制一套搜索逻辑，还是通过统一协议调用？复制会让权限、检索和评测逐渐分叉。
 
-## Tool contract 的四层
+本篇使用 MCP 暴露只读工具。外部客户端可以搜索和提问，但不能新增、修改或删除知识；所有请求继续复用同一认证、权限和 Agent Runtime。
 
-```python
-class ToolSpec(BaseModel):
-    name: str
-    description: str
-    input_schema: dict[str, object]
-    output_schema: dict[str, object]
-    capability: Literal["read", "compute", "write"]
-    idempotent: bool
-    timeout_ms: int
-    allowed_subjects: tuple[str, ...]
-```
+## MCP 解决什么问题
 
-输入 schema 解决“参数长什么样”；授权策略解决“谁能调用”；副作用协议解决“重复调用会怎样”；超时和错误模型解决“失败如何传播”。把四者写在一起，工具注册表才能成为可审计配置，而不是给模型看的描述字符串。
-
-## read 与 write 分离
-
-读工具通常可以在预算内重试，写工具需要幂等键、审批或二阶段确认。模型不能通过自然语言把一个 read 工具变成 write，也不能让外部文档里的指令触发写工具。
-
-```python
-class ToolCall(BaseModel):
-    call_id: str
-    name: str
-    arguments: dict[str, object]
-    idempotency_key: str = ""
-    actor_user_id: str
-    approved: bool = False
-
-def validate_call(call: ToolCall, spec: ToolSpec) -> None:
-    if spec.capability == "write" and not call.approved:
-        raise PermissionError("write tool requires approval")
-    if spec.capability == "write" and not call.idempotency_key:
-        raise ValueError("write tool requires idempotency key")
-```
-
-审批结果和策略版本写入事件。不要把“模型说用户同意了”当成审批；需要在 UI/API 层由用户明确确认或由确定性业务规则授权。
-
-## 参数校验和范围绑定
-
-工具参数要做类型、长度、枚举、URL、资源 ID 和范围校验。对于资源查找，服务端用当前 AccessSnapshot 再查一次，不能信任模型传来的 tenant/project/scope 字段。
-
-```python
-async def get_record(call: ToolCall, access: AccessSnapshot) -> ToolResult:
-    record_id = str(call.arguments.get("record_id") or "")
-    if not RECORD_ID.fullmatch(record_id):
-        raise ToolInputError("invalid record id")
-    row = await repo.visible_record(record_id, access)
-    if row is None:
-        return ToolResult(request_id=call.call_id, objects=[], source="internal")
-    return serialize_result(row)
-```
-
-不要在“找不到”时回退到同名模糊搜索并扩大范围；这既可能泄漏存在性，也会让模型得到越权对象。
-
-## MCP 生命周期和版本
-
-MCP 客户端通常要经历初始化、能力协商、列表/调用、取消和关闭。连接失败、服务端返回错误和 schema 变化必须有明确错误码。客户端不能每次调用都无条件初始化，亦不能永久缓存工具列表而忽略能力变更。
+MCP 是 Model Context Protocol，用于让客户端发现和调用服务器提供的上下文与工具。它定义消息与能力协商，不自动提供业务权限，也不会保证工具返回内容可信。
 
 ```mermaid
 sequenceDiagram
-  participant A as Agent
-  participant C as MCP Client
-  participant S as MCP Server
-  A->>C: request tool capability
-  C->>S: initialize + capabilities
-  S-->>C: negotiated protocol
-  C->>S: tools/list (versioned)
-  C->>S: tools/call + request id
-  S-->>C: result or structured error
-  C-->>A: typed ToolResult
+  participant C as MCP 客户端
+  participant S as MCP 服务
+  participant R as Agent Runtime
+  C->>S: initialize
+  S-->>C: 协议版本与能力
+  C->>S: tools/list
+  S-->>C: 只读工具 Schema
+  C->>S: tools/call + 参数
+  S->>R: 认证后执行
+  R-->>S: 答案与引用
+  S-->>C: JSON-RPC 结果
 ```
 
-MCP 结果仍要包装成内部 `ToolResult`，注入 source、trust、received_at 和 release/ACL 关联。不要把远程 JSON 原样拼进系统提示词。
+## 第一步：先完成协议初始化
 
-## 结果清洗和 Prompt Injection
+客户端先发送 `initialize`，双方确认协议版本与能力，再发送 initialized 通知。未初始化会话不直接调用业务工具。
 
-外部结果可能包含 Markdown、HTML、长文本、URL、秘密、伪造系统消息和“请调用另一个工具”的指令。清洗不是把所有标点删除，而是：限制大小，保留结构化字段，剥离展示 HTML，标记 instruction-like 片段，禁止自动执行嵌套工具。
+JSON-RPC 的请求 ID、方法、参数和错误结构都要校验。协议错误与业务“没有结果”使用不同错误，便于客户端正确处理。
 
-```python
-class SafeToolText(BaseModel):
-    text: str
-    source: str
-    instruction_like: bool
+## 第二步：工具清单保持最小
 
-def sanitize_text(value: str, limit: int = 12000) -> SafeToolText:
-    text = strip_presentation_html(value)[:limit]
-    suspicious = detect_injection(text)
-    return SafeToolText(text=text, source="tool_result", instruction_like=bool(suspicious))
-```
+当前实践只注册查询类工具，例如搜索可见文档、查看可见目录和向知识 Runtime 提问。没有写工具、审批流程或 mutation 协议。
 
-标记为 suspicious 并不意味着丢弃所有事实。策略可以允许只读事实进入检索，但必须禁止它改变系统策略、工具权限和范围；高风险来源则直接作为不可引用数据。
+工具 Schema 说明字段类型、是否必填和范围上限。模型返回的参数仍是不可信输入，服务端会重新校验字符串长度、集合大小和资源范围。
 
-## 超时、重试和取消
+## 第三步：认证与管理端共用权限逻辑
 
-每次 ToolCall 都绑定绝对 deadline，而不是只设置固定 30 秒 timeout。调用层根据剩余时间选择 connect/read timeout；收到 cancellation 要传播到 HTTP/WebSocket/MCP 客户端。
+MCP 凭证解析为同一种服务端认证上下文，再执行第 07 篇的主体展开和查询前过滤。客户端不能通过参数指定另一个用户，也不能把一个只读 Token 提升为管理权限。
 
-```python
-async def invoke_with_deadline(call: ToolCall, deadline: float) -> ToolResult:
-    remaining = deadline - time.monotonic()
-    if remaining <= 0:
-        raise DeadlineExceeded
-    async with asyncio.timeout(remaining):
-        return await tool_registry.invoke(call)
-```
+提问工具复用相同 Runtime，Eval 因此能够覆盖管理端和 MCP 的共同执行链。MCP 调用默认不偷偷写入用户长期记忆，避免外部客户端改变个人状态。
 
-只有声明 `idempotent=true` 的读/计算工具可自动退避重试。写工具失败后不能因为网络超时就盲目再次执行，应该查询幂等键状态或进入人工恢复。
+## 第四步：工具返回内容仍是不可信数据
 
-## 输出 schema 与证据
+文档可能包含“忽略之前指令”一类文本，远程工具也可能返回格式错误或超大数据。Runtime 会把工具结果放在明确的数据边界中，限制长度，检查提示注入特征，并且不把结果提升为系统指令。
 
-工具结果不是模型最终答案。对资源查询，将关键字段映射成结构化 Evidence；对计算结果，保存输入摘要、算法版本和输出；对写操作，返回 mutation ID 和状态，不让模型声称“已完成”除非状态查询确认。
+只读工具减少破坏面，却不能消除数据泄露。权限过滤、日志脱敏和输出验证仍然需要执行。
 
-```python
-class MutationResult(BaseModel):
-    mutation_id: str
-    status: Literal["accepted", "completed", "failed", "unknown"]
-    retryable: bool = False
-```
+## 故意读取不可见文档
 
-`unknown` 很重要：请求超时可能已在远端执行，客户端不能把它当 failed 自动重试。后续事件和人工查询负责解决不确定状态。
+| 请求 | 当前身份 | 预期结果 |
+| --- | --- | --- |
+| 列出公开目录 | 普通用户 | 返回可见节点 |
+| 搜索团队私密文档 | 非成员 | 空结果或无权访问 |
+| 伪造资源 ID 直接读取 | 非成员 | 服务端再次拒绝 |
+| 调用不存在写工具 | 任意用户 | method/tool not found |
+| 参数超过上限 | 任意用户 | invalid params |
 
-## 工具注册和最小能力
+测试还确认凭证只在生成时返回一次，持久化侧保存不可直接使用的表示；日志记录工具名、耗时和结果数量，不记录明文凭证与完整敏感正文。
 
-按用户、知识空间、模式和环境生成可用工具集合。fast 模式可能只开放 read 工具；写工具单独要求审批。不要把“模型知道工具名”当成权限审计，服务端每次调用都验证 capability。
+## 当前实现的边界
 
-## 测试
+本篇只讲只读 MCP。需要写操作的系统应另行设计授权、人工确认、幂等和补偿，不能把这里的查询工具简单改成写数据库。
 
-```python
-async def test_write_requires_explicit_approval():
-    call = ToolCall(name="update_record", arguments={}, actor_user_id="u")
-    with pytest.raises(PermissionError):
-        await invoke(call)
-
-async def test_tool_result_cannot_expand_scope():
-    result = fake_result(objects=[{"id": "outside"}])
-    safe = keep_allowed(result, allowed_ids={"inside"})
-    assert safe.objects == []
-
-async def test_unknown_mutation_is_not_retried():
-    with pytest.raises(UnknownMutation):
-        await run_write_with_timeout()
-    assert attempts("mutation-key") == 1
-```
-
-还要测试 schema 漂移、列表能力变化、远端慢响应、取消、空结果、超大结果、恶意 HTML、prompt injection、重复 call_id 和断线重连。工具服务的合同测试应在 CI 中独立运行。
+下一篇处理多轮对话，把历史、摘要和显式记忆装进有限 Token 预算。
 
 ## 参考资料
 
-- [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-06-18)：初始化、能力、工具和传输协议。
-- [MCP security best practices](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)：授权、令牌和服务器信任边界。
-- [OWASP GenAI：Prompt Injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/)：工具与不可信上下文的注入风险。
-- [JSON Schema](https://json-schema.org/specification)：输入输出结构校验契约。
-
+- [Model Context Protocol：Architecture](https://modelcontextprotocol.io/docs/learn/architecture)
+- [Model Context Protocol：Tools](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
+- [JSON-RPC 2.0](https://www.jsonrpc.org/specification)

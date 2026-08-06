@@ -1,181 +1,134 @@
 ---
-title: "02｜领域模型与状态机"
-description: "把会话、回合、证据、声明、策略和发布版本建模为可持久化状态。"
+title: "02｜把一次回答拆成可恢复的状态"
+description: "用会话、回合、事件、证据和 Claim 描述一次 Agent 执行，并区分三种状态。"
 category: agent-practice
 tags: ["Domain Model", "State Machine"]
-updated: 2026-08-04
+updated: 2026-08-05
 order: 20
 depth: core
-series: "生产级知识 Agent 实战"
+series: "知识 Agent 分步实践"
 ---
-# 02｜领域模型与状态机
+# 02｜把一次回答拆成可恢复的状态
 
-Agent 的数据库不能只存 `question` 和 `answer`。当用户问“为什么这次答案变了”，系统需要恢复当时的知识版本、策略版本、权限快照、检索证据、声明支持状态和执行事件；当 Worker 中途退出，还要区分可以继续的回合、已完成回合和只发出了取消请求但尚未停止的回合。
+用户问完问题后刷新页面，系统应该继续显示这一轮正在执行，还是重新创建任务？回答已经生成一半时 Worker 退出，哪些内容需要恢复？要解决这些问题，先要把“聊天记录”和“一次执行”分开。
 
-## 聚合边界
+本篇认识会话、回合、事件、证据和 Claim 五个对象。它们不是为了把数据库设计得复杂，而是分别回答：这是谁的对话、这次任务进行到哪、客户端看到了什么、答案依据什么、哪条结论可以核验。
 
-把 `Conversation` 与 `Turn` 分开。Conversation 是用户可见的长期对话容器，消息记录应保持不可变；Turn 是一次 Agent 执行聚合，拥有自己的状态机、版本快照、证据与事件。一个 assistant message 可以先占位，再由 Turn 完成，但不能把工作流所有中间状态塞进消息 JSON。
+## 先看五个对象的关系
 
 ```mermaid
-erDiagram
-  CONVERSATION ||--o{ MESSAGE : contains
-  CONVERSATION ||--o{ TURN : starts
-  TURN ||--o{ TURN_EVENT : emits
-  TURN ||--o{ EVIDENCE_ITEM : selects
-  TURN ||--o{ CLAIM : produces
-  CLAIM }o--o{ EVIDENCE_ITEM : supported_by
-  KNOWLEDGE_RELEASE ||--o{ TURN : pins
-  POLICY_VERSION ||--o{ TURN : controls
+flowchart LR
+  A[会话] --> B[回合]
+  B --> C[事件]
+  B --> D[证据]
+  D --> E[Claim]
 ```
 
-证据与 Claim 使用关系表而非把所有引用只存成答案里的角标。这样可直接查询“多少 Claim 没有支持证据”“某知识版本下哪些回答引用了旧文档”，也能在评测中计算 citation accuracy。
+**会话**把多轮问题连接起来；**回合**表示一次独立执行；**事件**按顺序告诉客户端发生了什么；**证据**保存本轮实际检索到的内容；**Claim** 是答案中可以单独判断真假的结论。
 
-## Turn 状态机
+## 第一步：会话和回合为什么要分开
+
+假设用户先问“访问权限如何申请”，接着问“审批人是谁”。两句话属于同一会话，第二句需要理解上一轮焦点；但它们是两个回合，各自有开始、运行、完成或失败状态。
+
+如果把任务状态放在会话上，第二轮失败会让整个对话看起来都失败。分开后，会话负责多轮关系，回合只负责一次问题。
+
+```text
+会话 conversation-1
+  回合 turn-1：访问权限如何申请？     completed
+  回合 turn-2：审批人是谁？           running
+```
+
+这里的输入是两条连续问题，结果是一个会话下的两个回合。`turn-1` 完成的事实不会因 `turn-2` 仍在运行而改变。
+
+## 第二步：回合保存哪些执行事实
+
+回合至少需要问题、所有者、状态、创建时的知识版本、访问范围和截止时间。版本与范围在创建时保存，是为了让一次执行前后使用同一套事实。
+
+业务状态可以简化为：
 
 ```mermaid
 stateDiagram-v2
   [*] --> pending
-  pending --> running: worker claims
-  pending --> cancel_requested: cancel
-  running --> cancel_requested: cancel
-  cancel_requested --> cancelled: worker acknowledges
-  pending --> expired: deadline/reaper
-  running --> expired: deadline/reaper
-  running --> completed: result persisted
-  running --> failed: terminal error
-  completed --> [*]
-  failed --> [*]
-  cancelled --> [*]
-  expired --> [*]
+  pending --> running
+  running --> completed
+  running --> failed
+  running --> cancel_requested
+  cancel_requested --> cancelled
+  pending --> expired
+  running --> expired
 ```
 
-`cancel_requested` 不能直接等价于 `cancelled`。前者表示控制面已经记录意图，执行面可能仍在模型请求或工具调用中；只有 Worker 在安全点检查并停止后才能进入 cancelled。相同道理，HTTP 请求超时不等于后台 Turn 已失败，客户端断线也不应取消公共执行。
+`cancel_requested` 表示已经收到请求，Worker 尚未走到可安全停止的位置。客户端此时显示“取消中”比提前显示“已取消”更准确。
 
-```python
-TurnStatus = Literal[
-    "pending", "running", "cancel_requested",
-    "completed", "failed", "cancelled", "expired",
-]
+## 第三步：业务状态、图状态和事件不是一回事
 
-TERMINAL = {"completed", "failed", "cancelled", "expired"}
+这三个状态经常被初学者混在一起：
 
-ALLOWED = {
-    "pending": {"running", "cancel_requested", "expired"},
-    "running": {"completed", "failed", "cancel_requested", "expired"},
-    "cancel_requested": {"cancelled", "failed", "expired"},
-}
-```
-
-状态转换必须在数据库条件更新中再次约束，不能只依赖 Python 判断。两个 Worker 同时拿到任务时，`UPDATE ... WHERE status='pending' RETURNING id` 只能让一个执行者成功认领。
-
-## 三种状态不要混在一起
-
-系统至少有三套相关但不同的状态：
-
-| 状态 | 作用 | 保留周期 |
+| 状态 | 保存什么 | 给谁使用 |
 | --- | --- | --- |
-| 业务 Turn | 用户可见终态、幂等、版本和结果 | 长期审计 |
-| LangGraph checkpoint | 某个图节点后的可恢复计算快照 | 活跃与恢复窗口 |
-| Durable event log | SSE 重放、阶段审计和首 token 统计 | 按产品审计策略 |
+| 回合业务状态 | pending、running、completed 等 | 用户、API、恢复任务 |
+| LangGraph 图状态 | 节点间的计划、证据和中间结果 | Agent 运行时 |
+| 事件序列 | 文本增量、引用、终态 | 浏览器流式展示与重放 |
 
-Checkpoint 不能取代业务表：框架内部格式不是稳定的产品 API。事件日志也不能取代当前状态：从全量事件每次折叠状态会增加查询和迁移成本。正确做法是明确一致性协议，终态事务同时更新 Turn、写结果工件并追加唯一终态事件。
+生成半段答案时，图状态已有中间文本，事件中可能出现多条 `answer.delta`，但回合仍是 `running`。只有最终答案和终态事件保存成功后，业务状态才进入 `completed`。
 
-## 证据是不可变快照
+## 第四步：为什么要保存证据快照
 
-引用不能只保存 `document_id`，因为文档稍后可能被覆盖。EvidenceItem 至少保存源版本、chunk、标题、用于回答的内容摘要、可见范围和得分。
+只保存文档 ID 不够。文档以后会更新，评测和排障需要知道“当时模型究竟看到了什么”。因此证据保存来源版本、片段定位、必要内容和检索信息。
 
-```python
-class EvidenceItem(BaseModel):
-    id: str
-    source_version_id: str
-    document_id: str
-    chunk_id: str
-    title: str
-    content: str
-    score: float
-    trust_level: str
-    visibility_subjects: tuple[str, ...]
+公开引用可以只展示标题和链接，内部验证仍需要稳定的证据 ID。这样答案不会在文档更新后突然指向另一段内容。
+
+## 第五步：Claim 怎样连接答案和证据
+
+假设回答包含两句话：“申请需要直属负责人审批。审批完成后权限立即生效。”这其实是两个 Claim，第二句可能没有证据。
+
+```text
+Claim 1：申请需要直属负责人审批
+  -> Evidence A、Evidence B
+
+Claim 2：审批完成后权限立即生效
+  -> 没有证据，标记 unsupported
 ```
 
-是否保存完整 chunk 取决于数据合规和审计需求。至少要能通过不可变版本重新取得当时证据；如果源可能被法规要求彻底删除，则需要支持引用失效标记，而不是继续展示已删除内容。
+验证阶段可以删除或修复第二句，不必让模型重新编写整篇回答。第 10 篇会完整实现这条关系。
 
-## Claim 是事实验证单元
+## 第六步：事件为什么需要递增序号
 
-回答段落不是合适的事实粒度。一段话可能包含三个事实，只有两个有证据。把模型计划出的原子 Claim 持久化：
+时间戳不适合作为唯一顺序：两个事件可能同一毫秒产生，不同进程的时钟也可能偏差。每个回合维护递增序号，客户端用“回合 ID + 序号”去重和断线续传。
 
-```python
-class Claim(BaseModel):
-    id: str
-    text: str
-    support_status: Literal[
-        "pending", "supported", "partial", "unsupported", "conflict"
-    ]
-    confidence: float = Field(ge=0, le=1)
-    evidence_ids: tuple[str, ...] = ()
+一条正常序列可能是：
+
+```text
+1 turn.created
+2 answer.delta
+3 references.ready
+4 turn.completed
 ```
 
-`confidence` 不能代替支持状态。模型可以高置信地说错；确定性验证先检查绑定证据是否存在、是否在权限范围、Claim 的关键实体/数值是否可在证据中定位，再把复杂语义交给 judge。
+数据库还要保证只有一个终态。完成和取消同时竞争时，只允许一个成为最终事实。
 
-## 策略和知识都需要版本
+## 怎样验证模型没有写错
 
-PolicyVersion 包含模型选择、提示模板标识、检索阈值、分支预算、校验开关和质量门禁。生产策略是 champion，候选策略是 challenger；稳定哈希可让一部分请求固定进入候选，而不是每次随机导致同一用户体验漂移。
+这部分测试不需要调用大模型，可以直接检查状态约束：
 
-```python
-def stable_bucket(space_id: str, user_id: str, key: str) -> int:
-    raw = f"{space_id}:{user_id}:{key}".encode()
-    return int.from_bytes(hashlib.sha256(raw).digest()[:4], "big") % 100
-```
+| 测试 | 初始状态 | 操作 | 预期 |
+| --- | --- | --- | --- |
+| 正常完成 | running | complete | completed |
+| 已完成再取消 | completed | cancel | 拒绝转换 |
+| 重复终态 | completed | append cancelled | 保留原终态 |
+| 事件重放 | 已有 1–4 | after=2 | 只返回 3、4 |
+| 证据核验 | Claim 无 evidence | validate | unsupported |
 
-KnowledgeRelease 指向一组已经完整构建的索引版本。Turn 创建后始终携带 release id，任何补充检索不得重新查询“当前 active release”。
+这些规则属于确定性代码，不交给模型判断。
 
-## 建表关键约束
+## 当前实现的边界
 
-```sql
-CREATE UNIQUE INDEX uq_turn_idempotency
-ON agent_turns(space_id, user_id, idempotency_key)
-WHERE idempotency_key <> '';
+本篇只公开对象关系，不公开私有表名和字段。权限范围如何进入检索在第 07 篇，Checkpoint 如何保存图状态在第 14 篇，SSE 如何重放事件在第 15 篇。
 
-CREATE UNIQUE INDEX uq_turn_terminal_event
-ON agent_turn_events(turn_id)
-WHERE event_type IN ('turn.completed', 'turn.failed', 'turn.cancelled', 'turn.expired');
-
-ALTER TABLE claim_evidence
-ADD CONSTRAINT uq_claim_evidence UNIQUE (claim_id, evidence_id);
-```
-
-幂等不能只先 `SELECT` 再 `INSERT`，两个并发事务都会看到空。唯一索引才是最终仲裁者；代码使用 `INSERT ... ON CONFLICT DO NOTHING`，冲突后读取既有 Turn。
-
-事件序号也必须由数据库原子分配。可以在 Turn 行维护 `next_event_sequence`，执行 `UPDATE ... RETURNING` 后写事件。不要在 Worker 内存中 `counter += 1`，多进程下会重复。
-
-## 事务边界
-
-创建回合的一次事务通常包含：验证 active release 与 policy、写 user message、创建 assistant 占位、插入 Turn、提交。提交后才派发任务。如果队列派发失败，Turn 仍是可见 pending，补偿扫描器可以再次投递；如果先派发后提交，Worker 可能查不到 Turn。
-
-严格的 transactional outbox 能进一步消除“数据库提交成功但队列消息丢失”的窗口：同事务写 outbox，独立 relay 投递并标记。小系统也至少需要定时扫描过久 pending 的回合。
-
-## 测试
-
-```python
-async def test_only_one_worker_claims_turn(repo, turn_id):
-    results = await asyncio.gather(
-        repo.claim(turn_id),
-        repo.claim(turn_id),
-    )
-    assert sorted(results) == [False, True]
-
-async def test_terminal_event_is_unique(repo, turn_id):
-    await repo.finish(turn_id, "completed")
-    await repo.finish(turn_id, "completed")
-    events = await repo.events(turn_id)
-    assert sum(e.type == "turn.completed" for e in events) == 1
-```
-
-还要覆盖：相同幂等键并发创建、过期扫描不修改终态、取消请求与完成竞态、release retired 但既有 Turn 仍可恢复、删除源文档后的引用策略。数据库集成测试比 mock 更重要，因为唯一索引、行锁和事务隔离正是这里的实现主体。
+下一篇开始准备知识输入：把 PDF、Office 和文本解析成统一、可检查的结构。
 
 ## 参考资料
 
-- [PostgreSQL：Constraints](https://www.postgresql.org/docs/current/ddl-constraints.html)：唯一约束、外键和数据库不变量。
-- [PostgreSQL：Explicit Locking](https://www.postgresql.org/docs/current/explicit-locking.html)：行锁与 advisory lock 的语义。
-- [LangGraph persistence](https://docs.langchain.com/oss/python/langgraph/persistence)：thread、checkpoint 与恢复模型。
-- [Martin Fowler：Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html)：数据库状态与消息发布的一致性模式。
-
+- [LangGraph：Persistence](https://docs.langchain.com/oss/python/langgraph/persistence)
+- [PostgreSQL：Constraints](https://www.postgresql.org/docs/current/ddl-constraints.html)
+- [WHATWG：Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html)
