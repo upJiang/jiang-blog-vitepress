@@ -1,18 +1,26 @@
 ---
-title: "外链、品牌提及、搜索数据与归因"
-description: "把展现、点击、到站、有效转化、收入与品牌影响拆开，评估站外增长和真实业务价值。"
+title: 外链、品牌提及、搜索数据与归因
+description: 把展现、点击、到站、有效转化、收入与品牌影响拆开，评估站外增长和真实业务价值。
 category: seo
-part: "第五部分：站外、数据与投放"
+part: 第五部分：站外、数据与投放
 chapter: 11
-tags: ["Links", "Analytics", "Attribution"]
-prerequisites: ["读过第 1 章"]
-outcomes: ["识别值得获取的链接", "建立 SEO 归因与置信度"]
+tags:
+  - Links
+  - Analytics
+  - Attribution
+prerequisites:
+  - 读过第 1 章
+outcomes:
+  - 识别值得获取的链接
+  - 建立 SEO 归因与置信度
 practice:
   type: decision
-  result: "制作一张搜索到业务结果的数据字典"
-  verify: ["品牌与非品牌分开", "平台转化与真实业务结果分开"]
+  result: 制作一张搜索到业务结果的数据字典
+  verify:
+    - 品牌与非品牌分开
+    - 平台转化与真实业务结果分开
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 外链、品牌提及与站外增长
 
@@ -94,9 +102,3 @@ flowchart LR
 品牌提及即使没有链接，也能帮助用户发现和验证实体。可以通过原创研究、开源工具、专家解释、合作案例和及时回应建立可引用材料；不要批量购买链接、交换无关页或冒充第三方评价。
 
 每月抽查新增来源的真实页面和引荐流量，记录带来的有效访问、线索和品牌查询，而不是只汇报链接数。遇到垃圾链接先保存证据并评估实际风险，不要因第三方工具警报就批量进行不可逆处理。品牌与链接增长是长期关系建设，不承诺固定排名结果。
-
-## 参考资料
-
-- [Google Search Central：Spam policies](https://developers.google.com/search/docs/essentials/spam-policies)
-- [Google Search Central：Qualify outbound links](https://developers.google.com/search/docs/crawling-indexing/qualify-outbound-links)
-- [Bing Webmaster Guidelines](https://www.bing.com/webmasters/help/webmaster-guidelines-30fba23a)

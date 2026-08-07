@@ -1,18 +1,27 @@
 ---
-title: "FastAPI、Pydantic、依赖注入与分层"
-description: "用文档任务接口串起 DTO、路由、应用服务、Repository、Unit of Work 和错误映射。"
+title: FastAPI、Pydantic、依赖注入与分层
+description: 用文档任务接口串起 DTO、路由、应用服务、Repository、Unit of Work 和错误映射。
 category: backend
-part: "第三部分：Python / FastAPI"
+part: 第三部分：Python / FastAPI
 chapter: 13
-tags: ["Python", "FastAPI", "Pydantic"]
-prerequisites: ["Python 类型提示", "前 8 章"]
-outcomes: ["解释依赖注入", "设计清晰事务边界"]
+tags:
+  - Python
+  - FastAPI
+  - Pydantic
+prerequisites:
+  - Python 类型提示
+  - 前 8 章
+outcomes:
+  - 解释依赖注入
+  - 设计清晰事务边界
 practice:
   type: implementation
-  result: "实现一条从请求到持久化的调用链"
-  verify: ["非法请求返回结构化错误", "Worker 可复用应用服务"]
+  result: 实现一条从请求到持久化的调用链
+  verify:
+    - 非法请求返回结构化错误
+    - Worker 可复用应用服务
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # FastAPI 分层架构：从请求、事务到后台任务
@@ -441,11 +450,3 @@ SQLite 无法替代 PostgreSQL 的锁、JSON、向量和并发语义。依赖这
 - 测试是否分别覆盖用例顺序、数据库语义、HTTP 契约和 Worker 副作用？
 
 分层完成的标志不是目录变漂亮，而是同一个创建任务用例能从 HTTP、Worker 或管理命令进入，规则不复制，事务与外部副作用边界可以被测试证明。
-
-## 参考资料
-
-- [FastAPI：Bigger Applications](https://fastapi.tiangolo.com/tutorial/bigger-applications/)
-- [FastAPI：Handling Errors](https://fastapi.tiangolo.com/tutorial/handling-errors/)
-- [Pydantic Models](https://docs.pydantic.dev/latest/concepts/models/)
-- [SQLAlchemy AsyncIO](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html)
-- [SQLAlchemy Transactions and Connection Management](https://docs.sqlalchemy.org/en/20/orm/session_transaction.html)

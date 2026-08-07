@@ -1,174 +1,185 @@
 ---
-title: "LangGraph 的 State、Node、Edge、Reducer 与 Checkpoint"
-description: "把串行函数改成可观察的状态图，再加入条件边、并行合并和按需恢复。"
+title: "LangGraph State、Node、Edge、Reducer 与 Checkpoint：从零看懂一张图"
+description: "先定义状态和节点，再连接普通分支与条件边，最后理解并行合并和 Checkpoint。"
 category: ai-agent
-part: "第二部分：构建 Agent Runtime"
+part: "Agent 怎样行动"
 chapter: 6
-tags: ["LangGraph", "State Graph"]
-prerequisites: ["Python 类型提示", "读过第 5 章"]
-outcomes: ["读懂状态图执行顺序", "设计不会互相覆盖的 Reducer"]
+tags: ["LangGraph", "State", "Reducer", "Checkpoint"]
+prerequisites: ["会读 Python 函数和类型提示", "理解 Agent 生命周期"]
+outcomes: ["能画出最小状态图", "能解释节点执行顺序和并行结果如何合并"]
 practice:
   type: implementation
-  result: "画出并推演一张最小状态图"
-  verify: ["正常分支到达终态", "并行结果按 Reducer 合并"]
+  result: "完成一张可推演的只读问答状态图"
+  verify: ["普通问题和寒暄分支都能到达终态", "并行证据不会互相覆盖"]
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-07
 ---
-# LangGraph 的 State、Node、Edge、Reducer 与 Checkpoint
+# LangGraph State、Node、Edge、Reducer 与 Checkpoint：从零看懂一张图
 
-先从一段普通代码开始：理解问题、检索资料、生成回答。三个函数按顺序调用时很好懂，问题出现在需要分支、并行、重试和恢复之后：状态散落在局部变量中，哪一步修改了什么也难追踪。
+很多人第一次看到 LangGraph，先看到的是一段 `add_edge` 代码，然后被 `State`、`Reducer` 和 `Checkpoint` 一起淹没。阅读顺序应该反过来：先理解一次请求要经过哪些步骤，再用状态图表达这些步骤。
 
-LangGraph 把流程表示成“共享状态 + 节点 + 边”。本章只搭一张最小图，并在最后加入一个并行合并例子。Checkpoint 不会被当成自动解决所有故障的开关，而会说明它到底保存了什么。
+本文只构建一张很小的只读问答图。它能处理三种输入：知识问题、寒暄和无法判断的问题。我们先写普通 Python 函数，再逐步加 State、Node、Edge、条件分支、Reducer 和 Checkpoint。
 
-## State：整张图共享的数据契约
+## 先画执行结果
 
-State 不是把所有业务对象塞进一个字典。它应该只保存图运行需要传递和合并的数据。
-
-```python
-from typing import Annotated, Literal, TypedDict
-import operator
-
-class AgentState(TypedDict):
-    question: str
-    intent: Literal["search", "greeting", "unclear"]
-    queries: list[str]
-    evidence: Annotated[list[str], operator.add]
-    answer: str
+```mermaid
+flowchart TD
+  S[开始：收到 question] --> U[understand：得到 intent]
+  U -->|search| R[retrieve：得到 evidence]
+  R --> C[compose：得到 answer]
+  C --> E1[结束：answer_ready]
+  U -->|greeting| E2[结束：直接寒暄]
+  U -->|unclear| E3[结束：请用户补充]
 ```
 
-`question` 是原始问题；`intent` 决定分支；`queries` 保存检索词；`evidence` 声明用列表相加合并更新；`answer` 保存候选答案。
+普通问题会经过理解、检索和组织答案；寒暄不需要查资料；无法判断的问题直接请求用户补充。图中每条终点都代表一个业务结果，`END` 只表示图执行结束，不代表每次都成功回答。
 
-真实系统中的用户身份、知识版本和 Deadline 通常在创建运行时就钉住，避免节点中途换范围。但数据库实体不必全部复制到图状态，只保存稳定标识即可。
+## 第一步：先写没有框架的函数
 
-## Node：读取状态并返回局部更新
-
-节点是普通同步或异步函数。它接收当前状态，返回要更新的字段。
+先用普通函数验证业务顺序，可以避免把框架语法误认为业务逻辑。
 
 ```python
-def understand(state: AgentState) -> dict:
-    text = state["question"].strip()
+def understand(question: str) -> dict:
+    """把用户输入归类成最小的三种意图。"""
+    text = question.strip()
     if text in {"你好", "hello"}:
-        return {"intent": "greeting", "answer": "你好，需要查询什么资料？"}
+        return {"intent": "greeting"}
     if len(text) < 4:
         return {"intent": "unclear"}
     return {"intent": "search", "queries": [text]}
 
-async def retrieve(state: AgentState) -> dict:
-    rows = await search_readable_documents(state["queries"][0])
-    return {"evidence": [row.summary for row in rows]}
+def retrieve(queries: list[str]) -> list[str]:
+    """调用已经带权限过滤的检索器，返回证据摘要。"""
+    return [f"与“{queries[0]}”相关的资料片段"]
+
+def compose(question: str, evidence: list[str]) -> str:
+    """把问题和证据组织成一个教学用答案。"""
+    return f"问题：{question}\n依据：{'；'.join(evidence)}"
 ```
 
-`understand` 只负责本章的最小分支，`retrieve` 只负责调用经过权限约束的检索服务。节点返回更新而不是随意修改全局对象，运行时才能记录每一步输入输出。
+`understand` 的输入是字符串，输出是意图和可能的查询词；`retrieve` 接收查询词，真实版本应访问带权限过滤的检索器；`compose` 接收原问题和证据，输出答案文本。这里的关键词判断只是为了让读者看见三条路径，不代表生产 Agent 的意图理解方式。先分别调用三个函数，可以确认每个函数的输入输出，再进入图编排。
 
-在真实 Agent 中，意图识别不会依赖几个关键词特判，而会使用结构化理解和回归评测；这里的规则只是帮助初学者观察图分支。
+## 第二步：把共享数据写成 State
 
-## Edge：决定执行顺序和条件分支
+State 是图运行期间共享的数据契约。它不等于数据库所有字段，而是节点之间需要传递的最小状态。
 
-普通边表示固定顺序，条件边根据状态选择下一节点。
+```python
+from typing import Literal, TypedDict
+
+class AgentState(TypedDict, total=False):
+    question: str
+    intent: Literal["search", "greeting", "unclear"]
+    queries: list[str]
+    evidence: list[str]
+    answer: str
+    status: Literal["running", "answer_ready", "need_more_input"]
+```
+
+`question` 保存原始输入，避免后续节点只能看到改写结果；`intent` 是条件边使用的枚举；`queries` 保存检索词；`evidence` 保存当前证据；`answer` 保存候选答案；`status` 让 API 能够把图终态映射成可观察的业务状态。使用 `total=False` 表示节点可以只返回自己负责的字段，而不必每次重新构造完整状态。
+
+## 第三步：把函数变成 Node
+
+Node 是一个读取当前 State、返回局部更新的函数。它不应该偷偷修改全局对象，否则日志和重试很难解释。
+
+```python
+def understand_node(state: AgentState) -> dict:
+    result = understand(state["question"])
+    if result["intent"] == "greeting":
+        return {"intent": "greeting", "answer": "你好，需要查询什么资料？", "status": "answer_ready"}
+    if result["intent"] == "unclear":
+        return {"intent": "unclear", "answer": "请补充要查询的资料主题。", "status": "need_more_input"}
+    return {"intent": "search", "queries": result["queries"], "status": "running"}
+
+def retrieve_node(state: AgentState) -> dict:
+    evidence = retrieve(state["queries"])
+    return {"evidence": evidence}
+
+def compose_node(state: AgentState) -> dict:
+    answer = compose(state["question"], state.get("evidence", []))
+    return {"answer": answer, "status": "answer_ready"}
+```
+
+`understand_node` 读取问题并返回意图、查询词或直接答案；寒暄和不清楚的输入不需要进入检索。`retrieve_node` 只负责调用检索函数，返回证据列表；如果真实检索器返回空数组，节点应明确返回“没有证据”的状态，而不是让生成节点假装有资料。`compose_node` 使用原问题和证据生成答案，并把状态改为 `answer_ready`。
+
+## 第四步：连接普通边和条件边
+
+现在才引入图 API。普通边描述固定顺序，条件边根据 State 返回下一节点名称。
 
 ```python
 from langgraph.graph import END, START, StateGraph
 
-graph = StateGraph(AgentState)
-graph.add_node("understand", understand)
-graph.add_node("retrieve", retrieve)
-graph.add_node("compose", compose_answer)
+def route_after_understand(state: AgentState) -> str:
+    return state["intent"]
 
-graph.add_edge(START, "understand")
-graph.add_conditional_edges(
+builder = StateGraph(AgentState)
+builder.add_node("understand", understand_node)
+builder.add_node("retrieve", retrieve_node)
+builder.add_node("compose", compose_node)
+builder.add_edge(START, "understand")
+builder.add_conditional_edges(
     "understand",
-    lambda state: state["intent"],
+    route_after_understand,
     {"search": "retrieve", "greeting": END, "unclear": END},
 )
-graph.add_edge("retrieve", "compose")
-graph.add_edge("compose", END)
-
-app = graph.compile()
+builder.add_edge("retrieve", "compose")
+builder.add_edge("compose", END)
+app = builder.compile()
 ```
 
-从 `START` 进入理解节点。`search` 分支检索并生成，另外两条分支直接结束。`END` 表示图终止，不等于业务一定成功；状态中还应有明确的终态与原因，供 API 映射。
+`StateGraph(AgentState)` 告诉框架每个节点使用哪份状态契约；三个 `add_node` 把函数注册到图中；`START` 把入口连到理解节点；条件边调用 `route_after_understand`，再按返回值选择检索或直接结束；检索固定进入组织答案；组织答案后到 `END`。如果意图枚举增加了 `cancelled` 却没有增加对应路由，图应该在测试中失败，而不是静默走错分支。
 
-### 推演两次运行
+## 第五步：运行三条路径
 
-输入“你好”时：`START → understand → END`，状态里已有直接回答。输入知识问题时：`START → understand → retrieve → compose → END`。
-
-推演是设计状态图最有效的检查之一。每条条件边都要有可达输入，每个终点都要能解释业务结果。
-
-## Reducer：多个更新怎样合并
-
-没有 Reducer 时，同一字段的后一次更新通常覆盖前一次更新。并行检索分支都返回 `evidence`，若直接覆盖，就只剩最后完成的分支。
-
-State 中的 `Annotated[list[str], operator.add]` 声明列表追加。两个分支分别返回 `[E1]` 和 `[E2]`，合并结果为 `[E1, E2]`。
-
-Reducer 要满足业务语义，不是见到列表就相加：
-
-- 消息历史可能使用框架提供的消息 Reducer，处理消息 ID 和覆盖；
-- 证据需要按稳定 ID 去重，而不只是拼接；
-- 计数器可以相加；
-- 唯一版本号若出现两个不同值，应该报错而不是任选一个。
-
-可以为证据写确定性 Reducer：保留首次出现顺序，按证据 ID 去重。并行完成顺序可能变化，所以后续排序不能偷偷依赖哪个请求先返回。
-
-## 并行分支与 Send
-
-当理解节点得到三个独立查询时，可以动态创建三个检索任务。LangGraph 的 `Send` 用于把不同输入发送到同一节点。
+编译后的 `app` 接收一个初始 State，返回最终 State。下面的输入分别覆盖正常问题、寒暄和不清楚问题。
 
 ```python
-from langgraph.types import Send
-
-def fan_out(state: AgentState):
-    return [Send("retrieve_one", {"query": query}) for query in state["queries"]]
+for question in ["如何申请远程访问", "你好", "嗯"]:
+    result = app.invoke({"question": question})
+    print(question, "=>", result["status"], result.get("answer"))
 ```
 
-每个 `retrieve_one` 返回证据更新，Reducer 负责合并。并行并不意味着无限并发：外层服务仍要设置分支上限、每个调用超时和整轮 Deadline。慢分支超时后，系统还要判断已有证据是否足够。
+循环每次创建一份只包含 `question` 的新状态；`invoke` 从 `START` 开始，按边执行节点并合并局部更新；打印 `status` 和 `answer`，可以验证三条终态是否符合预期。正常问题应经过检索和组织答案，寒暄应直接得到问候，不清楚的问题应得到补充提示。生产服务还要把运行 ID、终态原因和错误保存到事件表，而不是只打印文本。
 
-## Checkpoint 保存的是什么
+## 第六步：Reducer 解决并行结果覆盖
 
-Checkpoint 保存图在某个线程或运行标识下的状态快照和执行位置，使暂停、人机审批或进程中断后的恢复成为可能。它不等于数据库事务，也不会撤销已经发出的邮件或付款。
+当只有一条检索链时，后一次更新覆盖前一次并不明显。现在假设我们同时查全文和向量两个通道，它们都返回 `evidence`。如果最后完成的节点直接覆盖字段，先返回的证据会丢失。
+
+Reducer 定义同一字段收到多个更新时如何合并。对于证据，常见规则是按稳定 ID 去重，并保持确定性顺序；对于计数器可以相加；对于互斥版本号，发现两个值时应该报冲突。
+
+```python
+from typing import Annotated
+import operator
+
+class ParallelState(TypedDict, total=False):
+    query: str
+    evidence: Annotated[list[str], operator.add]
+```
+
+`Annotated` 告诉图运行时，`evidence` 不是简单覆盖，而是使用 `operator.add` 合并列表。两个分支分别返回 `["全文命中"]` 和 `["向量命中"]` 时，最终状态包含两项。生产版本应把列表元素换成带稳定 ID 的对象，并在 Reducer 中去重；单纯相加会把重试产生的重复证据保留下来。
+
+## 第七步：Checkpoint 只解决可恢复状态
+
+Checkpoint 是图运行过程中的状态快照和执行位置。进程中断后，运行时可以从快照恢复，但它不是数据库事务，也不会撤销已经发出的外部副作用。
 
 ```mermaid
 flowchart LR
-  A[节点完成] --> B[保存图状态]
-  B --> C[下一个节点]
-  C -->|进程中断| D[读取 Checkpoint]
-  D --> E[从可恢复位置继续]
+  A[节点完成] --> B[保存 State 快照]
+  B --> C[继续下一个节点]
+  C -->|进程中断| D[读取同一 run_id 的快照]
+  D --> E[恢复到可重试节点]
+  E --> F[检查取消、Deadline 和幂等状态]
 ```
 
-使用 Checkpoint 前要回答：
+节点完成后先保存状态，进程中断时按 `run_id` 找到最近快照，恢复前检查任务是否已经取消或超时，再决定是否重试。若节点已经发送邮件、写入外部系统，恢复可能再次执行副作用，因此要用幂等键或把副作用放到可对账的任务表。短小的只读问答可以不启用持久 Checkpoint；长时间研究和人工暂停才值得增加存储成本。
 
-- 哪些运行模式真的需要恢复；
-- 线程 ID 怎样与用户和回合绑定；
-- Checkpoint 保存多久，谁能读取和删除；
-- 恢复前如何检查业务任务是否已经取消；
-- 节点包含外部副作用时怎样保证幂等。
+## 资深工程师和初学者各自要检查什么
 
-短小只读问答可以不启用持久 Checkpoint，减少存储和隐私负担。长时间研究、人工中断或需要容错的模式再按需启用。
+资深检查：State 是否混入不该持久化的敏感数据，条件边是否覆盖所有枚举，Reducer 是否能处理乱序和重复，Checkpoint 恢复是否有 Deadline 和副作用幂等。
 
-## 状态图的测试方法
+初学者检查：能否从一条输入开始，写出节点执行顺序；能否说明每个节点读什么、改什么；能否解释为什么寒暄不需要检索；能否判断并行分支为什么需要 Reducer。
 
-测试不要只调用整张图看最终文字。至少分三层：
+下一篇会进入 Tool Calling：状态图决定什么时候调用工具，工具契约决定允许调用什么、参数怎样校验以及错误怎样回到图中。
 
-1. 节点测试：给定状态，断言局部更新；
-2. 路由测试：给定意图，断言下一节点；
-3. 图测试：替换模型和检索器，断言节点序列与终态。
+## 这套状态图的边界
 
-还要覆盖 Reducer：并行结果乱序、重复证据和空分支怎样合并。Checkpoint 测试应在节点间中断，再确认恢复后不会重复外部副作用。
-
-## 本章实践检查表
-
-- State 字段是否只保存图需要的内容；
-- 每个节点能否用一句话描述职责；
-- 条件边是否覆盖所有枚举；
-- 并行写同一字段时是否定义 Reducer；
-- Reducer 对乱序和重复是否稳定；
-- Checkpoint 是否有明确用途、保留期和身份边界；
-- 外部副作用是否具备幂等或对账机制。
-
-下一章进入工具调用。状态图决定“什么时候调用”，工具契约决定“允许调用什么，以及错误怎样回到图中”。
-
-## 参考资料
-
-- [LangGraph Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api)
-- [LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence)
-- [LangGraph Send API](https://langchain-ai.github.io/langgraph/reference/types/#langgraph.types.Send)
-
+状态图适合把有多个明确阶段、分支或恢复点的 Agent 流程写成可检查的执行图。它不替代模型质量评测，也不替代数据库事务：节点里的外部写操作仍要自己处理幂等，状态里的敏感内容也不能因为能序列化就永久保存。只有一条不可暂停的模型调用时，直接函数调用通常更简单。

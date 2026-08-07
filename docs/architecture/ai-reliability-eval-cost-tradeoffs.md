@@ -1,18 +1,26 @@
 ---
-title: "重试、去重、回放、降级、Eval、观测与成本取舍"
-description: "从模型超时和答案波动出发，组合可靠性模式、质量门禁、Deadline 和预算。"
+title: 重试、去重、回放、降级、Eval、观测与成本取舍
+description: 从模型超时和答案波动出发，组合可靠性模式、质量门禁、Deadline 和预算。
 category: architecture
-part: "AI 系统设计"
+part: AI 系统设计
 chapter: 7
-tags: ["Reliability", "Evaluation", "Cost"]
-prerequisites: ["完成前 6 章"]
-outcomes: ["为故障选择模式", "把质量和成本纳入 ADR"]
+tags:
+  - Reliability
+  - Evaluation
+  - Cost
+prerequisites:
+  - 完成前 6 章
+outcomes:
+  - 为故障选择模式
+  - 把质量和成本纳入 ADR
 practice:
   type: decision
-  result: "完成一份 AI 架构决策记录"
-  verify: ["未知结果不盲目重试", "降级后的质量边界明确"]
+  result: 完成一份 AI 架构决策记录
+  verify:
+    - 未知结果不盲目重试
+    - 降级后的质量边界明确
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 重试、去重、回放与降级
@@ -97,10 +105,3 @@ flowchart LR
 重试不会自动幂等，去重也无法恢复丢失的响应。回放只读取已经提交的事实，不重新执行副作用。降级同样受权限、计费和数据完整性约束；这些控制失败时应关闭相应能力。
 
 为一个外部调用填写故障矩阵：连接前失败、请求发送后超时、服务返回限流、服务成功但本地提交失败。每格写可观察证据、允许动作、最大次数和终态。再用故障注入验证没有重复副作用、预算不会刷新、客户端得到明确状态。这张矩阵比“统一重试三次”更能迁移到真实工作。
-
-## 参考资料
-
-- [AWS Builders' Library: Timeouts, retries and backoff](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/)
-- [Idempotent Consumer](https://microservices.io/patterns/communication-style/idempotent-consumer.html)
-- [Circuit Breaker](https://martinfowler.com/bliki/CircuitBreaker.html)
-- [Google SRE Workbook](https://sre.google/workbook/table-of-contents/)

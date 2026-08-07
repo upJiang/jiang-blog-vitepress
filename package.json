@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@algolia/client-search": "5.56.0",
+    "@lucide/vue": "^1.29.0",
     "@playwright/test": "1.55.0",
     "@types/node": "^22.10.2",
     "debug": "^4.4.3",
@@ -33,6 +34,7 @@
     "typecheck": "vue-tsc --noEmit",
     "content:check": "tsx scripts/check-content.ts",
     "content:quality": "tsx scripts/check-content-quality.ts",
+    "content:reviews": "tsx scripts/generate-content-reviews.ts",
     "build:check": "node scripts/check-build.mjs",
     "privacy:check": "node scripts/check-privacy.mjs",
     "visual:check": "node scripts/visual-smoke.mjs",

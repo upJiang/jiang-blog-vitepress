@@ -1,18 +1,26 @@
 ---
-title: "SEM 账户、关键词、出价、落地页与 90 天协同计划"
-description: "从账户结构和搜索词开始，串联匹配、否定词、预算、创意、落地页、归因和 SEO 回流。"
+title: SEM 账户、关键词、出价、落地页与 90 天协同计划
+description: 从账户结构和搜索词开始，串联匹配、否定词、预算、创意、落地页、归因和 SEO 回流。
 category: seo
-part: "第五部分：站外、数据与投放"
+part: 第五部分：站外、数据与投放
 chapter: 12
-tags: ["SEM", "Bidding", "Landing Page"]
-prerequisites: ["读过第 1、2、11 章"]
-outcomes: ["建立可控制的搜索广告账户", "制定 SEO/SEM 联合验证计划"]
+tags:
+  - SEM
+  - Bidding
+  - Landing Page
+prerequisites:
+  - 读过第 1、2、11 章
+outcomes:
+  - 建立可控制的搜索广告账户
+  - 制定 SEO/SEM 联合验证计划
 practice:
   type: implementation
-  result: "完成一份 90 天搜索增长 Runbook"
-  verify: ["含预算停止条件和回滚", "广告词与 SEO 页面互相反馈但不重复归因"]
+  result: 完成一份 90 天搜索增长 Runbook
+  verify:
+    - 含预算停止条件和回滚
+    - 广告词与 SEO 页面互相反馈但不重复归因
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # SEO 与 SEM 协同的 90 天执行手册
 
@@ -122,9 +130,3 @@ flowchart LR
 每周保持固定节奏：周一看业务目标和异常，周中完成页面或实验，周四核对数据质量，周五记录事实、假设、动作和下一次观察。普通排名波动不应打乱全部计划；全站不可用、错误 noindex、追踪失效或广告异常消耗则按 P0/P1 处理。
 
 第 90 天复盘要回答哪些需求被真实验证、哪些页面能承接、数据是否可信、SEO 与 SEM 是否带来有效业务、下一周期资源放在哪里。扩大投入需要需求与单位经济成立且边际回报可接受；证据不足就维持观察；多轮验证无需求、成本不可承受或存在合规风险时停止。计划不承诺固定排名、收录日期、生成式引用、CPA 或 ROAS。
-
-## 参考资料
-
-- [Google Search Central：SEO Starter Guide](https://developers.google.com/search/docs/fundamentals/seo-starter-guide)
-- [Google Ads：Search campaigns](https://support.google.com/google-ads/answer/9510373)
-- [Microsoft Advertising Learning Lab](https://learninglab.about.ads.microsoft.com/)

@@ -1,18 +1,24 @@
 ---
-title: "单元、集成、契约与端到端测试"
-description: "以同一接口为例，解释每一层测试发现什么、依赖什么和为什么会变慢。"
+title: 单元、集成、契约与端到端测试
+description: 以同一接口为例，解释每一层测试发现什么、依赖什么和为什么会变慢。
 category: engineering
-part: "工程工作法"
+part: 工程工作法
 chapter: 3
-tags: ["Testing"]
-prerequisites: ["至少使用过一种测试框架"]
-outcomes: ["设计测试分层", "减少脆弱 E2E"]
+tags:
+  - Testing
+prerequisites:
+  - 至少使用过一种测试框架
+outcomes:
+  - 设计测试分层
+  - 减少脆弱 E2E
 practice:
   type: decision
-  result: "制作一张测试策略表"
-  verify: ["关键规则有快速测试", "跨服务契约可验证"]
+  result: 制作一张测试策略表
+  verify:
+    - 关键规则有快速测试
+    - 跨服务契约可验证
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 单元、集成、契约与端到端测试
 
@@ -96,10 +102,3 @@ E2E 从真实入口开始，经过鉴权、数据库、队列、Agent Runtime �
 7. 代码、迁移、契约和测试是否在同一变更中演进？
 
 迁移练习：为一次“用户取消流式问答”分别写单元、集成、契约和 E2E 的最小断言，说明每层不负责验证什么。
-
-## 参考资料
-
-- [Martin Fowler: Test Pyramid](https://martinfowler.com/articles/practical-test-pyramid.html)
-- [OpenAPI Specification](https://spec.openapis.org/oas/latest.html)
-- [Pact contract testing](https://docs.pact.io/)
-- [Playwright testing best practices](https://playwright.dev/docs/best-practices)

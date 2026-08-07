@@ -1,18 +1,25 @@
 ---
-title: "关键词、搜索意图与页面映射"
-description: "从用户任务而不是关键词数量出发，识别意图、主题、实体、修饰词和页面职责。"
+title: 关键词、搜索意图与页面映射
+description: 从用户任务而不是关键词数量出发，识别意图、主题、实体、修饰词和页面职责。
 category: seo
-part: "第二部分：需求、抓取与页面"
+part: 第二部分：需求、抓取与页面
 chapter: 4
-tags: ["Keyword", "Search Intent"]
-prerequisites: ["读过第 1、2 章"]
-outcomes: ["建立关键词簇", "避免多个页面争夺同一任务"]
+tags:
+  - Keyword
+  - Search Intent
+prerequisites:
+  - 读过第 1、2 章
+outcomes:
+  - 建立关键词簇
+  - 避免多个页面争夺同一任务
 practice:
   type: decision
-  result: "制作一张关键词到页面的映射表"
-  verify: ["每个关键词有意图和证据", "重复任务被合并或区分"]
+  result: 制作一张关键词到页面的映射表
+  verify:
+    - 每个关键词有意图和证据
+    - 重复任务被合并或区分
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 怎样从用户问题找到关键词
 
@@ -102,9 +109,3 @@ flowchart LR
 聚类时比较“同一页面能否自然完整回答”，而不只看词面相似。两个词字面接近但一个要教程、一个要产品报价，应拆开；两个词表达不同但任务和结果页高度一致，可以由同一页承接。
 
 随机抽十条查询，让另一位执行者仅看字段就能判断应该做文章、商业页、广告验证还是暂不投入。若判断经常分歧，说明意图或页面承诺写得不清。搜索量只是估算，优先级还要结合可获得点击、商业价值、竞争与交付能力。
-
-## 参考资料
-
-- [Google Ads：Keyword Planner](https://support.google.com/google-ads/answer/7337243)
-- [Google Trends 帮助](https://support.google.com/trends/)
-- [Google Search Central：Creating helpful content](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)

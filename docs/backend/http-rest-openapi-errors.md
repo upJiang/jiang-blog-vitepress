@@ -1,18 +1,25 @@
 ---
-title: "HTTP、REST、OpenAPI、错误结构与接口版本"
-description: "用一个资源接口讲清方法语义、状态码、幂等、分页、错误码、契约和兼容演进。"
+title: HTTP、REST、OpenAPI、错误结构与接口版本
+description: 用一个资源接口讲清方法语义、状态码、幂等、分页、错误码、契约和兼容演进。
 category: backend
-part: "第一部分：后端共同基础"
+part: 第一部分：后端共同基础
 chapter: 2
-tags: ["HTTP", "OpenAPI"]
-prerequisites: ["读过第 1 章"]
-outcomes: ["设计稳定接口契约", "区分业务错误与传输错误"]
+tags:
+  - HTTP
+  - OpenAPI
+prerequisites:
+  - 读过第 1 章
+outcomes:
+  - 设计稳定接口契约
+  - 区分业务错误与传输错误
 practice:
   type: implementation
-  result: "编写一份最小 OpenAPI 契约"
-  verify: ["请求响应能被校验", "新增字段保持兼容"]
+  result: 编写一份最小 OpenAPI 契约
+  verify:
+    - 请求响应能被校验
+    - 新增字段保持兼容
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # HTTP、REST、OpenAPI、错误结构与接口版本
 
@@ -63,7 +70,7 @@ Idempotency-Key: 9a02c6d8-...
 }
 ```
 
-时间使用带时区的标准格式；状态使用受控枚举；ID 被当作不透明字符串，客户端不猜内部编码。
+客户端把这段 JSON 作为成功响应读取：`id` 用来继续请求，`status` 驱动页面状态，`createdAt` 只用于展示或排序。服务端先完成持久化，再序列化 DTO；时间使用带时区的标准格式；状态使用受控枚举；ID 被当作不透明字符串，客户端不猜内部编码。字段缺失或类型变化应在契约测试中失败，而不是让每个前端自行猜默认值。
 
 ## 错误结构要让人和程序都能用
 
@@ -81,7 +88,7 @@ RFC 9457 定义 Problem Details，可以使用 `application/problem+json`：
 }
 ```
 
-`status` 对应 HTTP；`code` 供客户端稳定分支；`detail` 给人阅读；`requestId` 供排障。内部 SQL、堆栈和凭证不返回。
+客户端收到错误后先读 `status` 和 `code`，再决定修正输入、重新认证、等待退避还是刷新资源；`detail` 只给人阅读。`status` 对应 HTTP；`code` 供客户端稳定分支；`detail` 给人阅读；`requestId` 供排障。内部 SQL、堆栈和凭证不返回。若响应不是 `application/problem+json` 或缺少 request ID，先记录协议层故障，不能把 HTML 错误页当业务错误解析。
 
 ### 错误映射表
 
@@ -117,7 +124,7 @@ GET /v1/tasks?limit=20&cursor=<opaque>
 }
 ```
 
-游标应是服务端生成的不透明值，包含排序位置和必要签名，不把可随意篡改的 SQL 条件暴露给客户端。排序字段要有唯一补充键，否则同一时间戳会造成不稳定。
+服务端收到 `cursor` 后先验证签名和版本，再把它解码成排序位置，查询下一页并生成新的游标；客户端只保存并回传字符串。游标应是服务端生成的不透明值，包含排序位置和必要签名，不把可随意篡改的 SQL 条件暴露给客户端。排序字段要有唯一补充键，否则同一时间戳会造成不稳定。游标过期或签名错误应返回可判断的 400/409，而不是静默从第一页开始。
 
 ## OpenAPI 把契约变成可检查文档
 
@@ -157,7 +164,7 @@ components:
         title: { type: string, minLength: 1, maxLength: 120 }
 ```
 
-OpenAPI 描述协议形状，可生成文档、客户端和契约测试。它不能表达所有业务不变量，例如“completed 状态不能再次执行”，这些规则仍需文字说明和服务端测试。
+OpenAPI 描述协议形状，可生成文档、客户端和契约测试。构建时把 YAML 交给校验器，生成的文档应能看到请求字段、响应状态和错误媒体类型；运行时仍由框架 DTO 校验真实输入。它不能表达所有业务不变量，例如“completed 状态不能再次执行”，这些规则仍需文字说明和服务端测试。发布新字段前先检查旧客户端是否会忽略它，删除或改类型则需要版本策略。
 
 ## 版本兼容怎样判断
 
@@ -204,10 +211,3 @@ OpenAPI 描述协议形状，可生成文档、客户端和契约测试。它不
 ```
 
 下一章进入认证和授权。接口知道“请求长什么样”后，还要知道“是谁在请求，以及他能看到哪一行数据”。
-
-## 参考资料
-
-- [RFC 9110: HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110)
-- [RFC 9457: Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457)
-- [OpenAPI Specification 3.1](https://spec.openapis.org/oas/v3.1.0)
-

@@ -1,18 +1,25 @@
 ---
-title: "SSE、WebSocket 与流式页面"
-description: "从任务进度页面出发，选择单向或双向通道，并处理游标、重连、心跳和慢消费者。"
+title: SSE、WebSocket 与流式页面
+description: 从任务进度页面出发，选择单向或双向通道，并处理游标、重连、心跳和慢消费者。
 category: frontend
-part: "现代前端：安全与通信"
+part: 现代前端：安全与通信
 chapter: 12
-tags: ["SSE", "WebSocket"]
-prerequisites: ["HTTP 与事件监听"]
-outcomes: ["选择实时协议", "实现断线恢复状态机"]
+tags:
+  - SSE
+  - WebSocket
+prerequisites:
+  - HTTP 与事件监听
+outcomes:
+  - 选择实时协议
+  - 实现断线恢复状态机
 practice:
   type: implementation
-  result: "设计一条可重放的进度流"
-  verify: ["重复事件不会重复更新", "断线后从游标继续"]
+  result: 设计一条可重放的进度流
+  verify:
+    - 重复事件不会重复更新
+    - 断线后从游标继续
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # SSE 与 WebSocket 实时通信
@@ -69,7 +76,7 @@ export function subscribeTask(
 }
 ```
 
-代码使用运行时 Schema 校验不可信事件。真实实现还要把保存的游标送回服务端；原生 EventSource 会发送最近收到的 `Last-Event-ID`，自定义 fetch 流则显式构造查询或请求头。
+代码使用运行时 Schema 校验不可信事件。执行顺序是创建 `EventSource`，收到消息后先解析和校验，再调用 `apply` 更新页面，只有更新成功才写入 `sessionStorage` 游标，组件销毁时执行返回的 cleanup。输入是事件 URL 和状态更新函数，输出是一个关闭连接的函数；JSON 解析失败、Schema 不匹配或 `apply` 抛错时都不能推进游标。真实实现还要把保存的游标送回服务端；原生 EventSource 会发送最近收到的 `Last-Event-ID`，自定义 fetch 流则显式构造查询或请求头。
 
 ## 步骤二：处理快照和游标过期
 
@@ -115,10 +122,3 @@ WebSocket 需要应用消息协议、ACK、顺序、重放、心跳、入站限�
 SSE 测试要经过真实 Nginx/CDN，记录首事件和分段到达时间，防止代理缓冲。WebSocket 场景再增加心跳、应用 ACK、入站限速、消息大小和发送缓冲测试。协议连接成功不代表消息业务成功，每条命令仍要认证、授权与幂等。
 
 页面隐藏、系统睡眠和多 Tab 会改变连接生命周期。产品可以选择后台保持、关闭后恢复或共享连接，但要明确 leader 退出和权限撤销时怎样清理。先保证状态可重建，再追求连接永不断开。
-
-## 参考资料
-
-- [WHATWG Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html)
-- [WebSocket RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html)
-- [MDN EventSource](https://developer.mozilla.org/docs/Web/API/EventSource)
-- [MDN WebSocket](https://developer.mozilla.org/docs/Web/API/WebSocket)

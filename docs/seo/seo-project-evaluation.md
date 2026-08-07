@@ -1,18 +1,25 @@
 ---
-title: "项目评估、目标设定与数据基线"
-description: "在写内容和投广告前，判断需求、业务匹配、竞争、交付能力、现金流和测量条件。"
+title: 项目评估、目标设定与数据基线
+description: 在写内容和投广告前，判断需求、业务匹配、竞争、交付能力、现金流和测量条件。
 category: seo
-part: "第一部分：建立增长模型"
+part: 第一部分：建立增长模型
 chapter: 2
-tags: ["SEO", "Project Evaluation"]
-prerequisites: ["读过第 1 章"]
-outcomes: ["判断项目是否值得进入搜索渠道", "建立可比较的基线"]
+tags:
+  - SEO
+  - Project Evaluation
+prerequisites:
+  - 读过第 1 章
+outcomes:
+  - 判断项目是否值得进入搜索渠道
+  - 建立可比较的基线
 practice:
   type: decision
-  result: "完成一份项目评估卡"
-  verify: ["结论包含机会、成本和停止条件", "事实、假设与缺口分开"]
+  result: 完成一份项目评估卡
+  verify:
+    - 结论包含机会、成本和停止条件
+    - 事实、假设与缺口分开
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 一个项目值得做 SEO 吗
 
@@ -118,8 +125,6 @@ flowchart LR
 
 若证据不足，设计低成本反证实验。例如用少量高意图广告验证点击后的激活，而不是先写五十篇文章。开始前记录停止条件和观察周期。连续两个合理周期仍没有有效需求，或可承受获客成本明显低于市场点击成本，就应暂停扩张并复查产品与渠道，而不是继续增加页面数量。
 
-## 参考资料
+## 评估结论的边界
 
-- [Google Search Central：SEO Starter Guide](https://developers.google.com/search/docs/fundamentals/seo-starter-guide)
-- [Google Trends 帮助](https://support.google.com/trends/)
-- [Microsoft Advertising：Keyword Planner](https://about.ads.microsoft.com/solutions/tools/keyword-planner)
+这套方法适合判断一个搜索增长方向是否值得进入验证阶段，不是预测排名、流量或收入的模型。搜索量、点击率和转化数据都有口径误差；它们只能支撑假设和下一次实验，不能单独承诺结果。若业务没有可追踪的转化定义，应先补数据基础再做 SEO 投入决策。

@@ -1,18 +1,25 @@
 ---
-title: "MinIO、对象存储、Multipart 与生命周期"
-description: "从大文件上传进入 Bucket、对象键、预签名 URL、分段、校验和和孤立对象清理。"
+title: MinIO、对象存储、Multipart 与生命周期
+description: 从大文件上传进入 Bucket、对象键、预签名 URL、分段、校验和和孤立对象清理。
 category: devops
-part: "第三部分：数据与任务设施"
+part: 第三部分：数据与任务设施
 chapter: 10
-tags: ["MinIO", "Object Storage"]
-prerequisites: ["HTTP 上传基础"]
-outcomes: ["设计对象存储流程", "处理不完整上传"]
+tags:
+  - MinIO
+  - Object Storage
+prerequisites:
+  - HTTP 上传基础
+outcomes:
+  - 设计对象存储流程
+  - 处理不完整上传
 practice:
   type: implementation
-  result: "完成一份对象上传与清理时序图"
-  verify: ["客户端不接触永久密钥", "数据库和对象状态可对账"]
+  result: 完成一份对象上传与清理时序图
+  verify:
+    - 客户端不接触永久密钥
+    - 数据库和对象状态可对账
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # MinIO、对象存储、Multipart 与生命周期
 
@@ -161,11 +168,3 @@ HTTP Range 允许客户端请求部分字节，适合视频和大文件续传。
 7. 删除本次对象、Bucket 和专用凭证，不清理其他数据。
 
 输出时序图与对账表，标注每一步的输入、持久状态和可重试边界。若读者仍无法回答“数据库成功、对象失败怎么办”，这条上传链还没有讲清楚。
-
-## 参考资料
-
-- [Amazon S3 multipart upload overview](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html)
-- [Amazon S3 presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html)
-- [MinIO Client documentation](https://min.io/docs/minio/linux/reference/minio-mc.html)
-- [MinIO lifecycle management](https://min.io/docs/minio/linux/administration/object-management/object-lifecycle-management.html)
-- [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)

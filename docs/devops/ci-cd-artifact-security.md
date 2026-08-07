@@ -1,18 +1,25 @@
 ---
-title: "CI/CD、SBOM、签名、Secret 与不可变制品"
-description: "从提交到已验证制品，加入依赖锁定、测试、镜像、SBOM、签名、Secret 和环境提升。"
+title: CI/CD、SBOM、签名、Secret 与不可变制品
+description: 从提交到已验证制品，加入依赖锁定、测试、镜像、SBOM、签名、Secret 和环境提升。
 category: devops
-part: "第六部分：可靠性、容量与交付"
+part: 第六部分：可靠性、容量与交付
 chapter: 20
-tags: ["CI/CD", "Supply Chain"]
-prerequisites: ["Git 与容器基础"]
-outcomes: ["设计构建流水线", "避免在服务器重复构建"]
+tags:
+  - CI/CD
+  - Supply Chain
+prerequisites:
+  - Git 与容器基础
+outcomes:
+  - 设计构建流水线
+  - 避免在服务器重复构建
 practice:
   type: implementation
-  result: "完成一份制品发布流程"
-  verify: ["同一制品在环境间提升", "Secrets 不进入产物和日志"]
+  result: 完成一份制品发布流程
+  verify:
+    - 同一制品在环境间提升
+    - Secrets 不进入产物和日志
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # CI/CD 质量流水线
@@ -94,10 +101,3 @@ Secret 只在确实需要的部署 Job 注入，来自 Fork 的不受信代码�
 缓存只加速依赖获取，不能替代锁文件校验。密钥只在需要它的部署 Job 中读取，来自受保护 Environment；PR 验证不接触生产凭证。日志和制品保留周期要能支持排查，又不长期保存敏感数据。
 
 演练一次构建失败和一次部署健康失败：前者不得生成可部署产物，后者保留旧版本并恢复代理指针。报告需要显示失败发生在哪一阶段、哪个 commit、哪份制品和回滚点。这样“流水线成功”才真正等于同一份已验证内容到达目标，而不是服务器碰巧构建成功。
-
-## 参考资料
-
-- [GitHub Actions](https://docs.github.com/actions)
-- [GitHub Actions security hardening](https://docs.github.com/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions)
-- [SLSA](https://slsa.dev/)
-- [VitePress Deploy](https://vitepress.dev/guide/deploy)

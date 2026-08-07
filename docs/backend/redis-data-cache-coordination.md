@@ -1,18 +1,25 @@
 ---
-title: "Redis 数据结构、缓存、Session 与分布式协调"
-description: "从缓存旁路模式进入 TTL、穿透、击穿、一致性、Lua 和锁的租约边界。"
+title: Redis 数据结构、缓存、Session 与分布式协调
+description: 从缓存旁路模式进入 TTL、穿透、击穿、一致性、Lua 和锁的租约边界。
 category: backend
-part: "第一部分：后端共同基础"
+part: 第一部分：后端共同基础
 chapter: 5
-tags: ["Redis", "Cache"]
-prerequisites: ["键值存储基础"]
-outcomes: ["选择 Redis 数据结构", "处理缓存失效"]
+tags:
+  - Redis
+  - Cache
+prerequisites:
+  - 键值存储基础
+outcomes:
+  - 选择 Redis 数据结构
+  - 处理缓存失效
 practice:
   type: implementation
-  result: "设计一条读写与缓存更新流程"
-  verify: ["数据库是真相源", "锁有过期和所有者校验"]
+  result: 设计一条读写与缓存更新流程
+  verify:
+    - 数据库是真相源
+    - 锁有过期和所有者校验
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Redis 数据结构、缓存、Session 与分布式协调
 
@@ -149,11 +156,3 @@ Lua 在 Redis 服务器原子执行，适合“检查所有者再删除”“滑
 - 持久化、备份和恢复经过验证。
 
 下一章比较 RabbitMQ 与 Kafka。Redis 可以承载短期协调，但复杂可靠任务需要理解 Broker 的 ACK、消费组和重复消息。
-
-## 参考资料
-
-- [Redis Data Types](https://redis.io/docs/latest/develop/data-types/)
-- [Redis EXPIRE](https://redis.io/docs/latest/commands/expire/)
-- [Redis Distributed Locks](https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/)
-- [Redis Persistence](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/)
-

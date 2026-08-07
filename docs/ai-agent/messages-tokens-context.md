@@ -1,24 +1,33 @@
 ---
-title: "消息、Token、上下文窗口与模型输入输出"
-description: "拆开一次聊天请求，理解消息角色、Token 预算、上下文窗口、采样和停止条件。"
+title: 消息、Token、上下文窗口与模型输入输出
+description: 拆开一次聊天请求，理解消息角色、Token 预算、上下文窗口、采样和停止条件。
 category: ai-agent
-part: "第一部分：认识模型与 Agent"
+part: 模型怎样接收与返回
 chapter: 2
-tags: ["Token", "Context", "Message"]
-prerequisites: ["了解 JSON", "读过第 1 章"]
-outcomes: ["估算一次请求的上下文组成", "识别上下文超限与输出截断"]
+tags:
+  - Token
+  - Context
+  - Message
+prerequisites:
+  - 了解 JSON
+  - 理解 LLM、工作流、RAG 与 Agent 的区别
+outcomes:
+  - 估算一次请求的上下文组成
+  - 识别上下文超限与输出截断
 practice:
   type: diagnosis
-  result: "检查一份聊天请求的 Token 预算"
-  verify: ["能标出系统消息、历史、工具结果和用户输入", "能说明超限时先裁剪什么"]
+  result: 检查一份聊天请求的 Token 预算
+  verify:
+    - 能标出系统消息、历史、工具结果和用户输入
+    - 能说明超限时先裁剪什么
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 消息、Token、上下文窗口与模型输入输出
 
 一段聊天在界面里看起来只是几行文字，发给模型时却可能包含系统规则、十轮历史、检索资料、工具结果和输出格式。模型不会自动区分哪些最重要，它只接收应用最终组装好的输入。
 
-本章先把一次请求拆开，再手工做一张 Token 预算表。理解这一步，后面学习记忆、RAG 和 Agent 状态时才不会把“所有内容都塞进上下文”当成默认方案。
+下面先把一次请求拆开，再手工做一张 Token 预算表。理解这一步，后面分析记忆、RAG 和 Agent 状态时才不会把“所有内容都塞进上下文”当成默认方案。
 
 ## 消息不是聊天气泡，而是带角色的输入单元
 
@@ -142,10 +151,3 @@ flowchart LR
 - 不在日志中保存敏感原文。
 
 下一章会解决另一个问题：模型返回 JSON，不代表应用拿到的就是可信对象。我们会加入结构化输出和确定性校验。
-
-## 参考资料
-
-- [OpenAI Tokenizer 与 Token 说明](https://platform.openai.com/tokenizer)
-- [OpenAI Responses API：Input and Output](https://platform.openai.com/docs/api-reference/responses)
-- [Anthropic Context Windows](https://docs.anthropic.com/en/docs/build-with-claude/context-windows)
-

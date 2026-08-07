@@ -1,18 +1,26 @@
 ---
-title: "asyncio、Celery、取消、超时与任务恢复"
-description: "区分协程并发和进程外任务，处理 TaskGroup、取消传播、ACK、Deadline 和停滞扫描。"
+title: asyncio、Celery、取消、超时与任务恢复
+description: 区分协程并发和进程外任务，处理 TaskGroup、取消传播、ACK、Deadline 和停滞扫描。
 category: backend
-part: "第三部分：Python / FastAPI"
+part: 第三部分：Python / FastAPI
 chapter: 15
-tags: ["asyncio", "Celery"]
-prerequisites: ["Python async/await", "读过第 6、7 章"]
-outcomes: ["选择 asyncio 或 Celery", "传播取消和 Deadline"]
+tags:
+  - asyncio
+  - Celery
+prerequisites:
+  - Python async/await
+  - 读过第 6、7 章
+outcomes:
+  - 选择 asyncio 或 Celery
+  - 传播取消和 Deadline
 practice:
   type: implementation
-  result: "推演一个可恢复后台任务"
-  verify: ["阻塞函数被隔离", "Worker 中断后任务状态可判断"]
+  result: 推演一个可恢复后台任务
+  verify:
+    - 阻塞函数被隔离
+    - Worker 中断后任务状态可判断
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # asyncio、Celery、取消、超时与任务恢复
 
@@ -214,10 +222,3 @@ Celery 的 `revoke` 主要控制消息消费，无法替代业务取消。任务
 7. Worker 中断后，系统依据什么事实恢复？
 
 完成后可以做一个迁移练习：给导入链增加“生成缩略图”步骤，先判断它属于协程、线程、进程还是独立队列，再补上超时、取消、幂等和恢复测试。如果无法说明每一步的所有者与持久状态，说明任务链还没有设计完整。
-
-## 参考资料
-
-- [Python documentation: asyncio](https://docs.python.org/3/library/asyncio.html)
-- [Python documentation: Task groups](https://docs.python.org/3/library/asyncio-task.html#task-groups)
-- [Celery documentation: Tasks](https://docs.celeryq.dev/en/stable/userguide/tasks.html)
-- [Celery documentation: Workers](https://docs.celeryq.dev/en/stable/userguide/workers.html)

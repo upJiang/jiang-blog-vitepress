@@ -1,24 +1,32 @@
 ---
-title: "RabbitMQ、Kafka 与 Worker 任务平面"
-description: "按在线 Agent、文档导入、向量投影和评测任务拆队列，管理并发、Prefetch、年龄和停机排空。"
+title: RabbitMQ、Kafka 与 Worker 任务平面
+description: 按在线 Agent、文档导入、向量投影和评测任务拆队列，管理并发、Prefetch、年龄和停机排空。
 category: devops
-part: "第三部分：数据与任务设施"
+part: 第三部分：数据与任务设施
 chapter: 9
-tags: ["RabbitMQ", "Kafka", "Worker"]
-prerequisites: ["消息队列基础"]
-outcomes: ["设计队列隔离", "根据任务特性设置 Worker"]
+tags:
+  - RabbitMQ
+  - Kafka
+  - Worker
+prerequisites:
+  - 消息队列基础
+outcomes:
+  - 设计队列隔离
+  - 根据任务特性设置 Worker
 practice:
   type: implementation
-  result: "画出一张多队列资源平面"
-  verify: ["慢任务不阻塞在线任务", "停机前停止取新任务"]
+  result: 画出一张多队列资源平面
+  verify:
+    - 慢任务不阻塞在线任务
+    - 停机前停止取新任务
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # RabbitMQ、Kafka 与 Worker 任务平面
 
 在线问答通常几秒内要返回首个事件，文档 OCR 可能运行数分钟，Embedding 批任务消耗模型配额，离线评测又可能一次产生大量请求。如果四类工作进入同一队列、共享同一组 Worker，长任务会把在线任务压在后面。
 
-本章把消息系统当成“任务平面”来设计：先选 RabbitMQ 或 Kafka，再拆队列、设置并发与 Prefetch，观察队列年龄，最后完成安全停机。业务幂等和任务状态已在后端课程讲过，本章关注平台怎样运行这些 Worker。
+本文把消息系统当成“任务平面”来设计：先选 RabbitMQ 或 Kafka，再拆队列、设置并发与 Prefetch，观察队列年龄，最后完成安全停机。业务幂等和任务状态在后端异步任务文章中说明，本文关注平台怎样运行这些 Worker。
 
 ## 先分清消息、任务与结果
 
@@ -183,12 +191,3 @@ flowchart LR
 3. 让模型依赖暂时失败，观察有限退避，而不是每秒热重试。
 
 清理测试队列、匿名任务记录和专用 Worker；不要删除共享 Broker 的未知 Queue、Topic 或消息。
-
-## 参考资料
-
-- [RabbitMQ Consumer Prefetch](https://www.rabbitmq.com/docs/consumer-prefetch)
-- [RabbitMQ Consumers](https://www.rabbitmq.com/docs/consumers)
-- [Apache Kafka Consumer Configs](https://kafka.apache.org/documentation/#consumerconfigs)
-- [Apache Kafka Design](https://kafka.apache.org/documentation/#design)
-- [Celery Workers Guide](https://docs.celeryq.dev/en/stable/userguide/workers.html)
-

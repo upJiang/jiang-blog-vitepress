@@ -1,18 +1,26 @@
 ---
-title: "幂等、有限重试、死信队列、Outbox 与 Saga"
-description: "从超时但结果未知的问题出发，逐层处理重复提交、消息丢失和跨服务补偿。"
+title: 幂等、有限重试、死信队列、Outbox 与 Saga
+description: 从超时但结果未知的问题出发，逐层处理重复提交、消息丢失和跨服务补偿。
 category: backend
-part: "第一部分：后端共同基础"
+part: 第一部分：后端共同基础
 chapter: 7
-tags: ["Idempotency", "Outbox", "Saga"]
-prerequisites: ["事务与消息队列基础"]
-outcomes: ["设计幂等键", "识别能否安全重试"]
+tags:
+  - Idempotency
+  - Outbox
+  - Saga
+prerequisites:
+  - 事务与消息队列基础
+outcomes:
+  - 设计幂等键
+  - 识别能否安全重试
 practice:
   type: decision
-  result: "完成一张可靠性决策表"
-  verify: ["外部副作用不会盲目重试", "补偿动作有状态和审计"]
+  result: 完成一张可靠性决策表
+  verify:
+    - 外部副作用不会盲目重试
+    - 补偿动作有状态和审计
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 幂等、有限重试、死信队列、Outbox 与 Saga
 
@@ -166,10 +174,3 @@ DLQ 处理人和重放流程：
 ```
 
 决策卡先确定真相源和“结果未知”的窗口，再决定重试、Outbox、DLQ 或补偿；它的输出不是组件清单，而是每个故障窗口由谁发现、谁恢复、怎样证明没有重复副作用。下一章把后端基础收束到实时服务、背压、测试和观测，然后进入 NestJS 项目线。
-
-## 参考资料
-
-- [AWS Builders' Library: Making retries safe with idempotent APIs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/)
-- [Microsoft Cloud Design Patterns: Transactional Outbox](https://learn.microsoft.com/azure/architecture/databases/guide/transactional-outbox-cosmos)
-- [Microsoft Saga Pattern](https://learn.microsoft.com/azure/architecture/reference-architectures/saga/saga)
-- [RabbitMQ Dead Letter Exchanges](https://www.rabbitmq.com/docs/dlx)

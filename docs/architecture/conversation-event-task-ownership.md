@@ -1,18 +1,25 @@
 ---
-title: "会话、回合、事件、异步任务与所有权"
-description: "把一次长时间 Agent 执行拆成可查询、可取消、可恢复的状态和事件。"
+title: 会话、回合、事件、异步任务与所有权
+description: 把一次长时间 Agent 执行拆成可查询、可取消、可恢复的状态和事件。
 category: architecture
-part: "AI 系统设计"
+part: AI 系统设计
 chapter: 4
-tags: ["State Machine", "Async Task"]
-prerequisites: ["数据库与异步任务基础"]
-outcomes: ["区分业务状态、图状态和事件", "设计任务所有权租约"]
+tags:
+  - State Machine
+  - Async Task
+prerequisites:
+  - 数据库与异步任务基础
+outcomes:
+  - 区分业务状态、图状态和事件
+  - 设计任务所有权租约
 practice:
   type: implementation
-  result: "绘制正常、取消和中断状态图"
-  verify: ["只有一个终态", "失去 Lease 的 Worker 停止写入"]
+  result: 绘制正常、取消和中断状态图
+  verify:
+    - 只有一个终态
+    - 失去 Lease 的 Worker 停止写入
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 异步任务生命周期设计
@@ -100,10 +107,3 @@ Worker 原子领取任务，生成递增或不可重复的 fencing token，并�
 Attempt 记录每次执行机会，Task 表示用户看到的一个业务意图；消息只是唤醒 Worker。Worker 在关键提交前比较 owner 和 lease，旧 Worker 即使迟到也不能覆盖新执行者。Checkpoint 只保存在稳定节点完成后的状态，不保存无法重复的半个副作用。
 
 做三次演练：消息重复到达、Worker 在完成后 ACK 前退出、用户取消与完成同时发生。断言任务只有一个终态、外部副作用可查询或幂等、事件序号连续。设计完成的产物应是一张状态转换表、错误分类和停滞恢复规则，而不只是“使用了异步队列”。
-
-## 参考资料
-
-- [Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html)
-- [Idempotent Consumer](https://microservices.io/patterns/communication-style/idempotent-consumer.html)
-- [PostgreSQL Explicit Locking](https://www.postgresql.org/docs/current/explicit-locking.html)
-- [Celery Tasks](https://docs.celeryq.dev/en/stable/userguide/tasks.html)

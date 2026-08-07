@@ -1,18 +1,26 @@
 ---
-title: "NestJS、Redis、RabbitMQ、幂等任务与 Worker"
-description: "从 API 创建任务到 Worker ACK，处理幂等、重试、租约、死信和进度缓存。"
+title: NestJS、Redis、RabbitMQ、幂等任务与 Worker
+description: 从 API 创建任务到 Worker ACK，处理幂等、重试、租约、死信和进度缓存。
 category: backend
-part: "第二部分：Node.js / NestJS"
+part: 第二部分：Node.js / NestJS
 chapter: 11
-tags: ["NestJS", "Redis", "RabbitMQ"]
-prerequisites: ["读过第 5、6、7 章"]
-outcomes: ["实现异步任务链", "恢复停滞任务"]
+tags:
+  - NestJS
+  - Redis
+  - RabbitMQ
+prerequisites:
+  - 读过第 5、6、7 章
+outcomes:
+  - 实现异步任务链
+  - 恢复停滞任务
 practice:
   type: implementation
-  result: "推演重复投递与 Worker 中断"
-  verify: ["同一幂等键只有一个任务", "超限重试进入死信"]
+  result: 推演重复投递与 Worker 中断
+  verify:
+    - 同一幂等键只有一个任务
+    - 超限重试进入死信
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Node 队列、幂等与重试
@@ -67,7 +75,7 @@ async function createTask(input: CreateTask, actor: Actor) {
 }
 ```
 
-数据库唯一约束负责处理两个并发请求同时“没查到”的竞态。业务返回稳定 Task ID，客户端之后查询同一任务，不需要猜第二次请求是否又创建了一份工作。
+请求先以幂等键查询或尝试插入唯一记录，成功后才发布消息；Worker 取到任务后更新所有权和状态，完成时写入终态。数据库唯一约束负责处理两个并发请求同时“没查到”的竞态。业务返回稳定 Task ID，客户端之后查询同一任务，不需要猜第二次请求是否又创建了一份工作。若 Broker 发布失败，任务记录保留待派发状态，恢复任务可以按幂等键补发，而不是直接返回“已完成”。
 
 ## 步骤二：任务事实和消息分开
 
@@ -124,10 +132,3 @@ API 创建 Task 后再向队列发送消息，中间存在崩溃窗口：数据�
 重试只针对暂时性错误，例如依赖限流、连接中断和明确可恢复超时；参数无效、无权限和业务冲突直接进入可解释终态。退避要有上限并加入抖动，避免依赖恢复时所有任务同时重试。外部副作用使用业务幂等键或结果查询，不能靠队列“不重复”假设。
 
 练习时让 Worker 在副作用完成后、状态提交前崩溃。观察第二次执行能否查询到原结果并安全收敛。然后让两个 Worker 同时竞争租约，旧所有者到期后迟到提交应被拒绝。队列负责交付机会，业务数据库负责最终事实。
-
-## 参考资料
-
-- [BullMQ Idempotent Jobs](https://docs.bullmq.io/patterns/idempotent-jobs)
-- [RabbitMQ Consumer Acknowledgements](https://www.rabbitmq.com/docs/confirms)
-- [PostgreSQL SKIP LOCKED](https://www.postgresql.org/docs/current/sql-select.html#SQL-FOR-UPDATE-SHARE)
-- [Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html)

@@ -1,18 +1,25 @@
 ---
-title: "分片上传、断点续传与大文件下载"
-description: "用文件摘要、上传会话、分片幂等、并发上限和服务端校验处理网络中断。"
+title: 分片上传、断点续传与大文件下载
+description: 用文件摘要、上传会话、分片幂等、并发上限和服务端校验处理网络中断。
 category: frontend
-part: "现代前端：安全与通信"
+part: 现代前端：安全与通信
 chapter: 14
-tags: ["File API", "Upload"]
-prerequisites: ["HTTP 请求与 Blob"]
-outcomes: ["设计上传协议", "恢复未完成分片"]
+tags:
+  - File API
+  - Upload
+prerequisites:
+  - HTTP 请求与 Blob
+outcomes:
+  - 设计上传协议
+  - 恢复未完成分片
 practice:
   type: implementation
-  result: "完成一张端到端分片传输时序图"
-  verify: ["合并前校验分片", "重试不会生成重复文件"]
+  result: 完成一张端到端分片传输时序图
+  verify:
+    - 合并前校验分片
+    - 重试不会生成重复文件
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 大文件校验、分片与断点续传
@@ -68,7 +75,7 @@ async function uploadParts(
 }
 ```
 
-JavaScript 单线程内的 cursor 领取是同步的，因此不会给两个 Worker 分配同一索引。失败后 Promise 拒绝，但已发请求可能仍在运行；实际实现用共享 AbortController 停止未完成请求，并保存服务端已经确认的结果。
+执行时先把 `cursor` 设为 0，再创建不超过 `concurrency` 个 Worker；每个 Worker 同步领取一个数组下标，调用 `send(part)` 等待网络完成后继续领取。`Promise.all` 在全部 Worker 成功时返回，在任一 Worker 抛错时拒绝。输入是缺片任务数组、并发上限和发送函数，输出是完成 Promise；JavaScript 单线程内的 cursor 领取是同步的，因此不会给两个 Worker 分配同一索引。失败后 Promise 拒绝，但已发请求可能仍在运行；实际实现用共享 AbortController 停止未完成请求，并保存服务端已经确认的结果。
 
 ## 步骤三：单片重试也要幂等
 
@@ -112,10 +119,3 @@ JavaScript 单线程内的 cursor 领取是同步的，因此不会给两个 Wor
 浏览器侧观察主线程 Long Task、内存、在途请求和 AbortController。摘要放入 Worker 后，UI 仍能响应；并发从 2 提到 8 时不一定更快，可能受到带宽、内存和服务端限流影响。用实际吞吐与错误率选择上限。
 
 生产协议还要限制文件大小、类型、分片数和会话所有权，对象存储预签名 URL 绑定方法、分片和短有效期。完成接口原子创建文件记录，后台清理只删除已过期且无引用的分片。进度条到 100% 只表示客户端发送完，必须等待服务端校验与最终状态。
-
-## 参考资料
-
-- [File API](https://w3c.github.io/FileAPI/)
-- [Web Workers](https://html.spec.whatwg.org/multipage/workers.html)
-- [AWS S3 Multipart Upload](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html)
-- [tus resumable upload protocol](https://tus.io/protocols/resumable-upload)

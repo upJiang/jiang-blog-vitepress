@@ -2,13 +2,14 @@ import { defineConfig } from 'vitepress'
 import { createSidebar, sectionNavigation } from './sidebar'
 
 export default defineConfig({
+    srcExclude: ['AGENTS.md', 'CLAUDE.md'],
     vite: {
       cacheDir: 'node_modules/.vitepress-cache'
     },
     lang: 'zh-CN',
-    title: 'AI 全栈',
-    titleTemplate: ':title | AI 全栈',
-    description: '面向初学者的 AI 全栈课程：Agent、前端、后端、SEO、AI Infra、架构与工程方法。',
+    title: '小江AI',
+    titleTemplate: ':title | 小江AI',
+    description: '小江的个人技术博客，记录 AI、Agent、前端、后端、SEO、AI Infra、架构与工程实践。',
     cleanUrls: true,
     lastUpdated: true,
     sitemap: {
@@ -45,7 +46,7 @@ export default defineConfig({
     },
     themeConfig: {
       logo: '/favicon.ico',
-      siteTitle: 'AI 全栈',
+      siteTitle: '小江AI',
       nav: sectionNavigation(),
       sidebar: createSidebar(),
       outline: {

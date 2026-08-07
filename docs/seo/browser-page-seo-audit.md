@@ -1,18 +1,25 @@
 ---
-title: "使用页面快照和原始 HTML 完成 SEO 审计"
-description: "从单页快照扩展到多页抽样，比较原始 HTML、渲染 DOM、模板差异和规则证据。"
+title: 使用页面快照和原始 HTML 完成 SEO 审计
+description: 从单页快照扩展到多页抽样，比较原始 HTML、渲染 DOM、模板差异和规则证据。
 category: seo
-part: "第四部分：技术审计与排障"
+part: 第四部分：技术审计与排障
 chapter: 9
-tags: ["Browser Extension", "SEO Audit"]
-prerequisites: ["读过第 6、8 章"]
-outcomes: ["设计页面审计快照", "区分评分、证据和修复优先级"]
+tags:
+  - Browser Extension
+  - SEO Audit
+prerequisites:
+  - 读过第 6、8 章
+outcomes:
+  - 设计页面审计快照
+  - 区分评分、证据和修复优先级
 practice:
   type: implementation
-  result: "对匿名页面执行一次浏览器侧审计"
-  verify: ["每条发现包含证据和复查方法", "不把工具分数等同于排名"]
+  result: 对匿名页面执行一次浏览器侧审计
+  verify:
+    - 每条发现包含证据和复查方法
+    - 不把工具分数等同于排名
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 使用页面快照和原始 HTML 完成 SEO 审计
 
@@ -137,11 +144,3 @@ P0-P3 动作与负责人：
 ```
 
 这份模板的输入是同一轮审计保存的网络、HTML、DOM 与规则证据，输出是能够分配负责人并复查的行动项。没有证据的判断放入“假设或数据缺口”，不要直接提升为 P0/P1 结论。
-
-## 参考资料
-
-- [Google: JavaScript SEO basics](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics)
-- [Google: Canonicalization](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls)
-- [Google: Structured data](https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data)
-- [MDN: Document object model](https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model)
-- [Chrome Extensions content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)

@@ -16,28 +16,26 @@ const section = computed(() =>
 </script>
 
 <template>
-  <aside v-if="chapter && !chapter.preserved" class="chapter-guide" aria-label="本章学习信息">
+  <aside v-if="chapter && !chapter.preserved" class="chapter-guide" aria-label="文章阅读信息">
     <div class="chapter-guide__position">
       <span>{{ section?.title }}</span>
-      <span>{{ chapter.part }}</span>
-      <span>第 {{ chapter.chapter }} 章</span>
     </div>
     <div class="chapter-guide__grid">
       <section>
-        <h2>阅读前需要什么</h2>
+        <h2>开始前可以了解</h2>
         <ul>
           <li v-for="entry in chapter.prerequisites" :key="entry">{{ entry }}</li>
         </ul>
       </section>
       <section>
-        <h2>读完能够做什么</h2>
+        <h2>读完可以带走</h2>
         <ul>
           <li v-for="entry in chapter.outcomes" :key="entry">{{ entry }}</li>
         </ul>
       </section>
     </div>
     <div class="chapter-guide__practice">
-      <span>本章实践</span>
+      <span>本文产物</span>
       <p>{{ chapter.practice.result }}</p>
     </div>
   </aside>

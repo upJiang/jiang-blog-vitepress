@@ -1,146 +1,178 @@
 ---
-title: "MCP、Skill 与 SubAgent 的职责边界"
-description: "从一次能力复用需求出发，区分协议连接、知识说明和任务委派。"
+title: "MCP、Skill 与 SubAgent：先分清协议、方法和协作"
+description: "先把三个经常混用的概念拆开，再判断一个能力究竟需要协议连接、任务说明还是独立执行上下文。"
 category: ai-agent
-part: "第二部分：构建 Agent Runtime"
+part: "MCP：连接外部能力"
 chapter: 8
 tags: ["MCP", "Skill", "SubAgent"]
-prerequisites: ["读过第 7 章"]
-outcomes: ["解释三种机制解决的问题", "设计只读 MCP 的信任边界"]
+prerequisites: ["了解函数和 JSON", "知道 Agent 会调用外部能力"]
+outcomes: ["解释 MCP、Skill 和 SubAgent 的职责", "能为一个能力选择合适的封装方式"]
 practice:
   type: decision
-  result: "为一个资料查询能力选择封装方式"
-  verify: ["能说明连接生命周期", "能指出不可信返回值的校验位置"]
+  result: "完成一张 MCP、Skill 与 SubAgent 选择表"
+  verify: ["能画出三者组合关系", "能指出权限和结果校验位置"]
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-07
 ---
-# MCP、Skill 与 SubAgent 的职责边界
+# MCP、Skill 与 SubAgent：先分清协议、方法和协作
 
-同一个“查询资料”能力想被桌面客户端、IDE、离线评测和主 Agent 使用。应该做成 MCP、Skill，还是再创建一个 SubAgent？这三个名词经常一起出现，但解决的问题不在同一层。
+假设我要让 Agent 完成一项工作：先读取网页，再按照固定规则检查页面，最后把独立的事实核对交给另一个执行单元。这里会同时出现 MCP、Skill 和 SubAgent，但它们没有在做同一件事。
 
-先给结论：MCP 解决客户端怎样发现和调用外部能力；Skill 解决 Agent 应该怎样完成一类任务；SubAgent 解决主 Agent 怎样把一个有独立上下文的子任务委派出去。
+- MCP 让 Agent **连接并调用外部能力**；
+- Skill 告诉 Agent **这类任务应该怎样完成**；
+- SubAgent 让主 Agent **把边界清楚的工作交给另一个上下文**。
 
-## 先用一张图分层
+这一篇先解决选型。协议报文、Node/Python Server、Skill 目录和 SubAgent 任务契约分别放到后面的独立文章，不再把几个重要概念压缩到三句话里。
 
-```mermaid
-flowchart LR
-  A[主 Agent] --> B[读取 Skill 指南]
-  A --> C[委派给 SubAgent]
-  A --> D[MCP Client]
-  D --> E[MCP Server]
-  E --> F[只读资料 Runtime]
-```
-
-Skill 通常是本地说明、模板或脚本；SubAgent 是另一个受控执行上下文；MCP 是 Client 和 Server 之间的协议。一个 SubAgent 可以读取 Skill，也可以作为 MCP Client 调工具，它们不是互斥选项。
-
-## MCP：标准化连接和能力发现
-
-Model Context Protocol 使用客户端—服务端模型。Host 是用户使用的应用，里面运行一个或多个 MCP Client；每个 Client 与一个 MCP Server 建立连接。Server 可以暴露 Tools、Resources 和 Prompts 等能力。
-
-### 连接生命周期
-
-典型过程如下：
-
-1. Client 建立传输连接；
-2. Client 发送 `initialize`，双方交换协议版本和能力；
-3. Server 返回自身信息与能力；
-4. Client 发送 `notifications/initialized`；
-5. Client 列出工具或资源；
-6. 运行期间发起调用、进度、取消等消息；
-7. 连接关闭，Server 释放资源。
-
-能力协商很重要。客户端不能假设所有 Server 都支持同一组特性；Server 也不能在未声明时使用客户端不认识的能力。
-
-### 只读知识工具怎样暴露
-
-可以暴露 `search_knowledge` 和 `read_evidence` 两个工具。MCP 层只做协议适配：认证调用方、解析参数、调用共享 Runtime、映射结果和错误。HTTP API、MCP 和离线 Eval 不应该各复制一套检索和权限逻辑。
+## 先看三者怎样组合
 
 ```mermaid
 flowchart LR
-  A[HTTP API] --> D[共享 Runtime]
-  B[MCP Server] --> D
-  C[离线 Eval] --> D
-  D --> E[权限 + 检索 + 证据]
+  U[用户提出页面审计问题] --> H[Host 接收问题与授权]
+  H --> K[Skill 提供检查顺序]
+  H --> C[MCP Client 发现浏览器工具]
+  C --> S[MCP Server 读取公开页面]
+  H --> A[SubAgent 独立核对字段]
+  S --> D[返回页面证据]
+  A --> D
+  D --> V[主 Agent 验证并回答]
+
+  classDef input fill:#DDF8F2,stroke:#0F766E,color:#134E4A;
+  classDef program fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A;
+  classDef tool fill:#FFEDD5,stroke:#EA580C,color:#7C2D12;
+  classDef model fill:#F3E8FF,stroke:#9333EA,color:#581C87;
+  classDef data fill:#FEF3C7,stroke:#CA8A04,color:#713F12;
+  classDef success fill:#DCFCE7,stroke:#16A34A,color:#14532D;
+  class U input;
+  class H,C program;
+  class K,S tool;
+  class A model;
+  class D data;
+  class V success;
 ```
 
-这个边界让三种入口得到相同权限和证据语义。MCP 不是把内部函数自动公开；每个工具仍需要白名单、Schema、超时、输出限制和审计。
+图中的 Host 是用户直接使用的 AI 应用，例如 IDE 或桌面客户端。Host 读取 Skill 后知道审计步骤，通过 MCP Client 连接外部 Server，再把适合独立核对的任务交给 SubAgent。所有结果回到主 Agent 后还要验证，因为工具返回和子任务结论都只是输入材料，不会自动变成事实。
 
-## Skill：把完成任务的方法封装成可发现知识
+## MCP 解决“能力怎样连接”
 
-Skill 可以包含任务说明、适用条件、步骤、参考资料和可复用脚本。例如“SEO 页面审计 Skill”会告诉 Agent 先检查真实 GET、原始 HTML、渲染 DOM、robots 和 Sitemap，再给证据化建议。
+MCP 全称 Model Context Protocol。Anthropic 在 2024 年 11 月公开它，目的不是再造一种模型，而是给 AI 应用与外部数据、工具之间建立一套通用协议。后来协议、SDK 和生态继续演进，所以开发时要同时锁定协议版本和 SDK 主版本，不能照抄早期示例。
 
-Skill 的价值是把组织方法和领域知识从一次 Prompt 中抽出来。它不天然提供远程连接，也不代表拥有某项权限。Skill 写着“查询数据库”，但运行环境没有受控工具时，它仍然不能访问数据库。
+### 没有 MCP 时会重复做什么
 
-好的 Skill 要说明：何时触发、需要什么输入、按什么顺序执行、什么不能做、如何验证。不要把所有领域资料放进一个超长 Skill，应该按任务渐进加载。
+假设浏览器自动化、代码托管和设计工具都要接入三个不同的 AI 应用。没有统一协议时，每组组合都可能重新约定：
 
-## SubAgent：用独立上下文处理可分离子任务
+1. 服务怎样启动或连接；
+2. 客户端怎样发现工具；
+3. 参数用什么 Schema 描述；
+4. 结果、错误、进度和取消怎样表示；
+5. 连接何时关闭，断开后怎样处理。
 
-主 Agent 可以把“核对框架官方文档”和“检查测试覆盖”分别委派给两个 SubAgent。每个 SubAgent 有独立上下文、工具与输出契约，主 Agent 最后合并结果。
+MCP 标准化的是这层连接语言。Server 可以声明 Tools、Resources 和 Prompts，Client 可以发现并调用它们，Host 决定把哪些能力提供给模型。
 
-适合委派的任务通常具有三个特征：
+### MCP 没有替你解决什么
 
-- 子任务目标和交付物清楚；
-- 与主任务可以并行或独立验证；
-- 单独上下文能减少主 Agent 的信息负担。
+MCP 不会自动完成业务认证、数据权限、审批、幂等或审计。一个 Server 暴露了 `search_notes`，只说明协议层可以调用它；当前用户能查哪些笔记，仍由 Server 根据可信身份和数据范围判断。
 
-不适合为了“看起来像多 Agent”拆分强耦合步骤。若两个角色不断交换同一份状态，通信开销和不一致风险可能大于收益。
+它也不保证返回内容可信。网页、仓库文件和工具描述都可能包含错误信息或提示注入。Host 仍要限制响应大小、标记来源、过滤敏感字段，并把返回值当作外部数据处理。
 
-SubAgent 不会扩大权限。主 Agent 无权读取的资料，不能通过委派绕过；工具和数据范围仍由运行时授予。
+## Skill 解决“这类任务怎样做”
 
-## 同一个需求怎样选择
+Skill 更接近一份可发现、可维护、可验证的任务说明。它可以包含入口文件、详细参考资料、确定性脚本、模板和资源。入口负责告诉 Agent 什么时候使用；正文负责执行顺序；脚本负责重复计算；模板负责输出稳定。
 
-| 需求 | 优先机制 | 原因 |
+### Skill 不是更长的 Prompt
+
+把两千行资料全部塞进一条 Prompt，会让每次任务都支付上下文成本，也会让不相关规则干扰当前问题。Skill 常用渐进式披露：
+
+1. Agent 先看到名称和描述等触发元数据；
+2. 任务匹配后读取 `SKILL.md`；
+3. 遇到具体分支时再读取 `references/` 中对应文件；
+4. 需要确定性检查时运行 `scripts/`；
+5. 需要稳定交付格式时读取模板。
+
+“渐进式披露”描述的是公开可观察的组织方式，不等于可以猜测某个产品没有公开的内部检索算法。不同 Agent 产品发现 Skill 的目录和优先级可能不同，应该以当前产品文档为准。
+
+### Skill 也不会创造权限
+
+如果 Skill 写着“读取仓库”，但运行环境没有仓库工具或用户授权，它不能凭文字获得访问能力。Skill 可以规定“先检查权限”，真正的访问仍由 Tool、MCP Server 或本地命令完成。
+
+## SubAgent 解决“独立工作怎样委派”
+
+SubAgent 是主 Agent 创建或调用的另一个执行上下文。它通常有自己的任务描述、上下文窗口、工具范围和结果格式。它的价值不是“多一个模型一定更聪明”，而是隔离上下文、并行处理独立任务，并让主 Agent 只接收结构化结果。
+
+例如审查十篇文章时，可以把不同文章分给独立 SubAgent。若任务是“先修改同一个文件，再根据修改结果继续修改”，并行委派反而容易产生冲突。
+
+一个适合委派的任务通常满足四个条件：
+
+- 输入可以一次说清；
+- 输出格式可以验证；
+- 与其他任务共享状态很少；
+- 失败不会让主任务失去所有上下文。
+
+SubAgent 仍然继承或受限于权限边界。主 Agent 无权读取的数据，不能通过委派绕过；两个 SubAgent 同时改一个文件时，还需要所有权和冲突处理规则。
+
+## Tool、Plugin、Prompt 和项目规则放在哪里
+
+几个相近概念放在一张表里更容易判断：
+
+| 机制 | 它保存或连接什么 | 典型输入 | 典型输出 | 是否自动获得外部权限 |
+| --- | --- | --- | --- | --- |
+| Tool | 一次可调用操作 | 结构化参数 | 结构化结果或错误 | 否，由运行时授予 |
+| MCP | Client 与 Server 的协议会话 | JSON-RPC 消息 | Tools、Resources、Prompts 等能力 | 否 |
+| Skill | 完成任务的方法和资源 | 用户任务与本地上下文 | 操作过程、报告或代码 | 否 |
+| SubAgent | 一个独立执行上下文 | 边界明确的子任务 | 约定格式的结果 | 否 |
+| Plugin | 产品可安装的一组扩展 | 产品清单和授权 | Skills、MCP、界面或其他资源 | 取决于产品 |
+| Prompt | 发送给模型的指令或示例 | 文本与变量 | 模型输出 | 否 |
+| `AGENTS.md` | 仓库内协作规则 | 项目范围内任务 | 对编辑、测试和交付的约束 | 否 |
+
+Tool 是最小的动作契约；MCP 可以传递 Tool；Skill 可以指导 Agent 何时调用 Tool；Plugin 可以把多种能力打包；项目规则则约束 Agent 在特定仓库里怎样工作。它们可以组合，但职责不应混成一个“大 Agent 配置”。
+
+## 当前 Codex 环境里可以怎样理解这些能力
+
+不同机器的配置会变化，下面只列适合公开说明的能力类别，不代表每个 Codex 会话都默认拥有：
+
+| 能力类别 | 更接近 MCP/工具还是 Skill | 适合完成什么 |
 | --- | --- | --- |
-| 多种客户端调用同一资料服务 | MCP | 需要标准协议、发现和调用 |
-| 告诉 Agent 怎样执行发布检查 | Skill | 需要稳定步骤与规则说明 |
-| 并行核对两类独立证据 | SubAgent | 需要隔离上下文和并行产出 |
-| IDE 中按团队方法查询资料 | MCP + Skill | MCP 提供能力，Skill 提供方法 |
-| 主 Agent 委派检索专项研究 | SubAgent + MCP | 子任务独立，仍通过受控协议访问工具 |
+| GitHub 连接 | 外部工具与应用连接 | 查看仓库、Issue、PR 和检查结果 |
+| 浏览器控制 | 外部工具 | 打开页面、操作界面、做本地视觉检查 |
+| Figma | MCP 与配套 Skill | 读取设计上下文、生成图表、连接设计与代码 |
+| OpenAI 官方文档 | 专项 Skill 与文档能力 | 核对产品 API、参数和当前行为 |
+| PDF、Word、PPT | 文档工具与 Skill | 读取、生成、渲染并检查文档 |
+| 图片生成 | 模型工具 | 生成或编辑位图素材 |
+| 文章写作 | Skill | 组织长文语气、证据和结构 |
 
-## MCP 的信任边界
+这里刻意不列任何私有知识库、内部项目或业务平台能力。判断当前会话能否使用某项能力时，应查看实际工具和 Skill 清单，而不是从表格推断权限。
 
-无论 Server 是本地进程还是远程服务，都要把返回视为不可信数据：
+## 用三个问题做选型
 
-- 本地 Server 可能来自第三方包；
-- 远程 Server 可能返回恶意内容；
-- 工具描述本身可能诱导模型扩大操作；
-- Resource 中可能包含提示注入；
-- 连接断开可能让调用结果未知。
+### 场景一：让多个 AI 客户端查询同一套只读资料
 
-Host 应向用户展示 Server 来源和请求的能力，最小化凭证范围，隔离不同 Server，并在敏感工具调用前保留明确控制。只读知识 Agent 不注册写工具，能直接减少审批、幂等和补偿的复杂度。
+重点是“同一能力被多个 Host 发现和调用”，优先把查询实现为 MCP Server。Server 内部仍要做身份、范围、超时和结果限制。
 
-## 动手画一份能力封装
+### 场景二：每次发布前都按同一套步骤检查
 
-场景：一个团队规范查询能力，需要在 IDE 和管理后台使用；Agent 还要知道“先检索、再核对引用”。
+重点是“步骤、资料、脚本和输出格式可复用”，适合做 Skill。若检查过程要访问远程系统，Skill 再调用 MCP 或其他 Tool。
 
-合理拆分是：
+### 场景三：需要同时核对代码、文档和测试
 
-1. 共享 Runtime 实现权限、检索和证据；
-2. HTTP API 供管理后台调用；
-3. MCP Server 供 IDE 和 Agent Client 调用；
-4. Skill 说明查询、引用和无证据处理步骤；
-5. 只有跨多来源研究时才创建 SubAgent。
+三个任务输入相对独立，可以交给 SubAgent 并行处理。主 Agent 需要规定共同的结果 Schema，并在合并时解决冲突，不能把三个结论直接拼接。
 
-验证时检查：HTTP 与 MCP 对同一身份和查询得到相同范围；MCP 断线有明确错误；恶意资料不会改变工具权限；SubAgent 输出只包含约定字段。
-
-## 带到工作的判断卡
+## 一张可以直接带走的选择卡
 
 ```text
-需要解决的是：协议连接 / 任务知识 / 子任务委派
-能力实际运行在哪里：
-谁负责认证和权限：
-谁持有凭证：
-返回内容是否不可信：
-是否需要独立上下文：
-是否能用普通函数或工作流更简单完成：
-选择：MCP / Skill / SubAgent / 组合
+需要让多个 AI 应用连接同一外部能力？
+  -> 先考虑 MCP。
+
+需要把任务方法、检查规则、脚本和模板沉淀下来？
+  -> 先考虑 Skill。
+
+任务能独立描述、独立验证，并且并行有实际收益？
+  -> 再考虑 SubAgent。
+
+只是一次本地函数调用？
+  -> 普通 Tool 或函数通常已经够用。
+
+只是固定几步程序逻辑？
+  -> 普通工作流更简单，不需要为了名词完整而同时引入三者。
 ```
 
-下一章进入 RAG 数据导入。Agent 要使用知识，第一步不是立刻做向量，而是把文档解析成结构完整、可追溯、可重建的数据。
-
-## 参考资料
-
-- [Model Context Protocol Architecture](https://modelcontextprotocol.io/docs/learn/architecture)
-- [Model Context Protocol Specification](https://modelcontextprotocol.io/specification/latest)
-- [OpenAI Agents SDK：Agents as Tools 与 Handoffs](https://openai.github.io/openai-agents-python/multi_agent/)
-
+检查这张卡是否用对的方法：把能力的输入、执行者、权限来源、输出、失败语义和所有者分别写出来。如果这些字段仍然混在一起，说明当前设计还没有真正分清协议、方法和协作边界。

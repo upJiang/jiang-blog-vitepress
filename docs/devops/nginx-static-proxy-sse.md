@@ -1,18 +1,26 @@
 ---
-title: "Nginx 静态站、Clean URL、反向代理、TLS 与 SSE"
-description: "从文章刷新 404 和流式响应被缓冲两个问题进入 location、try_files、proxy 和热加载。"
+title: Nginx 静态站、Clean URL、反向代理、TLS 与 SSE
+description: 从文章刷新 404 和流式响应被缓冲两个问题进入 location、try_files、proxy 和热加载。
 category: devops
-part: "第二部分：容器与入口"
+part: 第二部分：容器与入口
 chapter: 6
-tags: ["Nginx", "Reverse Proxy"]
-prerequisites: ["HTTP 与 Linux 基础"]
-outcomes: ["配置 VitePress Clean URL", "代理普通 API 和 SSE"]
+tags:
+  - Nginx
+  - Reverse Proxy
+prerequisites:
+  - HTTP 与 Linux 基础
+outcomes:
+  - 配置 VitePress Clean URL
+  - 代理普通 API 和 SSE
 practice:
   type: implementation
-  result: "编写并验证一份 Nginx 配置"
-  verify: ["文章刷新返回 200", "不存在路径保持 404", "nginx -t 通过后才 reload"]
+  result: 编写并验证一份 Nginx 配置
+  verify:
+    - 文章刷新返回 200
+    - 不存在路径保持 404
+    - nginx -t 通过后才 reload
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Nginx 与反向代理
@@ -109,9 +117,6 @@ SSE 需要事件逐条到达。Nginx 的响应缓冲、压缩中间件、CDN 或
 
 健康检查使用 `--resolve` 直接命中本机 Nginx，可以在 DNS 或 CDN 之外确认源站规则；公开入口仍要在部署任务完成后单独回归。安装脚本不改变 GitHub Actions 的触发方式，主分支推送仍在完整验证通过后自动部署已验证制品。
 
-## 参考资料
+## 这条配置的适用范围
 
-- [Nginx Proxy Module](https://nginx.org/en/docs/http/ngx_http_proxy_module.html)
-- [Nginx request processing](https://nginx.org/en/docs/http/request_processing.html)
-- [Nginx WebSocket proxying](https://nginx.org/en/docs/http/websocket.html)
-- [VitePress Deploy](https://vitepress.dev/guide/deploy)
+`try_files $uri $uri.html $uri/ =404;` 适用于构建产物中存在同名 HTML 文件的静态站。它不适用于需要把所有未知路径交给应用路由的后台 SPA，也不能替代 API 的鉴权、请求级 Deadline 或 SSE 事件存储。上线前要用实际 `root` 检查一条存在路径和一条不存在路径，确认文件布局与规则一致。

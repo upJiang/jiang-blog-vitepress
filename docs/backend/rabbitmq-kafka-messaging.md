@@ -1,18 +1,25 @@
 ---
-title: "RabbitMQ、Kafka、ACK、消费组与重复消息"
-description: "从异步发邮件和事件流两种任务比较队列、交换机、分区、Offset、ACK 和顺序。"
+title: RabbitMQ、Kafka、ACK、消费组与重复消息
+description: 从异步发邮件和事件流两种任务比较队列、交换机、分区、Offset、ACK 和顺序。
 category: backend
-part: "第一部分：后端共同基础"
+part: 第一部分：后端共同基础
 chapter: 6
-tags: ["RabbitMQ", "Kafka"]
-prerequisites: ["后端任务基础"]
-outcomes: ["选择消息基础设施", "解释至少一次投递"]
+tags:
+  - RabbitMQ
+  - Kafka
+prerequisites:
+  - 后端任务基础
+outcomes:
+  - 选择消息基础设施
+  - 解释至少一次投递
 practice:
   type: decision
-  result: "画出生产、Broker 和消费链"
-  verify: ["重复消息有消费端策略", "顺序范围被明确"]
+  result: 画出生产、Broker 和消费链
+  verify:
+    - 重复消息有消费端策略
+    - 顺序范围被明确
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # RabbitMQ、Kafka、ACK、消费组与重复消息
 
@@ -121,7 +128,7 @@ Producer 不应假设所有 Consumer 已同步升级。契约测试使用旧消�
 
 重放前确认 Consumer 已修复且幂等，避免把永久坏数据再次压垮下游。敏感消息的死信保留和访问权限同样受控。
 
-## 本章实践设计
+## 本文实践设计
 
 画出一个“创建文档处理任务”的链路：API 写任务，发布 `document.process.requested`，Worker 读取并更新状态。
 
@@ -151,11 +158,3 @@ Producer 不应假设所有 Consumer 已同步升级。契约测试使用旧消�
 - 优雅停机停止取新任务并等待在途任务。
 
 下一章把消息与数据库事务连接起来，解释幂等、Outbox、死信和 Saga 分别解决哪一段可靠性问题。
-
-## 参考资料
-
-- [RabbitMQ Reliability Guide](https://www.rabbitmq.com/docs/reliability)
-- [RabbitMQ Consumer Acknowledgements and Publisher Confirms](https://www.rabbitmq.com/docs/confirms)
-- [Apache Kafka Consumer Design](https://kafka.apache.org/documentation/#consumerapi)
-- [Apache Kafka Message Delivery Semantics](https://kafka.apache.org/documentation/#semantics)
-

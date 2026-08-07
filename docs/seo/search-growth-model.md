@@ -1,18 +1,26 @@
 ---
-title: "SEO、SEM、GEO 与搜索增长全景"
-description: "从用户提出问题到产生有效业务结果，分清自然搜索、广告和生成式搜索各自负责什么。"
+title: SEO、SEM、GEO 与搜索增长全景
+description: 从用户提出问题到产生有效业务结果，分清自然搜索、广告和生成式搜索各自负责什么。
 category: seo
-part: "第一部分：建立增长模型"
+part: 第一部分：建立增长模型
 chapter: 1
-tags: ["SEO", "SEM", "GEO"]
-prerequisites: ["了解网站基本组成"]
-outcomes: ["画出搜索增长漏斗", "区分流量指标与业务结果"]
+tags:
+  - SEO
+  - SEM
+  - GEO
+prerequisites:
+  - 了解网站基本组成
+outcomes:
+  - 画出搜索增长漏斗
+  - 区分流量指标与业务结果
 practice:
   type: decision
-  result: "建立一张从需求到收入的诊断表"
-  verify: ["每一层都有证据字段", "数据缺口被明确记录"]
+  result: 建立一张从需求到收入的诊断表
+  verify:
+    - 每一层都有证据字段
+    - 数据缺口被明确记录
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # SEO、SEM、GEO：用户怎样找到一个网站
@@ -204,11 +212,3 @@ SEO 的第一步通常不是增加关键词密度，而是弄清用户问题应�
 - 本次修改改变了几个主要变量，如何判断成功或回滚？
 
 下一篇会先回答一个更现实的问题：一个项目到底值不值得投入 SEO。因为没有稳定需求、可交付产品或数据能力时，技术优化做得再完整，也不一定能形成增长。
-
-## 参考资料
-
-- [Google Search Essentials](https://developers.google.com/search/docs/essentials)
-- [Google Search：SEO Starter Guide](https://developers.google.com/search/docs/fundamentals/seo-starter-guide)
-- [Google Ads：How Google Ads works](https://support.google.com/google-ads/answer/6227565)
-- [Microsoft Advertising help](https://help.ads.microsoft.com/)
-- [百度搜索资源平台](https://ziyuan.baidu.com/)

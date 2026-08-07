@@ -1,18 +1,25 @@
 ---
-title: "Cookie、CORS、CSRF、XSS 与浏览器安全"
-description: "从自动携带 Cookie 的跨站请求出发，理解同源策略、凭证、安全响应头和输出编码。"
+title: Cookie、CORS、CSRF、XSS 与浏览器安全
+description: 从自动携带 Cookie 的跨站请求出发，理解同源策略、凭证、安全响应头和输出编码。
 category: frontend
-part: "现代前端：安全与通信"
+part: 现代前端：安全与通信
 chapter: 11
-tags: ["Security", "Browser"]
-prerequisites: ["HTTP 基础"]
-outcomes: ["区分 CORS 与 CSRF", "选择 Cookie 安全属性"]
+tags:
+  - Security
+  - Browser
+prerequisites:
+  - HTTP 基础
+outcomes:
+  - 区分 CORS 与 CSRF
+  - 选择 Cookie 安全属性
 practice:
   type: diagnosis
-  result: "审查一条登录与跨域请求链"
-  verify: ["HttpOnly 由服务端设置", "XSS 与 CSRF 防护不混淆"]
+  result: 审查一条登录与跨域请求链
+  verify:
+    - HttpOnly 由服务端设置
+    - XSS 与 CSRF 防护不混淆
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 浏览器安全边界
@@ -100,10 +107,3 @@ localStorage 可被同源脚本读取且长期存在，不适合保存长期高�
 在隔离环境测试：同站正常提交、缺少 CSRF Token、跨站 Origin、把用户输入放进文本节点、尝试内联脚本。观察请求是否发送、响应是否可读、脚本是否执行和服务端日志。不要用“GET 比 POST 安全”概括；方法安全性还取决于副作用、认证、传输和服务端实现。
 
 Token 放在哪里由威胁模型决定。浏览器 Session 常使用 Secure、HttpOnly Cookie，再配合 CSRF 控制；localStorage 便于脚本读取，也会暴露给同源 XSS。任何选择都要有过期、撤销、退出和日志脱敏，前端无法替服务端设置 HttpOnly。
-
-## 参考资料
-
-- [MDN Same-origin policy](https://developer.mozilla.org/docs/Web/Security/Same-origin_policy)
-- [OWASP CSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
-- [OWASP XSS Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
-- [MDN Content Security Policy](https://developer.mozilla.org/docs/Web/HTTP/CSP)

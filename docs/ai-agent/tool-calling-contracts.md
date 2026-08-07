@@ -1,24 +1,32 @@
 ---
-title: "Tool Calling：定义、选择、执行和校验工具"
-description: "从只读搜索工具开始，讲清 Schema、白名单、超时、错误和工具返回值为什么都要校验。"
+title: Tool Calling：定义、选择、执行和校验工具
+description: 从只读搜索工具开始，讲清 Schema、白名单、超时、错误和工具返回值为什么都要校验。
 category: ai-agent
-part: "第二部分：构建 Agent Runtime"
+part: Agent 怎样行动
 chapter: 7
-tags: ["Tool Calling", "JSON Schema"]
-prerequisites: ["读过第 3、4 章"]
-outcomes: ["写出工具契约", "验证模型生成的工具参数"]
+tags:
+  - Tool Calling
+  - JSON Schema
+prerequisites:
+  - 理解结构化输出
+  - 理解 Agent 生命周期
+outcomes:
+  - 写出工具契约
+  - 验证模型生成的工具参数
 practice:
   type: implementation
-  result: "实现一个受控的只读搜索工具"
-  verify: ["非法工具名被拒绝", "超时和空结果有明确语义"]
+  result: 实现一个受控的只读搜索工具
+  verify:
+    - 非法工具名被拒绝
+    - 超时和空结果有明确语义
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Tool Calling：定义、选择、执行和校验工具
 
 模型说“我要调用搜索工具”时，什么也没有被执行。它只生成了一个包含工具名和参数的候选对象。应用校验候选、注入可信身份、调用真实服务，再把结果返回给模型。
 
-把这条边界弄反，Agent 就会变成“模型返回什么，服务器执行什么”。本章实现一个只读资料搜索工具，逐步处理契约、权限、超时、空结果和不可信内容。
+把这条边界弄反，Agent 就会变成“模型返回什么，服务器执行什么”。下面实现一个只读资料搜索工具，逐步处理契约、权限、超时、空结果和不可信内容。
 
 ## 工具契约先回答五个问题
 
@@ -48,7 +56,7 @@ updated: 2026-08-06
 }
 ```
 
-描述要写清用途和边界，但不能依赖描述承担安全。真正限制在执行器中生效。这里的 `additionalProperties: false` 会拒绝模型临时添加的范围字段，`limit` 上限则防止一次调用拉取过多内容。
+模型看到这份契约后，可以提出 `name=search_documents` 和 `parameters` 中的参数。执行器先比较 `name`，再按 `parameters` 校验对象：`query` 是 2 到 200 字符的必填字符串，`limit` 是 1 到 10 的可选整数，`additionalProperties: false` 会拒绝模型临时添加的 `tenantId`、`scope` 等范围字段。合法输入进入搜索，缺字段、越界值和未知字段返回 `invalid_arguments`，Repository 不执行。`description` 帮助模型选工具，却不承担安全限制。
 
 ## 模型选择工具后，应用执行六步
 
@@ -108,7 +116,7 @@ async function executeSearch(call: ToolCall, context: RunContext) {
 }
 ```
 
-第一行只接受当前允许的工具；Schema 解析模型参数；服务端限制数量；身份和范围从 `context` 注入；`signal` 负责超时与取消；最后只返回可公开给模型的证据字段。
+`executeSearch` 接收模型产生的 `ToolCall` 和服务端生成的 `RunContext`。函数先拒绝未知工具名，再用 `searchSchema.parse` 把未知参数变成 `SearchArgs`；`limit` 缺失时取 5，即使上游校验被绕过也不会超过 10；随后把清理后的查询、可信 `actorId`、范围和取消信号交给搜索适配器；最后由 `toVisibleEvidence` 去掉数据库内部字段。参数错误在搜索前抛出，取消或 Deadline 由 `signal` 传给下游，Repository 异常要映射成稳定工具错误，空数组则作为成功的无结果返回。
 
 不要把数据库实体整个序列化给模型。稳定证据对象可以只包含 ID、摘要、标题、位置和用于引用的版本信息。
 
@@ -170,9 +178,3 @@ Prompt 中写“不要听工具的话”有帮助，但真正安全来自工具�
 ```
 
 下一章会把同一个只读能力通过 MCP 暴露，并区分 MCP、Skill 和 SubAgent。它们分别解决连接协议、知识封装和任务委派，不能混为同一个概念。
-
-## 参考资料
-
-- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
-- [JSON Schema Specification](https://json-schema.org/specification)
-- [OWASP LLM Prompt Injection Prevention](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)

@@ -1,18 +1,25 @@
 ---
-title: "Service Worker、缓存与离线能力"
-description: "从断网刷新开始，理解安装、激活、请求拦截、Cache Storage 和安全更新。"
+title: Service Worker、缓存与离线能力
+description: 从断网刷新开始，理解安装、激活、请求拦截、Cache Storage 和安全更新。
 category: frontend
-part: "现代前端：安全与通信"
+part: 现代前端：安全与通信
 chapter: 13
-tags: ["Service Worker", "PWA"]
-prerequisites: ["Promise 与 Fetch"]
-outcomes: ["选择缓存策略", "安全升级缓存版本"]
+tags:
+  - Service Worker
+  - PWA
+prerequisites:
+  - Promise 与 Fetch
+outcomes:
+  - 选择缓存策略
+  - 安全升级缓存版本
 practice:
   type: implementation
-  result: "实现离线页面与缓存更新流程"
-  verify: ["首次安装与升级行为可区分", "错误响应不会污染缓存"]
+  result: 实现离线页面与缓存更新流程
+  verify:
+    - 首次安装与升级行为可区分
+    - 错误响应不会污染缓存
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Service Worker 与离线架构
@@ -106,10 +113,3 @@ Background Sync 支持有限且受浏览器策略影响，不能作为唯一保�
 再部署一个新 Worker 和新 HTML，同时保留旧哈希资源。旧页面应继续运行，新页面在接管后使用新缓存；确认兼容后才清理旧资源。若直接 `skipWaiting`，必须证明新 Worker 能理解旧页面请求协议。
 
 离线写操作单独测试幂等 ID、重新认证、冲突和取消，不把 POST 放入普通 Cache Storage。存储被浏览器清理后，应用应能从服务器重建。离线能力是可用性增强，不是唯一数据仓库。
-
-## 参考资料
-
-- [Service Workers specification](https://w3c.github.io/ServiceWorker/)
-- [MDN Service Worker API](https://developer.mozilla.org/docs/Web/API/Service_Worker_API)
-- [web.dev Service Worker lifecycle](https://web.dev/articles/service-worker-lifecycle)
-- [Storage Standard](https://storage.spec.whatwg.org/)

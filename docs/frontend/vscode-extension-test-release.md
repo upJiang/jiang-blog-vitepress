@@ -1,18 +1,26 @@
 ---
-title: "VS Code 扩展调试、测试、打包与发布"
-description: "从日志和自动化测试推进到 vsix 打包、版本、变更记录与发布前检查。"
+title: VS Code 扩展调试、测试、打包与发布
+description: 从日志和自动化测试推进到 vsix 打包、版本、变更记录与发布前检查。
 category: frontend
-part: "现代前端：插件开发"
+part: 现代前端：插件开发
 chapter: 18
-tags: ["VS Code", "Testing", "Release"]
-prerequisites: ["读过第 16、17 章"]
-outcomes: ["编写扩展测试", "生成可验证制品"]
+tags:
+  - VS Code
+  - Testing
+  - Release
+prerequisites:
+  - 读过第 16、17 章
+outcomes:
+  - 编写扩展测试
+  - 生成可验证制品
 practice:
   type: implementation
-  result: "完成一份扩展发布 Runbook"
-  verify: ["测试在扩展宿主执行", "包内不含密钥和无关文件"]
+  result: 完成一份扩展发布 Runbook
+  verify:
+    - 测试在扩展宿主执行
+    - 包内不含密钥和无关文件
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # VS Code 扩展调试、测试、打包与发布
 
@@ -108,10 +116,3 @@ VS Code 扩展版本遵循 SemVer 只是协作约定，真正的破坏变化仍�
 ## 迁移练习
 
 为自己的扩展写一份发布 Runbook：构建命令、版本来源、VSIX 审计项、Extension Host 验收、升级迁移、回滚制品和停止条件。故意从包中排除一个 Webview 资源，观察候选窗口如何失败，再修复并增加门禁。
-
-## 参考资料
-
-- [VS Code Testing Extensions](https://code.visualstudio.com/api/working-with-extensions/testing-extension)
-- [VS Code Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-- [vsce packaging and publishing](https://github.com/microsoft/vscode-vsce)
-- [Visual Studio Marketplace publishing](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)

@@ -1,22 +1,30 @@
 ---
-title: "Agent 从收到问题到产生答案经历了什么"
-description: "沿一次只读知识问答，理解目标、计划、工具、观察、回答、验证和停止条件。"
+title: Agent 从收到问题到产生答案经历了什么
+description: 沿一次只读知识问答，理解目标、计划、工具、观察、回答、验证和停止条件。
 category: ai-agent
-part: "第二部分：构建 Agent Runtime"
+part: Agent 怎样行动
 chapter: 4
-tags: ["Agent", "Runtime"]
-prerequisites: ["读过前 3 章"]
-outcomes: ["复述 Agent 完整生命周期", "识别普通工作流与 Agent 循环"]
+tags:
+  - Agent
+  - Runtime
+prerequisites:
+  - 理解 LLM、工作流、RAG 与 Agent
+  - 了解结构化输出
+outcomes:
+  - 复述 Agent 完整生命周期
+  - 识别普通工作流与 Agent 循环
 practice:
   type: walkthrough
-  result: "手工推演一次工具调用循环"
-  verify: ["能写出每一步输入和输出", "能指出循环的停止条件"]
+  result: 手工推演一次工具调用循环
+  verify:
+    - 能写出每一步输入和输出
+    - 能指出循环的停止条件
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Agent 从收到问题到产生答案经历了什么
 
-本章不急着写框架代码。先把一个问题完整跑一遍：
+这里先不急着写框架代码，而是把一个问题完整跑一遍：
 
 > “远程办公人员怎样申请系统访问权限？请给出资料来源。”
 
@@ -64,7 +72,7 @@ flowchart LR
 
 用户文字属于不可信输入，不能从“我是管理员”这句话推导权限。身份来自认证中间件，知识范围由服务端根据身份计算。
 
-接收阶段还会保存一个回合记录。长时间任务如果先派发再保存，Worker 可能拿到一个数据库中不存在的任务；先保存再派发，至少能让失败被查询和恢复。派发与幂等会在后端课程中深入讲。
+接收阶段还会保存一个回合记录。长时间任务如果先派发再保存，Worker 可能拿到一个数据库中不存在的任务；先保存再派发，至少能让失败被查询和恢复。任务派发、幂等键和 Worker 所有权会在后端的异步任务文章中继续展开。
 
 ## 第二步：理解目标，不等于执行目标
 
@@ -168,7 +176,7 @@ async function runTurn(input: TurnInput): Promise<TurnResult> {
 }
 ```
 
-按函数职责读：`understand` 生成结构化目标并叠加可信范围；循环限制最大步数；`chooseAction` 只提出动作；`validateToolCall` 与执行器掌握控制权；证据进入状态；预算用完返回明确结果，不偷偷增加循环。
+调用 `runTurn` 时，`TurnInput` 包含用户问题以及服务端已经确认的身份、范围和 Deadline。`understand` 生成结构化目标并叠加可信范围；`for` 循环用 `maxSteps` 限制模型最多选择多少次动作；`chooseAction` 只能返回回答候选或工具调用候选；`validateToolCall` 检查白名单与参数后，执行器才用 `state.scope` 调用只读工具；返回证据追加到状态，下一轮模型因此可以观察新结果。`verifyAnswer` 通过时直接返回完成终态；工具超时、权限拒绝和结果错误应映射为明确状态；步数耗尽则返回 `insufficient`，不会偷偷增加循环。
 
 ## 手工推演一次运行
 
@@ -193,14 +201,8 @@ async function runTurn(input: TurnInput): Promise<TurnResult> {
 
 此时使用普通服务或 RAG 工作流更清楚。Agent 是为运行时不确定性付费，不是所有 AI 功能的默认外壳。
 
-## 本章验收
+## 读完后的自测
 
 读完后，试着不看文章回答：谁提出工具调用，谁真正执行；证据不足时为什么不能靠模型常识补齐；循环靠什么停止；权限在哪一步生效。如果其中一项说不清，回到对应步骤重新画一次输入与输出。
 
 下一章会比较常见框架。选型重点不是 Logo 或热度，而是谁掌握状态、循环和部署边界。
-
-## 参考资料
-
-- [LangGraph Workflows and Agents](https://docs.langchain.com/oss/python/langgraph/workflows-agents)
-- [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
-- [OWASP Top 10 for LLM Applications](https://genai.owasp.org/llm-top-10/)

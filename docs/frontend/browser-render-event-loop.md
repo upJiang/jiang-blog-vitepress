@@ -1,18 +1,25 @@
 ---
-title: "浏览器渲染、事件循环与任务调度"
-description: "从点击后页面卡顿的现象出发，串起任务、微任务、渲染机会、长任务和调度。"
+title: 浏览器渲染、事件循环与任务调度
+description: 从点击后页面卡顿的现象出发，串起任务、微任务、渲染机会、长任务和调度。
 category: frontend
-part: "现代前端：语言与运行时"
+part: 现代前端：语言与运行时
 chapter: 2
-tags: ["Browser", "Event Loop"]
-prerequisites: ["JavaScript 异步基础"]
-outcomes: ["解释一帧内任务顺序", "用 Performance 面板定位长任务"]
+tags:
+  - Browser
+  - Event Loop
+prerequisites:
+  - JavaScript 异步基础
+outcomes:
+  - 解释一帧内任务顺序
+  - 用 Performance 面板定位长任务
 practice:
   type: diagnosis
-  result: "运行并记录一次任务顺序实验"
-  verify: ["输出顺序与解释一致", "能指出渲染被阻塞的位置"]
+  result: 运行并记录一次任务顺序实验
+  verify:
+    - 输出顺序与解释一致
+    - 能指出渲染被阻塞的位置
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 浏览器渲染、事件循环与任务调度
 
@@ -127,11 +134,3 @@ Web Worker 不能直接操作 DOM。主线程发送输入，Worker 返回计算�
 7. 优化前后是否固定输入并保留 Performance 记录？
 
 下一章会进入 Vue 3 响应式与调度器，理解框架怎样收集依赖、批量更新并避免每次赋值立即重渲染。
-
-## 参考资料
-
-- [HTML Standard: Event loops](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops)
-- [MDN: Microtask guide](https://developer.mozilla.org/en-US/docs/Web/API/HTML_DOM_API/Microtask_guide)
-- [MDN: requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)
-- [web.dev: Rendering performance](https://web.dev/articles/rendering-performance)
-- [Chrome DevTools Performance](https://developer.chrome.com/docs/devtools/performance/)

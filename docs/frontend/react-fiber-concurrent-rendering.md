@@ -1,18 +1,25 @@
 ---
-title: "React Fiber 与并发渲染"
-description: "从不可中断递归的问题进入 Fiber 节点、Render、Commit、Lane 和并发更新。"
+title: React Fiber 与并发渲染
+description: 从不可中断递归的问题进入 Fiber 节点、Render、Commit、Lane 和并发更新。
 category: frontend
-part: "现代前端：框架内部机制"
+part: 现代前端：框架内部机制
 chapter: 4
-tags: ["React", "Fiber"]
-prerequisites: ["React 组件基础"]
-outcomes: ["画出 Fiber 遍历顺序", "区分 Render 与 Commit"]
+tags:
+  - React
+  - Fiber
+prerequisites:
+  - React 组件基础
+outcomes:
+  - 画出 Fiber 遍历顺序
+  - 区分 Render 与 Commit
 practice:
   type: implementation
-  result: "用 mini Fiber 推演一次更新"
-  verify: ["可恢复工作不直接修改 DOM", "提交阶段保持一致性"]
+  result: 用 mini Fiber 推演一次更新
+  verify:
+    - 可恢复工作不直接修改 DOM
+    - 提交阶段保持一致性
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # React Fiber 与并发渲染
@@ -110,10 +117,3 @@ Suspense 让树在数据或代码尚未就绪时显示 fallback，并与流式�
 接着在组件 Render 中故意加入一次计数副作用，开发环境下观察它可能被多次执行。把副作用移到用户事件或带 cleanup 的 Effect 后，重复 Render 不再改变外部世界。这个练习解释了“Render 可放弃”为什么要求组件纯净。
 
 选择 API 时先判断更新优先级：输入、焦点和点击反馈通常紧急；大型结果列表、非关键图表可以 transition；数据尚未就绪可通过框架支持的 Suspense 边界展示 fallback。若业务要求每次输入立即得到完整结果，应该优化算法和数据量，而不是把一切标成低优先级。
-
-## 参考资料
-
-- [React: Render and Commit](https://react.dev/learn/render-and-commit)
-- [React useTransition](https://react.dev/reference/react/useTransition)
-- [React Keeping Components Pure](https://react.dev/learn/keeping-components-pure)
-- [React Source](https://github.com/facebook/react)

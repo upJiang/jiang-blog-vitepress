@@ -1,18 +1,26 @@
 ---
-title: "FastAPI 流式响应、错误契约、测试与部署"
-description: "从 StreamingResponse 进入客户端断开、事件格式、错误映射、依赖替换测试和 ASGI 部署。"
+title: FastAPI 流式响应、错误契约、测试与部署
+description: 从 StreamingResponse 进入客户端断开、事件格式、错误映射、依赖替换测试和 ASGI 部署。
 category: backend
-part: "第三部分：Python / FastAPI"
+part: 第三部分：Python / FastAPI
 chapter: 16
-tags: ["FastAPI", "Streaming", "Testing"]
-prerequisites: ["读过第 8、13-15 章"]
-outcomes: ["实现可取消流式接口", "建立测试金字塔"]
+tags:
+  - FastAPI
+  - Streaming
+  - Testing
+prerequisites:
+  - 读过第 8、13-15 章
+outcomes:
+  - 实现可取消流式接口
+  - 建立测试金字塔
 practice:
   type: implementation
-  result: "完成 Python 服务发布 Runbook"
-  verify: ["断开连接触发取消", "错误响应与 OpenAPI 一致"]
+  result: 完成 Python 服务发布 Runbook
+  verify:
+    - 断开连接触发取消
+    - 错误响应与 OpenAPI 一致
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # FastAPI 流式响应、错误契约、测试与部署
 
@@ -157,10 +165,3 @@ Readiness 结果短缓存，避免健康探针本身打满数据库。失败返�
 - SIGTERM 与连接/任务排空已验证。
 
 下一章进入 Go。Go 项目强调显式依赖、Context 传播和可判断错误，不会把 Python 的依赖注入照搬一遍。
-
-## 参考资料
-
-- [FastAPI StreamingResponse](https://fastapi.tiangolo.com/advanced/custom-response/#streamingresponse)
-- [FastAPI Testing Dependencies](https://fastapi.tiangolo.com/advanced/testing-dependencies/)
-- [Uvicorn Deployment](https://www.uvicorn.org/deployment/)
-- [Starlette Applications and Lifespan](https://www.starlette.io/lifespan/)

@@ -1,18 +1,25 @@
 ---
-title: "Git、变更拆分、发布、回滚与恢复"
-description: "区分工作区、提交、评审、制品、部署和恢复，并设计小而可回退的变更。"
+title: Git、变更拆分、发布、回滚与恢复
+description: 区分工作区、提交、评审、制品、部署和恢复，并设计小而可回退的变更。
 category: engineering
-part: "工程工作法"
+part: 工程工作法
 chapter: 2
-tags: ["Git", "Release"]
-prerequisites: ["Git 基础命令"]
-outcomes: ["拆分提交", "选择回滚或前向修复"]
+tags:
+  - Git
+  - Release
+prerequisites:
+  - Git 基础命令
+outcomes:
+  - 拆分提交
+  - 选择回滚或前向修复
 practice:
   type: implementation
-  result: "完成一份变更发布清单"
-  verify: ["提交不混入无关差异", "回滚点在发布前存在"]
+  result: 完成一份变更发布清单
+  verify:
+    - 提交不混入无关差异
+    - 回滚点在发布前存在
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Git 与变更发布
@@ -92,10 +99,3 @@ CI 锁定依赖并生成制品，候选与生产提升同一 Digest。生产环�
 构建一次并提升同一制品，避免测试环境与生产环境现场重建出不同内容。数据库迁移与应用版本写明兼容窗口，部署后用真实入口回归。Revert 可以生成一个反向源码提交，却不会自动恢复数据库、对象存储和已经发送的外部副作用。
 
 练习时任选一个小修复，写出变更范围、相关测试、制品身份、部署验证与回滚条件。若当前任务未经授权，不执行提交或推送；Git 管理边界的一部分就是尊重工作区所有权与发布权限。
-
-## 参考资料
-
-- [Git Reference](https://git-scm.com/docs)
-- [Pro Git](https://git-scm.com/book/en/v2)
-- [Semantic Versioning](https://semver.org/)
-- [GitHub Artifact Attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations)

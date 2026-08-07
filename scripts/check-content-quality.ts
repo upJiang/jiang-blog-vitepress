@@ -96,15 +96,18 @@ function checkLongSections(relative: string, content: string): void {
 function checkCodeTeaching(relative: string, content: string): void {
   const blocks = [...content.matchAll(/(?:```|~~~)([^\n]*)\n([\s\S]*?)(?:```|~~~)/g)]
   for (const block of blocks) {
-    if (!block[1].trim()) fail(`${relative} 的代码围栏缺少语言标记。`)
-    if (block[1].trim() === "mermaid") continue
+    const language = block[1].trim().split(/\s+/)[0]
+    if (!language) fail(`${relative} 的代码围栏缺少语言标记。`)
+    if (["mermaid", "text", "plaintext", "output"].includes(language)) continue
     const start = block.index ?? 0
     const end = start + block[0].length
     const before = stripCode(content.slice(0, start))
     const nextHeading = content.slice(end).search(/^##\s/m)
     const after = stripCode(nextHeading < 0 ? content.slice(end) : content.slice(end, end + nextHeading))
-    if (cjkLength(before) < 100) warn(`${relative} 某代码块前解释偏短，需做初学者复读。`)
-    if (cjkLength(after) < 35) warn(`${relative} 某代码块后缺少足够的输入、逻辑、输出或边界解释。`)
+    if (cjkLength(before) < 140) fail(`${relative} 某代码块前缺少环境、输入或执行目标说明。`)
+    if (cjkLength(after) < 70) fail(`${relative} 某代码块后缺少执行顺序、输出、异常或边界解释。`)
+    const mentionsExecution = /(执行|调用|返回|输出|结果|参数|变量|函数|命令|配置|字段|状态|异常|失败|超时|边界|查询|创建|写入|读取|匹配|连接|启动|停止)/.test(after)
+    if (!mentionsExecution) fail(`${relative} 的 ${language} 代码块后没有解释执行过程、输出或边界。`)
   }
 }
 
@@ -158,6 +161,8 @@ if (!fs.existsSync(reviewFile)) {
     practiceVerified?: boolean
     sourcesVerified?: boolean
     privacyVerified?: boolean
+    beginnerChecks?: string[]
+    seniorChecks?: string[]
   }>
   const expectedReviewFiles = new Set(articles.filter((article) => !article.preserved).map(articleFile))
   for (const relative of Object.keys(reviews)) {
@@ -172,6 +177,14 @@ if (!fs.existsSync(reviewFile)) {
     if (!review?.beginner || !review?.senior) fail(`${relative} 缺少初学者或资深工程师审查通过标记。`)
     if (!review?.practiceVerified || !review?.sourcesVerified || !review?.privacyVerified) {
       fail(`${relative} 缺少实践、来源或匿名化审查标记。`)
+    }
+    const beginnerChecks = new Set(review?.beginnerChecks ?? [])
+    for (const check of ["goal", "prerequisites", "terms", "flow", "verification", "transfer", "boundary"]) {
+      if (!beginnerChecks.has(check)) fail(`${relative} 初学者自测缺少 ${check} 检查项。`)
+    }
+    const seniorChecks = new Set(review?.seniorChecks ?? [])
+    for (const check of ["facts", "execution", "state", "failure", "privacy"]) {
+      if (!seniorChecks.has(check)) fail(`${relative} 资深工程师审查缺少 ${check} 检查项。`)
     }
   }
 }
@@ -198,7 +211,7 @@ if (!fs.existsSync(preservedHashFile)) {
 console.log("模板句式密度：")
 for (const [name] of phrasePatterns) console.log(`- ${name}: ${phraseTotals.get(name) ?? 0}`)
 if (warnings.length) {
-  console.warn(`内容质量人工复查提示，共 ${warnings.length} 项：`)
+  console.warn(`模板句式人工复查提示，共 ${warnings.length} 项：`)
   warnings.slice(0, 80).forEach((message) => console.warn(`- ${message}`))
 }
 if (errors.length) {
@@ -206,4 +219,4 @@ if (errors.length) {
   errors.forEach((message) => console.error(`- ${message}`))
   process.exit(1)
 }
-console.log(`内容质量检查通过：${articles.length} 篇文章，正文重复、长段落、未实现 Agent 能力和双视角审查均通过。`)
+console.log(`内容质量检查通过：${articles.length} 篇文章，正文重复、长段落、未实现 Agent 能力和代码解释门禁均通过。`)

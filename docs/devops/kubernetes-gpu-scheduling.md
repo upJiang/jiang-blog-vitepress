@@ -1,18 +1,25 @@
 ---
-title: "Kubernetes GPU 调度、模型卷与自动扩缩容"
-description: "从 Pod 请求 GPU 进入 Device Plugin、节点标签、污点、拓扑、模型卷和队列驱动扩缩容。"
+title: Kubernetes GPU 调度、模型卷与自动扩缩容
+description: 从 Pod 请求 GPU 进入 Device Plugin、节点标签、污点、拓扑、模型卷和队列驱动扩缩容。
 category: devops
-part: "第五部分：推理服务"
+part: 第五部分：推理服务
 chapter: 17
-tags: ["Kubernetes", "GPU"]
-prerequisites: ["容器与 GPU 基础"]
-outcomes: ["设计 GPU Workload", "选择扩缩容信号"]
+tags:
+  - Kubernetes
+  - GPU
+prerequisites:
+  - 容器与 GPU 基础
+outcomes:
+  - 设计 GPU Workload
+  - 选择扩缩容信号
 practice:
   type: implementation
-  result: "编写并静态校验一份 GPU Deployment"
-  verify: ["资源请求明确", "未在真实集群验证的部分被标记"]
+  result: 编写并静态校验一份 GPU Deployment
+  verify:
+    - 资源请求明确
+    - 未在真实集群验证的部分被标记
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Kubernetes GPU 调度、模型卷与自动扩缩容
 
@@ -55,7 +62,7 @@ kubectl get nodes --show-labels
 kubectl describe node <node-name> | sed -n '/Taints:/,/Unschedulable:/p'
 ```
 
-GPU 节点常用标签表达型号、区域或驱动族；污点防止普通 CPU 工作负载占用。Pod 需要匹配 `nodeSelector`/affinity，并配置对应 `tolerations`。
+前一组命令输入是节点名和集群权限，输出是节点标签、污点和 Device Plugin 状态；GPU 节点常用标签表达型号、区域或驱动族，污点防止普通 CPU 工作负载占用。Pod 需要匹配 `nodeSelector`/affinity，并配置对应 `tolerations`。若节点有 GPU 但 Pod 仍 Pending，先看 Events 中是资源不足、污点不匹配还是插件没有发布资源，不要先改模型参数。
 
 ## 第二步：写清 GPU 请求与容器前提
 
@@ -156,12 +163,3 @@ GPU Pod 正常后，还要在容器内运行 `nvidia-smi` 或服务健康接口�
 没有 GPU 集群时，完成一份 Deployment、Service、Startup/Readiness Probe、节点标签/taint、模型卷和扩缩容指标清单，执行 server-side dry-run，逐条写出缺少的真实证据。
 
 有隔离 GPU 集群时，再按官方 Device Plugin 与推理引擎文档启动固定 revision，记录节点、驱动、镜像、模型、启动时间、显存与健康检查。吞吐、TTFT 和成本必须来自该硬件实测。
-
-## 参考资料
-
-- [Kubernetes GPUs](https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/)
-- [Kubernetes probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/)
-- [Kubernetes node affinity and taints](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
-- [NVIDIA Kubernetes device plugin](https://github.com/NVIDIA/k8s-device-plugin)
-- [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
-

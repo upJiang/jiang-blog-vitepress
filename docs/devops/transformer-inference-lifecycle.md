@@ -1,18 +1,25 @@
 ---
-title: "Tokenize、Prefill、Decode 与流式推理生命周期"
-description: "沿一条生成请求解释分词、批处理、Prefill、逐 Token Decode、采样和结束。"
+title: Tokenize、Prefill、Decode 与流式推理生命周期
+description: 沿一条生成请求解释分词、批处理、Prefill、逐 Token Decode、采样和结束。
 category: devops
-part: "第五部分：推理服务"
+part: 第五部分：推理服务
 chapter: 14
-tags: ["Transformer", "Inference"]
-prerequisites: ["Token 和 GPU 基础"]
-outcomes: ["解释 TTFT 与 TPOT 来源", "定位推理阶段瓶颈"]
+tags:
+  - Transformer
+  - Inference
+prerequisites:
+  - Token 和 GPU 基础
+outcomes:
+  - 解释 TTFT 与 TPOT 来源
+  - 定位推理阶段瓶颈
 practice:
   type: walkthrough
-  result: "画出一条推理时序图"
-  verify: ["每阶段输入输出明确", "流式输出不等同于并行生成"]
+  result: 画出一条推理时序图
+  verify:
+    - 每阶段输入输出明确
+    - 流式输出不等同于并行生成
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Tokenize、Prefill、Decode 与流式推理生命周期
 
@@ -117,10 +124,3 @@ Prefill 一次处理 prompt 中已有的 Token，构建每层的 Key/Value Cache
 ## 适用范围与下一章
 
 本章解释自回归 Transformer 服务的常见生命周期。Embedding、分类或图像模型不一定有同样的 Decode/流式阶段。下一章会在这个生命周期上加入 Continuous Batching、KV Cache 和 Prefix Cache，解释调度器怎样让不同长度的请求共享 GPU。
-
-## 参考资料
-
-- [Hugging Face: Generation strategies](https://huggingface.co/docs/transformers/main/en/generation_strategies)
-- [vLLM architecture overview](https://docs.vllm.ai/en/latest/design/arch_overview.html)
-- [NVIDIA FasterTransformer / inference concepts](https://docs.nvidia.com/deeplearning/performance/inference-optimizations.html)
-- [SSE specification on MDN](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)

@@ -1,18 +1,25 @@
 ---
-title: "确定性程序与模型推理怎样划分边界"
-description: "用意图识别、权限、金额、检索和回答比较概率逻辑与确定性逻辑。"
+title: 确定性程序与模型推理怎样划分边界
+description: 用意图识别、权限、金额、检索和回答比较概率逻辑与确定性逻辑。
 category: architecture
-part: "AI 系统设计"
+part: AI 系统设计
 chapter: 2
-tags: ["LLM", "Boundary"]
-prerequisites: ["读过第 1 章"]
-outcomes: ["判断规则归属", "为模型输出增加校验"]
+tags:
+  - LLM
+  - Boundary
+prerequisites:
+  - 读过第 1 章
+outcomes:
+  - 判断规则归属
+  - 为模型输出增加校验
 practice:
   type: decision
-  result: "完成一张职责分配表"
-  verify: ["权限和状态不由模型拍板", "开放语义任务不被硬编码关键词替代"]
+  result: 完成一张职责分配表
+  verify:
+    - 权限和状态不由模型拍板
+    - 开放语义任务不被硬编码关键词替代
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 确定性程序与模型推理怎样划分边界
 
@@ -127,10 +134,3 @@ flowchart LR
 选一个“查询系统访问方法”的只读功能，写出输入、模型候选、程序校验、检索、证据和终态。再故意让模型返回一个越界范围和一个不存在工具，验证系统在模型建议错误时仍不越权。
 
 下一章会把这张职责表放进 API、Agent Runtime、RAG 和基础设施的分层中，处理依赖方向与共享 Runtime。
-
-## 参考资料
-
-- [JSON Schema specification](https://json-schema.org/specification)
-- [OWASP Top 10 for Large Language Model Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
-- [NIST AI Risk Management Framework](https://www.nist.gov/itl/ai-risk-management-framework)
-- [OpenAI structured outputs guide](https://platform.openai.com/docs/guides/structured-outputs)

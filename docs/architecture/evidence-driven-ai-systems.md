@@ -1,18 +1,26 @@
 ---
-title: "Claim、Evidence、引用与证据驱动系统"
-description: "从无法核对的回答开始，设计证据对象、Claim 绑定、引用验证和无证据拒答。"
+title: Claim、Evidence、引用与证据驱动系统
+description: 从无法核对的回答开始，设计证据对象、Claim 绑定、引用验证和无证据拒答。
 category: architecture
-part: "AI 系统设计"
+part: AI 系统设计
 chapter: 5
-tags: ["Evidence", "Claim", "RAG"]
-prerequisites: ["RAG 基础"]
-outcomes: ["建立可追溯回答链", "设计证据预算"]
+tags:
+  - Evidence
+  - Claim
+  - RAG
+prerequisites:
+  - RAG 基础
+outcomes:
+  - 建立可追溯回答链
+  - 设计证据预算
 practice:
   type: diagnosis
-  result: "审核并修复一份匿名 AI 回答"
-  verify: ["事实结论都能回到原文", "权限过滤贯穿证据和引用"]
+  result: 审核并修复一份匿名 AI 回答
+  verify:
+    - 事实结论都能回到原文
+    - 权限过滤贯穿证据和引用
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 证据驱动的 AI 系统
@@ -92,10 +100,3 @@ ACL、引用存在、版本、Schema、敏感字段和数量预算适合确定�
 检索前应用 ACL，回合创建时钉住知识和策略版本，生成时只提供本轮 Evidence，发布前逐 Claim 检查引用身份、范围和支持关系。这样同一个答案可以复现，也能解释某次更新后为什么变化。
 
 练习时准备一条有直接支持的事实、一条需要两份证据组合的比较和一条证据不足的推断。前两条分别绑定来源，第三条标记未知或移除。证据驱动不保证模型永远正确，却能让错误定位到召回、版本、Claim 或验证阶段，并阻止无来源结论伪装成确定事实。
-
-## 参考资料
-
-- [NIST AI Risk Management Framework](https://www.nist.gov/itl/ai-risk-management-framework)
-- [OWASP Top 10 for LLM Applications](https://genai.owasp.org/llm-top-10/)
-- [OpenTelemetry Trace](https://opentelemetry.io/docs/concepts/signals/traces/)
-- [Reciprocal Rank Fusion](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf)

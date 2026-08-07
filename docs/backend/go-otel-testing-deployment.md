@@ -1,18 +1,26 @@
 ---
-title: "OpenTelemetry、测试、性能分析与部署"
-description: "把 Trace、Metric、结构化日志、基准测试、pprof、健康检查和容器交付串起来。"
+title: OpenTelemetry、测试、性能分析与部署
+description: 把 Trace、Metric、结构化日志、基准测试、pprof、健康检查和容器交付串起来。
 category: backend
-part: "第四部分：Go"
+part: 第四部分：Go
 chapter: 20
-tags: ["OpenTelemetry", "pprof", "Testing"]
-prerequisites: ["读过第 8、17-19 章"]
-outcomes: ["定位 Go 服务瓶颈", "建立发布门禁"]
+tags:
+  - OpenTelemetry
+  - pprof
+  - Testing
+prerequisites:
+  - 读过第 8、17-19 章
+outcomes:
+  - 定位 Go 服务瓶颈
+  - 建立发布门禁
 practice:
   type: diagnosis
-  result: "完成 Go 服务观测与部署清单"
-  verify: ["Trace 跨 HTTP/RPC 传播", "性能结论来自可复现实验"]
+  result: 完成 Go 服务观测与部署清单
+  verify:
+    - Trace 跨 HTTP/RPC 传播
+    - 性能结论来自可复现实验
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # OpenTelemetry、测试、性能分析与部署
 
@@ -104,7 +112,7 @@ Go 服务通常需要四层验证：
 
 单元测试不证明 SQL 正确，端到端测试也不适合穷举所有业务边界。把关键规则放在快速测试中，用较少集成与端到端测试证明边界连接。
 
-取消和超时是本课程的重点，应真实测试：创建一个会阻塞的假下游，设置短 Deadline，断言 Service 返回 `context.DeadlineExceeded`，并确认后台 goroutine 已退出。并发代码额外运行 `go test -race ./...`。
+取消和超时是这篇文章需要验证的重点：创建一个会阻塞的假下游，设置短 Deadline，断言 Service 返回 `context.DeadlineExceeded`，并确认后台 goroutine 已退出。并发代码额外运行 `go test -race ./...`。
 
 ## 第五步：Benchmark 先固定输入和环境
 
@@ -192,12 +200,3 @@ Go 二进制和容器镜像在 CI 中构建一次。制品记录源码提交、G
 8. 构建是否只发生一次，回滚时旧实例和旧制品是否仍可用？
 
 迁移练习：给文章查询增加一个 gRPC 作者服务。传播 Trace Context，加入 RPC Deadline 和稳定错误映射，再让测试服务延迟返回。观察 Metric、Trace 和日志能否共同说明时间花在哪里。
-
-## 参考资料
-
-- [OpenTelemetry Go documentation](https://opentelemetry.io/docs/languages/go/)
-- [Go documentation: Diagnostics](https://go.dev/doc/diagnostics)
-- [Go package net/http/pprof](https://pkg.go.dev/net/http/pprof)
-- [Go documentation: Testing packages](https://pkg.go.dev/testing)
-- [Go documentation: Managing connections](https://go.dev/doc/database/manage-connections)
-- [W3C Trace Context](https://www.w3.org/TR/trace-context/)

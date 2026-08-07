@@ -1,18 +1,25 @@
 ---
-title: "技术方案、ADR、复盘与个人知识体系"
-description: "把方案背景、约束、决策、替代项、结果和后续行动沉淀为可检索记录。"
+title: 技术方案、ADR、复盘与个人知识体系
+description: 把方案背景、约束、决策、替代项、结果和后续行动沉淀为可检索记录。
 category: engineering
-part: "工程工作法"
+part: 工程工作法
 chapter: 5
-tags: ["ADR", "Retrospective"]
-prerequisites: ["有一次完整开发经历"]
-outcomes: ["撰写 ADR", "区分事实、判断和行动"]
+tags:
+  - ADR
+  - Retrospective
+prerequisites:
+  - 有一次完整开发经历
+outcomes:
+  - 撰写 ADR
+  - 区分事实、判断和行动
 practice:
   type: implementation
-  result: "完成一份匿名 ADR 与复盘模板"
-  verify: ["决策能回到当时约束", "未完成行动有负责人和期限"]
+  result: 完成一份匿名 ADR 与复盘模板
+  verify:
+    - 决策能回到当时约束
+    - 未完成行动有负责人和期限
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 技术方案、ADR、复盘与个人知识体系
 
@@ -117,15 +124,8 @@ ADR 不是设计文档的百科全书，也不是把所有讨论复制进去。�
 ## 后续行动
 ~~~
 
-模板只保证字段齐全，不能替代具体证据。文件名、编号和状态要能在仓库搜索与发布记录中找到。
+填写模板时先把背景、约束和候选方案写成事实，再在“决策”段落说明选择和放弃原因，最后附上验证命令、回滚动作与状态变化。模板只保证字段齐全，不能替代具体证据。文件名、编号和状态要能在仓库搜索与发布记录中找到；若验证尚未执行，应写“待验证”，不能把模板完成误写成方案已生效。
 
 ## 迁移练习
 
 为一次 Agent 版本升级写 ADR：固定知识版本、模型版本、评测门禁、切流条件和回滚点。再写一页复盘，明确哪些是测试事实，哪些是暂时假设，哪些行动还没有完成。
-
-## 参考资料
-
-- [Michael Nygard: Documenting Architecture Decisions](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions)
-- [MADR: Markdown Architectural Decision Records](https://adr.github.io/madr/)
-- [Google SRE: Postmortem Culture](https://sre.google/sre-book/postmortem-culture/)
-- [The Art of Postmortem](https://increment.com/teams/the-art-of-postmortem/)

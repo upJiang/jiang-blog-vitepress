@@ -1,18 +1,25 @@
 ---
-title: "VS Code 扩展生命周期、命令与贡献点"
-description: "从脚手架和目录开始，注册一个命令，理解 Extension Host、激活事件、菜单和资源释放。"
+title: VS Code 扩展生命周期、命令与贡献点
+description: 从脚手架和目录开始，注册一个命令，理解 Extension Host、激活事件、菜单和资源释放。
 category: frontend
-part: "现代前端：插件开发"
+part: 现代前端：插件开发
 chapter: 16
-tags: ["VS Code", "Extension"]
-prerequisites: ["TypeScript 与 Node.js"]
-outcomes: ["创建并调试扩展", "解释命令注册与激活"]
+tags:
+  - VS Code
+  - Extension
+prerequisites:
+  - TypeScript 与 Node.js
+outcomes:
+  - 创建并调试扩展
+  - 解释命令注册与激活
 practice:
   type: implementation
-  result: "完成一个处理选中文本的命令"
-  verify: ["F5 可启动扩展宿主", "停用时资源被释放"]
+  result: 完成一个处理选中文本的命令
+  verify:
+    - F5 可启动扩展宿主
+    - 停用时资源被释放
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # VS Code 插件开发：从 Extension Host 到第一个命令
@@ -217,10 +224,3 @@ export function countCodePoints(text: string): number {
 - 哪些逻辑能做普通单元测试，哪些必须启动 VS Code？
 
 下一篇会在这个骨架上增加 Webview。重点不是把 Vue 或 React 页面塞进侧边栏，而是解释 Extension Host 与 Webview 为什么必须通过消息通信，以及 CSP、资源 URI 和消息校验怎样设计。
-
-## 参考资料
-
-- [VS Code Extension Anatomy](https://code.visualstudio.com/api/get-started/extension-anatomy)
-- [VS Code Contribution Points](https://code.visualstudio.com/api/references/contribution-points)
-- [VS Code Commands](https://code.visualstudio.com/api/extension-guides/command)
-- [VS Code Testing Extensions](https://code.visualstudio.com/api/working-with-extensions/testing-extension)

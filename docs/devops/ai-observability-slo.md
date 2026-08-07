@@ -1,18 +1,26 @@
 ---
-title: "OpenTelemetry、Prometheus、Grafana 与 AI SLO"
-description: "把请求、检索、模型、首 Token、队列、GPU、引用和终态关联到可用性、延迟、质量和成本。"
+title: OpenTelemetry、Prometheus、Grafana 与 AI SLO
+description: 把请求、检索、模型、首 Token、队列、GPU、引用和终态关联到可用性、延迟、质量和成本。
 category: devops
-part: "第六部分：可靠性、容量与交付"
+part: 第六部分：可靠性、容量与交付
 chapter: 18
-tags: ["OpenTelemetry", "Prometheus", "SLO"]
-prerequisites: ["服务观测基础"]
-outcomes: ["设计 AI 指标", "避免高基数标签"]
+tags:
+  - OpenTelemetry
+  - Prometheus
+  - SLO
+prerequisites:
+  - 服务观测基础
+outcomes:
+  - 设计 AI 指标
+  - 避免高基数标签
 practice:
   type: implementation
-  result: "制作一张 AI 服务观测表"
-  verify: ["Trace 与 Metric 可通过稳定标识关联", "敏感内容不进入标签"]
+  result: 制作一张 AI 服务观测表
+  verify:
+    - Trace 与 Metric 可通过稳定标识关联
+    - 敏感内容不进入标签
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 日志、指标与链路追踪
@@ -91,10 +99,3 @@ Head sampling 在请求开始决定，可能漏掉后来变慢的调用；Tail s
 先从指标发现 `/reports` 的 P95 增长，再在相同时间窗口抽取慢 Trace。若数据库 Span 占大部分时间，继续看查询类型、连接池和锁，而不是先扩容 Web 实例；若 Trace 没有进入应用，检查代理和网络。日志中通过 trace ID关联，不记录认证头和完整业务正文。
 
 把过程写成 Runbook：告警含影响、入口、第一张看板、查询条件、可能处置和恢复标准。再关闭遥测导出端点，确认应用主要请求仍能服务，同时独立指标报告遥测积压。可观测性是帮助理解系统的旁路能力，不能因采集器故障拖垮业务。
-
-## 参考资料
-
-- [OpenTelemetry](https://opentelemetry.io/docs/)
-- [W3C Trace Context](https://www.w3.org/TR/trace-context/)
-- [Prometheus metric types](https://prometheus.io/docs/concepts/metric_types/)
-- [Google SRE: Monitoring Distributed Systems](https://sre.google/sre-book/monitoring-distributed-systems/)

@@ -1,18 +1,25 @@
 ---
-title: "Vite 开发服务器与插件机制"
-description: "跟踪浏览器请求源码模块的过程，理解依赖预构建、转换、HMR 和插件钩子。"
+title: Vite 开发服务器与插件机制
+description: 跟踪浏览器请求源码模块的过程，理解依赖预构建、转换、HMR 和插件钩子。
 category: frontend
-part: "现代前端：构建工具"
+part: 现代前端：构建工具
 chapter: 6
-tags: ["Vite", "ESM"]
-prerequisites: ["浏览器 ESM"]
-outcomes: ["解释 Vite 开发启动快的原因", "编写一个最小插件"]
+tags:
+  - Vite
+  - ESM
+prerequisites:
+  - 浏览器 ESM
+outcomes:
+  - 解释 Vite 开发启动快的原因
+  - 编写一个最小插件
 practice:
   type: implementation
-  result: "实现并观察一次模块转换"
-  verify: ["转换只作用于目标模块", "HMR 失效时能定位模块边界"]
+  result: 实现并观察一次模块转换
+  verify:
+    - 转换只作用于目标模块
+    - HMR 失效时能定位模块边界
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Vite 开发服务器与插件
@@ -107,10 +114,3 @@ HMR 保留状态不是正确性保证。模块副作用、全局单例和事件�
 给虚拟模块插件写四个测试：公开 ID 能解析，其他 ID 返回 `null`，load 只接受内部 ID，生成内容对引号和换行安全。再运行一次生产构建，确认虚拟模块也能被 Rollup 阶段解析，Source Map 没有丢失。
 
 遇到启动变慢时开启 Vite debug 信息，比较配置加载、依赖扫描、预构建和首批模块转换。先缩小到具体插件或目录，再修改 include/exclude。删除缓存只能作为验证步骤，若没有解释缓存为什么失效，下一次仍会复发。
-
-## 参考资料
-
-- [Vite Why](https://vite.dev/guide/why.html)
-- [Vite Plugin API](https://vite.dev/guide/api-plugin.html)
-- [Vite Dependency Pre-Bundling](https://vite.dev/guide/dep-pre-bundling.html)
-- [Vite HMR API](https://vite.dev/guide/api-hmr.html)

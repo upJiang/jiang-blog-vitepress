@@ -1,18 +1,25 @@
 ---
-title: "抓取、索引、重复页面和收录异常排查"
-description: "按发现、抓取、渲染、索引、排名和数据口径逐层排查，不跨层猜原因。"
+title: 抓取、索引、重复页面和收录异常排查
+description: 按发现、抓取、渲染、索引、排名和数据口径逐层排查，不跨层猜原因。
 category: seo
-part: "第四部分：技术审计与排障"
+part: 第四部分：技术审计与排障
 chapter: 10
-tags: ["Troubleshooting", "Duplicate Content"]
-prerequisites: ["读过第 3、8、9 章"]
-outcomes: ["使用诊断树缩小问题范围", "处理近重复、参数和迁移页面"]
+tags:
+  - Troubleshooting
+  - Duplicate Content
+prerequisites:
+  - 读过第 3、8、9 章
+outcomes:
+  - 使用诊断树缩小问题范围
+  - 处理近重复、参数和迁移页面
 practice:
   type: diagnosis
-  result: "完成一份 P0-P3 排障报告"
-  verify: ["每个问题有证据、动作、验证和回滚", "不存在把波动直接归因算法的结论"]
+  result: 完成一份 P0-P3 排障报告
+  verify:
+    - 每个问题有证据、动作、验证和回滚
+    - 不存在把波动直接归因算法的结论
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 页面不收录或排名下降时怎样排查
 
@@ -122,9 +129,3 @@ User-Agent 名称可以伪造，不能单独作为身份凭证。日志格式也
 对于批量异常，用页面类型和模板抽样，不只检查首页。若某天开始大量详情页 404，优先查看路由或发布变更；若页面仍 200 但正文变成统一空壳，搜索系统可能把它视为 Soft 404 或低价值重复。
 
 诊断记录必须区分事实、假设和缺口，并为每个动作写验证与回滚。修复后观察重新抓取和索引需要时间，不能一天内不断叠加变更。不存在真实替代内容的删除页保留 404/410，不要把所有地址跳到首页制造误导。
-
-## 参考资料
-
-- [Google Search Central：Crawling and indexing](https://developers.google.com/search/docs/crawling-indexing/overview)
-- [Google Search Central：Debug traffic drops](https://developers.google.com/search/docs/monitor-debug/debugging-search-traffic-drops)
-- [Bing Webmaster Guidelines](https://www.bing.com/webmasters/help/webmaster-guidelines-30fba23a)

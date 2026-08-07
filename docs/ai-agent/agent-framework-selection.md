@@ -1,24 +1,34 @@
 ---
-title: "常见 Agent 框架及 LangGraph 选型"
-description: "比较 OpenAI Agents SDK、LangGraph、AutoGen、CrewAI、Semantic Kernel 与 Dify 的抽象层和适用任务。"
+title: 常见 Agent 框架及 LangGraph 选型
+description: >-
+  比较 OpenAI Agents SDK、LangGraph、AutoGen、CrewAI、Semantic Kernel 与 Dify
+  的抽象层和适用任务。
 category: ai-agent
-part: "第二部分：构建 Agent Runtime"
+part: Agent 怎样行动
 chapter: 5
-tags: ["LangGraph", "Framework"]
-prerequisites: ["读过第 4 章", "了解 Python 函数"]
-outcomes: ["根据控制权、状态和部署要求选框架", "说明状态图适合什么任务"]
+tags:
+  - LangGraph
+  - Framework
+prerequisites:
+  - 理解 Agent 生命周期
+  - 了解 Python 函数
+outcomes:
+  - 根据控制权、状态和部署要求选框架
+  - 说明状态图适合什么任务
 practice:
   type: decision
-  result: "完成一张框架选型决策表"
-  verify: ["同一需求能比较至少三种实现", "结论包含团队与运行约束"]
+  result: 完成一张框架选型决策表
+  verify:
+    - 同一需求能比较至少三种实现
+    - 结论包含团队与运行约束
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 常见 Agent 框架及 LangGraph 选型
 
 上一章的 Agent 只有七步，但落到工程里还要保存状态、执行工具、限制循环、流式返回、恢复任务和记录 Trace。框架可以减少样板代码，却不会替你决定权限、状态与失败语义。
 
-本章不做“框架排行榜”。我们用同一个只读知识 Agent 比较六种常见方案，最后按控制权、运行形态和团队能力做选型。
+这里不做“框架排行榜”。我们用同一个只读知识 Agent 比较六种常见方案，最后按控制权、运行形态和团队能力做选型。
 
 ## 先写需求，再看框架
 
@@ -84,7 +94,7 @@ Dify 提供可视化工作流、知识库、模型供应商管理、日志和应
 
 表格只说明抽象方向，不代替版本验证。框架更新很快，真正采用前要针对目标版本运行最小样例和故障测试。
 
-## 为什么本课程选择状态图
+## 为什么这组实践选择状态图
 
 知识 Agent 的关键要求是：权限和证据范围固定、检索可能并行、答案需要验证、长任务需要取消或恢复。用状态图可以把这些要求放在明确节点上。
 
@@ -119,18 +129,8 @@ flowchart LR
 
 先用最高权重筛掉不符合边界的方案，再为剩余候选做一条正常路径、一次工具超时和一次取消实验。示例跑通不等于框架适合生产，故障路径更能暴露抽象是否合适。
 
-## 本章结论
+## 选型结论
 
-框架负责减少运行时样板代码，应用仍要定义领域状态、权限、事务、工具契约和发布门禁。本课程选择 LangGraph，是因为主线需要显式状态、条件边、并行合并和按需 Checkpoint，不是因为它在所有 Agent 场景中最优。
+框架负责减少运行时样板代码，应用仍要定义领域状态、权限、事务、工具契约和发布门禁。这组实践选择 LangGraph，是因为主线需要显式状态、条件边、并行合并和按需 Checkpoint；这个选择只适用于当前约束，不代表它在所有 Agent 场景中最优。
 
 下一章开始拆 LangGraph。我们会从一个三节点图进入 State、Reducer 和 Checkpoint，先把每个概念放到执行顺序里。
-
-## 参考资料
-
-- [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/)
-- [LangGraph Overview](https://docs.langchain.com/oss/python/langgraph/overview)
-- [Microsoft AutoGen](https://microsoft.github.io/autogen/stable/)
-- [CrewAI Documentation](https://docs.crewai.com/)
-- [Semantic Kernel Documentation](https://learn.microsoft.com/semantic-kernel/)
-- [Dify Documentation](https://docs.dify.ai/)
-

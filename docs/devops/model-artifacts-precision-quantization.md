@@ -1,18 +1,25 @@
 ---
-title: "模型权重、Tokenizer、精度、量化与制品管理"
-description: "讲清配置、Tokenizer、Safetensors、FP32/FP16/BF16/INT8/INT4 和制品校验。"
+title: 模型权重、Tokenizer、精度、量化与制品管理
+description: 讲清配置、Tokenizer、Safetensors、FP32/FP16/BF16/INT8/INT4 和制品校验。
 category: devops
-part: "第四部分：GPU 与模型制品"
+part: 第四部分：GPU 与模型制品
 chapter: 12
-tags: ["Model Artifact", "Quantization"]
-prerequisites: ["读过第 11 章"]
-outcomes: ["估算权重存储", "管理模型版本和来源"]
+tags:
+  - Model Artifact
+  - Quantization
+prerequisites:
+  - 读过第 11 章
+outcomes:
+  - 估算权重存储
+  - 管理模型版本和来源
 practice:
   type: decision
-  result: "制作一张模型制品清单"
-  verify: ["权重与 Tokenizer 版本匹配", "来源和校验和可核对"]
+  result: 制作一张模型制品清单
+  verify:
+    - 权重与 Tokenizer 版本匹配
+    - 来源和校验和可核对
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 模型权重、Tokenizer、精度、量化与制品管理
 
@@ -147,11 +154,3 @@ Tokenizer 或 Chat Template 变更会影响输入 Token 数和输出格式，网
 ## 实践任务
 
 选一个公开、许可证清晰的模型，在隔离环境完成：固定 revision，生成 manifest 与 SHA-256，记录 Tokenizer 与 Template，分别用原始精度和官方支持的量化格式启动最小加载检查。不要公布或声称未实测的吞吐；用固定输入记录是否加载成功、显存基线和质量回归结果。
-
-## 参考资料
-
-- [Hugging Face Safetensors](https://huggingface.co/docs/safetensors/index)
-- [Hugging Face Transformers model files](https://huggingface.co/docs/transformers/main/en/installation#cache-setup)
-- [NVIDIA Mixed Precision Training](https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/index.html)
-- [PyTorch numerical accuracy](https://pytorch.org/docs/stable/notes/numerical_accuracy.html)
-- [NIST Secure Software Development Framework](https://csrc.nist.gov/Projects/ssdf)

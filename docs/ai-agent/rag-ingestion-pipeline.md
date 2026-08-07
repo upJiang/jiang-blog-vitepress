@@ -1,24 +1,33 @@
 ---
-title: "RAG 数据导入：解析、OCR、清洗与语义切片"
-description: "从一份混合文档开始，保留标题、段落、列表、表格与代码，并只对需要的页面做 OCR。"
+title: RAG 数据导入：从文件准入到可发布知识版本
+description: 先建立可重放的导入状态机，再处理文件准入、解析、OCR、清洗、切片、向量化、质量验证与安全发布。
 category: ai-agent
-part: "第三部分：让 Agent 使用知识"
-chapter: 9
-tags: ["RAG", "OCR", "Chunking"]
-prerequisites: ["理解文件和文本编码", "读过第 1 章"]
-outcomes: ["设计可重建的数据导入链", "用覆盖率检查内容丢失"]
+part: 知识怎样进入 Agent
+chapter: 16
+tags:
+  - RAG
+  - Ingestion
+  - Knowledge Version
+prerequisites:
+  - 理解文件和文本编码
+  - 知道 RAG 会先检索再生成
+outcomes:
+  - 设计可重建的数据导入链
+  - 用候选版本避免半成品进入检索
 practice:
   type: implementation
-  result: "完成一份文档的解析与切片设计"
-  verify: ["扫描页进入 OCR 分支", "切片可追溯到原文位置"]
+  result: 完成一份文档导入状态表
+  verify:
+    - 失败可以定位到具体阶段
+    - 旧知识在新版本验证前保持可用
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # RAG 数据导入：解析、OCR、清洗与语义切片
 
 一份 30 页的操作手册同时包含标题、正文、表格、截图和代码。最简单的导入方式是提取纯文本后每 500 字切一段，但这样会把表头和数据分开、丢掉标题路径，也无法告诉引用来自哪一页。
 
-RAG 的上限经常在检索前就被决定了。本章从文件进入系统开始，建立一条可重放的数据链：识别格式、普通解析、条件 OCR、结构归一、语义切片、质量门禁和候选发布。
+RAG 的上限经常在检索前就被决定了。下面从文件进入系统开始，建立一条可重放的数据链：识别格式、普通解析、条件 OCR、结构归一、语义切片、质量门禁和候选发布。
 
 ## 先定义导入产物
 
@@ -186,10 +195,3 @@ flowchart TD
 - 外部解析器升级要用固定样本回归。
 
 下一章处理 Embedding。它只接收已经合格的文本片段；如果导入阶段丢掉了标题和表格，再好的向量模型也找不回来。
-
-## 参考资料
-
-- [Unstructured 文档元素与分区](https://docs.unstructured.io/open-source/core-functionality/partitioning)
-- [PyMuPDF Text Extraction](https://pymupdf.readthedocs.io/en/latest/recipes-text.html)
-- [Tesseract OCR Documentation](https://tesseract-ocr.github.io/)
-

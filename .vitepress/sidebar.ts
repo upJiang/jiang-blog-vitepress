@@ -17,7 +17,7 @@ function groupArticles(items: ChapterMeta[]): DefaultTheme.SidebarItem[] {
   }
 
   return [...groups.entries()].map(([text, group]) => ({
-    text,
+    text: text.replace(/^第[一二三四五六七八九十]+部分[：:]?\s*/, ''),
     collapsed: false,
     items: group.map((item) => ({
       text: item.title,

@@ -1,18 +1,25 @@
 ---
-title: "GPU、CUDA、Driver、显存与 nvidia-smi"
-description: "从模型加载失败进入驱动、Runtime、计算能力、权重、激活和 KV Cache 的显存组成。"
+title: GPU、CUDA、Driver、显存与 nvidia-smi
+description: 从模型加载失败进入驱动、Runtime、计算能力、权重、激活和 KV Cache 的显存组成。
 category: devops
-part: "第四部分：GPU 与模型制品"
+part: 第四部分：GPU 与模型制品
 chapter: 11
-tags: ["GPU", "CUDA"]
-prerequisites: ["Linux 基础"]
-outcomes: ["读懂 nvidia-smi", "初步判断 OOM 来源"]
+tags:
+  - GPU
+  - CUDA
+prerequisites:
+  - Linux 基础
+outcomes:
+  - 读懂 nvidia-smi
+  - 初步判断 OOM 来源
 practice:
   type: diagnosis
-  result: "在有 NVIDIA GPU 的主机完成预检"
-  verify: ["驱动与 Runtime 兼容", "未配备硬件时明确只做命令解读"]
+  result: 在有 NVIDIA GPU 的主机完成预检
+  verify:
+    - 驱动与 Runtime 兼容
+    - 未配备硬件时明确只做命令解读
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # GPU、CUDA、Driver、显存与 `nvidia-smi`
 
@@ -63,7 +70,7 @@ nvidia-smi pmon -c 1
 nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 ```
 
-把 PID 与容器或服务版本关联。多个推理进程共享一张卡时，显存和调度竞争要按进程汇总。
+第一条命令采样一次 GPU 进程活动，第二条查询计算进程的 PID、名称和显存占用并输出 CSV。执行后先把 PID 与容器或服务版本关联，再按同一服务汇总多个进程；否则只看到单个 PID，无法判断一个多进程推理服务的总显存和调度竞争。没有进程输出表示采样时没有可见计算进程，也可能是权限或容器设备隔离，需要结合宿主视角复查。
 
 ## 第二步：区分三种“CUDA 版本”
 
@@ -90,7 +97,7 @@ if torch.cuda.is_available():
 PY
 ```
 
-这个最小检查只回答框架是否能调用 GPU，不做模型吞吐测试。若 `nvidia-smi` 正常但 `is_available()` 为 false，查看容器设备挂载、框架构建版本和驱动兼容；若能看到 GPU 但加载模型失败，再进入显存和制品检查。
+Shell 先启动 Python，再导入 PyTorch，打印框架版本和布尔能力；只有 `cuda_available` 为 true 才继续读取设备名与计算能力。这个最小检查只回答框架是否能调用 GPU，不做模型吞吐测试。若 `nvidia-smi` 正常但 `is_available()` 为 false，查看容器设备挂载、框架构建版本和驱动兼容；若能看到 GPU 但加载模型失败，再进入显存和制品检查。命令退出码为 0 只表示脚本执行完成，不能替代实际模型加载验证。
 
 ## 第四步：显存到底被什么占用
 
@@ -151,12 +158,3 @@ GPU 利用率为 0 可能是队列空，也可能是 CPU Tokenize、数据加载
 8. 没有目标硬件时，把结论标成官方指导或待实测，不写成项目成果。
 
 下一章会把 GPU 之外的模型制品讲清楚：权重、Tokenizer、配置、精度、量化和校验和必须一起管理，才能让“同一个模型”可重复。
-
-## 参考资料
-
-- [NVIDIA System Management Interface](https://docs.nvidia.com/deploy/nvidia-smi/index.html)
-- [NVIDIA Container Toolkit User Guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/user-guide.html)
-- [CUDA Compatibility](https://docs.nvidia.com/deploy/cuda-compatibility/)
-- [PyTorch CUDA semantics](https://pytorch.org/docs/stable/notes/cuda.html)
-- [PyTorch CUDA memory management](https://pytorch.org/docs/stable/notes/cuda.html#memory-management)
-

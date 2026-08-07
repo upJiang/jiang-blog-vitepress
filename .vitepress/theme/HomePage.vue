@@ -18,9 +18,9 @@ const featuredPaths = [
   'devops/ai-infra-role-map'
 ]
 
-const learningTracks = [
+const focusAreas = [
   {
-    name: 'AI 全栈',
+    name: 'AI 全栈实践',
     description: '前端交互、后端服务、Agent 能力和工程交付一起学习。',
     href: '/docs/frontend/typescript-type-system-engineering'
   },
@@ -63,15 +63,15 @@ function go(path: string) {
   <main class="knowledge-home">
     <section class="home-hero" aria-labelledby="home-title">
       <div class="home-hero__content">
-        <p class="home-kicker">工程知识库</p>
-        <h1 id="home-title">AI 全栈</h1>
+        <p class="home-kicker">小江的技术记录</p>
+        <h1 id="home-title">小江AI</h1>
         <p class="home-summary">
-          面向具备基础编程能力的读者，从前置知识开始讲清概念、完整流程、动手步骤和验证方法。
-          每个系列按章节推进，读完不只知道名词，还能把方法带进实际工作。
+          这里记录我在 AI、Agent、前后端和基础设施上的学习、实践与复盘。
+          文章会把问题、推理过程、实现细节和验证结果写清楚，方便后来回看，也方便读者把方法带到自己的项目里。
         </p>
         <div class="home-actions">
           <button class="home-button home-button--primary" type="button" @click="go('/docs/ai-agent/llm-workflow-rag-agent')">
-            从 Agent 课程开始
+            阅读 Agent 笔记
           </button>
           <button class="home-button" type="button" @click="go('/#topics-title')">
             查看知识地图
@@ -81,7 +81,7 @@ function go(path: string) {
 
       <div class="home-signal" aria-label="知识库概览">
         <span class="home-signal__label">当前主线</span>
-        <span class="home-signal__value">课程式技术博客</span>
+          <span class="home-signal__value">个人学习与实践</span>
         <dl>
           <div>
             <dt>文章</dt>
@@ -101,11 +101,11 @@ function go(path: string) {
 
     <section class="home-section" aria-labelledby="tracks-title">
       <div class="home-section__heading">
-        <p>学习路线</p>
-        <h2 id="tracks-title">三条主线</h2>
+        <p>近期关注</p>
+        <h2 id="tracks-title">三个实践方向</h2>
       </div>
       <div class="track-list">
-        <a v-for="track in learningTracks" :key="track.name" :href="track.href">
+        <a v-for="track in focusAreas" :key="track.name" :href="track.href">
           <span class="track-title">{{ track.name }}</span>
           <span class="track-description">{{ track.description }}</span>
           <span class="featured-arrow" aria-hidden="true">→</span>

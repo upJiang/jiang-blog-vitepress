@@ -1,18 +1,26 @@
 ---
-title: "OCI 镜像、容器、Namespace、cgroup 与信号"
-description: "从镜像 Layer 到容器进程，理解隔离、资源限制、PID 1 和优雅退出。"
+title: OCI 镜像、容器、Namespace、cgroup 与信号
+description: 从镜像 Layer 到容器进程，理解隔离、资源限制、PID 1 和优雅退出。
 category: devops
-part: "第二部分：容器与入口"
+part: 第二部分：容器与入口
 chapter: 4
-tags: ["Docker", "OCI", "cgroup"]
-prerequisites: ["Linux 进程基础"]
-outcomes: ["解释镜像与容器区别", "设置资源和停止策略"]
+tags:
+  - Docker
+  - OCI
+  - cgroup
+prerequisites:
+  - Linux 进程基础
+outcomes:
+  - 解释镜像与容器区别
+  - 设置资源和停止策略
 practice:
   type: implementation
-  result: "检查一个容器的进程与限制"
-  verify: ["SIGTERM 能传到应用", "资源限制可从 inspect 核对"]
+  result: 检查一个容器的进程与限制
+  verify:
+    - SIGTERM 能传到应用
+    - 资源限制可从 inspect 核对
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # OCI 镜像、容器、Namespace、cgroup 与信号
 
@@ -76,7 +84,7 @@ ENTRYPOINT ["/app/server"]
 CMD ["serve", "--port", "8000"]
 ```
 
-JSON 数组不会经过 shell 展开，应用直接成为 PID 1。确实需要启动脚本时，脚本最后使用 `exec "$@"` 替换 shell。会产生子进程且自身不负责回收的应用，可以使用 `--init` 加入小型 init。
+启动容器时 Docker 依次执行 `ENTRYPOINT` 和 `CMD`，JSON 数组参数直接传入进程，不经过 shell 展开，应用直接成为 PID 1。收到停止信号后，PID 1 负责把信号传给应用并等待退出；确实需要启动脚本时，脚本最后使用 `exec "$@"` 替换 shell。会产生子进程且自身不负责回收的应用，可以使用 `--init` 加入小型 init。验证方式是发送 SIGTERM 后观察应用是否在 grace period 内退出，而不是只看容器是否被强制删除。
 
 ## 第三步：Namespace 隔离“看见什么”
 
@@ -139,7 +147,7 @@ docker port runtime-demo
 docker exec runtime-demo ss -lnt
 ```
 
-第一条验证宿主入口，第二条看端口映射，第三条看容器内部监听。如果镜像没有 `ss`，不要临时把排障工具装进正在运行的生产容器；可以使用调试容器加入同一 Network Namespace，或在镜像构建阶段提供受控诊断方式。
+三条命令按请求路径逐层执行：`curl` 从宿主访问发布端口并返回 HTTP 结果，`docker port` 输出宿主端口到容器端口的映射，`docker exec` 进入容器检查进程实际监听的地址。宿主请求失败但映射存在时，再根据内部监听结果判断应用是否只绑定了错误地址。如果镜像没有 `ss`，不要临时把排障工具装进正在运行的生产容器；可以让受控调试容器加入同一 Network Namespace。
 
 容器里的 `127.0.0.1` 指向容器自己，不是宿主，也不是另一个容器。多容器通信应使用用户定义网络和服务 DNS 名称，下一章会实操。
 
@@ -200,11 +208,3 @@ docker stop limited-demo
 `runtime-demo` 若尚未停止也执行同样命令。它们使用 `--rm`，停止后自动删除。不要用无目标的 prune 命令清理来源不明的镜像、Volume 或构建缓存。
 
 迁移练习：把自己的开发 API 做成非 root、只读根文件系统容器。列出它确实要写的目录，以 tmpfs 或 Volume 精确挂载；发送 SIGTERM 并记录 readiness 与在途请求的变化。
-
-## 参考资料
-
-- [Open Container Initiative specifications](https://opencontainers.org/)
-- [Docker: Runtime options with Memory, CPUs, and GPUs](https://docs.docker.com/engine/containers/resource_constraints/)
-- [Dockerfile ENTRYPOINT](https://docs.docker.com/reference/dockerfile/#entrypoint)
-- [Linux namespaces](https://man7.org/linux/man-pages/man7/namespaces.7.html)
-- [Linux cgroup v2 documentation](https://docs.kernel.org/admin-guide/cgroup-v2.html)

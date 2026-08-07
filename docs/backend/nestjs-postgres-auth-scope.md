@@ -1,18 +1,26 @@
 ---
-title: "NestJS、PostgreSQL、事务、认证与数据范围"
-description: "把登录身份、租户范围和事务落实到应用服务与 SQL 查询。"
+title: NestJS、PostgreSQL、事务、认证与数据范围
+description: 把登录身份、租户范围和事务落实到应用服务与 SQL 查询。
 category: backend
-part: "第二部分：Node.js / NestJS"
+part: 第二部分：Node.js / NestJS
 chapter: 10
-tags: ["NestJS", "PostgreSQL", "ACL"]
-prerequisites: ["读过第 3、4、9 章"]
-outcomes: ["实现事务用例", "防止跨租户读取"]
+tags:
+  - NestJS
+  - PostgreSQL
+  - ACL
+prerequisites:
+  - 读过第 3、4、9 章
+outcomes:
+  - 实现事务用例
+  - 防止跨租户读取
 practice:
   type: implementation
-  result: "完成一个带数据范围的查询接口"
-  verify: ["SQL 含范围条件", "提交失败时事务回滚"]
+  result: 完成一个带数据范围的查询接口
+  verify:
+    - SQL 含范围条件
+    - 提交失败时事务回滚
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Node ACL 与数据范围控制
@@ -62,7 +70,7 @@ function readableScope(ctx: SecurityContext): Scope {
 }
 ```
 
-联合类型把策略结果限制在几种已知形态，Repository 可以逐一翻译成 ORM 条件。这样做的原因不是让类型更复杂，而是让“缺少范围”无法悄悄退化为全量查询。
+`readableScope` 的输入是认证中间件产生的 `SecurityContext`，先判断主体是否存在，再按角色返回一种范围；Repository 收到范围后逐一翻译成 ORM 条件，最后输出可见行或空结果。联合类型把策略结果限制在几种已知形态，Repository 可以逐一翻译成 ORM 条件。这样做的原因不是让类型更复杂，而是让“缺少范围”无法悄悄退化为全量查询。测试时应覆盖 `none`、租户全量、指定 ID 和本人拥有四种分支。
 
 ## 步骤二：查询时就过滤
 
@@ -123,10 +131,3 @@ PostgreSQL Row-Level Security 可以作为纵深保护，但它依赖每个事�
 列表查询、详情查询、导出、相邻资源和聚合统计使用同一范围表达。只保护详情接口而漏掉导出，仍然会泄露数据。缓存键包含租户、权限版本或范围摘要，权限撤销后主动失效或在读取时二次校验。
 
 使用两个身份和三条不同归属数据做矩阵测试：管理员看到租户内两条，成员只看到授权一条，访客修改得到拒绝。再撤销成员权限后访问旧缓存，确认不可继续读取。错误响应避免暴露“资源存在但你无权查看”的额外信息，具体采用 403 还是 404 应由公开协议一致决定。
-
-## 参考资料
-
-- [OWASP Authorization Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html)
-- [OWASP API1: Broken Object Level Authorization](https://owasp.org/API-Security/editions/2023/en/0xa1-broken-object-level-authorization/)
-- [PostgreSQL Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-- [NestJS Authorization](https://docs.nestjs.com/security/authorization)

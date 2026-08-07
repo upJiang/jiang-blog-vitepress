@@ -1,18 +1,25 @@
 ---
-title: "后端请求从连接建立到响应返回经历了什么"
-description: "从 DNS、TCP/TLS、反向代理进入框架路由、业务逻辑、数据库和响应。"
+title: 后端请求从连接建立到响应返回经历了什么
+description: 从 DNS、TCP/TLS、反向代理进入框架路由、业务逻辑、数据库和响应。
 category: backend
-part: "第一部分：后端共同基础"
+part: 第一部分：后端共同基础
 chapter: 1
-tags: ["Backend", "HTTP"]
-prerequisites: ["了解客户端请求"]
-outcomes: ["复述请求链", "定位各层故障"]
+tags:
+  - Backend
+  - HTTP
+prerequisites:
+  - 了解客户端请求
+outcomes:
+  - 复述请求链
+  - 定位各层故障
 practice:
   type: diagnosis
-  result: "使用 curl 和日志追踪一次请求"
-  verify: ["状态码与服务日志对应", "能区分网络、代理和应用错误"]
+  result: 使用 curl 和日志追踪一次请求
+  verify:
+    - 状态码与服务日志对应
+    - 能区分网络、代理和应用错误
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 后端请求从连接建立到响应返回经历了什么
 
@@ -44,7 +51,7 @@ dig api.example.com A
 dig api.example.com AAAA
 ```
 
-关注 `ANSWER SECTION`、TTL 和最终地址。没有记录时，客户端还没有连接到服务器，应用日志自然不会出现请求。若本机和公共解析结果不同，继续检查递归 DNS、缓存、hosts 文件和分线路由。
+关注 `ANSWER SECTION`、TTL 和最终地址。命令输入是域名和记录类型，输出是解析状态、地址与缓存时间；没有记录时，客户端还没有连接到服务器，应用日志自然不会出现请求。若本机和公共解析结果不同，继续检查递归 DNS、缓存、hosts 文件和分线路由。不要把 DNS 返回地址当作 HTTP 成功，它只完成“找到候选地址”这一步。
 
 DNS 成功不代表服务可用。它只告诉客户端目标地址，不检查目标端口是否监听，也不验证证书。
 
@@ -82,7 +89,7 @@ location /api/ {
 }
 ```
 
-应用只能信任由受控代理写入的转发头。若应用直接暴露公网，又无条件相信客户端提供的 `X-Forwarded-For`，审计 IP 和限流都可能被伪造。
+这段配置的输入是代理收到的公网请求，处理顺序是匹配 `/api/`、转发到 `app:8000`、补充 Host、客户端链路、协议和请求 ID，输出是应用可以关联的内部请求。应用只能信任由受控代理写入的转发头。若应用直接暴露公网，又无条件相信客户端提供的 `X-Forwarded-For`，审计 IP 和限流都可能被伪造。
 
 ## 第四步：中间件建立请求上下文
 
@@ -132,7 +139,7 @@ FROM task
 WHERE id = $1 AND tenant_id = $2;
 ```
 
-如果先按 ID 查全局记录，再在应用层判断租户，缓存或日志可能已经接触越界数据。数据库查询阶段过滤更稳妥。
+参数 `$1` 是路径中的任务 ID，`$2` 是认证上下文得到的租户范围；数据库先执行两项条件过滤，再只返回三列公共字段。若没有结果，应用映射为不可见或不存在；若数据库超时，则进入依赖错误，不应返回空任务。 如果先按 ID 查全局记录，再在应用层判断租户，缓存或日志可能已经接触越界数据。数据库查询阶段过滤更稳妥。
 
 ## 第七步：响应序列化和连接结束
 
@@ -173,7 +180,7 @@ app:   request_id=r-02 route=GET /tasks/:id error=db_timeout
 | 401/403 | 凭证校验和权限范围 |
 | 500 | request ID 对应的应用堆栈与依赖 |
 
-## 本章实践
+## 本文实践
 
 对一个自己可控制的测试服务执行：
 
@@ -201,9 +208,3 @@ HTTP 状态与响应头：
 ```
 
 填写排障卡时先保存原始命令输出，再写“错误最早出现的层”，避免用结论覆盖证据。修复后用同一个最小请求复测，输出应同时包含成功状态和可关联的请求 ID。下一章进入 HTTP 与接口契约，讲清一个 API 怎样让客户端知道输入、输出、错误与版本边界。
-
-## 参考资料
-
-- [RFC 9110: HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110)
-- [MDN HTTP Overview](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview)
-- [Nginx Proxy Module](https://nginx.org/en/docs/http/ngx_http_proxy_module.html)

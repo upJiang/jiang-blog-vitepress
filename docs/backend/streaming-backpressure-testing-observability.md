@@ -1,18 +1,26 @@
 ---
-title: "SSE、WebSocket、背压、测试与服务观测"
-description: "用实时任务状态讲清事件序列、慢消费者、取消、契约测试和 Trace。"
+title: SSE、WebSocket、背压、测试与服务观测
+description: 用实时任务状态讲清事件序列、慢消费者、取消、契约测试和 Trace。
 category: backend
-part: "第一部分：后端共同基础"
+part: 第一部分：后端共同基础
 chapter: 8
-tags: ["SSE", "WebSocket", "Observability"]
-prerequisites: ["读过第 1、2 章"]
-outcomes: ["设计可恢复事件流", "建立服务测试分层"]
+tags:
+  - SSE
+  - WebSocket
+  - Observability
+prerequisites:
+  - 读过第 1、2 章
+outcomes:
+  - 设计可恢复事件流
+  - 建立服务测试分层
 practice:
   type: implementation
-  result: "实现并验证一条简化事件流"
-  verify: ["断线可从游标继续", "慢消费者不会拖垮生产者"]
+  result: 实现并验证一条简化事件流
+  verify:
+    - 断线可从游标继续
+    - 慢消费者不会拖垮生产者
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # SSE、WebSocket、背压、测试与服务观测
 
@@ -150,10 +158,3 @@ Log：连接建立/关闭原因、任务 ID 摘要、最后游标、发送数量
 - 轮询可作为降级读取同一真相。
 
 接下来进入 Node.js/NestJS 项目线。前八章的 HTTP、权限、数据库、缓存、消息和流式原则会落到具体框架调用链中。
-
-## 参考资料
-
-- [HTML Living Standard: Server-sent events](https://html.spec.whatwg.org/multipage/server-sent-events.html)
-- [RFC 6455: The WebSocket Protocol](https://www.rfc-editor.org/rfc/rfc6455)
-- [OpenTelemetry Traces](https://opentelemetry.io/docs/concepts/signals/traces/)
-

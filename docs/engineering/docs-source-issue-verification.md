@@ -1,18 +1,25 @@
 ---
-title: "官方文档、源码、Issue 与社区资料怎样交叉验证"
-description: "从一个看似正确的技术结论出发，定位规范、版本、源码、测试和历史 Issue。"
+title: 官方文档、源码、Issue 与社区资料怎样交叉验证
+description: 从一个看似正确的技术结论出发，定位规范、版本、源码、测试和历史 Issue。
 category: engineering
-part: "工程工作法"
+part: 工程工作法
 chapter: 4
-tags: ["Research", "Source Code"]
-prerequisites: ["会使用搜索引擎和 Git"]
-outcomes: ["判断资料可信度", "复现框架行为"]
+tags:
+  - Research
+  - Source Code
+prerequisites:
+  - 会使用搜索引擎和 Git
+outcomes:
+  - 判断资料可信度
+  - 复现框架行为
 practice:
   type: diagnosis
-  result: "完成一份技术事实核验卡"
-  verify: ["结论注明版本和适用条件", "社区文章不是唯一证据"]
+  result: 完成一份技术事实核验卡
+  verify:
+    - 结论注明版本和适用条件
+    - 社区文章不是唯一证据
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 工程问题与学习资源索引
@@ -99,11 +106,3 @@ MDN 适合快速入口和兼容说明，精确语义回到规范与浏览器测�
 面试题也用同一方法处理。把“GET 比 POST 安全”拆成传输加密、缓存、日志、副作用与幂等几个问题，就会发现方法名本身不是安全等级。正确知识合并进对应主题，重复题不保留成孤立答案。
 
 每周选择一个实际问题完成一页证据笔记，并让另一位读者只靠笔记复现实验。能解释结论、边界和验证方式，才算学习完成；收藏链接和复制答案只是材料收集。资源索引应优先维护高质量入口，而不是不断增加无人复审的链接数量。
-
-## 参考资料
-
-- [WHATWG HTML](https://html.spec.whatwg.org/)
-- [ECMAScript 规范](https://tc39.es/ecma262/)
-- [Web Platform Tests](https://web-platform-tests.org/)
-- [OpenTelemetry Specification](https://opentelemetry.io/docs/specs/otel/)
-- [OWASP Cheat Sheet Series](https://cheatsheetseries.owasp.org/)

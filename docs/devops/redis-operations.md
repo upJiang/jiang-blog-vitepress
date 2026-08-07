@@ -1,18 +1,24 @@
 ---
-title: "Redis 缓存、Broker、TTL、淘汰与持久化"
-description: "从内存增长和缓存丢失进入 INFO、TTL、maxmemory、RDB、AOF 与故障边界。"
+title: Redis 缓存、Broker、TTL、淘汰与持久化
+description: 从内存增长和缓存丢失进入 INFO、TTL、maxmemory、RDB、AOF 与故障边界。
 category: devops
-part: "第三部分：数据与任务设施"
+part: 第三部分：数据与任务设施
 chapter: 8
-tags: ["Redis"]
-prerequisites: ["读过第 2、4 章"]
-outcomes: ["检查 Redis 内存", "选择持久化与淘汰策略"]
+tags:
+  - Redis
+prerequisites:
+  - 读过第 2、4 章
+outcomes:
+  - 检查 Redis 内存
+  - 选择持久化与淘汰策略
 practice:
   type: diagnosis
-  result: "完成一份 Redis 运行检查表"
-  verify: ["缓存与任务 Broker 风险分开", "关键数据不只依赖 Redis"]
+  result: 完成一份 Redis 运行检查表
+  verify:
+    - 缓存与任务 Broker 风险分开
+    - 关键数据不只依赖 Redis
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Redis 缓存、Broker、TTL、淘汰与持久化
 
@@ -171,11 +177,3 @@ Slow Log 记录命令在 Redis 线程内的执行时间，不包括网络传输�
 9. 缓存不可用时，数据库是否有准入保护，避免雪崩？
 
 下一章会把 RabbitMQ、Kafka 和 Worker 作为独立任务平面来运行，进一步区分“消息通知”和“业务任务事实”。
-
-## 参考资料
-
-- [Redis administration](https://redis.io/docs/latest/operate/oss_and_stack/management/)
-- [Redis key eviction](https://redis.io/docs/latest/develop/reference/eviction/)
-- [Redis persistence](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/)
-- [Redis latency monitoring](https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/latency-monitor/)
-- [Redis distributed locks](https://redis.io/docs/latest/develop/use/patterns/distributed-locks/)

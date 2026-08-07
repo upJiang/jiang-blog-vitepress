@@ -1,24 +1,32 @@
 ---
-title: "结构化输出、模型边界与确定性程序"
-description: "让模型负责语义判断，让程序负责权限、金额、状态和格式校验。"
+title: 结构化输出、模型边界与确定性程序
+description: 让模型负责语义判断，让程序负责权限、金额、状态和格式校验。
 category: ai-agent
-part: "第一部分：认识模型与 Agent"
+part: 模型怎样接收与返回
 chapter: 3
-tags: ["Structured Output", "Schema"]
-prerequisites: ["了解 JSON Schema", "读过第 2 章"]
-outcomes: ["设计结构化输出契约", "区分概率判断与确定性规则"]
+tags:
+  - Structured Output
+  - Schema
+prerequisites:
+  - 了解 JSON Schema
+  - 理解消息与模型输出
+outcomes:
+  - 设计结构化输出契约
+  - 区分概率判断与确定性规则
 practice:
   type: implementation
-  result: "为意图识别结果设计 Schema 与校验流程"
-  verify: ["合法输出通过校验", "缺字段和越界值被拒绝"]
+  result: 为意图识别结果设计 Schema 与校验流程
+  verify:
+    - 合法输出通过校验
+    - 缺字段和越界值被拒绝
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 结构化输出、模型边界与确定性程序
 
 用户输入“帮我找远程访问的申请方法”，应用需要先知道这是知识查询，还是寒暄、危险操作或需要澄清的问题。让模型返回一大段解释不方便后续处理，更常见的做法是要求它返回结构化对象。
 
-但有一个关键边界：**结构化输出只让结果更容易解析，不会自动让结果变成事实。** 本章用一个意图识别器说明模型适合判断什么、程序必须接管什么。
+但有一个关键边界：**结构化输出只让结果更容易解析，不会自动让结果变成事实。** 下面用一个意图识别器说明模型适合判断什么、程序应该接管什么。
 
 ## 先定义应用真正需要的结果
 
@@ -52,7 +60,7 @@ updated: 2026-08-06
 }
 ```
 
-`enum` 防止模型随意创造意图名称，`required` 防止缺字段，`additionalProperties: false` 防止下游悄悄依赖未定义字段。长度限制同时保护日志和上下文预算。
+模型返回 JSON 后，校验器按这份 Schema 从外向内检查对象。`type: object` 先拒绝数组和字符串；`properties` 定义四个允许字段；`enum` 拒绝模型临时创造的意图名；`required` 拦住缺字段结果；`additionalProperties: false` 拒绝未约定字段；两个 `maxLength` 控制进入日志和下一次模型调用的文本大小。校验成功只得到一个结构合法的候选对象，校验失败则进入结构化错误分支，检索器还不会执行。
 
 ## Schema 校验解决什么，不解决什么
 
@@ -124,7 +132,7 @@ async function understand(input: string, actorId: string) {
 }
 ```
 
-`model.generateObject` 请求结构化结果，返回值仍被当作候选；`validateIntentCombination` 检查字段组合；`visibleScope` 使用服务端身份读取权限。最终对象可以进入检索流程，但模型没有机会伪造 `actorId` 或 `scope`。
+调用顺序从 `understand(input, actorId)` 开始。`input` 是用户文字，`actorId` 是认证层传入的可信身份；`model.generateObject` 根据 `intentSchema` 返回 `Intent` 候选；`validateIntentCombination` 检查 `unclear` 是否要求澄清等跨字段规则；`visibleScope(actorId)` 再从服务端权限数据计算范围；函数最后把候选语义与可信范围合并。模型超时、Schema 不通过、字段组合冲突或权限服务失败时，函数都应返回对应错误，不进入检索。模型从未获得填写 `actorId` 或 `scope` 的机会。
 
 ## 结构化输出失败时怎样处理
 
@@ -162,10 +170,3 @@ async function understand(input: string, actorId: string) {
 - 是否有一组不同表达的回归样本。
 
 下一章会把结构化理解放进完整 Agent 循环，观察一次请求从输入到终态经历哪些阶段。
-
-## 参考资料
-
-- [JSON Schema Specification](https://json-schema.org/specification)
-- [OpenAI Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
-- [OWASP LLM Prompt Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)
-

@@ -565,6 +565,11 @@
   resolved "https://registry.yarnpkg.com/@jridgewell/sourcemap-codec/-/sourcemap-codec-1.5.5.tgz#6912b00d2c631c0d15ce1a7ab57cd657f2a8f8ba"
   integrity sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==
 
+"@lucide/vue@^1.29.0":
+  version "1.29.0"
+  resolved "https://registry.yarnpkg.com/@lucide/vue/-/vue-1.29.0.tgz#88968aa034e165e91bbded4b92e1f45478b444be"
+  integrity sha512-UnbPPAdxWGqABrjcQJZFqawSgZTBmeKOrNFPI9sqKaDkgLoEbYyx+ivIdiYRR1YoYhWWg7dCdvjtCwK6zBxWDQ==
+
 "@mermaid-js/mermaid-mindmap@^9.3.0":
   version "9.3.0"
   resolved "https://registry.yarnpkg.com/@mermaid-js/mermaid-mindmap/-/mermaid-mindmap-9.3.0.tgz#cfe10329198a0f37e27eef1dcc4a1cf21f187e2b"

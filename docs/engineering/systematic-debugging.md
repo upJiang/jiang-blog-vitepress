@@ -1,18 +1,24 @@
 ---
-title: "从现象、证据、假设到修复的系统化调试"
-description: "从偶发 500 开始，建立复现、观测、假设、对照实验、修复和回归流程。"
+title: 从现象、证据、假设到修复的系统化调试
+description: 从偶发 500 开始，建立复现、观测、假设、对照实验、修复和回归流程。
 category: engineering
-part: "工程工作法"
+part: 工程工作法
 chapter: 1
-tags: ["Debugging"]
-prerequisites: ["会读日志"]
-outcomes: ["缩小故障范围", "避免凭感觉改代码"]
+tags:
+  - Debugging
+prerequisites:
+  - 会读日志
+outcomes:
+  - 缩小故障范围
+  - 避免凭感觉改代码
 practice:
   type: diagnosis
-  result: "完成一份排障 Runbook"
-  verify: ["每个假设可证伪", "修复后有回归证据"]
+  result: 完成一份排障 Runbook
+  verify:
+    - 每个假设可证伪
+    - 修复后有回归证据
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 系统化调试方法
@@ -87,10 +93,3 @@ flowchart LR
 一次只改变一个关键变量。若减小文件后仍失败，内存假设被削弱；不要同时换依赖、加重试和改超时后宣布“修好了”。根因是能解释现象并被证据支持的机制，触发条件只是让它出现的输入或时机。
 
 修复后重新运行原失败样本、邻近边界和正常回归，再移除修复确认测试确实能捕获旧故障。调试结束的产物包含复现条件、证据、根因、修复、保护测试和未解决风险，便于下一位工程师复核。
-
-## 参考资料
-
-- [The Scientific Method](https://www.sciencebuddies.org/science-fair-projects/science-fair/steps-of-the-scientific-method)
-- [Google SRE: Effective Troubleshooting](https://sre.google/sre-book/effective-troubleshooting/)
-- [OpenTelemetry](https://opentelemetry.io/docs/)
-- [Git Bisect](https://git-scm.com/docs/git-bisect)

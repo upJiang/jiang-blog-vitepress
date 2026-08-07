@@ -1,18 +1,25 @@
 ---
-title: "Vue 3 响应式与调度器"
-description: "从连续修改状态只渲染一次开始，实现依赖收集、触发和批量更新的最小模型。"
+title: Vue 3 响应式与调度器
+description: 从连续修改状态只渲染一次开始，实现依赖收集、触发和批量更新的最小模型。
 category: frontend
-part: "现代前端：框架内部机制"
+part: 现代前端：框架内部机制
 chapter: 3
-tags: ["Vue 3", "Reactivity"]
-prerequisites: ["JavaScript Proxy"]
-outcomes: ["解释 effect 与依赖关系", "理解调度队列和 nextTick"]
+tags:
+  - Vue 3
+  - Reactivity
+prerequisites:
+  - JavaScript Proxy
+outcomes:
+  - 解释 effect 与依赖关系
+  - 理解调度队列和 nextTick
 practice:
   type: implementation
-  result: "实现最小响应式与调度流程"
-  verify: ["重复读取不会重复订阅", "同步修改被合并刷新"]
+  result: 实现最小响应式与调度流程
+  verify:
+    - 重复读取不会重复订阅
+    - 同步修改被合并刷新
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Vue 3 响应式与调度
@@ -70,7 +77,7 @@ async function updateTwice() {
 </template>
 ```
 
-第一次日志可能仍看到旧 DOM，第二次看到 2。`nextTick` 等待当前更新队列完成，它不是通用延时器，也不保证浏览器已经完成下一帧绘制。
+点击按钮后，`updateTwice` 先连续写入两次响应式状态，Vue 把组件更新任务放入同一轮队列并去重；第一次日志在同步代码中执行，因此可能仍读取旧 DOM。`await nextTick()` 等待当前更新队列执行完成，第二次日志应输出 2。这个函数的返回只表示 Vue 已完成本轮 DOM 更新，它不是通用延时器，也不保证浏览器已经完成下一帧绘制。
 
 ## 步骤三：队列怎样保持稳定顺序
 
@@ -110,9 +117,6 @@ computed 是带缓存的派生值。依赖变化时先标记为需要重新计�
 
 工作中遇到“watch 为什么执行两次”或“DOM 还是旧的”，先记录 Vue 版本、开发/生产模式、flush 时机、状态写入调用栈和组件是否被重复挂载。不要先用 `setTimeout` 掩盖时序；确认需要等待的是 Vue 更新队列还是浏览器下一帧，再选择 `nextTick`、post watch 或 `requestAnimationFrame`。
 
-## 参考资料
+## 这套解释的边界
 
-- [Vue Reactivity in Depth](https://vuejs.org/guide/extras/reactivity-in-depth.html)
-- [Vue nextTick](https://vuejs.org/api/general.html#nexttick)
-- [Vue Watchers](https://vuejs.org/guide/essentials/watchers.html)
-- [Vue Core](https://github.com/vuejs/core)
+本文描述的是 Vue 3 的公开响应式和调度行为，便于排查组件更新时序。它不承诺内部队列字段、函数名或具体微任务实现永远不变，也不覆盖服务端渲染、Suspense 和第三方渲染器的全部细节。遇到这些场景，应以当前 Vue 版本的公开 API 和测试结果为准。

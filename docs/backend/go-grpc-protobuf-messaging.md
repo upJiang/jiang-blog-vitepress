@@ -1,18 +1,26 @@
 ---
-title: "gRPC、Protobuf、消息队列与契约演进"
-description: "从新增字段开始理解字段编号、Deadline、状态码、消费者兼容和事件版本。"
+title: gRPC、Protobuf、消息队列与契约演进
+description: 从新增字段开始理解字段编号、Deadline、状态码、消费者兼容和事件版本。
 category: backend
-part: "第四部分：Go"
+part: 第四部分：Go
 chapter: 19
-tags: ["gRPC", "Protobuf", "Messaging"]
-prerequisites: ["读过第 2、6、18 章"]
-outcomes: ["安全演进 RPC 契约", "设计事件兼容"]
+tags:
+  - gRPC
+  - Protobuf
+  - Messaging
+prerequisites:
+  - 读过第 2、6、18 章
+outcomes:
+  - 安全演进 RPC 契约
+  - 设计事件兼容
 practice:
   type: implementation
-  result: "修改一份 Protobuf 并检查兼容性"
-  verify: ["旧客户端仍能解析", "Deadline 传到下游"]
+  result: 修改一份 Protobuf 并检查兼容性
+  verify:
+    - 旧客户端仍能解析
+    - Deadline 传到下游
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # gRPC 与 Protobuf 契约演进
@@ -113,10 +121,3 @@ Deadline 依靠 Go Context 传播，而实际服务往往还会启动许多 goro
 状态码告诉客户端下一步：参数错误不重试，`UNAVAILABLE` 可能有限重试，`DEADLINE_EXCEEDED` 表示整条预算耗尽。错误详情仍要版本化，不能把服务端堆栈传出。
 
 流式 RPC 还要定义消息顺序、完成信号、背压和断线恢复。兼容性测试应放入 CI，使用已发布描述符或旧生成客户端，而不是只编译当前版本。契约能够解析只是第一层，业务默认值和状态变化也要核对。
-
-## 参考资料
-
-- [Protocol Buffers Language Guide](https://protobuf.dev/programming-guides/proto3/)
-- [gRPC Status Codes](https://grpc.io/docs/guides/status-codes/)
-- [gRPC Deadlines](https://grpc.io/docs/guides/deadlines/)
-- [Buf breaking change detection](https://buf.build/docs/breaking/)

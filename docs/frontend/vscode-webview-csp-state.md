@@ -1,18 +1,26 @@
 ---
-title: "VS Code Webview 通信、状态、资源与 CSP"
-description: "建立扩展进程与 Webview 的双向消息，并正确处理资源 URI、状态恢复和 CSP。"
+title: VS Code Webview 通信、状态、资源与 CSP
+description: 建立扩展进程与 Webview 的双向消息，并正确处理资源 URI、状态恢复和 CSP。
 category: frontend
-part: "现代前端：插件开发"
+part: 现代前端：插件开发
 chapter: 17
-tags: ["VS Code", "Webview", "CSP"]
-prerequisites: ["读过第 16 章"]
-outcomes: ["实现双向消息", "限制 Webview 脚本来源"]
+tags:
+  - VS Code
+  - Webview
+  - CSP
+prerequisites:
+  - 读过第 16 章
+outcomes:
+  - 实现双向消息
+  - 限制 Webview 脚本来源
 practice:
   type: implementation
-  result: "完成一个可恢复状态的 Webview"
-  verify: ["消息有类型校验", "CSP 不使用宽松通配符"]
+  result: 完成一个可恢复状态的 Webview
+  verify:
+    - 消息有类型校验
+    - CSP 不使用宽松通配符
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # VS Code Webview 通信、状态、资源与 CSP
 
@@ -75,10 +83,3 @@ CSP 限制资源加载，不会自动校验消息来源、工作区权限和文�
 ## 迁移练习
 
 实现一个只读工作区文件统计面板：宿主只允许读取当前工作区下的文本文件，Webview 通过带版本的消息请求，结果按 requestId 返回。加入大小上限、取消、状态恢复和严格 CSP，并用 Extension Development Host 手工验证。
-
-## 参考资料
-
-- [VS Code Webview API](https://code.visualstudio.com/api/extension-guides/webview)
-- [VS Code Webview security](https://code.visualstudio.com/api/extension-guides/webview#security)
-- [Content Security Policy on MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
-- [VS Code extension testing](https://code.visualstudio.com/api/working-with-extensions/testing-extension)

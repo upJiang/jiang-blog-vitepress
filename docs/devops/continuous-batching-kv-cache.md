@@ -1,18 +1,25 @@
 ---
-title: "Continuous Batching、KV Cache 与 Prefix Cache"
-description: "比较静态批处理和连续批处理，分析吞吐、延迟、显存、请求公平性和前缀复用。"
+title: Continuous Batching、KV Cache 与 Prefix Cache
+description: 比较静态批处理和连续批处理，分析吞吐、延迟、显存、请求公平性和前缀复用。
 category: devops
-part: "第五部分：推理服务"
+part: 第五部分：推理服务
 chapter: 15
-tags: ["Continuous Batching", "KV Cache"]
-prerequisites: ["读过第 14 章"]
-outcomes: ["估算 KV Cache 影响", "理解调度取舍"]
+tags:
+  - Continuous Batching
+  - KV Cache
+prerequisites:
+  - 读过第 14 章
+outcomes:
+  - 估算 KV Cache 影响
+  - 理解调度取舍
 practice:
   type: decision
-  result: "完成一张批处理调度推演表"
-  verify: ["长短请求影响被解释", "缓存命中不泄露跨租户内容"]
+  result: 完成一张批处理调度推演表
+  verify:
+    - 长短请求影响被解释
+    - 缓存命中不泄露跨租户内容
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Continuous Batching、KV Cache 与 Prefix Cache
 
@@ -137,10 +144,3 @@ Prefix Cache 是性能优化，不应成为事实源。命中错误或版本失�
 7. 记录抢占、重算、拒绝和最老队列年龄。
 
 下一章会把这些概念落到官方资料指导的 vLLM 启动操作，硬件前提和未实测部分会明确标注。
-
-## 参考资料
-
-- [vLLM: PagedAttention](https://docs.vllm.ai/en/latest/design/paged_attention.html)
-- [vLLM: Automatic Prefix Caching](https://docs.vllm.ai/en/latest/features/automatic_prefix_caching.html)
-- [Hugging Face: KV cache strategies](https://huggingface.co/docs/transformers/main/en/kv_cache)
-- [NVIDIA Triton dynamic batching](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html#dynamic-batcher)

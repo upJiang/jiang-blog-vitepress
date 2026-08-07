@@ -1,18 +1,25 @@
 ---
-title: "SQL、PostgreSQL、索引、执行计划、事务与锁"
-description: "从一条慢查询和一次并发更新进入 B-Tree、EXPLAIN、隔离级别、锁和死锁。"
+title: SQL、PostgreSQL、索引、执行计划、事务与锁
+description: 从一条慢查询和一次并发更新进入 B-Tree、EXPLAIN、隔离级别、锁和死锁。
 category: backend
-part: "第一部分：后端共同基础"
+part: 第一部分：后端共同基础
 chapter: 4
-tags: ["PostgreSQL", "SQL"]
-prerequisites: ["关系数据基础"]
-outcomes: ["读懂基础执行计划", "设计事务边界"]
+tags:
+  - PostgreSQL
+  - SQL
+prerequisites:
+  - 关系数据基础
+outcomes:
+  - 读懂基础执行计划
+  - 设计事务边界
 practice:
   type: implementation
-  result: "创建索引并观察查询计划"
-  verify: ["索引与查询条件匹配", "并发异常有明确处理"]
+  result: 创建索引并观察查询计划
+  verify:
+    - 索引与查询条件匹配
+    - 并发异常有明确处理
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # SQL、PostgreSQL、索引、执行计划、事务与锁
 
@@ -22,7 +29,7 @@ updated: 2026-08-06
 
 ## 用真实访问模式设计表和索引
 
-教学表：
+教学表：下面的 DDL 只在隔离 PostgreSQL 中运行，用来准备一个包含租户、状态、时间和版本字段的最小任务表。执行目标是让后面的查询、索引和锁实验都在同一数据模型上进行；完成后可以用 `\d task` 检查表结构。
 
 ```sql
 CREATE TABLE task (
@@ -35,7 +42,7 @@ CREATE TABLE task (
 );
 ```
 
-目标查询：
+目标查询：输入是隔离 PostgreSQL 中已经存在的 `task` 表，目标是验证租户与状态过滤、时间排序和分页的查询计划。先运行查询建立基线，再创建索引比较计划：
 
 ```sql
 SELECT id, status, created_at
@@ -45,18 +52,19 @@ ORDER BY created_at DESC, id DESC
 LIMIT 20;
 ```
 
-联合索引可以让等值过滤在前，排序键随后：
+下面的 DDL 只改变索引，不改变表数据。执行前确认当前连接指向测试库，并准备好回滚动作（删除这一个索引）：
 
 ```sql
 CREATE INDEX task_tenant_status_created_idx
 ON task (tenant_id, status, created_at DESC, id DESC);
 ```
 
-列顺序来自查询模式，不是固定“选择性最高放前”。这个索引服务按租户和状态过滤、按时间排序；若另一个查询只按 `created_at`，不一定能有效使用它。
+执行这条 DDL 前先在隔离数据库确认表名和并发写入情况；创建完成后用目标查询的 `EXPLAIN` 验证计划。索引列顺序来自查询模式，不是固定“选择性最高放前”。这个索引服务按租户和状态过滤、按时间排序；若另一个查询只按 `created_at`，不一定能有效使用它。索引创建本身也会消耗 I/O，生产环境要选择合适的并发创建方式并观察锁等待。
 
 ## EXPLAIN 告诉你数据库准备怎样执行
 
 ```sql
+-- 仅在隔离或明确可控的数据库执行；ANALYZE 会真实运行查询。
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT id, status, created_at
 FROM task
@@ -94,7 +102,7 @@ ON task (tenant_id, created_at DESC, id DESC)
 WHERE status = 'pending';
 ```
 
-这个索引只保存 `pending` 行，因此输入查询也要稳定包含相同条件，输出计划才可能选择它。它更小，但只有查询条件能证明满足 predicate 时才可用；参数化查询和复杂表达式要用 EXPLAIN 实测。
+执行后用同一组租户和状态参数运行 `EXPLAIN`，观察是否从顺序扫描变为部分索引扫描。这个索引只保存 `pending` 行，因此输入查询也要稳定包含相同条件，输出计划才可能选择它。它更小，但只有查询条件能证明满足 predicate 时才可用；参数化查询和复杂表达式要用 EXPLAIN 实测。
 
 ## 事务保存业务不变量
 
@@ -119,7 +127,7 @@ WHERE id = $1;
 COMMIT;
 ```
 
-`FOR UPDATE` 锁住选中行，`SKIP LOCKED` 让其他 Worker 跳过已锁记录，适合数据库队列式分配。它不适合需要严格全局顺序的所有业务，因为跳过锁会改变取出顺序。
+执行顺序是开启事务、按状态和时间选一行、锁住并跳过已被其他 Worker 锁住的行、更新为 `running`，最后提交。没有可领取任务时 SELECT 返回空集，Worker 应等待或退出，而不是把空 ID 更新成成功。`FOR UPDATE` 锁住选中行，`SKIP LOCKED` 让其他 Worker 跳过已锁记录，适合数据库队列式分配。它不适合需要严格全局顺序的所有业务，因为跳过锁会改变取出顺序。
 
 事务边界覆盖“读取并确认状态 + 更新所有相关记录”，不要在事务中调用耗时模型或第三方 HTTP。外部调用会延长锁持有，且数据库回滚不能撤销已经发送的请求。
 
@@ -143,7 +151,7 @@ SET payload = $1, version = version + 1
 WHERE id = $2 AND tenant_id = $3 AND version = 3;
 ```
 
-检查受影响行数。0 行可能是资源不存在、无权限或版本冲突，应用要用安全查询区分并映射为 404/409。不能忽略 row count 后返回成功。
+执行更新后读取受影响行数：1 行表示版本匹配并完成更新，0 行可能是资源不存在、无权限或版本冲突，应用要用安全查询区分并映射为 404/409。不能忽略 row count 后返回成功，否则两个客户端都可能看到 200，却只有一个写入生效。
 
 ## 死锁怎样产生
 
@@ -197,10 +205,3 @@ WHERE id = $2 AND tenant_id = $3 AND version = 3;
 - 迁移支持兼容窗口和回滚。
 
 下一章进入 Redis。它能加速读取和协调短期状态，但不能因为快就成为所有业务事实的唯一存储。
-
-## 参考资料
-
-- [PostgreSQL Indexes](https://www.postgresql.org/docs/current/indexes.html)
-- [PostgreSQL EXPLAIN](https://www.postgresql.org/docs/current/using-explain.html)
-- [PostgreSQL Transaction Isolation](https://www.postgresql.org/docs/current/transaction-iso.html)
-- [PostgreSQL Explicit Locking](https://www.postgresql.org/docs/current/explicit-locking.html)

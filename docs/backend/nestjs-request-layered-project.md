@@ -1,18 +1,26 @@
 ---
-title: "NestJS 请求生命周期与分层项目"
-description: "从 Guard、Pipe、Interceptor、Controller 进入应用服务、Repository 和异常过滤器。"
+title: NestJS 请求生命周期与分层项目
+description: 从 Guard、Pipe、Interceptor、Controller 进入应用服务、Repository 和异常过滤器。
 category: backend
-part: "第二部分：Node.js / NestJS"
+part: 第二部分：Node.js / NestJS
 chapter: 9
-tags: ["Node.js", "NestJS"]
-prerequisites: ["TypeScript", "前 8 章"]
-outcomes: ["解释 NestJS 请求链", "划分模块职责"]
+tags:
+  - Node.js
+  - NestJS
+prerequisites:
+  - TypeScript
+  - 前 8 章
+outcomes:
+  - 解释 NestJS 请求链
+  - 划分模块职责
 practice:
   type: implementation
-  result: "实现一个可测试的资源创建接口"
-  verify: ["DTO 被校验", "Controller 不包含事务逻辑"]
+  result: 实现一个可测试的资源创建接口
+  verify:
+    - DTO 被校验
+    - Controller 不包含事务逻辑
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Node.js 与 NestJS 分层架构
 
@@ -88,7 +96,7 @@ export class ArticleController {
 }
 ```
 
-输入来自 URL 和认证上下文，输出是应用服务结果对应的 HTTP 响应。Controller 没有 SQL、状态修改和事务规则，因此队列消费者无需复制 HTTP 细节，也能调用同一个用例。
+调用顺序是 Nest 先匹配 `POST /articles/:id/publish`，把 URL 参数和认证用户映射为命令，再调用 `PublishArticle.execute`，最后由异常过滤器或响应序列化器生成 HTTP 结果。输入来自 URL 和认证上下文，输出是应用服务结果对应的 HTTP 响应。Controller 没有 SQL、状态修改和事务规则，因此队列消费者无需复制 HTTP 细节，也能调用同一个用例。参数缺失会在进入用例前失败，权限或状态冲突则由用例返回可判断错误。
 
 ## 第三步：把发布规则集中在应用服务
 
@@ -175,9 +183,3 @@ src/articles/
 测试顺序也与边界对应：领域规则用纯对象测试；应用服务使用内存或受控 Repository 验证调用顺序和失败语义；Controller 只检查协议转换；最后用少量集成测试覆盖真实数据库和依赖装配。
 
 再故意让 Repository 返回“不存在”和“版本冲突”。应用服务把它们保留为可判断业务错误，Controller 分别映射为 404 与 409；数据库驱动异常则进入日志并返回受控 500。这样调用方得到稳定协议，内部技术实现仍可更换。
-
-## 参考资料
-
-- [NestJS：Controllers](https://docs.nestjs.com/controllers)
-- [NestJS：Providers](https://docs.nestjs.com/providers)
-- [NestJS：Modules](https://docs.nestjs.com/modules)

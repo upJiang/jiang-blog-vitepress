@@ -1,18 +1,25 @@
 ---
-title: "API、应用服务、Agent Runtime、RAG 与基础设施分层"
-description: "从职责混杂的函数中拆出协议、用例、编排、检索和适配器。"
+title: API、应用服务、Agent Runtime、RAG 与基础设施分层
+description: 从职责混杂的函数中拆出协议、用例、编排、检索和适配器。
 category: architecture
-part: "AI 系统设计"
+part: AI 系统设计
 chapter: 3
-tags: ["Layered Architecture", "Agent Runtime"]
-prerequisites: ["读过第 1、2 章"]
-outcomes: ["设计依赖方向", "共享 Runtime 而不复制规则"]
+tags:
+  - Layered Architecture
+  - Agent Runtime
+prerequisites:
+  - 读过第 1、2 章
+outcomes:
+  - 设计依赖方向
+  - 共享 Runtime 而不复制规则
 practice:
   type: implementation
-  result: "重构一段匿名伪代码的模块边界"
-  verify: ["领域规则不依赖 HTTP", "评测与 MCP 能复用 Runtime"]
+  result: 重构一段匿名伪代码的模块边界
+  verify:
+    - 领域规则不依赖 HTTP
+    - 评测与 MCP 能复用 Runtime
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # API、应用服务、Agent Runtime、RAG 与基础设施分层
 
@@ -115,10 +122,3 @@ API 只映射稳定类别，不把驱动错误、供应商原文和堆栈返回�
 选一段请求、检索、模型和 SSE 伪代码，画出 API、应用服务、Runtime、RAG Port、适配器、数据库与事件存储。给每条箭头写输入/输出和超时，再写一个内存 RAG 替身，让同一 Runtime 能被评测调用。
 
 下一章会把会话、回合、事件、异步任务与所有权放进这套边界，解决长时间执行怎样查询、取消和恢复。
-
-## 参考资料
-
-- [Martin Fowler: Dependency Injection](https://martinfowler.com/articles/injection.html)
-- [Twelve-Factor App](https://12factor.net/)
-- [OpenTelemetry tracing concepts](https://opentelemetry.io/docs/concepts/signals/traces/)
-- [OWASP LLM applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/)

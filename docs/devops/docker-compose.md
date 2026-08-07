@@ -1,18 +1,24 @@
 ---
-title: "Docker Compose 启动 API、PostgreSQL、Redis 与 Worker"
-description: "从四个独立容器组成系统，讲清网络、卷、健康检查、依赖、日志、停止和恢复。"
+title: Docker Compose 启动 API、PostgreSQL、Redis 与 Worker
+description: 从四个独立容器组成系统，讲清网络、卷、健康检查、依赖、日志、停止和恢复。
 category: devops
-part: "第二部分：容器与入口"
+part: 第二部分：容器与入口
 chapter: 5
-tags: ["Docker Compose"]
-prerequisites: ["读过第 4 章"]
-outcomes: ["编写多服务 Compose", "排查依赖与持久化"]
+tags:
+  - Docker Compose
+prerequisites:
+  - 读过第 4 章
+outcomes:
+  - 编写多服务 Compose
+  - 排查依赖与持久化
 practice:
   type: implementation
-  result: "启动并验证一套匿名服务栈"
-  verify: ["服务通过名称互访", "重建容器后数据库数据仍在"]
+  result: 启动并验证一套匿名服务栈
+  verify:
+    - 服务通过名称互访
+    - 重建容器后数据库数据仍在
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Docker Compose：把 API、数据库、Redis 和 Worker 跑成一个系统
@@ -257,7 +263,7 @@ curl -i http://127.0.0.1:8000/health/ready
 docker compose port api 8000
 ```
 
-`curl` 验证 HTTP 状态和响应体；`port` 告诉你容器端口实际发布到了哪里。若 `ps` 显示正常而 `curl` 失败，检查 Uvicorn 是否监听 `0.0.0.0`、端口映射是否正确，以及宿主机端口是否已被占用。
+执行顺序是先从宿主机请求 API，再读取 Compose 的端口映射；`curl` 验证 HTTP 状态和响应体，`port` 告诉你容器端口实际发布到了哪里。若 `ps` 显示正常而 `curl` 失败，检查 Uvicorn 是否监听 `0.0.0.0`、端口映射是否正确，以及宿主机端口是否已被占用。返回 200 只证明入口可达，仍要继续检查 API 到数据库的健康状态。
 
 ## 第五步：亲手证明数据是否持久
 
@@ -325,7 +331,7 @@ docker compose exec api python -c \
   "import socket; print(socket.create_connection(('postgres', 5432), timeout=2))"
 ```
 
-这段命令以 `postgres:5432` 为输入，尝试建立 TCP 连接。成功只证明网络和端口，不证明账号正确、SQL 可执行或业务事务正常。排障要一层层增加验证强度。
+这段命令的输入是 Compose 网络中的服务名和端口，Python 先解析 `postgres`，再创建 TCP 连接，成功后打印连接对象并由进程退出关闭连接。成功只证明网络和端口，不证明账号正确、SQL 可执行或业务事务正常；解析失败、连接拒绝和超时分别对应不同排查层。排障要一层层增加验证强度。
 
 ## 三个常见误解
 
@@ -365,11 +371,3 @@ Compose 能描述“服务怎样组成系统”，不会自动提供跨主机调
 7. 更新前记录镜像版本、数据备份和回滚动作。
 
 完成练习后，试着再加一个只读管理工具，但不要立即发布数据库端口。让它加入 Compose 网络，通过服务名访问 PostgreSQL。这个小改动可以检验你是否真正理解了网络、端口与依赖的边界。
-
-## 参考资料
-
-- [Docker Compose 官方文档](https://docs.docker.com/compose/)
-- [Compose Specification](https://compose-spec.io/)
-- [Docker volumes](https://docs.docker.com/engine/storage/volumes/)
-- [Dockerfile HEALTHCHECK](https://docs.docker.com/reference/dockerfile/#healthcheck)
-- [Docker 容器网络](https://docs.docker.com/engine/network/)

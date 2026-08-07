@@ -1,18 +1,26 @@
 ---
-title: "渲染、性能、robots、Sitemap 与技术 SEO"
-description: "用原始响应、渲染页面、网络瀑布和站点文件检查发现、渲染与体验问题。"
+title: 渲染、性能、robots、Sitemap 与技术 SEO
+description: 用原始响应、渲染页面、网络瀑布和站点文件检查发现、渲染与体验问题。
 category: seo
-part: "第四部分：技术审计与排障"
+part: 第四部分：技术审计与排障
 chapter: 8
-tags: ["Technical SEO", "Performance"]
-prerequisites: ["HTTP 与浏览器基础", "读过第 3 章"]
-outcomes: ["执行一轮技术 SEO 检查", "识别脚本渲染和资源问题"]
+tags:
+  - Technical SEO
+  - Performance
+prerequisites:
+  - HTTP 与浏览器基础
+  - 读过第 3 章
+outcomes:
+  - 执行一轮技术 SEO 检查
+  - 识别脚本渲染和资源问题
 practice:
   type: diagnosis
-  result: "完成 robots、Sitemap、状态码和核心页面抽查"
-  verify: ["检查使用真实 GET", "规范 URL、内链和 Sitemap 一致"]
+  result: 完成 robots、Sitemap、状态码和核心页面抽查
+  verify:
+    - 检查使用真实 GET
+    - 规范 URL、内链和 Sitemap 一致
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 技术 SEO 与网站性能怎样一起检查
 
@@ -92,9 +100,3 @@ flowchart LR
 每次只改变一类原因，并保留修改前后同条件数据。例如先修 LCP 资源发现，再观察真实用户分位数；不要同时换 CDN、重写页面和删脚本后把全部变化归功于一个动作。缓存、压缩和图片格式都要检查内容更新与回滚方式。
 
 如果没有搜索爬虫日志，就把“爬虫是否受影响”标记为数据缺口；如果只有 Lighthouse，就不能声称真实用户已经变快。技术改进的验收至少覆盖正常页、错误页、移动端、脚本失败和主要转化，确保性能优化没有隐藏正文或破坏功能。
-
-## 参考资料
-
-- [Google Search Central：Understanding page experience](https://developers.google.com/search/docs/appearance/page-experience)
-- [web.dev：Core Web Vitals](https://web.dev/articles/vitals)
-- [Google Search Central：JavaScript SEO basics](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics)

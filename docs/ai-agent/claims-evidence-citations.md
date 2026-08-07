@@ -1,18 +1,27 @@
 ---
-title: "Claim、Evidence、引用生成与答案验证"
-description: "把答案拆成可验证 Claim，让每个事实绑定用户可见证据，并对缺证据结论做有限修复。"
+title: Claim、Evidence、引用生成与答案验证
+description: 把答案拆成可验证 Claim，让每个事实绑定用户可见证据，并对缺证据结论做有限修复。
 category: ai-agent
-part: "第四部分：质量、安全与交付"
-chapter: 14
-tags: ["Claim", "Evidence", "Citation"]
-prerequisites: ["读过第 12 章"]
-outcomes: ["建立 Claim 与证据的对应关系", "区分回答生成和事实验证"]
+part: 答案质量与运行
+chapter: 23
+tags:
+  - Claim
+  - Evidence
+  - Citation
+prerequisites:
+  - 理解混合检索与重排
+  - 知道回答会引用检索证据
+outcomes:
+  - 建立 Claim 与证据的对应关系
+  - 区分回答生成和事实验证
 practice:
   type: diagnosis
-  result: "审核一份带引用的答案"
-  verify: ["所有事实 Claim 有可见证据", "引用范围和原文位置一致"]
+  result: 审核一份带引用的答案
+  verify:
+    - 所有事实 Claim 有可见证据
+    - 引用范围和原文位置一致
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Claim、Evidence、引用生成与答案验证
 
@@ -152,8 +161,6 @@ Claim 类型：事实 / 数值 / 建议
 
 审核时先填 Claim 和绑定证据，再根据原文判断支持程度；权限或注入检查不通过时，即使语义一致也不能保留。输出的处理结论会直接决定回答是保留、收窄、删除还是重新检索。下一章把单次回答提升到系统治理：权限、注入、Eval、Trace、成本和 Deadline 要在同一版本链中协作。
 
-## 参考资料
+## 证据验证的适用范围
 
-- [RAGAS Faithfulness](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/)
-- [NIST AI Risk Management Framework](https://www.nist.gov/itl/ai-risk-management-framework)
-- [OWASP LLM Prompt Injection Prevention](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)
+这套 Claim 检查适合需要向读者展示依据的知识问答、报告和检索增强回答。它不能证明来源本身真实，也不能替代高风险领域的人工审批；来源权限、版本和更新时间仍要由数据系统记录。若问题只是闲聊或纯创作，强行拆 Claim 只会增加延迟和格式负担。

@@ -1,18 +1,26 @@
 ---
-title: "上下文压缩、短期记忆、摘要与长期记忆"
-description: "在固定 Token 预算内组织近期对话、滚动摘要、检索证据和用户可控记忆。"
+title: 上下文压缩、短期记忆、摘要与长期记忆
+description: 在固定 Token 预算内组织近期对话、滚动摘要、检索证据和用户可控记忆。
 category: ai-agent
-part: "第三部分：让 Agent 使用知识"
-chapter: 13
-tags: ["Context Engineering", "Memory"]
-prerequisites: ["读过第 2、4 章"]
-outcomes: ["设计上下文预算表", "区分会话状态、摘要与长期事实"]
+part: 答案质量与运行
+chapter: 22
+tags:
+  - Context Engineering
+  - Memory
+prerequisites:
+  - 理解消息与上下文窗口
+  - 理解 Agent 生命周期
+outcomes:
+  - 设计上下文预算表
+  - 区分会话状态、摘要与长期事实
 practice:
   type: implementation
-  result: "裁剪一段超长对话并保留决策依据"
-  verify: ["预算不超限", "敏感信息不会自动进入长期记忆"]
+  result: 裁剪一段超长对话并保留决策依据
+  verify:
+    - 预算不超限
+    - 敏感信息不会自动进入长期记忆
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 上下文压缩、短期记忆、摘要与长期记忆
 
@@ -148,10 +156,3 @@ flowchart LR
 - 实际输入组成和裁剪原因可观测，但日志不含敏感全文。
 
 下一章把答案拆成 Claim，并逐项核对 Evidence。上下文中“有证据”不代表最终每句结论都被证据支持。
-
-## 参考资料
-
-- [LangGraph Memory Overview](https://docs.langchain.com/oss/python/langgraph/memory)
-- [OpenAI Conversation State](https://platform.openai.com/docs/guides/conversation-state)
-- [NIST Privacy Framework](https://www.nist.gov/privacy-framework)
-

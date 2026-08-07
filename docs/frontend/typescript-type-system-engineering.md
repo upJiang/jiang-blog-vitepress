@@ -1,18 +1,24 @@
 ---
-title: "TypeScript 类型系统与工程配置"
-description: "从不可信接口响应开始，理解静态类型、泛型、条件类型、运行时校验与工程配置。"
+title: TypeScript 类型系统与工程配置
+description: 从不可信接口响应开始，理解静态类型、泛型、条件类型、运行时校验与工程配置。
 category: frontend
-part: "现代前端：语言与运行时"
+part: 现代前端：语言与运行时
 chapter: 1
-tags: ["TypeScript"]
-prerequisites: ["JavaScript 基础"]
-outcomes: ["建立可信数据边界", "读懂关键 tsconfig 选项"]
+tags:
+  - TypeScript
+prerequisites:
+  - JavaScript 基础
+outcomes:
+  - 建立可信数据边界
+  - 读懂关键 tsconfig 选项
 practice:
   type: implementation
-  result: "完成一条接口数据到页面状态的类型链"
-  verify: ["错误数据在边界被拒绝", "类型错误可在构建期发现"]
+  result: 完成一条接口数据到页面状态的类型链
+  verify:
+    - 错误数据在边界被拒绝
+    - 类型错误可在构建期发现
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # TypeScript 工程实践
 
@@ -148,9 +154,3 @@ function renderTitle(state: PageState): string {
 - 只生成接口类型，不在运行时处理后端版本不一致和脏数据。
 
 下一步可以把同样方法应用到组件 Props、浏览器扩展消息和公共 SDK。先画出数据从哪里进入，再决定哪一层负责校验，TypeScript 才会从“语法提示”变成工程约束。
-
-## 参考资料
-
-- [TypeScript Handbook：Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
-- [TypeScript：tsconfig strict](https://www.typescriptlang.org/tsconfig/strict.html)
-- [TypeScript：noUncheckedIndexedAccess](https://www.typescriptlang.org/tsconfig/noUncheckedIndexedAccess.html)

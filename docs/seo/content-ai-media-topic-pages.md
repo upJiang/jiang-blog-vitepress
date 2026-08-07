@@ -1,18 +1,26 @@
 ---
-title: "内容质量、AI 内容、图片、视频与主题页"
-description: "从内容简报、来源、独有信息、媒体可访问性和更新责任建立内容生产系统。"
+title: 内容质量、AI 内容、图片、视频与主题页
+description: 从内容简报、来源、独有信息、媒体可访问性和更新责任建立内容生产系统。
 category: seo
-part: "第三部分：页面与内容"
+part: 第三部分：页面与内容
 chapter: 7
-tags: ["Content", "GEO", "Media"]
-prerequisites: ["读过第 4、6 章"]
-outcomes: ["判断内容是否解决真实任务", "安全使用 AI 辅助研究和编辑"]
+tags:
+  - Content
+  - GEO
+  - Media
+prerequisites:
+  - 读过第 4、6 章
+outcomes:
+  - 判断内容是否解决真实任务
+  - 安全使用 AI 辅助研究和编辑
 practice:
   type: decision
-  result: "为一篇专题页制作内容简报"
-  verify: ["每个重要结论有来源", "图片视频有语义与性能处理"]
+  result: 为一篇专题页制作内容简报
+  verify:
+    - 每个重要结论有来源
+    - 图片视频有语义与性能处理
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 怎样用 AI 辅助内容而不制造垃圾
 
@@ -98,9 +106,3 @@ AI 不应独自决定事实真假、伪造实践经历、生成不存在的引�
 GEO 可以改善生成式系统理解内容的条件，例如清楚定义实体、说明适用范围、使用稳定页面和可核对引用。它不能保证被某个生成式答案引用，也不能用一段 `llms.txt` 代替抓取、索引与可信内容基础。
 
 把 AI 当作研究和起草工具时，记录人工核验点。随机抽取五个关键事实回到来源，检查链接是否仍有效、表述是否超出原文、示例是否被误写成真实数据。若团队无法长期维护某类页面，就减少发布频率，而不是批量生成后无人负责。
-
-## 参考资料
-
-- [Google Search Central：Guidance about AI-generated content](https://developers.google.com/search/docs/fundamentals/using-gen-ai-content)
-- [Google Search Central：Creating helpful content](https://developers.google.com/search/docs/fundamentals/creating-helpful-content)
-- [Bing Webmaster Guidelines](https://www.bing.com/webmasters/help/webmaster-guidelines-30fba23a)

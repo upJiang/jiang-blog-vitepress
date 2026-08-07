@@ -1,18 +1,25 @@
 ---
-title: "Linux 进程、线程、端口、权限、磁盘与内存排查"
-description: "从服务无法启动进入 ps、ss、lsof、journalctl、top、free、df 和信号。"
+title: Linux 进程、线程、端口、权限、磁盘与内存排查
+description: 从服务无法启动进入 ps、ss、lsof、journalctl、top、free、df 和信号。
 category: devops
-part: "第一部分：能力地图与操作系统"
+part: 第一部分：能力地图与操作系统
 chapter: 2
-tags: ["Linux", "Troubleshooting"]
-prerequisites: ["会使用终端"]
-outcomes: ["检查服务资源与权限", "按证据定位启动失败"]
+tags:
+  - Linux
+  - Troubleshooting
+prerequisites:
+  - 会使用终端
+outcomes:
+  - 检查服务资源与权限
+  - 按证据定位启动失败
 practice:
   type: diagnosis
-  result: "完成一份 Linux 服务排障 Runbook"
-  verify: ["每个命令知道看哪一列", "不会用 kill -9 代替诊断"]
+  result: 完成一份 Linux 服务排障 Runbook
+  verify:
+    - 每个命令知道看哪一列
+    - 不会用 kill -9 代替诊断
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Linux 进程、线程、端口、权限、磁盘与内存排查
 
@@ -100,7 +107,7 @@ lsof -Pan -p 4281 -i
 curl --fail-with-body --show-error --max-time 3 http://127.0.0.1:8000/health
 ```
 
-这条命令限定三秒，非 2xx 会返回非零状态，同时保留响应正文。若本机都连接拒绝，先修进程和监听；本机成功、远程失败，再查监听地址、防火墙、代理和云安全组。
+这条命令的输入是本机健康检查 URL，`--max-time 3` 限制等待，`--fail-with-body` 在非 2xx 时返回非零并保留响应正文，输出可直接用于值班记录。若本机都连接拒绝，先修进程和监听；本机成功、远程失败，再查监听地址、防火墙、代理和云安全组。命令失败时先记录退出码与错误文本，不要立即重启服务覆盖现场。
 
 ## 第三步：读日志时先抓住时间与首次错误
 
@@ -111,7 +118,7 @@ journalctl -u knowledge-api --since '10 minutes ago' \
   -o short-iso --no-pager
 ```
 
-`short-iso` 带精确时间，便于与数据库、代理和系统日志对齐。如果日志很多，先按级别或稳定错误码过滤，不要只搜索 `error`，因为不同程序格式不同。
+这条命令读取 `knowledge-api` 单元最近十分钟的日志，`short-iso` 让每行输出带精确时间，便于与数据库、代理和系统日志对齐；`--no-pager` 直接把结果写到终端。命令执行失败时先确认单元名称和当前用户是否有日志读取权限。如果日志很多，按稳定错误码或明确字段继续过滤，不要只搜索 `error`，因为不同程序格式不同。
 
 内核级问题另看：
 
@@ -119,7 +126,7 @@ journalctl -u knowledge-api --since '10 minutes ago' \
 journalctl -k --since '30 minutes ago' --no-pager
 ```
 
-这里可能出现 OOM Killer、磁盘 I/O、文件系统或网卡信息。没有内核证据时，不应只凭退出码 137 宣称一定 OOM。
+这条命令只查询内核日志的最近三十分钟，输出可能包含 OOM Killer、磁盘 I/O、文件系统或网卡状态。没有输出表示当前时间窗口没有匹配记录，不代表系统永远没有发生过问题；可以扩大时间范围再查。没有内核证据时，不应只凭退出码 137 宣称一定 OOM。
 
 ## 第四步：检查运行用户与文件权限
 
@@ -170,7 +177,7 @@ du -xhd1 /var | sort -h
 lsof +L1
 ```
 
-输出中 `NLINK` 为 0 的大文件仍由某个 PID 持有。让对应服务正常重开日志或滚动重启后，文件描述符关闭，空间才释放。不要随意清理来源不明的数据目录。
+命令输入是当前主机的打开文件表，输出包含进程、文件描述符和已删除文件路径；`NLINK` 为 0 的大文件仍由某个 PID 持有。先用 PID 关联 systemd 服务，再让对应服务正常重开日志或滚动重启，文件描述符关闭后空间才释放。不要直接删除 `/proc/<pid>/fd` 或随意清理来源不明的数据目录。
 
 ## 第六步：判断内存压力，而不是只看 free
 
@@ -262,11 +269,3 @@ kill -TERM 4281
 10. 停止服务先发 SIGTERM；只有明确理由才使用 SIGKILL。
 
 下一章会沿一次 HTTPS 请求继续排查 DNS、TCP、TLS、HTTP 和代理。Linux 本机检查能告诉你服务是否活着，网络链路检查则告诉你用户为什么仍然访问不到。
-
-## 参考资料
-
-- [proc(5) — Linux manual page](https://man7.org/linux/man-pages/man5/proc.5.html)
-- [systemd.service](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html)
-- [systemd journal documentation](https://www.freedesktop.org/software/systemd/man/latest/journalctl.html)
-- [ss(8) — Linux manual page](https://man7.org/linux/man-pages/man8/ss.8.html)
-- [Linux cgroup v2 documentation](https://docs.kernel.org/admin-guide/cgroup-v2.html)

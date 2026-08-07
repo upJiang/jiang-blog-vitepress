@@ -1,18 +1,26 @@
 ---
-title: "DNS、TCP、TLS、HTTP 与代理请求链"
-description: "使用 dig、curl、openssl 和访问日志逐层检查域名解析、握手、证书、代理和超时。"
+title: DNS、TCP、TLS、HTTP 与代理请求链
+description: 使用 dig、curl、openssl 和访问日志逐层检查域名解析、握手、证书、代理和超时。
 category: devops
-part: "第一部分：能力地图与操作系统"
+part: 第一部分：能力地图与操作系统
 chapter: 3
-tags: ["Network", "TLS", "HTTP"]
-prerequisites: ["读过第 2 章"]
-outcomes: ["定位请求链断点", "解释常见超时来源"]
+tags:
+  - Network
+  - TLS
+  - HTTP
+prerequisites:
+  - 读过第 2 章
+outcomes:
+  - 定位请求链断点
+  - 解释常见超时来源
 practice:
   type: diagnosis
-  result: "追踪一个 HTTPS 请求"
-  verify: ["DNS、TCP、TLS、HTTP 证据分开", "代理头和源站状态可核对"]
+  result: 追踪一个 HTTPS 请求
+  verify:
+    - DNS、TCP、TLS、HTTP 证据分开
+    - 代理头和源站状态可核对
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # DNS、TCP、TLS、HTTP 与代理请求链
 
@@ -71,7 +79,7 @@ dig service.example.com
 dig @1.1.1.1 service.example.com A +noall +answer
 ```
 
-本地解析与公共解析不同时，记录各自服务器和时间，再查权威记录。不要看到不同 IP 就立刻认定污染，CDN、地理调度和轮询本来就可能返回不同地址。
+命令输入是指定解析器和域名，输出仍是状态码、TTL 与地址；本地解析与公共解析不同时，记录各自服务器和时间，再查权威记录。不要看到不同 IP 就立刻认定污染，CDN、地理调度和轮询本来就可能返回不同地址。对比完成后再用 `curl` 验证某个地址是否真的能完成 TLS 和 HTTP，而不是只凭 DNS 输出下结论。
 
 ## 第二步：验证 TCP 是否能建立连接
 
@@ -217,11 +225,3 @@ Nginx 访问日志建议同时记录请求时间和上游时间，例如 `$reque
 | App | Trace、日志、依赖指标 | 路由、版本、下游 Span | 业务阶段在哪里失败 |
 
 迁移练习：给一条流式 SSE 路由做同样检查。记录首个事件时间、心跳间隔、代理缓冲与空闲超时；让客户端主动断开，确认取消是否传到应用。下一章会把服务装入容器，继续处理 Namespace、cgroup 和 PID 1。
-
-## 参考资料
-
-- [curl command line tool documentation](https://curl.se/docs/manpage.html)
-- [OpenSSL s_client documentation](https://docs.openssl.org/master/man1/openssl-s_client/)
-- [NGINX proxy module](https://nginx.org/en/docs/http/ngx_http_proxy_module.html)
-- [RFC 9110: HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110)
-- [W3C Trace Context](https://www.w3.org/TR/trace-context/)

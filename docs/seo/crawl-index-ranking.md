@@ -1,18 +1,25 @@
 ---
-title: "搜索引擎怎样发现、抓取、索引和排名"
-description: "沿链接发现、抓取、渲染、索引、查询和排序理解网页进入搜索结果的全过程。"
+title: 搜索引擎怎样发现、抓取、索引和排名
+description: 沿链接发现、抓取、渲染、索引、查询和排序理解网页进入搜索结果的全过程。
 category: seo
-part: "第二部分：需求、抓取与页面"
+part: 第二部分：需求、抓取与页面
 chapter: 3
-tags: ["Crawl", "Index"]
-prerequisites: ["HTTP 状态码基础"]
-outcomes: ["定位页面卡在哪个阶段", "正确使用 robots、noindex 与 Sitemap"]
+tags:
+  - Crawl
+  - Index
+prerequisites:
+  - HTTP 状态码基础
+outcomes:
+  - 定位页面卡在哪个阶段
+  - 正确使用 robots、noindex 与 Sitemap
 practice:
   type: diagnosis
-  result: "用 GET 和页面源码检查一个 URL"
-  verify: ["区分原始 HTML 与渲染 DOM", "能解释 200 页面为何仍可能不收录"]
+  result: 用 GET 和页面源码检查一个 URL
+  verify:
+    - 区分原始 HTML 与渲染 DOM
+    - 能解释 200 页面为何仍可能不收录
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 搜索引擎怎样发现、收录和排序网页
 
@@ -113,9 +120,3 @@ curl -sS -L -o /tmp/page.html \
 发现问题时只在当前层下结论。没有站内链接属于“发现”问题；服务器日志显示爬虫持续 5xx 属于“抓取”问题；HTML 为空但渲染后有内容属于“渲染”问题；页面已抓取却未进入索引，需要继续核对重复、规范地址与内容价值；进入索引但某查询无展现，才进入查询意图和排序分析。
 
 一次检查完成后留下证据表，而不是“网站权重低”的判断。若没有服务器日志，只能确认外部响应，不能声称搜索引擎从未抓取。若站长平台数据有延迟，也要记录观测日期和数据缺口。
-
-## 参考资料
-
-- [Google Search Central：How Search works](https://developers.google.com/search/docs/fundamentals/how-search-works)
-- [Google Search Central：Crawling and indexing](https://developers.google.com/search/docs/crawling-indexing/overview)
-- [Bing Webmaster Guidelines](https://www.bing.com/webmasters/help/webmaster-guidelines-30fba23a)

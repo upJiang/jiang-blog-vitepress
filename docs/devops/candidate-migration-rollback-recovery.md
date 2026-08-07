@@ -1,18 +1,26 @@
 ---
-title: "候选验证、迁移、切流、备份、回滚与恢复"
-description: "沿预检、备份、候选、兼容迁移、流量切换、即时回滚和隔离恢复完成安全发布。"
+title: 候选验证、迁移、切流、备份、回滚与恢复
+description: 沿预检、备份、候选、兼容迁移、流量切换、即时回滚和隔离恢复完成安全发布。
 category: devops
-part: "第六部分：可靠性、容量与交付"
+part: 第六部分：可靠性、容量与交付
 chapter: 21
-tags: ["Deployment", "Migration", "Recovery"]
-prerequisites: ["读过容器、数据库和 CI/CD 章节"]
-outcomes: ["设计低风险发布", "验证备份可恢复"]
+tags:
+  - Deployment
+  - Migration
+  - Recovery
+prerequisites:
+  - 读过容器、数据库和 CI/CD 章节
+outcomes:
+  - 设计低风险发布
+  - 验证备份可恢复
 practice:
   type: implementation
-  result: "完成一份发布与恢复 Runbook"
-  verify: ["旧版本在切流时可用", "健康失败触发明确回滚"]
+  result: 完成一份发布与恢复 Runbook
+  verify:
+    - 旧版本在切流时可用
+    - 健康失败触发明确回滚
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 候选验证、流量切换与回滚
@@ -98,10 +106,3 @@ flowchart LR
 旁路容器如果禁用了后台主任务，不能未经评估直接承接正式流量；正式角色需要与真实业务责任一致。数据库迁移也要确保新旧版本在切换窗口内兼容，避免代理切回后旧应用无法读取新结构。
 
 演练时让候选健康检查失败，确认流程不触碰正式代理；再在切换后让关键业务检查失败，确认只恢复 upstream，不重启数据库与缓存。观察期结束才清理旧制品，并保留当前版本和一个经过验证的回滚版本。
-
-## 参考资料
-
-- [Nginx Controlling](https://nginx.org/en/docs/control.html)
-- [Kubernetes Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
-- [Google SRE: Canarying Releases](https://sre.google/workbook/canarying-releases/)
-- [PostgreSQL Explicit Locking](https://www.postgresql.org/docs/current/explicit-locking.html)

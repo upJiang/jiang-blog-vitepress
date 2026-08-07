@@ -17,9 +17,43 @@
   --vp-c-divider: #dbe3ec;
   --vp-c-border: #cbd5e1;
   --vp-c-gutter: #e2e8f0;
-  --vp-code-block-bg: #f6f8fa;
-  --vp-code-line-highlight-color: rgb(37 99 235 / 8%);
-  --vp-code-line-number-color: #64748b;
+  --vp-code-block-bg: #f8fafc;
+  --xj-code-toolbar-bg: #eef2f6;
+  --xj-code-gutter-bg: #f1f5f9;
+  --xj-code-border: #cbd5e1;
+  --xj-code-label: #57606a;
+  --xj-code-copy-bg: #ffffff;
+  --xj-code-copy-success-bg: #e7f6ec;
+  --xj-diagram-surface: #ffffff;
+  --xj-diagram-canvas: #f6f8fb;
+  --xj-diagram-toolbar: #ffffff;
+  --xj-diagram-border: #cbd5e1;
+  --xj-diagram-line: #64748b;
+  --xj-diagram-shadow: rgb(15 23 42 / 10%);
+  --xj-diagram-scrim: rgb(15 23 42 / 72%);
+  --xj-diagram-input-fill: #ecfdf5;
+  --xj-diagram-input-stroke: #0f766e;
+  --xj-diagram-input-text: #134e4a;
+  --xj-diagram-program-fill: #eff6ff;
+  --xj-diagram-program-stroke: #2563eb;
+  --xj-diagram-program-text: #1e3a8a;
+  --xj-diagram-model-fill: #faf5ff;
+  --xj-diagram-model-stroke: #9333ea;
+  --xj-diagram-model-text: #581c87;
+  --xj-diagram-tool-fill: #fff7ed;
+  --xj-diagram-tool-stroke: #ea580c;
+  --xj-diagram-tool-text: #7c2d12;
+  --xj-diagram-data-fill: #fffbeb;
+  --xj-diagram-data-stroke: #ca8a04;
+  --xj-diagram-data-text: #713f12;
+  --xj-diagram-success-fill: #f0fdf4;
+  --xj-diagram-success-stroke: #16a34a;
+  --xj-diagram-success-text: #14532d;
+  --xj-diagram-failure-fill: #fef2f2;
+  --xj-diagram-failure-stroke: #dc2626;
+  --xj-diagram-failure-text: #7f1d1d;
+  --vp-code-line-highlight-color: rgb(37 99 235 / 6%);
+  --vp-code-line-number-color: #8c959f;
   --vp-custom-block-tip-border: #16a34a;
   --vp-custom-block-tip-bg: rgb(22 163 74 / 8%);
   --vp-custom-block-warning-border: #d97706;
@@ -43,9 +77,43 @@
   --vp-c-divider: #263244;
   --vp-c-border: #334155;
   --vp-c-gutter: #202b3b;
-  --vp-code-block-bg: #0b1220;
-  --vp-code-line-highlight-color: rgb(96 165 250 / 14%);
-  --vp-code-line-number-color: #94a3b8;
+  --vp-code-block-bg: #22262d;
+  --xj-code-toolbar-bg: #1b1f24;
+  --xj-code-gutter-bg: #1f2329;
+  --xj-code-border: #393f49;
+  --xj-code-label: #929ba7;
+  --xj-code-copy-bg: #292e36;
+  --xj-code-copy-success-bg: #183a2b;
+  --xj-diagram-surface: #111827;
+  --xj-diagram-canvas: #0d1117;
+  --xj-diagram-toolbar: #161d2a;
+  --xj-diagram-border: #3b4759;
+  --xj-diagram-line: #94a3b8;
+  --xj-diagram-shadow: rgb(0 0 0 / 30%);
+  --xj-diagram-scrim: rgb(2 6 23 / 82%);
+  --xj-diagram-input-fill: #123c36;
+  --xj-diagram-input-stroke: #2dd4bf;
+  --xj-diagram-input-text: #ccfbf1;
+  --xj-diagram-program-fill: #172554;
+  --xj-diagram-program-stroke: #60a5fa;
+  --xj-diagram-program-text: #dbeafe;
+  --xj-diagram-model-fill: #3b1d5f;
+  --xj-diagram-model-stroke: #c084fc;
+  --xj-diagram-model-text: #f3e8ff;
+  --xj-diagram-tool-fill: #4a2512;
+  --xj-diagram-tool-stroke: #fb923c;
+  --xj-diagram-tool-text: #ffedd5;
+  --xj-diagram-data-fill: #422006;
+  --xj-diagram-data-stroke: #fbbf24;
+  --xj-diagram-data-text: #fef3c7;
+  --xj-diagram-success-fill: #12351f;
+  --xj-diagram-success-stroke: #4ade80;
+  --xj-diagram-success-text: #dcfce7;
+  --xj-diagram-failure-fill: #451a1a;
+  --xj-diagram-failure-stroke: #f87171;
+  --xj-diagram-failure-text: #fee2e2;
+  --vp-code-line-highlight-color: rgb(255 255 255 / 6%);
+  --vp-code-line-number-color: #6f7884;
 }
 
 * {
@@ -151,12 +219,25 @@ a {
 }
 
 .vp-doc div[class*="language-"] {
+  position: relative;
   margin: 24px 0;
   overflow: hidden;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 6px;
+  border: 1px solid var(--xj-code-border);
+  border-radius: 5px;
   background: var(--vp-code-block-bg);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 12%);
+}
+
+.vp-doc div[class*="language-"]::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  height: 38px;
+  border-bottom: 1px solid var(--xj-code-border);
+  background: var(--xj-code-toolbar-bg);
+  content: "";
 }
 
 .vp-doc div[class*="language-"] pre,
@@ -165,42 +246,116 @@ a {
 }
 
 .vp-doc div[class*="language-"] pre {
-  max-height: 680px;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  margin: 0;
+  padding: 54px 0 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .vp-doc div[class*="language-"] code {
+  display: block;
+  min-width: max-content;
+  padding: 0 20px;
   font-family: var(--vp-font-family-mono);
   font-size: 13.5px;
   font-variant-ligatures: none;
-  line-height: 1.75;
+  line-height: 1.7;
   tab-size: 2;
 }
 
+.vp-doc div[class*="language-"] .line {
+  padding: 0;
+}
+
 .vp-doc div[class*="language-"] .lang {
-  color: var(--vp-c-text-3);
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  z-index: 4;
+  color: var(--xj-code-label);
   font-family: var(--vp-font-family-mono);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0;
-  text-transform: uppercase;
+  text-transform: lowercase;
+  pointer-events: none;
 }
 
 .vp-doc div[class*="language-"] > button.copy {
-  border: 1px solid var(--vp-c-divider);
-  background-color: var(--vp-c-bg-elv);
+  top: 5px;
+  right: 8px;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--xj-code-border);
+  border-radius: 4px;
+  background-color: var(--xj-code-copy-bg);
+  opacity: 0.72;
 }
 
 .vp-doc div[class*="language-"] > button.copy:hover,
 .vp-doc div[class*="language-"] > button.copy.copied {
-  border-color: var(--vp-c-brand-1);
-  background-color: var(--vp-c-bg-elv);
+  border-color: var(--xj-code-border);
+  border-radius: 4px;
+  background-color: var(--xj-code-copy-bg);
+  opacity: 1;
+}
+
+.vp-doc div[class*="language-"] > button.copy.copied::before,
+.vp-doc div[class*="language-"] > button.copy:hover.copied::before {
+  display: none;
+  content: none;
+}
+
+.vp-doc div[class*="language-"] > button.copy.copied,
+.vp-doc div[class*="language-"] > button.copy:hover.copied {
+  width: 76px;
+  background-color: var(--xj-code-copy-success-bg);
+  background-position: 8px 50%;
+  color: var(--vp-c-brand-1);
+}
+
+.vp-doc div[class*="language-"] > button.copy.copied::after,
+.vp-doc div[class*="language-"] > button.copy:hover.copied::after {
+  display: block;
+  margin-left: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  content: "已复制";
+}
+
+.vp-doc div[class*="language-"].line-numbers-mode {
+  padding-left: 44px;
 }
 
 .vp-doc div[class*="language-"] .line-numbers-wrapper {
-  border-right-color: var(--vp-c-divider);
+  top: 38px;
+  border-right-color: var(--xj-code-border);
+  background: var(--xj-code-gutter-bg);
   color: var(--vp-code-line-number-color);
+  width: 44px;
+  padding-top: 16px;
+  padding-bottom: 20px;
+  line-height: 1.7;
+}
+
+@media (max-width: 720px) {
+  .vp-doc div[class*="language-"] pre {
+    padding: 52px 0 18px;
+  }
+
+  .vp-doc div[class*="language-"] code {
+    padding: 0 15px;
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+
+  .vp-doc div[class*="language-"] .line-numbers-wrapper {
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
 }
 
 .vp-doc :not(pre) > code {
@@ -214,23 +369,422 @@ a {
 }
 
 .vp-doc .mermaid-wrapper {
-  min-height: 120px;
+  min-height: 160px;
   margin: 28px 0;
-  overflow-x: auto;
-  border: 1px solid var(--vp-c-divider);
+}
+
+.vp-doc .mermaid-preview {
+  position: relative;
+  min-height: 160px;
+  overflow: hidden;
+  border: 1px solid var(--xj-diagram-border);
   border-radius: 6px;
-  background: var(--vp-c-bg-elv);
-  padding: 20px;
+  background: var(--xj-diagram-canvas);
+  box-shadow: 0 8px 24px var(--xj-diagram-shadow);
+  color: var(--vp-c-text-1);
+  cursor: zoom-in;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.vp-doc .mermaid-wrapper > div {
+.vp-doc .mermaid-preview:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 55%, var(--xj-diagram-border));
+  box-shadow: 0 12px 30px var(--xj-diagram-shadow);
+}
+
+.vp-doc .mermaid-preview:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--vp-c-brand-1) 48%, transparent);
+  outline-offset: 3px;
+}
+
+.vp-doc .mermaid-preview__diagram {
   display: flex;
+  min-width: 100%;
+  min-height: 160px;
+  align-items: center;
   justify-content: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 28px 24px;
+  scrollbar-color: var(--xj-diagram-border) transparent;
+  scrollbar-width: thin;
 }
 
-.vp-doc .mermaid-wrapper svg {
-  max-width: 100%;
+.vp-doc .mermaid-preview__diagram svg {
+  display: block;
+  flex: none;
+  width: var(--xj-diagram-preview-width, 760px);
+  max-width: none;
   height: auto;
+}
+
+.vp-doc .mermaid-preview__expand {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--xj-diagram-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--xj-diagram-toolbar) 94%, transparent);
+  box-shadow: 0 4px 12px var(--xj-diagram-shadow);
+  color: var(--vp-c-brand-1);
+  place-items: center;
+  pointer-events: none;
+}
+
+.xj-mermaid-svg .node > rect,
+.xj-mermaid-svg .node > circle,
+.xj-mermaid-svg .node > ellipse,
+.xj-mermaid-svg .node > polygon,
+.xj-mermaid-svg .node > path,
+.xj-mermaid-svg .node .label-container {
+  stroke-width: 1.5px !important;
+  filter: drop-shadow(0 2px 2px var(--xj-diagram-shadow));
+}
+
+.xj-mermaid-svg .node > rect,
+.xj-mermaid-svg .node .label-container {
+  rx: 7px;
+  ry: 7px;
+}
+
+.xj-mermaid-svg .node .nodeLabel,
+.xj-mermaid-svg .node .label,
+.xj-mermaid-svg .node foreignObject div {
+  font-size: 14px !important;
+  font-weight: 620 !important;
+  line-height: 1.35 !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="input"] :is(rect, circle, ellipse, polygon, path),
+.xj-mermaid-svg .node[data-xj-semantic="input"] .label-container {
+  fill: var(--xj-diagram-input-fill) !important;
+  stroke: var(--xj-diagram-input-stroke) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="input"] :is(.nodeLabel, .label, foreignObject div) {
+  color: var(--xj-diagram-input-text) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="program"] :is(rect, circle, ellipse, polygon, path),
+.xj-mermaid-svg .node[data-xj-semantic="program"] .label-container {
+  fill: var(--xj-diagram-program-fill) !important;
+  stroke: var(--xj-diagram-program-stroke) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="program"] :is(.nodeLabel, .label, foreignObject div) {
+  color: var(--xj-diagram-program-text) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="model"] :is(rect, circle, ellipse, polygon, path),
+.xj-mermaid-svg .node[data-xj-semantic="model"] .label-container {
+  fill: var(--xj-diagram-model-fill) !important;
+  stroke: var(--xj-diagram-model-stroke) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="model"] :is(.nodeLabel, .label, foreignObject div) {
+  color: var(--xj-diagram-model-text) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="tool"] :is(rect, circle, ellipse, polygon, path),
+.xj-mermaid-svg .node[data-xj-semantic="tool"] .label-container {
+  fill: var(--xj-diagram-tool-fill) !important;
+  stroke: var(--xj-diagram-tool-stroke) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="tool"] :is(.nodeLabel, .label, foreignObject div) {
+  color: var(--xj-diagram-tool-text) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="data"] :is(rect, circle, ellipse, polygon, path),
+.xj-mermaid-svg .node[data-xj-semantic="data"] .label-container {
+  fill: var(--xj-diagram-data-fill) !important;
+  stroke: var(--xj-diagram-data-stroke) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="data"] :is(.nodeLabel, .label, foreignObject div) {
+  color: var(--xj-diagram-data-text) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="success"] :is(rect, circle, ellipse, polygon, path),
+.xj-mermaid-svg .node[data-xj-semantic="success"] .label-container {
+  fill: var(--xj-diagram-success-fill) !important;
+  stroke: var(--xj-diagram-success-stroke) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="success"] :is(.nodeLabel, .label, foreignObject div) {
+  color: var(--xj-diagram-success-text) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="failure"] :is(rect, circle, ellipse, polygon, path),
+.xj-mermaid-svg .node[data-xj-semantic="failure"] .label-container {
+  fill: var(--xj-diagram-failure-fill) !important;
+  stroke: var(--xj-diagram-failure-stroke) !important;
+}
+
+.xj-mermaid-svg .node[data-xj-semantic="failure"] :is(.nodeLabel, .label, foreignObject div) {
+  color: var(--xj-diagram-failure-text) !important;
+}
+
+.xj-mermaid-svg .edgePath path,
+.xj-mermaid-svg .flowchart-link,
+.xj-mermaid-svg .messageLine0,
+.xj-mermaid-svg .messageLine1,
+.xj-mermaid-svg .transition {
+  stroke: var(--xj-diagram-line) !important;
+  stroke-width: 1.6px !important;
+}
+
+.xj-mermaid-svg marker path {
+  fill: var(--xj-diagram-line) !important;
+  stroke: var(--xj-diagram-line) !important;
+}
+
+.xj-mermaid-svg .edgeLabel,
+.xj-mermaid-svg .edgeLabel p {
+  background: var(--xj-diagram-surface) !important;
+  color: var(--vp-c-text-2) !important;
+  font-size: 12px !important;
+}
+
+.xj-mermaid-svg .cluster rect {
+  fill: color-mix(in srgb, var(--xj-diagram-program-fill) 42%, var(--xj-diagram-surface)) !important;
+  stroke: var(--xj-diagram-border) !important;
+  stroke-dasharray: 5 4;
+}
+
+.xj-mermaid-svg .cluster-label,
+.xj-mermaid-svg .cluster-label span {
+  color: var(--vp-c-text-2) !important;
+  font-weight: 650 !important;
+}
+
+.xj-mermaid-svg .actor,
+.xj-mermaid-svg .actor-top,
+.xj-mermaid-svg .actor-bottom,
+.xj-mermaid-svg .labelBox {
+  fill: var(--xj-diagram-program-fill) !important;
+  stroke: var(--xj-diagram-program-stroke) !important;
+  stroke-width: 1.5px !important;
+}
+
+.xj-mermaid-svg .actor-line {
+  stroke: var(--xj-diagram-line) !important;
+  stroke-dasharray: 5 4;
+}
+
+.xj-mermaid-svg text,
+.xj-mermaid-svg .messageText,
+.xj-mermaid-svg .loopText,
+.xj-mermaid-svg .labelText {
+  fill: var(--vp-c-text-1) !important;
+}
+
+.mermaid-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  padding: 24px;
+  background: var(--xj-diagram-scrim);
+  place-items: center;
+}
+
+.mermaid-viewer__panel {
+  display: flex;
+  width: min(1440px, 100%);
+  height: min(920px, 100%);
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--xj-diagram-border);
+  border-radius: 8px;
+  background: var(--xj-diagram-canvas);
+  box-shadow: 0 24px 72px rgb(2 6 23 / 36%);
+}
+
+.mermaid-viewer__toolbar {
+  z-index: 2;
+  display: flex;
+  min-height: 64px;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--xj-diagram-border);
+  background: var(--xj-diagram-toolbar);
+  padding: 9px 12px 9px 20px;
+}
+
+.mermaid-viewer__status {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.mermaid-viewer__title {
+  color: var(--vp-c-text-1);
+  font-size: 15px;
+  font-weight: 680;
+}
+
+.mermaid-viewer__status output {
+  min-width: 44px;
+  color: var(--vp-c-text-2);
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  text-align: right;
+}
+
+.mermaid-viewer__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.mermaid-viewer__actions button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 1px solid var(--xj-diagram-border);
+  border-radius: 6px;
+  background: var(--xj-diagram-surface);
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+  place-items: center;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.mermaid-viewer__actions button:hover {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 55%, var(--xj-diagram-border));
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+.mermaid-viewer__stage {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.mermaid-viewer__stage.is-dragging {
+  cursor: grabbing;
+}
+
+.mermaid-viewer__diagram {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  transition: transform 120ms ease-out;
+  will-change: transform;
+}
+
+.mermaid-viewer__stage.is-dragging .mermaid-viewer__diagram {
+  transition: none;
+}
+
+.mermaid-viewer__diagram svg {
+  display: block;
+  width: min(var(--xj-diagram-preview-width, 1000px), calc(100vw - 112px));
+  max-width: none;
+  max-height: calc(100vh - 136px);
+  height: auto;
+}
+
+.mermaid-viewer-enter-active,
+.mermaid-viewer-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.mermaid-viewer-enter-active .mermaid-viewer__panel,
+.mermaid-viewer-leave-active .mermaid-viewer__panel {
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.mermaid-viewer-enter-from,
+.mermaid-viewer-leave-to,
+.mermaid-viewer-enter-from .mermaid-viewer__panel,
+.mermaid-viewer-leave-to .mermaid-viewer__panel {
+  opacity: 0;
+}
+
+.mermaid-viewer-enter-from .mermaid-viewer__panel,
+.mermaid-viewer-leave-to .mermaid-viewer__panel {
+  transform: scale(0.985);
+}
+
+@media (max-width: 720px) {
+  .vp-doc .mermaid-preview,
+  .vp-doc .mermaid-preview__diagram {
+    min-height: 150px;
+  }
+
+  .vp-doc .mermaid-preview__diagram {
+    padding: 22px 16px;
+  }
+
+  .vp-doc .mermaid-preview__expand {
+    top: 8px;
+    right: 8px;
+  }
+
+  .mermaid-viewer {
+    padding: 0;
+  }
+
+  .mermaid-viewer__panel {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .mermaid-viewer__toolbar {
+    min-height: 60px;
+    gap: 8px;
+    padding: 8px 10px 8px 14px;
+  }
+
+  .mermaid-viewer__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+
+  .mermaid-viewer__actions {
+    gap: 6px;
+  }
+
+  .mermaid-viewer__diagram svg {
+    width: min(var(--xj-diagram-preview-width, 900px), calc(100vw - 28px));
+    max-height: calc(100vh - 88px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vp-doc .mermaid-preview,
+  .mermaid-viewer__actions button,
+  .mermaid-viewer__diagram,
+  .mermaid-viewer-enter-active,
+  .mermaid-viewer-leave-active,
+  .mermaid-viewer-enter-active .mermaid-viewer__panel,
+  .mermaid-viewer-leave-active .mermaid-viewer__panel {
+    transition: none;
+  }
 }
 
 .chapter-guide {
@@ -463,16 +1017,7 @@ a {
 }
 
 .article-index-list a {
-  grid-template-columns: 34px minmax(0, 1fr) 24px;
-}
-
-.article-index-chapter {
-  color: var(--vp-c-brand-1);
-  font-family: var(--vp-font-family-mono);
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.7;
-  white-space: nowrap;
+  grid-template-columns: minmax(0, 1fr) 24px;
 }
 
 .featured-list a:first-child,

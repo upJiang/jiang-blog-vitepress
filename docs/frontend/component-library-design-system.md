@@ -1,18 +1,25 @@
 ---
-title: "组件库与设计系统"
-description: "从 Button 契约扩展到 Token、可访问性、文档、测试、版本和破坏性变更。"
+title: 组件库与设计系统
+description: 从 Button 契约扩展到 Token、可访问性、文档、测试、版本和破坏性变更。
 category: frontend
-part: "现代前端：工程体系"
+part: 现代前端：工程体系
 chapter: 8
-tags: ["Component Library", "Design System"]
-prerequisites: ["组件基础"]
-outcomes: ["设计稳定组件 API", "管理主题和版本"]
+tags:
+  - Component Library
+  - Design System
+prerequisites:
+  - 组件基础
+outcomes:
+  - 设计稳定组件 API
+  - 管理主题和版本
 practice:
   type: implementation
-  result: "完成一个组件的契约与验收表"
-  verify: ["键盘和读屏行为明确", "变更类型可以判断"]
+  result: 完成一个组件的契约与验收表
+  verify:
+    - 键盘和读屏行为明确
+    - 变更类型可以判断
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 组件库与设计系统工程
@@ -68,7 +75,7 @@ export function Button({
 }
 ```
 
-组件把原生属性继续传递，业务页面仍负责请求、错误和成功提示。加载图标可以用 CSS 或图标库叠放，预留固定空间，避免文字与宽度跳动。
+调用组件时，React 先解构 `loading`、`disabled`、`children` 和 `type`，其余原生按钮参数进入 `props`；`unavailable` 合并禁用和加载状态；渲染阶段把剩余参数传给原生 `button`，并同步设置 `disabled`、`aria-busy` 和 `data-loading`。函数返回的是一个仍具备原生按钮语义的 React 元素，业务页面继续负责请求、错误和成功提示。加载图标可以用 CSS 或图标库叠放，并预留固定空间，避免文字与宽度跳动。
 
 ## 步骤二：Token 表达决策，不表达页面偶然值
 
@@ -110,10 +117,3 @@ export function Button({
 Token 先表达品牌色、文字、间距、圆角、状态和动效决策，再映射到组件。不要把某个页面的 `margin-left: 13px` 直接升级为全局 Token。组件文档展示真实组合和边界状态，视觉回归覆盖深色、缩放、长文本和不同语言。
 
 发布时使用语义化版本与变更说明。删除属性、改变默认语义或 DOM 结构可能是破坏性变化；颜色微调也要经过可访问性与视觉回归。让一个真实业务页面只依赖公开 API 使用 Button，能在升级后通过测试，才说明设计系统契约有效。
-
-## 参考资料
-
-- [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)
-- [Design Tokens Community Group](https://www.designtokens.org/)
-- [Storybook](https://storybook.js.org/docs)
-- [Semantic Versioning](https://semver.org/)

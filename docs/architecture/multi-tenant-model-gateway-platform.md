@@ -1,18 +1,25 @@
 ---
-title: "多租户权限、数据隔离、模型网关与模块化能力"
-description: "从多模型、多入口和多租户需求推导主体、范围、网关、能力契约和模块边界。"
+title: 多租户权限、数据隔离、模型网关与模块化能力
+description: 从多模型、多入口和多租户需求推导主体、范围、网关、能力契约和模块边界。
 category: architecture
-part: "AI 系统设计"
+part: AI 系统设计
 chapter: 6
-tags: ["Multi-tenant", "Model Gateway"]
-prerequisites: ["读过第 2、3 章"]
-outcomes: ["设计租户隔离", "封装模型差异"]
+tags:
+  - Multi-tenant
+  - Model Gateway
+prerequisites:
+  - 读过第 2、3 章
+outcomes:
+  - 设计租户隔离
+  - 封装模型差异
 practice:
   type: decision
-  result: "完成一份平台模块与权限矩阵"
-  verify: ["缓存命中后仍检查权限", "供应商能力不泄漏到业务层"]
+  result: 完成一份平台模块与权限矩阵
+  verify:
+    - 缓存命中后仍检查权限
+    - 供应商能力不泄漏到业务层
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 模块化能力平台
@@ -87,10 +94,3 @@ flowchart LR
 能力注册不只包含函数指针，还记录输入契约、只读/副作用、权限要求、超时和观测名称。适配器通过契约测试确认同一命令在不同入口得到相同业务状态；协议差异由各自映射测试覆盖。
 
 只有两个模块且规则仍快速变化时，不急着建平台。平台成立的条件是多个消费者需要稳定共性，并且有团队负责版本、文档和兼容。把所有工具塞进中心服务会形成新的巨石；模块仍应拥有自己的数据与生命周期，通过小契约接入。
-
-## 参考资料
-
-- [Team Topologies](https://teamtopologies.com/)
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Semantic Versioning](https://semver.org/)
-- [OpenAPI Specification](https://spec.openapis.org/oas/latest.html)

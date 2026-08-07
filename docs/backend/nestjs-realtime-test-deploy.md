@@ -1,18 +1,26 @@
 ---
-title: "NestJS 实时通信、测试、日志与部署"
-description: "串联 SSE/WebSocket、单元与集成测试、结构化日志、健康检查和容器部署。"
+title: NestJS 实时通信、测试、日志与部署
+description: 串联 SSE/WebSocket、单元与集成测试、结构化日志、健康检查和容器部署。
 category: backend
-part: "第二部分：Node.js / NestJS"
+part: 第二部分：Node.js / NestJS
 chapter: 12
-tags: ["NestJS", "SSE", "Testing"]
-prerequisites: ["读过第 8-11 章"]
-outcomes: ["发布一条可观察服务", "验证断线恢复"]
+tags:
+  - NestJS
+  - SSE
+  - Testing
+prerequisites:
+  - 读过第 8-11 章
+outcomes:
+  - 发布一条可观察服务
+  - 验证断线恢复
 practice:
   type: implementation
-  result: "完成 Node 服务发布检查表"
-  verify: ["健康检查不依赖外部慢调用", "事件和日志能关联请求"]
+  result: 完成 Node 服务发布检查表
+  verify:
+    - 健康检查不依赖外部慢调用
+    - 事件和日志能关联请求
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # NestJS 实时通信、测试、日志与部署
 
@@ -91,7 +99,7 @@ location /api/reports/ {
 }
 ```
 
-应用定期发送注释心跳，代理和负载均衡的超时仍要显式配置。心跳不是业务事件，不进入数据库序列。
+配置的输入是 SSE 路径、上游服务和代理超时，处理顺序是关闭缓冲、保持 HTTP/1.1 长连接、把请求转给 `node_app`，并在 300 秒无数据时断开。应用定期发送注释心跳，代理和负载均衡的超时仍要显式配置。心跳不是业务事件，不进入数据库序列；客户端断线后应根据最后事件 ID 重放，而不是把心跳当成进度。
 
 ## 第四步：建立四层测试
 
@@ -176,10 +184,3 @@ SIGTERM 排空：
 ```
 
 清单的输入是同一个候选制品及其配置，输出是“可以切流”或“保留旧版本”的明确判断。检查项不能只勾选名称，还要附上测试命令、状态码、Trace 或日志证据。Node 项目线到这里形成一条完整路径。下一章进入 Python/FastAPI，重点比较 Pydantic、依赖注入、AsyncSession 和 Worker 复用方式。
-
-## 参考资料
-
-- [NestJS Server-Sent Events](https://docs.nestjs.com/techniques/server-sent-events)
-- [NestJS Testing](https://docs.nestjs.com/fundamentals/testing)
-- [NestJS Terminus Health Checks](https://docs.nestjs.com/recipes/terminus)
-- [OpenTelemetry JavaScript](https://opentelemetry.io/docs/languages/js/)

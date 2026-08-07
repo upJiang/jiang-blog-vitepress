@@ -1,18 +1,25 @@
 ---
-title: "Manifest V3 浏览器扩展架构"
-description: "从读取当前页面信息开始，理解页面、内容脚本、Service Worker、消息和最小权限。"
+title: Manifest V3 浏览器扩展架构
+description: 从读取当前页面信息开始，理解页面、内容脚本、Service Worker、消息和最小权限。
 category: frontend
-part: "现代前端：插件开发"
+part: 现代前端：插件开发
 chapter: 15
-tags: ["Browser Extension", "Manifest V3"]
-prerequisites: ["JavaScript 与浏览器 API"]
-outcomes: ["设计扩展进程边界", "限制 host 权限"]
+tags:
+  - Browser Extension
+  - Manifest V3
+prerequisites:
+  - JavaScript 与浏览器 API
+outcomes:
+  - 设计扩展进程边界
+  - 限制 host 权限
 practice:
   type: implementation
-  result: "实现一次页面到侧边栏的数据传递"
-  verify: ["消息结构被校验", "权限与功能匹配"]
+  result: 实现一次页面到侧边栏的数据传递
+  verify:
+    - 消息结构被校验
+    - 权限与功能匹配
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Manifest V3 浏览器扩展架构
@@ -50,7 +57,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 })
 ```
 
-消息处理器使用白名单类型并限制输出大小。真实扩展还要验证 sender、目标 tab 和错误状态，避免任何扩展页面都能触发高权限动作。
+消息到达时先检查 `message.type`，不匹配就返回，让其他监听器继续处理；匹配后从当前页面读取 `document.title`，用 `slice(0, 200)` 限制返回长度，再通过 `sendResponse` 返回固定类型。输入是扩展内部消息，输出是 `{ type, title }`，异常时应通过 `chrome.runtime.lastError` 或明确错误消息通知调用方。消息处理器使用白名单类型并限制输出大小。真实扩展还要验证 sender、目标 tab 和错误状态，避免任何扩展页面都能触发高权限动作。
 
 ## 步骤二：消息是安全契约
 
@@ -93,10 +100,3 @@ Tab 会刷新、导航和销毁，Content Script 可能尚未注入。Popup 请�
 消息契约包含类型、版本、最小数据和稳定错误。每个接收端验证 `sender`、目标 Tab 和权限，不能把来自页面的任意 URL 交给高权限网络请求。需要与页面世界交换数据时，显式序列化并再次校验。
 
 在浏览器里测试普通页面、无权限页面、导航后旧消息、Worker 休眠后首次调用和权限撤销。持久状态放 `chrome.storage` 或服务端，不能依赖 Worker 全局变量。权限从 `activeTab` 等最小能力开始，只有功能确实需要时再请求更广 Host Permission。
-
-## 参考资料
-
-- [Chrome Extensions Manifest V3](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3)
-- [Content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)
-- [Message passing](https://developer.chrome.com/docs/extensions/develop/concepts/messaging)
-- [Declare permissions](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions)

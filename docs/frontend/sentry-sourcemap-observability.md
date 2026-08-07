@@ -1,18 +1,25 @@
 ---
-title: "Sentry、Source Map 与前端观测"
-description: "从压缩堆栈恢复源码位置，串联 Release、Source Map、错误分组、Breadcrumb 和隐私。"
+title: Sentry、Source Map 与前端观测
+description: 从压缩堆栈恢复源码位置，串联 Release、Source Map、错误分组、Breadcrumb 和隐私。
 category: frontend
-part: "现代前端：工程体系"
+part: 现代前端：工程体系
 chapter: 10
-tags: ["Sentry", "Source Map"]
-prerequisites: ["构建产物基础"]
-outcomes: ["解释 Source Map 映射", "设计前端错误上下文"]
+tags:
+  - Sentry
+  - Source Map
+prerequisites:
+  - 构建产物基础
+outcomes:
+  - 解释 Source Map 映射
+  - 设计前端错误上下文
 practice:
   type: implementation
-  result: "还原一条压缩错误并检查上传边界"
-  verify: ["线上不公开 Source Map", "错误关联到正确版本"]
+  result: 还原一条压缩错误并检查上传边界
+  verify:
+    - 线上不公开 Source Map
+    - 错误关联到正确版本
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Sentry、Source Map 与前端观测
 
@@ -92,11 +99,3 @@ CI 中按顺序：
 ## 迁移练习
 
 为一个 Vite 或 Next.js 页面配置匿名 release，构建并上传 Source Map 到隔离 Sentry 项目。触发一次异常，核对源码位置与版本；然后把 Map 从静态目录移除，再确认错误仍能还原。最后写出一条不会采集用户输入的 `beforeSend` 规则。
-
-## 参考资料
-
-- [Sentry JavaScript Source Maps](https://docs.sentry.io/platforms/javascript/sourcemaps/)
-- [Sentry Releases](https://docs.sentry.io/product/releases/)
-- [Sentry JavaScript SDK configuration](https://docs.sentry.io/platforms/javascript/configuration/)
-- [Source Map specification](https://tc39.es/source-map/)
-- [W3C Trace Context](https://www.w3.org/TR/trace-context/)

@@ -1,18 +1,26 @@
 ---
-title: "TTFT、TPOT、吞吐、队列、容量、压测与成本"
-description: "用到达率、并发、服务时间和 Little’s Law 设计压测、容量表和扩容判断。"
+title: TTFT、TPOT、吞吐、队列、容量、压测与成本
+description: 用到达率、并发、服务时间和 Little’s Law 设计压测、容量表和扩容判断。
 category: devops
-part: "第六部分：可靠性、容量与交付"
+part: 第六部分：可靠性、容量与交付
 chapter: 19
-tags: ["Capacity", "Load Test", "Cost"]
-prerequisites: ["读过第 14-18 章"]
-outcomes: ["设计闭环压测", "拆分单请求成本"]
+tags:
+  - Capacity
+  - Load Test
+  - Cost
+prerequisites:
+  - 读过第 14-18 章
+outcomes:
+  - 设计闭环压测
+  - 拆分单请求成本
 practice:
   type: diagnosis
-  result: "填写一张不含虚构数据的容量模板"
-  verify: ["指标定义一致", "结论包含硬件和模型版本"]
+  result: 填写一张不含虚构数据的容量模板
+  verify:
+    - 指标定义一致
+    - 结论包含硬件和模型版本
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # TTFT、TPOT、吞吐、队列、容量、压测与成本
 
@@ -145,11 +153,3 @@ P50/P95 TTFT、TPOT、E2E：
 ```
 
 这张表刻意不填数字。练习要求读者用隔离环境实测填写，并把结论连接到前面的请求类型，而不是复制一张网上的“每秒多少 Token”。
-
-## 参考资料
-
-- [Little's Law overview](https://en.wikipedia.org/wiki/Little%27s_law)
-- [OpenTelemetry semantic conventions for generative AI](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
-- [vLLM metrics](https://docs.vllm.ai/en/latest/usage/metrics.html)
-- [Prometheus histogram practices](https://prometheus.io/docs/practices/histograms/)
-- [Google SRE: Service Level Objectives](https://sre.google/sre-book/service-level-objectives/)

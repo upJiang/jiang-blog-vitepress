@@ -1,18 +1,26 @@
 ---
-title: "GORM、PostgreSQL、Redis、Context 与并发"
-description: "从请求 Context 进入事务、缓存、goroutine 所有权、有界并发和取消。"
+title: GORM、PostgreSQL、Redis、Context 与并发
+description: 从请求 Context 进入事务、缓存、goroutine 所有权、有界并发和取消。
 category: backend
-part: "第四部分：Go"
+part: 第四部分：Go
 chapter: 18
-tags: ["Go", "GORM", "Redis"]
-prerequisites: ["读过第 4、5、17 章"]
-outcomes: ["传播 Context", "避免 goroutine 泄漏"]
+tags:
+  - Go
+  - GORM
+  - Redis
+prerequisites:
+  - 读过第 4、5、17 章
+outcomes:
+  - 传播 Context
+  - 避免 goroutine 泄漏
 practice:
   type: implementation
-  result: "完成一个并发读取与缓存流程"
-  verify: ["取消能终止下游", "并发数量有上限"]
+  result: 完成一个并发读取与缓存流程
+  verify:
+    - 取消能终止下游
+    - 并发数量有上限
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # GORM、PostgreSQL、Redis、Context 与并发
 
@@ -215,12 +223,3 @@ if err := group.Wait(); err != nil {
 8. 测试是否真实覆盖 PostgreSQL、Redis、取消与竞争？
 
 迁移练习：为文章列表增加“按作者批量加载详情”。先串行实现并测正确性，再引入 `errgroup.SetLimit`。记录连接池等待和总耗时，解释为什么并发从 8 调到 80 不一定更快。
-
-## 参考资料
-
-- [GORM: Context](https://gorm.io/docs/context.html)
-- [GORM: Transactions](https://gorm.io/docs/transactions.html)
-- [Go documentation: Managing connections](https://go.dev/doc/database/manage-connections)
-- [Go documentation: Canceling database operations](https://go.dev/doc/database/cancel-operations)
-- [go-redis guide](https://redis.io/docs/latest/develop/clients/go/)
-- [x/sync errgroup](https://pkg.go.dev/golang.org/x/sync/errgroup)

@@ -1,18 +1,24 @@
 ---
-title: "从一个 AI 功能到完整系统的七层架构"
-description: "从模型调用扩展到入口、应用、Agent、知识、模型、数据与基础设施七层。"
+title: 从一个 AI 功能到完整系统的七层架构
+description: 从模型调用扩展到入口、应用、Agent、知识、模型、数据与基础设施七层。
 category: architecture
-part: "AI 系统设计"
+part: AI 系统设计
 chapter: 1
-tags: ["AI Architecture"]
-prerequisites: ["了解普通 Web 服务"]
-outcomes: ["画出 AI 系统边界", "识别各层所有权"]
+tags:
+  - AI Architecture
+prerequisites:
+  - 了解普通 Web 服务
+outcomes:
+  - 画出 AI 系统边界
+  - 识别各层所有权
 practice:
   type: decision
-  result: "完成一张七层架构图"
-  verify: ["模型调用不是全部系统", "每条依赖方向可解释"]
+  result: 完成一张七层架构图
+  verify:
+    - 模型调用不是全部系统
+    - 每条依赖方向可解释
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # 分层边界：代码为什么要按变化原因拆开
@@ -157,10 +163,3 @@ TypeScript 可以用 ESLint boundaries 或 dependency-cruiser 检查导入方向
 | 外部副作用不能回滚？ | 需要明确恢复 | 事件/补偿边界 |
 
 下一篇将把其中最容易跨进程的部分单独拿出来：异步任务。我们会先定义任务、尝试、租约和事件，再解释为什么“把函数丢到队列”还不等于可靠任务。
-
-## 参考资料
-
-- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
-- [Martin Fowler：Data Mapper](https://martinfowler.com/eaaCatalog/dataMapper.html)
-- [Architecture Decision Records](https://adr.github.io/)
-- [Martin Fowler：Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html)

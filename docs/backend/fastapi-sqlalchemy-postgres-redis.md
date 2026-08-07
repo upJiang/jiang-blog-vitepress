@@ -1,18 +1,26 @@
 ---
-title: "SQLAlchemy、PostgreSQL、事务与 Redis"
-description: "从 Session 生命周期进入并发更新、锁、缓存旁路和提交后失效。"
+title: SQLAlchemy、PostgreSQL、事务与 Redis
+description: 从 Session 生命周期进入并发更新、锁、缓存旁路和提交后失效。
 category: backend
-part: "第三部分：Python / FastAPI"
+part: 第三部分：Python / FastAPI
 chapter: 14
-tags: ["SQLAlchemy", "PostgreSQL", "Redis"]
-prerequisites: ["读过第 4、5、13 章"]
-outcomes: ["管理异步 Session", "避免缓存脏读"]
+tags:
+  - SQLAlchemy
+  - PostgreSQL
+  - Redis
+prerequisites:
+  - 读过第 4、5、13 章
+outcomes:
+  - 管理异步 Session
+  - 避免缓存脏读
 practice:
   type: implementation
-  result: "实现一个事务与缓存协作的查询"
-  verify: ["回滚后不发布缓存", "并发冲突可识别"]
+  result: 实现一个事务与缓存协作的查询
+  verify:
+    - 回滚后不发布缓存
+    - 并发冲突可识别
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # SQLAlchemy、PostgreSQL、事务与 Redis
 
@@ -32,7 +40,7 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         yield session
 ```
 
-这个依赖的输入是 Session 工厂，输出是仅属于当前请求的 `AsyncSession`；离开 `async with` 后连接会归还连接池。它只负责资源生命周期，事务何时提交由完整用例决定，不应该每个 Repository 方法各自 commit。
+FastAPI 解析依赖时调用 `get_session`，进入 `async with` 创建当前请求的 Session，路由或应用服务使用它，函数退出时关闭并归还连接。这个依赖的输入是 Session 工厂，输出是仅属于当前请求的 `AsyncSession`；离开 `async with` 后连接会归还连接池。它只负责资源生命周期，事务何时提交由完整用例决定，不应该每个 Repository 方法各自 commit。连接池耗尽时，等待会在这里暴露，日志应记录等待时间和 request ID。
 
 ## Repository 不拥有事务
 
@@ -52,7 +60,7 @@ class DocumentRepository:
         return map_document(row) if row else None
 ```
 
-`get_visible` 的输入是公开文档标识和可信租户范围，输出只有领域对象或 `None`。查询同时带上租户范围，不先全局查实体；Repository 返回领域对象或明确投影，不把 ORM Row 泄漏到 API。
+调用顺序是应用服务传入公开 ID 和可信租户范围，Repository 生成带两项过滤的 SQL，执行后映射为领域对象或 `None`。`get_visible` 的输入是公开文档标识和可信租户范围，输出只有领域对象或 `None`。查询同时带上租户范围，不先全局查实体；Repository 返回领域对象或明确投影，不把 ORM Row 泄漏到 API。没有结果时由上层决定 404 或隐藏资源，数据库错误则保留为依赖故障。
 
 ## 应用服务控制完整事务
 
@@ -122,7 +130,7 @@ SET status = $1, version = version + 1
 WHERE public_id = $2 AND tenant_id = $3 AND version = $4;
 ```
 
-0 行表示版本冲突或不可见。应用返回 409 并让客户端刷新，不把最后写入静默覆盖前一个修改。
+执行后读取 `rowcount`：1 行表示预期版本匹配并提交了更新，0 行表示版本冲突或不可见。应用返回 409 并让客户端刷新，不把最后写入静默覆盖前一个修改。若事务随后回滚，Redis 仍不能提前写入新版本，因此缓存操作只能放在提交后事件中。
 
 SQLAlchemy 可以映射版本列，但仍需测试批量更新和自定义 SQL 是否遵守版本语义。
 
@@ -163,10 +171,3 @@ SQLAlchemy 可以映射版本列，但仍需测试批量更新和自定义 SQL �
 - 事务、缓存和并发都有集成测试。
 
 下一章处理 Python 并发与 Celery：哪些任务留在事件循环，哪些必须进入独立 Worker，以及取消和恢复怎样贯穿。
-
-## 参考资料
-
-- [SQLAlchemy AsyncIO](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html)
-- [SQLAlchemy Session Basics](https://docs.sqlalchemy.org/en/20/orm/session_basics.html)
-- [PostgreSQL Transaction Isolation](https://www.postgresql.org/docs/current/transaction-iso.html)
-- [Redis Cache-Aside](https://redis.io/learn/howtos/solutions/microservices/caching)

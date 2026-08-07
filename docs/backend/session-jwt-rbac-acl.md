@@ -1,18 +1,26 @@
 ---
-title: "Session、JWT、Refresh Token、RBAC 与 ACL"
-description: "沿登录、续期、退出和资源读取讲清身份、会话、角色和数据范围。"
+title: Session、JWT、Refresh Token、RBAC 与 ACL
+description: 沿登录、续期、退出和资源读取讲清身份、会话、角色和数据范围。
 category: backend
-part: "第一部分：后端共同基础"
+part: 第一部分：后端共同基础
 chapter: 3
-tags: ["Auth", "RBAC", "ACL"]
-prerequisites: ["HTTP Cookie 基础"]
-outcomes: ["选择认证方案", "把权限落实到查询"]
+tags:
+  - Auth
+  - RBAC
+  - ACL
+prerequisites:
+  - HTTP Cookie 基础
+outcomes:
+  - 选择认证方案
+  - 把权限落实到查询
 practice:
   type: decision
-  result: "画出登录与刷新时序图"
-  verify: ["退出后旧凭证失效", "无权数据在查询前过滤"]
+  result: 画出登录与刷新时序图
+  verify:
+    - 退出后旧凭证失效
+    - 无权数据在查询前过滤
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Session、JWT、Refresh Token、RBAC 与 ACL
 
@@ -164,9 +172,3 @@ SQL 过滤位置：
 ```
 
 这张卡的输入是客户端形态、风险等级和数据范围，输出是一套可以落实到 Cookie、Token、数据库查询与撤销流程的认证授权方案。任何一项答不出来，都说明实现仍有隐含假设。下一章进入 PostgreSQL，重点不只写 SQL，还要读执行计划、设计事务并理解锁等待。
-
-## 参考资料
-
-- [OWASP Session Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
-- [OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700)
-- [PostgreSQL Row Security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)

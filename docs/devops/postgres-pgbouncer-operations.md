@@ -1,18 +1,25 @@
 ---
-title: "PostgreSQL、PgBouncer、连接池、锁与慢查询"
-description: "从连接打满和请求变慢进入连接预算、事务池、pg_stat_activity、锁等待和慢查询。"
+title: PostgreSQL、PgBouncer、连接池、锁与慢查询
+description: 从连接打满和请求变慢进入连接预算、事务池、pg_stat_activity、锁等待和慢查询。
 category: devops
-part: "第三部分：数据与任务设施"
+part: 第三部分：数据与任务设施
 chapter: 7
-tags: ["PostgreSQL", "PgBouncer"]
-prerequisites: ["SQL 与 Linux 基础"]
-outcomes: ["计算连接容量", "定位连接泄漏和锁"]
+tags:
+  - PostgreSQL
+  - PgBouncer
+prerequisites:
+  - SQL 与 Linux 基础
+outcomes:
+  - 计算连接容量
+  - 定位连接泄漏和锁
 practice:
   type: diagnosis
-  result: "执行一次数据库运行检查"
-  verify: ["应用池与数据库上限匹配", "事务池限制被说明"]
+  result: 执行一次数据库运行检查
+  verify:
+    - 应用池与数据库上限匹配
+    - 事务池限制被说明
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # PostgreSQL、PgBouncer、连接池、锁与慢查询
 
@@ -214,12 +221,3 @@ PgBouncer 管理连接复用，不会修复慢 SQL、长事务和无限业务并
 7. 引入 PgBouncer 前审计会话状态依赖，明确池模式。
 8. 修改池或索引后在相同数据分布压测，并保留回滚配置。
 9. 备份必须做隔离恢复演练，不用副本替代。
-
-## 参考资料
-
-- [PostgreSQL: Monitoring Database Activity](https://www.postgresql.org/docs/current/monitoring-stats.html)
-- [PostgreSQL: Using EXPLAIN](https://www.postgresql.org/docs/current/using-explain.html)
-- [PostgreSQL: Explicit Locking](https://www.postgresql.org/docs/current/explicit-locking.html)
-- [PgBouncer features](https://www.pgbouncer.org/features.html)
-- [PgBouncer configuration](https://www.pgbouncer.org/config.html)
-

@@ -1,18 +1,24 @@
 ---
-title: "AI Infra 工程师能力地图与学习路径"
-description: "用应用、数据、模型、计算、平台和可靠性六层地图理解岗位边界和成长路线。"
+title: AI Infra 工程师能力地图与学习路径
+description: 用应用、数据、模型、计算、平台和可靠性六层地图理解岗位边界和成长路线。
 category: devops
-part: "第一部分：能力地图与操作系统"
+part: 第一部分：能力地图与操作系统
 chapter: 1
-tags: ["AI Infra"]
-prerequisites: ["具备基础编程能力"]
-outcomes: ["说明 AI Infra 与后端、MLOps、SRE 的区别", "制定个人学习路径"]
+tags:
+  - AI Infra
+prerequisites:
+  - 具备基础编程能力
+outcomes:
+  - 说明 AI Infra 与后端、MLOps、SRE 的区别
+  - 制定个人学习路径
 practice:
   type: decision
-  result: "完成一张能力自评与路线表"
-  verify: ["每层都有可验证任务", "托管 API 与自托管路径分开"]
+  result: 完成一张能力自评与路线表
+  verify:
+    - 每层都有可验证任务
+    - 托管 API 与自托管路径分开
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # AI Infra 工程师能力地图：从模型 API 到推理集群
@@ -239,7 +245,7 @@ GPU、vLLM、分布式训练和 Kubernetes 部分属于基于官方资料设计�
 
 ## 一条十二周练习路线
 
-这不是课程时长承诺，而是一种安排顺序。每周以产物通过为准，没完成就不要为了日历赶进度。
+这张安排只表达学习顺序，不承诺固定完成时长。每周以产物通过为准，没完成就不要为了日历赶进度。
 
 1. 第 1–2 周：Linux 进程、端口、文件和 DNS/TLS 排障，输出一份请求链记录。
 2. 第 3 周：完成 API、PostgreSQL、Redis、Worker 的 Compose 环境。
@@ -262,12 +268,3 @@ GPU、vLLM、分布式训练和 Kubernetes 部分属于基于官方资料设计�
 3. 恢复图：服务、数据库、对象、模型制品和配置分别怎样恢复。
 
 这三张图比工具清单更有价值。它们能让你判断应该改应用、调队列、扩 GPU，还是先修发布和恢复流程。
-
-## 参考资料
-
-- [NVIDIA CUDA Installation Guide for Linux](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)
-- [Kubernetes 文档](https://kubernetes.io/docs/home/)
-- [OpenTelemetry 文档](https://opentelemetry.io/docs/)
-- [Docker 文档](https://docs.docker.com/)
-- [Google SRE Workbook](https://sre.google/workbook/table-of-contents/)
-- [vLLM 官方文档](https://docs.vllm.ai/)

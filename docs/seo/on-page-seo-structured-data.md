@@ -1,18 +1,26 @@
 ---
-title: "TDK、正文结构、Canonical 与结构化数据"
-description: "逐项完成标题、摘要、主标题、正文、链接、Canonical 和与可见内容一致的结构化数据。"
+title: TDK、正文结构、Canonical 与结构化数据
+description: 逐项完成标题、摘要、主标题、正文、链接、Canonical 和与可见内容一致的结构化数据。
 category: seo
-part: "第三部分：页面与内容"
+part: 第三部分：页面与内容
 chapter: 6
-tags: ["On-page SEO", "Structured Data"]
-prerequisites: ["HTML 基础", "读过第 5 章"]
-outcomes: ["审查一张页面的基础 SEO", "避免模板冲突和错误标记"]
+tags:
+  - On-page SEO
+  - Structured Data
+prerequisites:
+  - HTML 基础
+  - 读过第 5 章
+outcomes:
+  - 审查一张页面的基础 SEO
+  - 避免模板冲突和错误标记
 practice:
   type: implementation
-  result: "完成一份页面检查表和 JSON-LD 校验"
-  verify: ["原始 HTML 中元信息完整", "结构化数据字段可在页面中核对"]
+  result: 完成一份页面检查表和 JSON-LD 校验
+  verify:
+    - 原始 HTML 中元信息完整
+    - 结构化数据字段可在页面中核对
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 一张网页怎样完成基础 SEO
 
@@ -95,9 +103,3 @@ H1 是页面可见主标题。它可以与 title 不完全相同，但两者要�
 标题优化要以查询和页面承诺为单位。若点击率低，先拆分品牌/非品牌、设备、地区和平均位置，避免把排名变化误判成标题效果。结构化数据帮助系统理解实体和关系，但不保证富结果，也不替代可见内容。
 
 上线前使用一个正常页、一个参数页和一个不索引页做模板回归。检查变量转义、空字段、绝对 URL、重复标签和移动端内容。修改后保留旧模板与验证记录，出现大面积展示异常时可以快速回滚。
-
-## 参考资料
-
-- [Google Search Central：Title links](https://developers.google.com/search/docs/appearance/title-link)
-- [Google Search Central：Snippets](https://developers.google.com/search/docs/appearance/snippet)
-- [Google Search Central：Structured data](https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data)

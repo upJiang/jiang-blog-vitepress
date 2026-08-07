@@ -1,18 +1,26 @@
 ---
-title: "Gin Handler、Service、Repository 与错误模型"
-description: "用显式依赖和可判断错误构建一条清晰的 Go 请求链。"
+title: Gin Handler、Service、Repository 与错误模型
+description: 用显式依赖和可判断错误构建一条清晰的 Go 请求链。
 category: backend
-part: "第四部分：Go"
+part: 第四部分：Go
 chapter: 17
-tags: ["Go", "Gin"]
-prerequisites: ["Go 语法", "前 8 章"]
-outcomes: ["划分 Gin 服务职责", "使用 errors.Is/As"]
+tags:
+  - Go
+  - Gin
+prerequisites:
+  - Go 语法
+  - 前 8 章
+outcomes:
+  - 划分 Gin 服务职责
+  - 使用 errors.Is/As
 practice:
   type: implementation
-  result: "实现一个查询与创建接口"
-  verify: ["Handler 只做协议适配", "错误映射稳定"]
+  result: 实现一个查询与创建接口
+  verify:
+    - Handler 只做协议适配
+    - 错误映射稳定
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Go 与 Gin 的服务分层和错误模型
@@ -68,7 +76,7 @@ func Unavailable(err error) error {
 }
 ```
 
-Handler 的统一映射器用 `errors.As` 选择状态码：输入错误为 400/422，未认证 401，权限或隐藏资源 403/404，版本冲突 409，临时依赖故障 503，未知错误 500。错误只在负责处理的位置记录一次，避免每层重复打印同一 cause。
+调用方先把底层错误传给 `Unavailable`，它用 `Cause` 保留原始错误链；Handler 再用 `errors.As` 找到 `AppError`，根据 `Kind` 选择状态码，最后只把 `Code` 和 request ID 写入公共 JSON。输入错误为 400/422，未认证 401，权限或隐藏资源 403/404，版本冲突 409，临时依赖故障 503，未知错误 500。错误只在负责处理的位置记录一次，避免每层重复打印同一 cause。若没有匹配类型，必须落到 500 并记录内部堆栈，而不能把数据库字符串直接返回。
 
 ## 步骤三：事务由完整用例控制
 
@@ -115,10 +123,3 @@ HTTP JSON 由服务端和客户端在运行时约定字段，跨服务系统常�
 Handler 只把领域结果映射为协议，不把 SQL 错误原样返回。依赖通过构造函数装配，测试 UseCase 时传入假的 Repository；Gin 路由测试只关注状态、JSON 和认证上下文。
 
 再增加一个 gRPC 或后台任务入口复用 UseCase。若 UseCase 依赖 `*gin.Context`，复用会被阻断；改为标准 `context.Context` 传递 Deadline 与取消，业务输入使用明确命令结构。分层完成的标志是入口可替换、错误语义稳定，而不是目录数量。
-
-## 参考资料
-
-- [Effective Go](https://go.dev/doc/effective_go)
-- [Go 1.13 errors](https://go.dev/blog/go1.13-errors)
-- [Gin graceful shutdown](https://gin-gonic.com/en/docs/examples/graceful-restart-or-stop/)
-- [OWASP REST Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html)

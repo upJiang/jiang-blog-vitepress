@@ -1,18 +1,25 @@
 ---
-title: "Next.js 渲染、缓存与失效"
-description: "围绕内容新鲜度选择静态、动态、流式渲染，并理解请求、数据和路由缓存。"
+title: Next.js 渲染、缓存与失效
+description: 围绕内容新鲜度选择静态、动态、流式渲染，并理解请求、数据和路由缓存。
 category: frontend
-part: "现代前端：框架内部机制"
+part: 现代前端：框架内部机制
 chapter: 5
-tags: ["Next.js", "Cache"]
-prerequisites: ["React 与 HTTP 缓存基础"]
-outcomes: ["选择渲染方式", "设计缓存失效"]
+tags:
+  - Next.js
+  - Cache
+prerequisites:
+  - React 与 HTTP 缓存基础
+outcomes:
+  - 选择渲染方式
+  - 设计缓存失效
 practice:
   type: decision
-  result: "为三种页面完成渲染与缓存决策表"
-  verify: ["更新时效与成本匹配", "失效路径可以验证"]
+  result: 为三种页面完成渲染与缓存决策表
+  verify:
+    - 更新时效与成本匹配
+    - 失效路径可以验证
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Next.js 渲染与缓存
@@ -73,7 +80,7 @@ export default async function ArticlePage({ params }: PageProps) {
 }
 ```
 
-代码先检查 HTTP 状态，再解析公开数据；缓存一小时并允许发布动作按标签失效。它不适合带用户 Cookie 的私有订单，也没有包含实际鉴权和错误页面。
+代码先检查 HTTP 状态，再解析公开数据；缓存一小时并允许发布动作按标签失效。执行顺序是 `params.id` 组成请求地址，`fetch` 取得响应，`response.ok` 把 4xx/5xx 转成明确异常，`response.json()` 产生 `Article`，最后 `ArticleView` 负责渲染。输入是公开文章 ID，输出是页面组件；数据源 404 时会进入错误边界，标签失效只会让下一次请求重新取数，并不替代数据库事务。它不适合带用户 Cookie 的私有订单，也没有包含实际鉴权和错误页面。
 
 ## 步骤四：处理请求记忆与客户端导航
 
@@ -101,10 +108,3 @@ Server Action 或 Route Handler 修改数据后，明确更新数据库、失效
 随后在开发和生产构建各请求两次，记录服务端日志、响应头和 HTML，确认真实命中行为。发布一条文章更新，触发标签失效，再观察下一个请求是否重建。用两个身份访问订单页，确保任何 CDN、框架缓存和自定义缓存都没有共享私有结果。
 
 排查旧数据时从数据源向外走：数据库是否已更新、服务端数据缓存是否命中、全路由输出是否重建、CDN 是否仍缓存、浏览器和 Router 是否复用。Next.js 默认行为随版本变化，升级时把这组实验当回归，而不是沿用旧博客中的结论。
-
-## 参考资料
-
-- [Next.js Caching](https://nextjs.org/docs/app/guides/caching)
-- [Next.js Rendering](https://nextjs.org/docs/app/building-your-application/rendering)
-- [Next.js revalidateTag](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
-- [React Suspense](https://react.dev/reference/react/Suspense)

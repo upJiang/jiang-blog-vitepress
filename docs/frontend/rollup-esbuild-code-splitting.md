@@ -1,18 +1,25 @@
 ---
-title: "Rollup、esbuild、模块图与代码分割"
-description: "从动态导入开始，比较解析、转换、打包和压缩职责，并控制 Chunk 边界。"
+title: Rollup、esbuild、模块图与代码分割
+description: 从动态导入开始，比较解析、转换、打包和压缩职责，并控制 Chunk 边界。
 category: frontend
-part: "现代前端：构建工具"
+part: 现代前端：构建工具
 chapter: 7
-tags: ["Rollup", "esbuild"]
-prerequisites: ["ES Module"]
-outcomes: ["解释 Tree Shaking 前提", "设计按路由分包"]
+tags:
+  - Rollup
+  - esbuild
+prerequisites:
+  - ES Module
+outcomes:
+  - 解释 Tree Shaking 前提
+  - 设计按路由分包
 practice:
   type: diagnosis
-  result: "查看一次构建的模块图与产物"
-  verify: ["副作用声明正确", "公共依赖不会被意外重复"]
+  result: 查看一次构建的模块图与产物
+  verify:
+    - 副作用声明正确
+    - 公共依赖不会被意外重复
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # Rollup、esbuild 与代码分割
@@ -97,10 +104,3 @@ esbuild 使用 Go 实现，擅长高速解析、转换和打包；Rollup 以插�
 Tree Shaking 实验可以新增一个未使用导出，并在模块顶层加一个可观察副作用，比较 `sideEffects` 声明前后产物。若错误声明导致副作用消失，说明包元数据破坏了语义。优化时以实际 Bundle 分析和用户路径为准，不按 import 行数猜体积。
 
 最后用网络限速访问首页和编辑页，观察请求瀑布、解析执行和失败恢复。代码分割把成本移动到需要它的时刻，不会消灭成本；常用功能过度懒加载也会把延迟推给每位用户。
-
-## 参考资料
-
-- [Rollup](https://rollupjs.org/)
-- [esbuild](https://esbuild.github.io/)
-- [MDN dynamic import](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/import)
-- [web.dev Code Splitting](https://web.dev/learn/performance/code-split-javascript)

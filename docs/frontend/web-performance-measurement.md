@@ -1,18 +1,25 @@
 ---
-title: "Web 性能测量与优化"
-description: "从用户指标和网络瀑布建立基线，再处理资源、渲染、交互和回归预算。"
+title: Web 性能测量与优化
+description: 从用户指标和网络瀑布建立基线，再处理资源、渲染、交互和回归预算。
 category: frontend
-part: "现代前端：工程体系"
+part: 现代前端：工程体系
 chapter: 9
-tags: ["Performance", "Core Web Vitals"]
-prerequisites: ["浏览器网络基础"]
-outcomes: ["解释 LCP、INP、CLS", "用证据选择优化动作"]
+tags:
+  - Performance
+  - Core Web Vitals
+prerequisites:
+  - 浏览器网络基础
+outcomes:
+  - 解释 LCP、INP、CLS
+  - 用证据选择优化动作
 practice:
   type: diagnosis
-  result: "完成一次页面性能诊断"
-  verify: ["实验前后使用同一口径", "优化不依赖过时技巧"]
+  result: 完成一次页面性能诊断
+  verify:
+    - 实验前后使用同一口径
+    - 优化不依赖过时技巧
 evidence: public-source
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # Web 性能工程
 
@@ -86,7 +93,7 @@ LCP 可粗分为 TTFB、资源加载延迟、资源下载时间、元素渲染�
 </picture>
 ```
 
-只有确认它是首屏 LCP 候选时才设高优先级，不要让多张图都 `fetchpriority=high`。首屏图不应 lazy；折叠下图片使用原生 lazy 并提供尺寸。AVIF/WebP 的收益取决于图像与编码质量，CDN 转码应避免缓存 key 漏格式/宽度。
+浏览器执行这段标记时，先按格式支持选择 AVIF 或 WebP，再根据 `sizes` 和当前视口从 `srcset` 选择合适宽度；`width` 与 `height` 提前提供宽高比，减少图片加载后的布局移动；`fetchpriority="high"` 只提高这个候选资源的请求优先级。只有确认它是首屏 LCP 候选时才设置高优先级，不要让多张图同时抢占带宽。首屏图不应 lazy；折叠下图片可以使用原生 lazy 并继续提供尺寸。AVIF/WebP 的收益取决于图像与编码质量，CDN 转码时还要把格式和宽度放入缓存键。
 
 `preload` 是强提示，会抢占带宽。仅预加载浏览器无法及时发现且确实关键的字体、图像或模块，并确保 `as/type/crossorigin` 与实际请求一致，否则会重复下载或浪费。
 
@@ -134,7 +141,7 @@ function processInChunks<T>(
 }
 ```
 
-分片改善可响应性但增加总调度成本，不适用于要求原子完成的计算。`requestIdleCallback` 支持与触发不稳定，不适合作为关键任务保证；`scheduler.yield/postTask` 等能力要按兼容性渐进增强。昂贵的哈希、解析、图布局可放 Worker，并使用 transferable 降低复制成本。
+调用 `processInChunks` 后，Promise 保存当前 `index`；`runChunk` 先处理取消信号，再用八毫秒截止时间限制本轮同步工作；循环每消费一项就推进索引，未完成时通过 `setTimeout` 把下一批排到后续任务，全部完成才调用 `resolve`。取消时 Promise 进入拒绝状态，调用方需要捕获异常。分片改善可响应性但增加调度成本，不适用于要求原子完成的计算。昂贵的哈希、解析和图布局可以放到 Worker，并使用 transferable 降低复制成本。
 
 ## INP 包含输入延迟、处理和呈现延迟
 
@@ -242,10 +249,3 @@ URL 使用路由模板，去除查询、片段和动态 ID；不采集输入、D
 优化前保存基线，修改后使用相同条件复测，再等待足够真实用户样本。Lighthouse 分数适合发现线索，不等于全部用户表现。性能预算可以约束入口 JavaScript、关键图片和核心指标，但失败信息要指向具体资源和责任人。
 
 最后检查功能、可访问性、SEO 和监控是否退化。删除脚本让页面“变快”却失去主要转化，或通过隐藏首屏内容降低指标，都不算有效优化。性能工程的产物是一条可以复现的证据链，而不是一组没有环境说明的截图。
-
-## 源码与规范
-
-- [Web Vitals](https://web.dev/articles/vitals)：LCP、INP、CLS 的定义、阈值与测量入口。
-- [Navigation Timing Level 2](https://www.w3.org/TR/navigation-timing-2/)：导航阶段时间戳和资源时序。
-- [Long Tasks API](https://w3c.github.io/longtasks/)：主线程长任务观测模型。
-- 个人实验材料已匿名化；本文只抽取通用机制，不建立项目映射。

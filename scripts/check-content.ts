@@ -7,7 +7,7 @@ const root = process.cwd()
 const errors: string[] = []
 const fail = (message: string): void => errors.push(message)
 const expectedCounts: Record<string, number> = {
-  "ai-agent": 16,
+  "ai-agent": 28,
   seo: 12,
   frontend: 71,
   backend: 20,
@@ -30,7 +30,7 @@ function dateText(value: unknown): string {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? "")
 }
 
-if (articles.length !== 152) fail(`课程应登记 152 篇文章，实际为 ${articles.length} 篇。`)
+if (articles.length !== 164) fail(`当前应登记 164 篇文章，实际为 ${articles.length} 篇。`)
 
 for (const [category, expected] of Object.entries(expectedCounts)) {
   const actual = articles.filter((article) => article.category === category).length
@@ -75,26 +75,18 @@ for (const article of articles) {
   for (const [field, expected] of Object.entries(expectedFields)) {
     const actual = parsed.data[field]
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      fail(`${relative} 的 ${field} 与课程清单不一致。`)
+      fail(`${relative} 的 ${field} 与文章清单不一致。`)
     }
   }
   const practice = parsed.data.practice
   if (!practice || practice.type !== article.practice.type || practice.result !== article.practice.result || JSON.stringify(practice.verify) !== JSON.stringify(article.practice.verify)) {
-    fail(`${relative} 的 practice 与课程清单不一致。`)
+    fail(`${relative} 的 practice 与文章清单不一致。`)
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText(parsed.data.updated))) fail(`${relative} 的 updated 不是 YYYY-MM-DD。`)
   if (!/^#\s+\S/m.test(parsed.content)) fail(`${relative} 缺少一级标题。`)
 
   const fences = [...parsed.content.matchAll(/^(?:```|~~~)([^\n]*)\n[\s\S]*?^(?:```|~~~)\s*$/gm)]
   if (fences.some((fence) => !fence[1].trim())) fail(`${relative} 存在没有语言标记的代码围栏。`)
-  const sourceHeading = parsed.content.match(/^##\s+(?:参考资料|源码与规范|延伸阅读)\s*$/m)
-  if (!sourceHeading || sourceHeading.index === undefined) {
-    fail(`${relative} 缺少参考资料或源码规范章节。`)
-  } else {
-    const sourceBody = parsed.content.slice(sourceHeading.index)
-    const links = sourceBody.match(/https?:\/\/[^\s)]+/g) ?? []
-    if (links.length < 2) fail(`${relative} 可核验来源少于 2 个。`)
-  }
 }
 
 const markdownFiles = walk(path.join(root, "docs")).filter((file) => file.endsWith(".md")).map((file) => path.relative(root, file).split(path.sep).join("/")).sort()
@@ -108,7 +100,7 @@ for (const file of markdownFiles) {
 for (const file of expectedFiles) {
   if (!markdownFiles.includes(file)) fail(`登记文件缺失：${file}`)
 }
-if (markdownFiles.length !== 159) fail(`docs 应有 159 个 Markdown，实际为 ${markdownFiles.length} 个。`)
+if (markdownFiles.length !== 171) fail(`docs 应有 171 个 Markdown，实际为 ${markdownFiles.length} 个。`)
 
 for (const file of markdownFiles) {
   const source = fs.readFileSync(path.join(root, file), "utf8")

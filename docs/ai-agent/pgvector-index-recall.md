@@ -1,28 +1,38 @@
 ---
-title: "pgvector、索引结构、召回率与向量写入"
-description: "从精确扫描推进到 HNSW/IVFFlat，理解距离算子、过滤顺序、索引参数、批量写入和召回评测。"
+title: pgvector、索引结构、召回率与向量写入
+description: 从精确扫描推进到 HNSW/IVFFlat，理解距离算子、过滤顺序、索引参数、批量写入和召回评测。
 category: ai-agent
-part: "第三部分：让 Agent 使用知识"
-chapter: 11
-tags: ["PostgreSQL", "pgvector"]
-prerequisites: ["SQL 基础", "读过第 10 章"]
-outcomes: ["为向量列选择距离与索引", "建立 Recall@K 检查"]
+part: 知识怎样进入 Agent
+chapter: 20
+tags:
+  - PostgreSQL
+  - pgvector
+prerequisites:
+  - SQL 基础
+  - 理解 Embedding 与距离函数
+outcomes:
+  - 为向量列选择距离与索引
+  - 建立 Recall@K 检查
 practice:
   type: implementation
-  result: "设计一张可版本化的向量表与查询"
-  verify: ["查询使用兼容算子", "候选结果能与精确基线比较"]
+  result: 设计一张可版本化的向量表与查询
+  verify:
+    - 查询使用兼容算子
+    - 候选结果能与精确基线比较
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # pgvector、索引结构、召回率与向量写入
 
-上一章得到了一组固定维度向量。本章把它们存进 PostgreSQL，并回答三个工程问题：SQL 怎样按距离排序；数据变多后怎样使用近似索引；加上租户和版本过滤后为什么可能找不到正确结果。
+前面的 Embedding 处理得到了一组固定维度向量。这里把它们存进 PostgreSQL，并回答三个工程问题：SQL 怎样按距离排序；数据变多后怎样使用近似索引；加上租户和版本过滤后为什么可能找不到正确结果。
 
 所有 SQL 使用匿名表名和模拟数据，目的是解释 pgvector 行为，不对应任何私有表结构。
 
 ## 先建立可版本化的数据模型
 
-一个教学表可以包含：
+先在安装了 PostgreSQL 与 pgvector 的隔离数据库执行建表，不要直接改线上业务库。输入是已经通过维度与有限数检查的 768 维片段向量；目标是让内容、租户、知识版本、模型版本和向量留在同一条可过滤记录中。执行后应该能从系统目录看到 `vector` 扩展和 `document_chunk` 表；若扩展未安装或向量维度不符，数据库会明确拒绝。
+
+这个用于理解字段职责的教学表可以包含：
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
@@ -79,13 +89,15 @@ ON document_chunk USING hnsw (embedding vector_cosine_ops);
 
 IVFFlat 先把向量划分到多个列表，查询时只探测部分列表。它构建较快、内存相对可控，但需要已有数据用于聚类，数据分布大幅变化后可能需要重建。
 
+以下 SQL 需要在已经安装 pgvector、已有代表性向量数据并完成 `ANALYZE` 的隔离数据库执行。输入是 `document_chunk.embedding` 列，目标是建立一个使用余弦距离的 IVFFlat 候选索引；`lists = 100` 只是演示值，不是通用配置。
+
 ```sql
 CREATE INDEX document_chunk_embedding_ivf
 ON document_chunk USING ivfflat (embedding vector_cosine_ops)
 WITH (lists = 100);
 ```
 
-查询时的 `ivfflat.probes` 决定探测列表数量。`lists` 和 `probes` 没有适合所有数据量的固定值，要通过目标数据和评测集选择。
+数据库执行时先按现有向量训练 100 个聚类列表，再把每条向量放入对应列表。查询仍要使用 `<=>` 与 `vector_cosine_ops` 匹配；会话参数 `ivfflat.probes` 决定一次搜索多少个列表。索引构建完成不代表召回合格，应该用同一查询集比较精确 Top K 与近似 Top K。数据不足、列表过多或分布大幅变化都可能降低质量，届时需要重新选参或重建。`lists` 和 `probes` 没有适合所有数据量的固定值。
 
 ## 过滤条件为什么影响近似召回
 
@@ -130,6 +142,8 @@ Recall@10 = 7 / 10 = 0.7
 
 ## 用 EXPLAIN 检查查询是否符合预期
 
+在隔离数据库准备与线上规模接近的样本，更新统计信息后再执行下面的只读计划分析。输入是租户、版本和一条真实 768 维查询向量；目标是同时观察过滤、排序、候选数量、缓冲区和实际耗时。`ANALYZE` 会真正执行 SELECT，因此不要对带写入副作用的语句照搬。
+
 ```sql
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT id
@@ -140,9 +154,9 @@ ORDER BY embedding <=> '[...]'::vector
 LIMIT 10;
 ```
 
-观察计划是否使用预期向量索引、过滤移除了多少行、实际返回多少候选、缓冲区读取和耗时。示例中的向量需要替换为真实同维查询向量。
+PostgreSQL 先按 `tenant_id` 与 `source_version` 过滤，再按余弦距离排序并返回 10 条。输出中的节点类型说明是否使用向量索引，`Rows Removed by Filter` 显示过滤损失，`Buffers` 区分缓存命中与磁盘读取，actual rows/time 显示实际候选和耗时。示例中的 `[...]` 必须替换为真实同维向量，否则 SQL 无法执行。测试数据太少、统计信息过期或过滤选择性很高时，优化器选择顺序扫描可能合理；不要看到 Seq Scan 就立刻强制索引。
 
-测试数据太少时优化器选择顺序扫描可能合理。不要看到 Seq Scan 就立刻强制索引，先核对数据规模、选择性和统计信息。
+计划只说明这次 SQL 怎样执行，不证明召回质量。索引参数仍要用 Recall@K 等评测核对；在生产环境直接使用 `ANALYZE` 还会产生真实负载，先在候选环境复现，再用低风险查询观察线上计划。
 
 ## 什么时候不用 pgvector
 
@@ -155,7 +169,7 @@ pgvector 适合已经使用 PostgreSQL、需要事务元数据与向量共同管
 
 选择专用向量数据库并不会消除版本、权限、召回评测和写入一致性问题，只是基础设施边界改变。
 
-## 本章操作清单
+## 操作检查表
 
 - 向量列维度固定并与模型一致；
 - 查询和索引使用同一距离算子；
@@ -167,10 +181,3 @@ pgvector 适合已经使用 PostgreSQL、需要事务元数据与向量共同管
 - EXPLAIN 与 Recall@K 一起评估，不能只看耗时。
 
 下一章把向量检索与精确、全文和结构化通道组合。向量负责语义近似，不应该承担所有查询类型。
-
-## 参考资料
-
-- [pgvector README](https://github.com/pgvector/pgvector)
-- [PostgreSQL EXPLAIN](https://www.postgresql.org/docs/current/using-explain.html)
-- [PostgreSQL Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
-

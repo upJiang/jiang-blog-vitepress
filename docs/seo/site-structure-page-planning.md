@@ -1,18 +1,25 @@
 ---
-title: "页面规划、网站结构、URL 与内链"
-description: "把关键词映射变成栏目、专题、详情页、面包屑和上下文内链。"
+title: 页面规划、网站结构、URL 与内链
+description: 把关键词映射变成栏目、专题、详情页、面包屑和上下文内链。
 category: seo
-part: "第二部分：需求、抓取与页面"
+part: 第二部分：需求、抓取与页面
 chapter: 5
-tags: ["Information Architecture", "URL"]
-prerequisites: ["读过第 4 章"]
-outcomes: ["设计稳定 URL", "让重要页面在合理点击深度内可达"]
+tags:
+  - Information Architecture
+  - URL
+prerequisites:
+  - 读过第 4 章
+outcomes:
+  - 设计稳定 URL
+  - 让重要页面在合理点击深度内可达
 practice:
   type: implementation
-  result: "画出一个小型网站的页面树和内链图"
-  verify: ["不存在孤立核心页", "参数页和规范页策略一致"]
+  result: 画出一个小型网站的页面树和内链图
+  verify:
+    - 不存在孤立核心页
+    - 参数页和规范页策略一致
 evidence: official
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 网站结构、URL 与内链怎样设计
 
@@ -104,9 +111,3 @@ flowchart TD
 内链锚文本说明目标页解决的问题，栏目、上下文链接和相关推荐承担不同职责。无限滚动仍应提供稳定分页地址和普通链接；多语言页面使用独立 URL，并按真实语言与地区关系声明，不根据 IP 强制把用户和爬虫跳走。
 
 改版前导出有流量、外链、索引或业务价值的旧 URL，逐条映射到最相关新地址。上线后检查状态、跳转链、规范地址、站点地图与内部链接。结构调整是产品、开发、SEO 和分析共同决策，不是为了追求“URL 越短越好”。
-
-## 参考资料
-
-- [Google Search Central：Site hierarchy](https://developers.google.com/search/docs/fundamentals/seo-starter-guide#site-hierarchy)
-- [Google Search Central：URL structure](https://developers.google.com/search/docs/crawling-indexing/url-structure)
-- [Google Search Central：Links crawlable](https://developers.google.com/search/docs/crawling-indexing/links-crawlable)

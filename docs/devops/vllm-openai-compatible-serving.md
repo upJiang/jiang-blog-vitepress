@@ -1,18 +1,25 @@
 ---
-title: "vLLM 启动、OpenAI 兼容接口、流式请求与排错"
-description: "在明确 GPU 前提下检查模型、启动服务、调用接口并观察显存、日志和健康状态。"
+title: vLLM 启动、OpenAI 兼容接口、流式请求与排错
+description: 在明确 GPU 前提下检查模型、启动服务、调用接口并观察显存、日志和健康状态。
 category: devops
-part: "第五部分：推理服务"
+part: 第五部分：推理服务
 chapter: 16
-tags: ["vLLM", "OpenAI API"]
-prerequisites: ["读过第 11、12、14、15 章"]
-outcomes: ["启动 vLLM", "诊断模型加载和 OOM"]
+tags:
+  - vLLM
+  - OpenAI API
+prerequisites:
+  - 读过第 11、12、14、15 章
+outcomes:
+  - 启动 vLLM
+  - 诊断模型加载和 OOM
 practice:
   type: implementation
-  result: "完成一次官方资料指导的服务操作"
-  verify: ["配置注明硬件前提", "不提供未测吞吐数字"]
+  result: 完成一次官方资料指导的服务操作
+  verify:
+    - 配置注明硬件前提
+    - 不提供未测吞吐数字
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 
 # vLLM 推理服务：从模型制品到 OpenAI 兼容接口
@@ -43,7 +50,7 @@ nvidia-smi
 docker info --format '{{json .Runtimes}}'
 ```
 
-第一条输出 GPU、Driver、显存占用和进程；第二条列出 Docker 可用 Runtime。使用容器时，应能看到 NVIDIA Runtime 相关能力。命令成功只证明宿主机识别设备，还没有证明某个模型一定能加载。
+第一条命令读取宿主机 GPU 状态，第二条读取 Docker Runtime 配置；第一条输出 GPU、Driver、显存占用和进程，第二条列出 Docker 可用 Runtime。使用容器时，应能看到 NVIDIA Runtime 相关能力。命令成功只证明宿主机识别设备，还没有证明某个模型一定能加载；任一命令失败时，先记录完整输出并停止后续启动。
 
 ## 一次生成在 GPU 里经历什么
 
@@ -137,7 +144,7 @@ docker logs -f vllm-lab
 curl -sS http://127.0.0.1:8000/v1/models
 ```
 
-第二条请求的预期结果是模型列表，其中应出现 `demo-model`。若接口连接失败，先看容器是否退出；若返回模型不存在，再核对服务名称、模型加载日志和请求参数。
+第一条命令持续读取容器 stderr，第二条命令在服务端口发起 GET；当模型加载和路由注册完成后，预期 JSON 的 `data` 列表中出现 `demo-model`。若接口连接失败，先看容器是否退出；若返回模型不存在，再核对服务名称、模型加载日志和请求参数。容器处于 Running 但没有该模型，只说明进程活着，不能当作 readiness 通过。
 
 ## 第二步：先发一个非流式请求
 
@@ -154,9 +161,9 @@ curl -sS http://127.0.0.1:8000/v1/chat/completions \
   }'
 ```
 
-输入由模型名、消息、采样参数和最大输出长度组成。`temperature: 0` 用于减少这次功能验证的随机性，不表示所有模型和后端都能做到字节级完全确定。`max_tokens` 保护实验不要无限生成，它不包含输入 Token。
+命令的输入由模型名、消息、采样参数和最大输出长度组成，输出是一个 JSON 响应，重点观察 `choices[0].message.content`、`finish_reason` 和 `usage`。`temperature: 0` 用于减少这次功能验证的随机性，不表示所有模型和后端都能做到字节级完全确定。`max_tokens` 保护实验不要无限生成，它不包含输入 Token。HTTP 非 200 时先看服务日志和模型名；返回截断时检查 `finish_reason`，不要把短答案误判成推理服务故障。
 
-成功响应至少检查：HTTP 状态、返回模型、结束原因、文本和用量字段。只看“有一段文字”会漏掉模型路由错误、长度截断和 Token 统计异常。
+成功响应至少检查：HTTP 状态、返回模型、结束原因、文本和用量字段。输入是短消息和固定的 `max_tokens`，输出应包含可解析的 JSON、模型名和 `choices`；只看“有一段文字”会漏掉模型路由错误、长度截断和 Token 统计异常。若 HTTP 返回 5xx，先查服务日志；若响应成功但 `choices` 为空，检查请求体和当前引擎的 Chat Template。
 
 ## 第三步：观察流式响应
 
@@ -300,11 +307,3 @@ OpenAI 兼容接口降低了客户端迁移成本，但模型能力、Tokenizer�
 7. 写下当前硬件上没有验证的内容，不把未知项包装成结论。
 
 下一篇可以继续深入 Continuous Batching 与 KV Cache。到那时，我们会从调度器视角解释不同长度的请求为什么能共享一次迭代，以及吞吐、公平性和延迟如何互相影响。
-
-## 参考资料
-
-- [vLLM GPU 安装文档](https://docs.vllm.ai/en/latest/getting_started/installation/gpu/)
-- [vLLM OpenAI-Compatible Server](https://docs.vllm.ai/en/latest/serving/openai_compatible_server/)
-- [vLLM Engine Arguments](https://docs.vllm.ai/en/latest/configuration/engine_args/)
-- [NVIDIA Container Toolkit 安装指南](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-- [Hugging Face 模型下载与版本](https://huggingface.co/docs/huggingface_hub/guides/download)

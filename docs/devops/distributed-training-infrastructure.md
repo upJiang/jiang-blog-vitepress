@@ -1,18 +1,26 @@
 ---
-title: "DDP、FSDP、DeepSpeed、NCCL 与分布式训练基础设施"
-description: "从单卡放不下和多卡通信进入数据、参数和流水线并行及网络瓶颈。"
+title: DDP、FSDP、DeepSpeed、NCCL 与分布式训练基础设施
+description: 从单卡放不下和多卡通信进入数据、参数和流水线并行及网络瓶颈。
 category: devops
-part: "第四部分：GPU 与模型制品"
+part: 第四部分：GPU 与模型制品
 chapter: 13
-tags: ["DDP", "FSDP", "NCCL"]
-prerequisites: ["GPU 与深度学习基础"]
-outcomes: ["区分并行策略", "识别通信和存储需求"]
+tags:
+  - DDP
+  - FSDP
+  - NCCL
+prerequisites:
+  - GPU 与深度学习基础
+outcomes:
+  - 区分并行策略
+  - 识别通信和存储需求
 practice:
   type: decision
-  result: "设计一张两节点训练拓扑"
-  verify: ["明确这是官方资料指导的独立操作", "不虚构训练吞吐"]
+  result: 设计一张两节点训练拓扑
+  verify:
+    - 明确这是官方资料指导的独立操作
+    - 不虚构训练吞吐
 evidence: official-guided-operation
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # DDP、FSDP、DeepSpeed、NCCL 与分布式训练基础设施
 
@@ -131,12 +139,3 @@ Checkpoint 要记录：代码提交、配置、模型/Tokenizer 版本、数据�
 在有明确硬件和许可的隔离集群中，可以用官方 PyTorch Distributed、FSDP 或 DeepSpeed 示例完成小规模启动。记录完整环境，不提供没有在该硬件上测得的 Token/s、加速倍数或成本数字。
 
 没有多卡环境时，完成这些产物也有价值：并行策略决策表、两节点拓扑、端口与资源清单、checkpoint 恢复 Runbook 和故障诊断树。它们是进入集群操作前的前置能力。
-
-## 参考资料
-
-- [PyTorch Distributed Overview](https://pytorch.org/docs/stable/distributed.html)
-- [PyTorch FSDP](https://pytorch.org/docs/stable/fsdp.html)
-- [NVIDIA NCCL documentation](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/overview.html)
-- [DeepSpeed documentation](https://www.deepspeed.ai/docs/config-json/)
-- [PyTorch Elastic](https://pytorch.org/docs/stable/elastic/run.html)
-

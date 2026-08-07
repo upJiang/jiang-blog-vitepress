@@ -1,24 +1,33 @@
 ---
-title: "精确、全文、向量、结构化检索与重排"
-description: "用专有名词、同义表达和表格问题解释多路召回、RRF 融合、重排、缓存和降级。"
+title: 精确、全文、向量、结构化检索与重排
+description: 用专有名词、同义表达和表格问题解释多路召回、RRF 融合、重排、缓存和降级。
 category: ai-agent
-part: "第三部分：让 Agent 使用知识"
-chapter: 12
-tags: ["Retrieval", "Rerank", "RRF"]
-prerequisites: ["读过第 10、11 章"]
-outcomes: ["为不同查询选择召回通道", "解释融合与重排的职责"]
+part: 知识怎样进入 Agent
+chapter: 21
+tags:
+  - Retrieval
+  - Rerank
+  - RRF
+prerequisites:
+  - 理解 Embedding 与向量索引
+  - 了解全文检索
+outcomes:
+  - 为不同查询选择召回通道
+  - 解释融合与重排的职责
 practice:
   type: implementation
-  result: "手工合并三路候选列表"
-  verify: ["融合不会因分数尺度不同失真", "降级后仍保留可解释证据"]
+  result: 手工合并三路候选列表
+  verify:
+    - 融合不会因分数尺度不同失真
+    - 降级后仍保留可解释证据
 evidence: anonymized-practice
-updated: 2026-08-06
+updated: 2026-08-06T00:00:00.000Z
 ---
 # 精确、全文、向量、结构化检索与重排
 
 “ERR-1042”适合精确匹配，“在家办公如何接入系统”适合语义向量，“哪个角色负责第二级审批”可能来自表格。只使用一种检索通道，会在另一类问题上明显退化。
 
-混合检索的目标不是堆更多算法，而是让不同通道提供候选，再用稳定方式融合、重排和验证。本章用三个查询类型拆开整条链。
+混合检索的目标不是堆更多算法，而是让不同通道提供候选，再用稳定方式融合、重排和验证。下面用三个查询类型拆开整条链。
 
 ## 召回、融合和重排是三个阶段
 
@@ -153,15 +162,8 @@ Embedding/重排模型版本
 
 不要只用五个自己熟悉的问题。查询要覆盖专有名词、同义表达、表格、版本、无结果和越权范围。
 
-## 本章实践结果
+## 本文实践结果
 
 手工完成三路候选融合后，再为每个候选记录：证据 ID、来源版本、命中通道、各通道名次、融合分数、重排分数、权限检查和最终选择原因。这张记录就是检索 Trace 的核心。
 
 下一章解决上下文与记忆：检索证据只是上下文的一部分，历史消息、摘要和长期事实也要共享有限 Token 预算。
-
-## 参考资料
-
-- [PostgreSQL Full Text Search](https://www.postgresql.org/docs/current/textsearch.html)
-- [Reciprocal Rank Fusion 论文](https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf)
-- [Sentence Transformers Cross-Encoder](https://sbert.net/examples/cross_encoder/applications/README.html)
-
