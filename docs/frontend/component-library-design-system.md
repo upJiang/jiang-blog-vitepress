@@ -1,12 +1,18 @@
 ---
-title: "组件库与设计系统工程"
-description: "从一个 Button 的状态和契约开始，建立 Token、组件 API、文档、测试与版本发布。"
+title: "组件库与设计系统"
+description: "从 Button 契约扩展到 Token、可访问性、文档、测试、版本和破坏性变更。"
 category: frontend
+part: "现代前端：工程体系"
+chapter: 8
 tags: ["Component Library", "Design System"]
+prerequisites: ["组件基础"]
+outcomes: ["设计稳定组件 API", "管理主题和版本"]
+practice:
+  type: implementation
+  result: "完成一个组件的契约与验收表"
+  verify: ["键盘和读屏行为明确", "变更类型可以判断"]
+evidence: public-source
 updated: 2026-08-06
-order: 760
-depth: flagship
-series: "现代前端"
 ---
 
 # 组件库与设计系统工程

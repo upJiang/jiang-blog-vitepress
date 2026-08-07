@@ -3,7 +3,7 @@
 set -euo pipefail
 
 nginx_config="${1:-/www/server/nginx/conf/nginx.conf}"
-health_path="${2:-/docs/agent-practice/01-system-boundaries}"
+health_path="${2:-/docs/ai-agent/agent-lifecycle}"
 backup_file="${nginx_config}.jiang-blog-last-known-good"
 candidate_file="$(mktemp)"
 health_page="$(mktemp)"

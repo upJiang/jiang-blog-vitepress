@@ -1,12 +1,18 @@
 ---
-title: "Vue 3 响应式与调度"
-description: "从连续修改两次状态只渲染一次开始，理解依赖收集、触发和更新队列。"
+title: "Vue 3 响应式与调度器"
+description: "从连续修改状态只渲染一次开始，实现依赖收集、触发和批量更新的最小模型。"
 category: frontend
-tags: ["Vue 3", "Scheduler"]
+part: "现代前端：框架内部机制"
+chapter: 3
+tags: ["Vue 3", "Reactivity"]
+prerequisites: ["JavaScript Proxy"]
+outcomes: ["解释 effect 与依赖关系", "理解调度队列和 nextTick"]
+practice:
+  type: implementation
+  result: "实现最小响应式与调度流程"
+  verify: ["重复读取不会重复订阅", "同步修改被合并刷新"]
+evidence: public-source
 updated: 2026-08-06
-order: 710
-depth: core
-series: "现代前端"
 ---
 
 # Vue 3 响应式与调度

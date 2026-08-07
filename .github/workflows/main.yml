@@ -97,4 +97,4 @@ jobs:
 
             bash "$staged_dir/install-nginx-clean-urls.sh" \
               "$nginx_config" \
-              "/docs/agent-practice/01-system-boundaries"
+              "/docs/ai-agent/agent-lifecycle"

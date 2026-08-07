@@ -1,14 +1,18 @@
 ---
-title: 系统化调试方法
-description: 从一个偶发 500 开始，用复现、观测、假设和对照实验定位根因。
+title: "从现象、证据、假设到修复的系统化调试"
+description: "从偶发 500 开始，建立复现、观测、假设、对照实验、修复和回归流程。"
 category: engineering
-tags:
-  - Debugging
-  - Method
+part: "工程工作法"
+chapter: 1
+tags: ["Debugging"]
+prerequisites: ["会读日志"]
+outcomes: ["缩小故障范围", "避免凭感觉改代码"]
+practice:
+  type: diagnosis
+  result: "完成一份排障 Runbook"
+  verify: ["每个假设可证伪", "修复后有回归证据"]
+evidence: anonymized-practice
 updated: 2026-08-06
-order: 10
-depth: core
-series: 工作方法
 ---
 
 # 系统化调试方法

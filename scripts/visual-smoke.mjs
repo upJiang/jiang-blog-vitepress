@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
+import { articles, articlePath } from '../.vitepress/content.ts'
 
 const baseURL = process.env.BLOG_URL ?? 'http://localhost:9999'
 const tempDirectory = fs.mkdtempSync(
@@ -33,7 +34,7 @@ try {
     await page.goto(baseURL, { waitUntil: 'networkidle' })
     await page.locator('.knowledge-home').waitFor()
     assert((await page.locator('h1').textContent())?.trim() === 'AI 全栈', `${viewport.width}px 首页标题错误`)
-    assert((await page.locator('.topic-grid a').count()) === 8, `${viewport.width}px 知识地图不是 8 个栏目`)
+    assert((await page.locator('.topic-grid a').count()) === 7, `${viewport.width}px 知识地图不是 7 个栏目`)
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -43,6 +44,67 @@ try {
       path: path.join(tempDirectory, `home-${viewport.width}.png`),
       fullPage: true
     })
+    await page.close()
+  }
+
+  const representativeRoutes = [
+    '/docs/ai-agent/embedding-vector-space',
+    '/docs/ai-agent/agent-lifecycle',
+    '/docs/seo/search-growth-model',
+    '/docs/frontend/vscode-extension-lifecycle',
+    '/docs/backend/fastapi-pydantic-layered',
+    '/docs/devops/docker-compose',
+    '/docs/devops/ai-infra-role-map',
+    '/docs/devops/vllm-openai-compatible-serving'
+  ]
+
+  for (const width of [375, 1440]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text())
+    })
+    page.on('pageerror', (error) => consoleErrors.push(error.message))
+
+    for (const article of articles) {
+      const route = articlePath(article)
+      await page.goto(`${baseURL}${route}`, { waitUntil: 'domcontentloaded' })
+      await page.locator('.VPDoc').waitFor()
+      if (!article.preserved) {
+        assert((await page.locator('h1').count()) === 1, `${width}px 文章缺少唯一一级标题：${route}`)
+      }
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+      )
+      assert(overflow <= 1, `${width}px 文章存在 ${overflow}px 横向溢出：${route}`)
+    }
+
+    await page.goto(`${baseURL}/docs/ai-agent/`, { waitUntil: 'domcontentloaded' })
+    const indexLayout = await page.locator('.article-index-list a').first().evaluate((link) => {
+      const chapter = link.querySelector('.article-index-chapter')?.getBoundingClientRect()
+      const copy = link.querySelector('.article-index-copy')?.getBoundingClientRect()
+      const arrow = link.querySelector('.article-index-arrow')?.getBoundingClientRect()
+      const row = link.getBoundingClientRect()
+      return {
+        ordered: Boolean(chapter && copy && arrow && chapter.left < copy.left && copy.right < arrow.right),
+        copyWidth: copy?.width ?? 0,
+        rowWidth: row.width
+      }
+    })
+    assert(indexLayout.ordered, `${width}px 栏目列表三列顺序错误`)
+    assert(indexLayout.copyWidth >= indexLayout.rowWidth * 0.55, `${width}px 栏目标题列被压缩`)
+    await page.close()
+  }
+
+  for (const width of [768, 1024]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    for (const route of representativeRoutes) {
+      await page.goto(`${baseURL}${route}`, { waitUntil: 'domcontentloaded' })
+      await page.locator('h1').waitFor()
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+      )
+      assert(overflow <= 1, `${width}px 代表文章存在 ${overflow}px 横向溢出：${route}`)
+    }
     await page.close()
   }
 
@@ -56,14 +118,14 @@ try {
   page.on('pageerror', (error) => consoleErrors.push(error.message))
 
   await page.goto(`${baseURL}/docs/frontend/`, { waitUntil: 'networkidle' })
-  assert((await page.locator('.article-index-list a').count()) === 67, '前端栏目应展示 67 篇文章')
+  assert((await page.locator('.article-index-list a').count()) === 71, '前端栏目应展示 71 篇文章')
   assert((await page.locator('text=算法与数据结构').count()) > 0, '前端栏目缺少算法分组')
   assert((await page.locator('text=重学前端').count()) > 0, '前端栏目缺少重学前端分组')
 
   await page.goto(`${baseURL}/docs/seo/`, { waitUntil: 'networkidle' })
-  assert((await page.locator('.article-index-list a').count()) === 18, 'SEO 栏目应展示 18 篇文章')
-  assert((await page.locator('text=一、认识搜索增长').count()) > 0, 'SEO 栏目缺少入门分组')
-  assert((await page.locator('text=七、执行计划').count()) > 0, 'SEO 栏目缺少执行计划分组')
+  assert((await page.locator('.article-index-list a').count()) === 12, 'SEO 栏目应展示 12 篇文章')
+  assert((await page.locator('text=第一部分：建立增长模型').count()) > 0, 'SEO 栏目缺少增长模型分组')
+  assert((await page.locator('text=第五部分：站外、数据与投放').count()) > 0, 'SEO 栏目缺少投放分组')
 
   await page.goto(`${baseURL}/docs/ai-agent/agent-lifecycle`, { waitUntil: 'networkidle' })
   await page.locator('.mermaid svg').first().waitFor({ timeout: 10_000 })
@@ -95,7 +157,7 @@ try {
   assert((await page.locator('.VPLocalSearchBox .result').count()) > 0, '本地搜索没有返回结果')
   await page.keyboard.press('Escape')
 
-  await page.goto(`${baseURL}/docs/frontend/typescript-engineering`, {
+  await page.goto(`${baseURL}/docs/frontend/typescript-type-system-engineering`, {
     waitUntil: 'networkidle'
   })
   const copyButton = page.locator('button.copy').first()
@@ -135,4 +197,4 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
-console.log('视觉冒烟通过：5 个视口、首页、栏目、文章导航、Mermaid、深色模式、键盘焦点、代码复制和本地搜索均正常。')
+console.log(`视觉冒烟通过：152 篇文章完成 375px/1440px 检查，8 篇代表文章完成 768px/1024px 检查；首页、栏目、导航、Mermaid、深色模式、键盘焦点、代码复制和搜索均正常。`)

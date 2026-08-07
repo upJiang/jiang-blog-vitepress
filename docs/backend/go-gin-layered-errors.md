@@ -1,12 +1,18 @@
 ---
-title: "Go 与 Gin 的服务分层和错误模型"
-description: "从一个查询接口开始，用显式依赖和可判断错误构建可测试的 Gin 服务。"
+title: "Gin Handler、Service、Repository 与错误模型"
+description: "用显式依赖和可判断错误构建一条清晰的 Go 请求链。"
 category: backend
+part: "第四部分：Go"
+chapter: 17
 tags: ["Go", "Gin"]
+prerequisites: ["Go 语法", "前 8 章"]
+outcomes: ["划分 Gin 服务职责", "使用 errors.Is/As"]
+practice:
+  type: implementation
+  result: "实现一个查询与创建接口"
+  verify: ["Handler 只做协议适配", "错误映射稳定"]
+evidence: public-source
 updated: 2026-08-06
-order: 110
-depth: core
-series: "Go 服务工程"
 ---
 
 # Go 与 Gin 的服务分层和错误模型

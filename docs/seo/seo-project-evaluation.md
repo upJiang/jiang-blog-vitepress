@@ -1,12 +1,18 @@
 ---
-title: "一个项目值得做 SEO 吗"
-description: "在写文章前判断需求、业务匹配、竞争、交付能力和回报周期。"
+title: "项目评估、目标设定与数据基线"
+description: "在写内容和投广告前，判断需求、业务匹配、竞争、交付能力、现金流和测量条件。"
 category: seo
+part: "第一部分：建立增长模型"
+chapter: 2
 tags: ["SEO", "Project Evaluation"]
+prerequisites: ["读过第 1 章"]
+outcomes: ["判断项目是否值得进入搜索渠道", "建立可比较的基线"]
+practice:
+  type: decision
+  result: "完成一份项目评估卡"
+  verify: ["结论包含机会、成本和停止条件", "事实、假设与缺口分开"]
+evidence: official
 updated: 2026-08-06
-order: 20
-depth: core
-series: "搜索增长零基础教程"
 ---
 # 一个项目值得做 SEO 吗
 

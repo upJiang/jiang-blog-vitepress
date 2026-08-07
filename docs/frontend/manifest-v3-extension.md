@@ -1,12 +1,18 @@
 ---
 title: "Manifest V3 浏览器扩展架构"
-description: "从读取当前页面标题开始，理解页面脚本、内容脚本、Service Worker、消息与最小权限。"
+description: "从读取当前页面信息开始，理解页面、内容脚本、Service Worker、消息和最小权限。"
 category: frontend
+part: "现代前端：插件开发"
+chapter: 15
 tags: ["Browser Extension", "Manifest V3"]
+prerequisites: ["JavaScript 与浏览器 API"]
+outcomes: ["设计扩展进程边界", "限制 host 权限"]
+practice:
+  type: implementation
+  result: "实现一次页面到侧边栏的数据传递"
+  verify: ["消息结构被校验", "权限与功能匹配"]
+evidence: anonymized-practice
 updated: 2026-08-06
-order: 770
-depth: flagship
-series: "现代前端"
 ---
 
 # Manifest V3 浏览器扩展架构

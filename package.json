@@ -14,10 +14,11 @@
     "@types/node": "^22.10.2",
     "debug": "^4.4.3",
     "gray-matter": "^4.0.3",
+    "lighthouse": "12.8.2",
     "mermaid": "11.12.2",
     "search-insights": "2.17.3",
-    "type-fest": "^4.41.0",
     "tsx": "^4.19.2",
+    "type-fest": "^4.41.0",
     "typescript": "^5.7.2",
     "vitepress": "1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17",
@@ -35,6 +36,7 @@
     "build:check": "node scripts/check-build.mjs",
     "privacy:check": "node scripts/check-privacy.mjs",
     "visual:check": "node scripts/visual-smoke.mjs",
+    "lighthouse:check": "yarn build && node scripts/lighthouse-check.mjs",
     "verify": "yarn content:check && yarn content:quality && yarn privacy:check && yarn typecheck && vitepress build && yarn build:check"
   }
 }

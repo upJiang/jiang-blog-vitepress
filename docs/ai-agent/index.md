@@ -1,7 +1,7 @@
 ---
 layout: page
 title: AI 与 Agent
-description: 从大模型边界开始，通过实验理解工具、上下文、RAG、评测与安全治理。
+description: 从模型输入输出开始，逐步构建具备检索、工具、记忆、证据和质量治理的知识 Agent。
 sidebar: false
 aside: false
 footer: false

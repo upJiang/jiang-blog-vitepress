@@ -39,7 +39,7 @@ const installerRequirements = [
   /nginx -s reload/,
   /restore_config/,
   /--resolve 'junfeng530\.xyz:443:127\.0\.0\.1'/,
-  /\/docs\/agent-practice\/01-system-boundaries/,
+  /\/docs\/ai-agent\/agent-lifecycle/,
 ]
 
 if (installerRequirements.some((pattern) => !pattern.test(cleanUrlInstaller))) {
@@ -67,6 +67,11 @@ if (workflowRequirements.some((pattern) => !pattern.test(workflow))) {
 }
 
 const expectedUrls = new Set([`${hostname}/`])
+const removedRoutes = [
+  '/docs/agent-practice/01-system-boundaries',
+  '/docs/backend/fastapi-layered-architecture',
+  '/docs/frontend/typescript-engineering'
+]
 
 for (const file of walk(path.join(root, 'docs')).filter((item) => item.endsWith('.md'))) {
   const relative = path.relative(root, file).split(path.sep).join('/')
@@ -104,4 +109,16 @@ if (actualUrls.size !== expectedUrls.size || missing.length > 0 || unexpected.le
   process.exit(1)
 }
 
-console.log(`构建检查通过：Sitemap 精确包含 ${actualUrls.size} 个公开 URL。`)
+for (const route of removedRoutes) {
+  const outputFile = path.join(root, '.vitepress/dist', `${route.slice(1)}.html`)
+  if (fs.existsSync(outputFile)) {
+    console.error(`构建检查失败：已移除路由仍生成产物：${route}`)
+    process.exit(1)
+  }
+  if (actualUrls.has(`${hostname}${route}`)) {
+    console.error(`构建检查失败：已移除路由仍进入 Sitemap：${route}`)
+    process.exit(1)
+  }
+}
+
+console.log(`构建检查通过：Sitemap 精确包含 ${actualUrls.size} 个公开 URL，旧非保留路由未生成产物。`)

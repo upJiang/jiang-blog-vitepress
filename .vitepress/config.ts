@@ -8,7 +8,7 @@ export default defineConfig({
     lang: 'zh-CN',
     title: 'AI 全栈',
     titleTemplate: ':title | AI 全栈',
-    description: '面向工程实践的 AI、Agent、前端、Python、Node.js 与运维知识库。',
+    description: '面向初学者的 AI 全栈课程：Agent、前端、后端、SEO、AI Infra、架构与工程方法。',
     cleanUrls: true,
     lastUpdated: true,
     sitemap: {
@@ -20,7 +20,7 @@ export default defineConfig({
         'meta',
         {
           name: 'keywords',
-          content: 'AI 全栈,Agent,RAG,LangGraph,前端,Python,Node.js,DevOps'
+          content: 'AI 全栈,Agent,RAG,LangGraph,前端,后端,SEO,AI Infra,DevOps'
         }
       ],
       ['meta', { name: 'referrer', content: 'strict-origin-when-cross-origin' }],

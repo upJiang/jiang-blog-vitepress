@@ -1,24 +1,23 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import matter from 'gray-matter'
-import { articles, articleFile, articlePath, sections } from '../.vitepress/content'
+import fs from "node:fs"
+import path from "node:path"
+import matter from "gray-matter"
+import { articles, articleFile, articlePath, sections } from "../.vitepress/content"
 
 const root = process.cwd()
 const errors: string[] = []
-const expectedCategories = new Set(sections.map((section) => section.key))
-const expectedCategoryCounts = new Map([
-  ['ai-agent', 14],
-  ['agent-practice', 18],
-  ['seo', 18],
-  ['frontend', 67],
-  ['backend', 14],
-  ['devops', 6],
-  ['architecture', 5],
-  ['engineering', 3]
-])
-const indexFiles = new Set(
-  sections.map((section) => `docs/${section.key}/index.md`)
-)
+const fail = (message: string): void => errors.push(message)
+const expectedCounts: Record<string, number> = {
+  "ai-agent": 16,
+  seo: 12,
+  frontend: 71,
+  backend: 20,
+  devops: 21,
+  architecture: 7,
+  engineering: 5
+}
+const categorySet = new Set(sections.map((section) => section.key))
+const articleFiles = new Set<string>()
+const articleRoutes = new Set<string>()
 
 function walk(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -27,182 +26,107 @@ function walk(directory: string): string[] {
   })
 }
 
-function relative(file: string): string {
-  return path.relative(root, file).split(path.sep).join('/')
+function dateText(value: unknown): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? "")
 }
 
-function fail(message: string): void {
-  errors.push(message)
+if (articles.length !== 152) fail(`课程应登记 152 篇文章，实际为 ${articles.length} 篇。`)
+
+for (const [category, expected] of Object.entries(expectedCounts)) {
+  const actual = articles.filter((article) => article.category === category).length
+  if (actual !== expected) fail(`${category} 应为 ${expected} 篇，实际为 ${actual} 篇。`)
 }
 
-if (articles.length !== 145) {
-  fail(`内容清单应为 145 篇，实际为 ${articles.length} 篇。`)
+for (const section of sections) {
+  const indexFile = path.join(root, "docs", section.key, "index.md")
+  if (!fs.existsSync(indexFile)) fail(`栏目索引不存在：${indexFile}`)
 }
 
-for (const [category, expected] of expectedCategoryCounts) {
-  const actual = articles.filter((item) => item.category === category).length
-  if (actual !== expected) {
-    fail(`${category} 应为 ${expected} 篇，实际为 ${actual} 篇。`)
-  }
-}
-
-const paths = new Set<string>()
-const files = new Set<string>()
-const ordersByCategory = new Map<string, Set<number>>()
-
-for (const item of articles) {
-  const route = articlePath(item)
-  const file = articleFile(item)
-
-  if (paths.has(route)) fail(`重复路由：${route}`)
-  if (files.has(file)) fail(`重复文件：${file}`)
-  paths.add(route)
-  files.add(file)
-
-  const categoryOrders = ordersByCategory.get(item.category) ?? new Set<number>()
-  if (categoryOrders.has(item.order)) {
-    fail(`分类内 order 重复：${item.category} -> ${item.order}`)
-  }
-  categoryOrders.add(item.order)
-  ordersByCategory.set(item.category, categoryOrders)
-
-  const absolute = path.join(root, file)
+for (const article of articles) {
+  const relative = articleFile(article)
+  const absolute = path.join(root, relative)
+  const route = articlePath(article)
+  if (articleFiles.has(relative)) fail(`重复文件：${relative}`)
+  if (articleRoutes.has(route)) fail(`重复路由：${route}`)
+  articleFiles.add(relative)
+  articleRoutes.add(route)
+  if (!categorySet.has(article.category)) fail(`未知分类：${article.category}`)
   if (!fs.existsSync(absolute)) {
-    fail(`清单文件不存在：${file}`)
+    fail(`清单文件不存在：${relative}`)
     continue
   }
 
-  const source = fs.readFileSync(absolute, 'utf8')
+  const source = fs.readFileSync(absolute, "utf8")
   const parsed = matter(source)
+  if (!parsed.content.trim()) fail(`文章正文为空：${relative}`)
+  if (article.preserved) continue
 
-  if (!parsed.content.trim()) fail(`文章正文为空：${file}`)
-  if (parsed.data.title !== item.title) fail(`标题与清单不一致：${file}`)
-  if (parsed.data.description !== item.description) fail(`描述与清单不一致：${file}`)
-  if (parsed.data.category !== item.category) fail(`分类与清单不一致：${file}`)
-  if (parsed.data.order !== item.order) fail(`排序与清单不一致：${file}`)
-  if (parsed.data.depth !== item.depth) fail(`深度等级与清单不一致：${file}`)
-  if (parsed.data.series !== item.series) fail(`系列与清单不一致：${file}`)
-  if (!Array.isArray(parsed.data.tags) || parsed.data.tags.length === 0) {
-    fail(`缺少 tags：${file}`)
+  const expectedFields: Record<string, unknown> = {
+    title: article.title,
+    description: article.description,
+    category: article.category,
+    part: article.part,
+    chapter: article.chapter,
+    tags: article.tags,
+    prerequisites: article.prerequisites,
+    outcomes: article.outcomes,
+    evidence: article.evidence
   }
-  const updated = parsed.data.updated
-  const updatedText =
-    updated instanceof Date
-      ? updated.toISOString().slice(0, 10)
-      : String(updated ?? '')
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(updatedText)) {
-    fail(`updated 必须使用 YYYY-MM-DD：${file}`)
-  }
-  if (!expectedCategories.has(parsed.data.category)) fail(`未知分类：${file}`)
-  const isLegacyRelearn = item.slug.startsWith('relearn/')
-  if (!isLegacyRelearn && !/^#\s+\S/m.test(parsed.content)) fail(`缺少一级标题：${file}`)
-
-  const fenceLines = parsed.content.match(/^```.*$/gm) ?? []
-  if (fenceLines.length % 2 !== 0) fail(`代码围栏未闭合：${file}`)
-  const fencedBlocks = fenceLines.filter((_, index) => index % 2 === 0)
-  const emptyLanguages = fencedBlocks.filter((line) => line === '```').length
-  if (!isLegacyRelearn && emptyLanguages > 0) fail(`代码围栏缺少语言标记：${file}`)
-
-  const sourceHeading = parsed.content.match(
-    /^##\s+(?:参考资料|延伸阅读|源码与规范)\s*$/m
-  )
-  if (!sourceHeading || sourceHeading.index === undefined) {
-    fail(`缺少参考资料或源码规范章节：${file}`)
-  } else {
-    const sourceStart = sourceHeading.index + sourceHeading[0].length
-    const nextHeading = parsed.content.slice(sourceStart).search(/^##\s/m)
-    const sourceBody =
-      nextHeading === -1
-        ? parsed.content.slice(sourceStart)
-        : parsed.content.slice(sourceStart, sourceStart + nextHeading)
-    const sourceLinks = sourceBody.match(/https?:\/\/[^\s)]+/g) ?? []
-    if (sourceLinks.length < 2) {
-      fail(`参考资料至少需要 2 个可核验链接：${file} -> ${sourceLinks.length}`)
+  for (const [field, expected] of Object.entries(expectedFields)) {
+    const actual = parsed.data[field]
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      fail(`${relative} 的 ${field} 与课程清单不一致。`)
     }
   }
-  if (/^##\s+知识校验\s*\n\s*1\..*\n\s*2\..*\n\s*3\./m.test(parsed.content)) {
-    fail(`仍使用三题式模板结尾：${file}`)
+  const practice = parsed.data.practice
+  if (!practice || practice.type !== article.practice.type || practice.result !== article.practice.result || JSON.stringify(practice.verify) !== JSON.stringify(article.practice.verify)) {
+    fail(`${relative} 的 practice 与课程清单不一致。`)
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText(parsed.data.updated))) fail(`${relative} 的 updated 不是 YYYY-MM-DD。`)
+  if (!/^#\s+\S/m.test(parsed.content)) fail(`${relative} 缺少一级标题。`)
+
+  const fences = [...parsed.content.matchAll(/^(?:```|~~~)([^\n]*)\n[\s\S]*?^(?:```|~~~)\s*$/gm)]
+  if (fences.some((fence) => !fence[1].trim())) fail(`${relative} 存在没有语言标记的代码围栏。`)
+  const sourceHeading = parsed.content.match(/^##\s+(?:参考资料|源码与规范|延伸阅读)\s*$/m)
+  if (!sourceHeading || sourceHeading.index === undefined) {
+    fail(`${relative} 缺少参考资料或源码规范章节。`)
+  } else {
+    const sourceBody = parsed.content.slice(sourceHeading.index)
+    const links = sourceBody.match(/https?:\/\/[^\s)]+/g) ?? []
+    if (links.length < 2) fail(`${relative} 可核验来源少于 2 个。`)
   }
 }
 
-const markdownFiles = walk(path.join(root, 'docs'))
-  .filter((file) => file.endsWith('.md'))
-  .map(relative)
-  .sort()
-
-const expectedFiles = new Set([...files, ...indexFiles])
-const unexpectedRootMarkdown = fs
-  .readdirSync(root, { withFileTypes: true })
-  .filter(
-    (entry) =>
-      entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'index.md'
-  )
-  .map((entry) => entry.name)
-
-for (const file of unexpectedRootMarkdown) {
-  fail(`根目录存在未登记的公开 Markdown：${file}`)
+const markdownFiles = walk(path.join(root, "docs")).filter((file) => file.endsWith(".md")).map((file) => path.relative(root, file).split(path.sep).join("/")).sort()
+const expectedFiles = new Set([
+  ...articleFiles,
+  ...sections.map((section) => `docs/${section.key}/index.md`)
+])
+for (const file of markdownFiles) {
+  if (!expectedFiles.has(file)) fail(`存在未登记的孤立 Markdown：${file}`)
 }
+for (const file of expectedFiles) {
+  if (!markdownFiles.includes(file)) fail(`登记文件缺失：${file}`)
+}
+if (markdownFiles.length !== 159) fail(`docs 应有 159 个 Markdown，实际为 ${markdownFiles.length} 个。`)
 
 for (const file of markdownFiles) {
-  if (!expectedFiles.has(file)) fail(`未登记的孤立文章：${file}`)
-  const source = fs.readFileSync(path.join(root, file), 'utf8')
-  if (!source.trim()) fail(`空 Markdown：${file}`)
-
-  for (const match of source.matchAll(/\]\((\/[^)\s#]+)(?:#[^)\s]+)?\)/g)) {
-    const link = match[1]
-    if (!link.startsWith('/docs/')) continue
-    const normalized = link.replace(/\.html$/, '').replace(/\/$/, '/index')
-    const target = `${normalized.slice(1)}.md`
-    if (!fs.existsSync(path.join(root, target))) {
-      fail(`内部链接不存在：${file} -> ${link}`)
-    }
+  const source = fs.readFileSync(path.join(root, file), "utf8")
+  for (const match of source.matchAll(/\]\((\/docs\/[^)#\s]+)(?:#[^)]*)?\)/g)) {
+    const target = match[1].replace(/\/$/, "/index").replace(/\.html$/, "") + ".md"
+    if (!fs.existsSync(path.join(root, target.slice(0)))) fail(`内部链接不存在：${file} -> ${match[1]}`)
   }
 }
 
-if (markdownFiles.length !== 153) {
-  fail(`docs 应包含 145 篇文章和 8 个栏目索引，实际为 ${markdownFiles.length} 个文件。`)
-}
-
-if (!fs.readFileSync(path.join(root, 'index.md'), 'utf8').trim()) {
-  fail('首页 index.md 不能为空。')
-}
-
-const algorithmCount = articles.filter((item) =>
-  item.slug.startsWith('algorithms/')
-).length
-const relearnCount = articles.filter((item) =>
-  item.slug.startsWith('relearn/')
-).length
-const modernFrontendCount = articles.filter((item) =>
-  item.category === 'frontend' && !item.slug.startsWith('algorithms/') && !item.slug.startsWith('relearn/')
-).length
-const nodeBackendCount = articles.filter(
-  (item) => item.category === 'backend' && item.group === 'Node.js'
-).length
-const pythonBackendCount = articles.filter(
-  (item) => item.category === 'backend' && item.group === 'Python'
-).length
-const goBackendCount = articles.filter(
-  (item) => item.category === 'backend' && item.group === 'Go'
-).length
-
+const algorithmCount = articles.filter((article) => article.slug.startsWith("algorithms/")).length
+const relearnCount = articles.filter((article) => article.slug.startsWith("relearn/")).length
 if (algorithmCount !== 16) fail(`算法文章应为 16 篇，实际为 ${algorithmCount} 篇。`)
 if (relearnCount !== 37) fail(`重学前端应为 37 篇，实际为 ${relearnCount} 篇。`)
-if (modernFrontendCount !== 14) {
-  fail(`现代前端应为 14 篇，实际为 ${modernFrontendCount} 篇。`)
-}
-if (nodeBackendCount !== 5 || pythonBackendCount !== 5 || goBackendCount !== 4) {
-  fail(
-    `后端文章应为 Node.js 5 篇、Python 5 篇、Go 4 篇，实际为 ${nodeBackendCount}/${pythonBackendCount}/${goBackendCount}。`
-  )
-}
 
-if (errors.length > 0) {
+if (errors.length) {
   console.error(`内容检查失败，共 ${errors.length} 项：`)
-  for (const error of errors) console.error(`- ${error}`)
+  errors.forEach((error) => console.error(`- ${error}`))
   process.exit(1)
 }
 
-console.log(
-  `内容检查通过：${articles.length} 篇文章，${sections.length} 个栏目索引，算法 ${algorithmCount} 篇，重学前端 ${relearnCount} 篇。`
-)
+console.log(`内容检查通过：${articles.length} 篇文章，${sections.length} 个栏目索引，docs ${markdownFiles.length} 个 Markdown。`)

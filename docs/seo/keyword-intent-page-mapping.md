@@ -1,12 +1,18 @@
 ---
-title: "怎样从用户问题找到关键词"
-description: "从真实问题识别搜索意图、建立关键词分类，并避免只看工具搜索量。"
+title: "关键词、搜索意图与页面映射"
+description: "从用户任务而不是关键词数量出发，识别意图、主题、实体、修饰词和页面职责。"
 category: seo
-tags: ["SEO", "Keywords"]
+part: "第二部分：需求、抓取与页面"
+chapter: 4
+tags: ["Keyword", "Search Intent"]
+prerequisites: ["读过第 1、2 章"]
+outcomes: ["建立关键词簇", "避免多个页面争夺同一任务"]
+practice:
+  type: decision
+  result: "制作一张关键词到页面的映射表"
+  verify: ["每个关键词有意图和证据", "重复任务被合并或区分"]
+evidence: official
 updated: 2026-08-06
-order: 40
-depth: core
-series: "搜索增长零基础教程"
 ---
 # 怎样从用户问题找到关键词
 

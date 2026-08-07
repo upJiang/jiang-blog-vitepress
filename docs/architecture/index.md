@@ -1,7 +1,7 @@
 ---
 layout: page
 title: 架构实践
-description: 从具体场景推导边界、状态、证据、模块所有权与可靠性取舍。
+description: 站在 AI 工程师视角处理模型不确定性、证据、状态、权限、质量与成本边界。
 sidebar: false
 aside: false
 footer: false

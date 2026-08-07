@@ -4,10 +4,15 @@ import path from 'node:path'
 const root = process.cwd()
 const roots = ['docs', '.vitepress', 'public', 'scripts', '.github']
 const extensions = new Set(['.md', '.vue', '.ts', '.js', '.mjs', '.css', '.json'])
-const ignoredDirectories = new Set(['cache', 'dist'])
+const ignoredDirectories = new Set(['cache', 'dist', '.temp'])
 const ignoredFiles = new Set(['scripts/check-privacy.mjs'])
 const allowedFindings = new Set([
-  'scripts/visual-smoke.mjs|内部 URL|http://localhost:9999'
+  'scripts/visual-smoke.mjs|内部 URL|http://localhost:9999',
+  // Public tutorials use the standard loopback address for local-only labs.
+  'docs/devops/docker-compose.md|私网或回环 IPv4|127.0.0.1',
+  'docs/devops/vllm-openai-compatible-serving.md|私网或回环 IPv4|127.0.0.1',
+  'docs/devops/linux-service-troubleshooting.md|私网或回环 IPv4|127.0.0.1',
+  'docs/devops/oci-container-runtime.md|私网或回环 IPv4|127.0.0.1'
 ])
 
 const checks = [

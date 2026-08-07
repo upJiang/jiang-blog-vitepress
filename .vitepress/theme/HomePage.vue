@@ -11,11 +11,29 @@ import {
 const router = useRouter()
 
 const featuredPaths = [
-  'agent-practice/01-system-boundaries',
-  'agent-practice/06-hybrid-retrieval',
+  'ai-agent/llm-workflow-rag-agent',
+  'ai-agent/knowledge-agent-capstone',
   'frontend/relearn/browser/browser_event',
-  'seo/crawl-index-ranking',
-  'devops/candidate-validation-traffic-switching'
+  'backend/request-connection-to-response',
+  'devops/ai-infra-role-map'
+]
+
+const learningTracks = [
+  {
+    name: 'AI 全栈',
+    description: '前端交互、后端服务、Agent 能力和工程交付一起学习。',
+    href: '/docs/frontend/typescript-type-system-engineering'
+  },
+  {
+    name: 'Agent 工程师',
+    description: '从模型输入输出走到知识检索、工具、证据、评测与可靠运行。',
+    href: '/docs/ai-agent/llm-workflow-rag-agent'
+  },
+  {
+    name: 'AI Infra 工程师',
+    description: '从 Linux、容器和数据服务走到 GPU 推理、容量和恢复。',
+    href: '/docs/devops/ai-infra-role-map'
+  }
 ]
 
 const featured = computed(() =>
@@ -48,12 +66,12 @@ function go(path: string) {
         <p class="home-kicker">工程知识库</p>
         <h1 id="home-title">AI 全栈</h1>
         <p class="home-summary">
-          从具体问题和必要前置开始，逐步学习 Agent、前端、后端、搜索增长与交付。
-          内容按主题选择示例、实验或决策表，讲清验证方法和适用边界。
+          面向具备基础编程能力的读者，从前置知识开始讲清概念、完整流程、动手步骤和验证方法。
+          每个系列按章节推进，读完不只知道名词，还能把方法带进实际工作。
         </p>
         <div class="home-actions">
-          <button class="home-button home-button--primary" type="button" @click="go('/docs/agent-practice/01-system-boundaries')">
-            从 Agent 第一篇开始
+          <button class="home-button home-button--primary" type="button" @click="go('/docs/ai-agent/llm-workflow-rag-agent')">
+            从 Agent 课程开始
           </button>
           <button class="home-button" type="button" @click="go('/#topics-title')">
             查看知识地图
@@ -63,7 +81,7 @@ function go(path: string) {
 
       <div class="home-signal" aria-label="知识库概览">
         <span class="home-signal__label">当前主线</span>
-        <span class="home-signal__value">Agent 工程实践</span>
+        <span class="home-signal__value">课程式技术博客</span>
         <dl>
           <div>
             <dt>文章</dt>
@@ -75,9 +93,23 @@ function go(path: string) {
           </div>
           <div>
             <dt>技术主线</dt>
-            <dd>AI + Web</dd>
+            <dd>AI + Infra</dd>
           </div>
         </dl>
+      </div>
+    </section>
+
+    <section class="home-section" aria-labelledby="tracks-title">
+      <div class="home-section__heading">
+        <p>学习路线</p>
+        <h2 id="tracks-title">三条主线</h2>
+      </div>
+      <div class="track-list">
+        <a v-for="track in learningTracks" :key="track.name" :href="track.href">
+          <span class="track-title">{{ track.name }}</span>
+          <span class="track-description">{{ track.description }}</span>
+          <span class="featured-arrow" aria-hidden="true">→</span>
+        </a>
       </div>
     </section>
 

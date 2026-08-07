@@ -1,7 +1,7 @@
 ---
 layout: page
-title: 运维与交付
-description: 从服务启动开始，逐步掌握容器、网关、CI、观测、切流和恢复演练。
+title: AI Infra 与运维
+description: 从 Linux、网络和容器走向数据服务、GPU 推理、容量、观测、交付与恢复。
 sidebar: false
 aside: false
 footer: false

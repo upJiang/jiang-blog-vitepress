@@ -1,12 +1,18 @@
 ---
-title: "搜索引擎怎样发现、收录和排序网页"
-description: "沿发现、抓取、渲染、索引、排序和点击看懂一次搜索结果的产生。"
+title: "搜索引擎怎样发现、抓取、索引和排名"
+description: "沿链接发现、抓取、渲染、索引、查询和排序理解网页进入搜索结果的全过程。"
 category: seo
-tags: ["SEO", "Crawl"]
+part: "第二部分：需求、抓取与页面"
+chapter: 3
+tags: ["Crawl", "Index"]
+prerequisites: ["HTTP 状态码基础"]
+outcomes: ["定位页面卡在哪个阶段", "正确使用 robots、noindex 与 Sitemap"]
+practice:
+  type: diagnosis
+  result: "用 GET 和页面源码检查一个 URL"
+  verify: ["区分原始 HTML 与渲染 DOM", "能解释 200 页面为何仍可能不收录"]
+evidence: official-guided-operation
 updated: 2026-08-06
-order: 30
-depth: core
-series: "搜索增长零基础教程"
 ---
 # 搜索引擎怎样发现、收录和排序网页
 

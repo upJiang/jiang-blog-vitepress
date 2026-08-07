@@ -3,17 +3,17 @@ import {
   articlesByCategory,
   articlePath,
   sections,
-  type ArticleMeta,
+  type ChapterMeta,
   type Category
 } from './content'
 
-function groupArticles(items: ArticleMeta[]): DefaultTheme.SidebarItem[] {
-  const groups = new Map<string, ArticleMeta[]>()
+function groupArticles(items: ChapterMeta[]): DefaultTheme.SidebarItem[] {
+  const groups = new Map<string, ChapterMeta[]>()
 
   for (const item of items) {
-    const group = groups.get(item.group) ?? []
+    const group = groups.get(item.part) ?? []
     group.push(item)
-    groups.set(item.group, group)
+    groups.set(item.part, group)
   }
 
   return [...groups.entries()].map(([text, group]) => ({

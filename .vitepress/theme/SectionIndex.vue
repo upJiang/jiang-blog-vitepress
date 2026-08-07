@@ -14,14 +14,13 @@ const section = computed(() =>
 )
 
 const readingHints: Record<Category, string> = {
-  'ai-agent': '第一次阅读可从“基础与边界”开始，再进入工具、上下文、RAG 与质量治理。',
-  'agent-practice': '这是连续教程。建议从 01 开始按编号阅读，每篇只增加一组能力。',
-  seo: '先判断需求和页面职责，再检查抓取、内容、数据与付费验证。',
-  frontend: '算法与重学前端保留课程顺序；已有基础后可直接进入现代前端专题。',
-  backend: '按主要语言选择一条路径，再横向比较事务、权限、异步任务和实时通信。',
-  devops: '先跑通容器与网关，再进入 CI、观测、切流、迁移和恢复。',
-  architecture: '每篇先看简单实现在哪个条件下失效，再阅读新的边界与可靠性设计。',
-  engineering: '调试、Git 和资料检索三篇可以独立阅读，建议从正在处理的问题进入。'
+  'ai-agent': '这是连续课程。建议从第 1 章开始，先理解模型和 Agent，再进入工具、RAG、质量与完整案例。',
+  seo: '先建立增长漏斗和数据基线，再进入页面、技术审计、归因与搜索广告。',
+  frontend: '算法与重学前端保持原顺序；现代专题从浏览器现象和可运行结果进入原理。',
+  backend: '先学习八章共同基础，再选择 Node.js、Python 或 Go 项目线继续实践。',
+  devops: '从 Linux 与网络开始，依次学习容器、数据服务、GPU 推理、容量与安全交付。',
+  architecture: '每章都站在 AI 工程师视角，从简单方案的失效条件推导架构选择。',
+  engineering: '五篇都提供可以带到工作中的 Runbook、检查表或记录模板。'
 }
 
 const groups = computed(() => {
@@ -31,9 +30,9 @@ const groups = computed(() => {
   >()
 
   for (const item of articlesByCategory(props.category)) {
-    const group = grouped.get(item.group) ?? []
+    const group = grouped.get(item.part) ?? []
     group.push(item)
-    grouped.set(item.group, group)
+    grouped.set(item.part, group)
   }
 
   return [...grouped.entries()]
@@ -54,6 +53,7 @@ const groups = computed(() => {
       <h2>{{ group }}</h2>
       <div class="article-index-list">
         <a v-for="item in items" :key="item.slug" :href="articlePath(item)">
+          <span class="article-index-chapter">{{ String(item.chapter).padStart(2, '0') }}</span>
           <span class="article-index-copy">
             <span class="article-index-title">{{ item.title }}</span>
             <span class="article-index-description">{{ item.description }}</span>
