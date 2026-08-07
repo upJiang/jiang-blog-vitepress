@@ -369,12 +369,17 @@ a {
 }
 
 .vp-doc .mermaid-wrapper {
+  width: 100%;
+  max-width: 100%;
   min-height: 160px;
   margin: 28px 0;
+  overflow: hidden;
 }
 
 .vp-doc .mermaid-preview {
   position: relative;
+  width: 100%;
+  max-width: 100%;
   min-height: 160px;
   overflow: hidden;
   border: 1px solid var(--xj-diagram-border);
@@ -398,10 +403,12 @@ a {
 
 .vp-doc .mermaid-preview__diagram {
   display: flex;
+  width: 100%;
+  max-width: 100%;
   min-width: 100%;
   min-height: 160px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 28px 24px;
@@ -412,9 +419,10 @@ a {
 .vp-doc .mermaid-preview__diagram svg {
   display: block;
   flex: none;
-  width: var(--xj-diagram-preview-width, 760px);
-  max-width: none;
+  width: min(100%, var(--xj-diagram-preview-width, 760px));
+  max-width: 100%;
   height: auto;
+  margin-inline: auto;
 }
 
 .vp-doc .mermaid-preview__expand {

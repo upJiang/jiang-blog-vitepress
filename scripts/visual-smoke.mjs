@@ -142,7 +142,17 @@ try {
   await mermaidPreview.click()
   const mermaidViewer = page.locator('.mermaid-viewer')
   await mermaidViewer.waitFor()
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector('.mermaid-viewer')).opacity === '1'
+  )
   assert(await mermaidViewer.getAttribute('aria-modal'), '流程图查看器缺少模态语义')
+  assert(
+    await mermaidViewer.locator('.mermaid-viewer__diagram svg').evaluate((diagram) => {
+      const bounds = diagram.getBoundingClientRect()
+      return bounds.width >= 300 && bounds.height >= 80
+    }),
+    '放大后的流程图没有正常显示'
+  )
   const mermaidStage = mermaidViewer.locator('.mermaid-viewer__stage')
   const zoomBefore = await mermaidViewer.locator('output').textContent()
   await mermaidStage.hover()
