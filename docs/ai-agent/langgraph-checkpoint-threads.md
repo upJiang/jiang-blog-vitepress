@@ -3,7 +3,7 @@ title: LangGraph Checkpoint、Thread 与恢复：进程重启后如何继续
 description: 从一次中断的图执行开始，区分 thread、checkpoint、业务 Turn 和事件，并验证恢复不会重复副作用。
 category: ai-agent
 part: LangGraph：状态图和执行语义
-chapter: 17
+chapter: 19
 tags:
   - LangGraph
   - Checkpoint

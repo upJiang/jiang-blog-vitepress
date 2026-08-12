@@ -3,7 +3,7 @@ title: 语义切片：标题、表格、代码、父子片段与稳定 ID
 description: 从检索问题反推切片边界，保留章节路径、相邻关系、表头、代码块、父子片段和可重建标识。
 category: ai-agent
 part: 知识怎样进入 Agent
-chapter: 46
+chapter: 39
 tags:
   - Chunking
   - Parent-Child Retrieval

@@ -3,7 +3,7 @@ title: Embedding：从文档解析、向量入库到检索索引
 description: 从 PDF、Word、PPT 和 Markdown 的统一处理开始，讲清 Embedding、向量库、批量写入、索引与召回评估。
 category: ai-agent
 part: 知识怎样进入 Agent
-chapter: 47
+chapter: 40
 tags:
   - Embedding
   - Vector Database

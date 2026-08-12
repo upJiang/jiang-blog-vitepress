@@ -3,7 +3,7 @@ title: 短期记忆、长期记忆与压缩质量评测
 description: 把“模型好像记住了”拆成字段覆盖、来源忠实、冲突、过期、隐私和下游任务指标，并建立候选策略发布门禁。
 category: ai-agent
 part: 上下文工程：预算和记忆
-chapter: 30
+chapter: 32
 tags:
   - Memory
   - Evaluation

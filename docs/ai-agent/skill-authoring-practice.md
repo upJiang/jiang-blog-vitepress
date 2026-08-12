@@ -3,7 +3,7 @@ title: Skill 实战：从空目录写出可验证的任务能力
 description: 从一个页面审计任务开始，创建 SKILL.md、参考资料、脚本和模板，理解触发、渐进读取与验证。
 category: ai-agent
 part: Skill：沉淀任务方法
-chapter: 38
+chapter: 58
 tags:
   - Skill
   - Codex

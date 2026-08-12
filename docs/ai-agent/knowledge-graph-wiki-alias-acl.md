@@ -3,7 +3,7 @@ title: 知识图谱、Wiki、别名、ACL 与 Release 怎样和 RAG 配合
 description: 把实体关系、人工维护页面、别名和权限放进同一知识版本，解释图谱不是向量库的替代品。
 category: ai-agent
 part: RAG 与知识工程：知识组织和评测
-chapter: 56
+chapter: 49
 tags:
   - Knowledge Graph
   - Wiki
@@ -21,7 +21,7 @@ practice:
     - 别名冲突可审计
     - 图谱越权不会绕过正文 ACL
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # 知识图谱、Wiki、别名、ACL 与 Release 怎样和 RAG 配合

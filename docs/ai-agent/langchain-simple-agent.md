@@ -1,9 +1,11 @@
 ---
 title: LangChain create_agent：模型、工具与消息循环怎样闭合
-description: 使用当前 create_agent 和离线 ScriptedChatModel 跑通 HumanMessage、ToolCall、ToolMessage 与最终 AIMessage，拆解 Harness、停止条件、递归上限和企业 Runtime 边界。
+description: >-
+  使用当前 create_agent 和离线 ScriptedChatModel 跑通 HumanMessage、ToolCall、ToolMessage
+  与最终 AIMessage，拆解 Harness、停止条件、递归上限和企业 Runtime 边界。
 category: ai-agent
 part: LangChain：从函数到 Agent
-chapter: 11
+chapter: 13
 tags:
   - LangChain
   - create_agent

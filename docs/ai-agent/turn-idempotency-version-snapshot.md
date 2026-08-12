@@ -3,7 +3,7 @@ title: Turn 幂等、准入与版本快照：一次请求怎样获得稳定边�
 description: 从重复点击和知识发布并发开始，设计幂等键、状态锁、资源准入和版本快照。
 category: ai-agent
 part: 可信运行：状态和资源
-chapter: 60
+chapter: 62
 tags:
   - Turn
   - Idempotency

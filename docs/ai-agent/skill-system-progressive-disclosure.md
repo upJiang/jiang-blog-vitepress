@@ -3,7 +3,7 @@ title: Skill 的本质：触发、目录结构与渐进式披露
 description: 从一条任务说明扩展到 SKILL.md、references、scripts、templates 和 assets，解释 Agent 何时读取什么。
 category: ai-agent
 part: Skill：沉淀任务方法
-chapter: 37
+chapter: 57
 tags:
   - Skill
   - Progressive Disclosure

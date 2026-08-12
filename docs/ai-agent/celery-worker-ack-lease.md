@@ -3,7 +3,7 @@ title: Celery Worker、ACK、任务所有权与 Lease
 description: 沿消息投递、预取、执行、ACK、重投和租约续期解释 Worker 重启后的行为。
 category: ai-agent
 part: 可信运行：异步和恢复
-chapter: 62
+chapter: 63
 tags:
   - Celery
   - Worker

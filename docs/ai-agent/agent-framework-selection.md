@@ -3,7 +3,7 @@ title: Agent 怎样决策：Router、ReAct、Planner、Reflection 与框架选�
 description: 用同一个只读知识查询拆开四种 Agent 控制模式的状态、循环和停止条件，再从控制权、恢复、评测、部署与团队约束选择实现框架。
 category: ai-agent
 part: Agent 怎样行动
-chapter: 5
+chapter: 7
 tags:
   - Agent Pattern
   - ReAct

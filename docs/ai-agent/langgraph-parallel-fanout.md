@@ -3,7 +3,7 @@ title: LangGraph 并行扇出与融合：同时查多种知识源
 description: 用 Send 把一个问题分给全文、向量和结构化检索分支，再在融合节点去重和排序。
 category: ai-agent
 part: LangGraph：状态图和执行语义
-chapter: 16
+chapter: 18
 tags:
   - LangGraph
   - Send

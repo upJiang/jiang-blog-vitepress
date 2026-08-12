@@ -3,7 +3,7 @@ title: RAG 数据导入：从文件准入到可发布知识版本
 description: 先建立可重放的导入状态机，再处理文件准入、解析、OCR、清洗、切片、向量化、质量验证与安全发布。
 category: ai-agent
 part: 知识怎样进入 Agent
-chapter: 41
+chapter: 34
 tags:
   - RAG
   - Ingestion
@@ -21,7 +21,7 @@ practice:
     - 失败可以定位到具体阶段
     - 旧知识在新版本验证前保持可用
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # RAG 数据导入：从文件准入到可发布知识版本

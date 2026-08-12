@@ -3,7 +3,7 @@ title: Codex 的手动与自动上下文压缩：从机制到 Agent 设计启示
 description: 用 Codex 当前公开的 /compact、自动阈值、Hook 和 App Server 事件解释压缩生命周期，并实现不覆盖原始历史的审计记录。
 category: ai-agent
 part: 上下文工程：预算和记忆
-chapter: 25
+chapter: 27
 tags:
   - Codex
   - Compaction

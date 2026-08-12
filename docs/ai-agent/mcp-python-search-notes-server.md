@@ -3,7 +3,7 @@ title: Python 实战：实现同一份 search_notes MCP Server
 description: 使用 Python、MCP 2.0、Annotated 约束和进程内 Client 实现同一工具契约。
 category: ai-agent
 part: Tool、MCP、Skill 与 SubAgent
-chapter: 35
+chapter: 54
 tags:
   - MCP
   - Python

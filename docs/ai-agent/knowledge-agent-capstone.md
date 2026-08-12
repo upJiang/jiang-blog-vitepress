@@ -3,7 +3,7 @@ title: 知识 Agent 工程实践：从文档进入系统到可审计回答
 description: 把导入、版本、权限、检索、工具、证据、事件、取消、恢复、评测和观测串成一条匿名工程实现。
 category: ai-agent
 part: 答案质量与运行
-chapter: 69
+chapter: 70
 tags:
   - Agent
   - RAG

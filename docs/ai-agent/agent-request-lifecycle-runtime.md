@@ -3,7 +3,7 @@ title: 一次 Agent 请求的完整 Runtime 生命周期
 description: 从入口准入、版本快照、Worker 所有权、图执行到终态事件，逐阶段列出输入、写入和停止条件。
 category: ai-agent
 part: LangGraph：状态图和执行语义
-chapter: 19
+chapter: 22
 tags:
   - Runtime
   - Admission

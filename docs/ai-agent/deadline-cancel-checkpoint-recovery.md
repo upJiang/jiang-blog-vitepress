@@ -3,7 +3,7 @@ title: Deadline、取消、Checkpoint 与停滞恢复
 description: 把用户取消、绝对截止时间、图快照和停滞扫描放进同一状态机，明确谁能改变终态。
 category: ai-agent
 part: 可信运行：异步和恢复
-chapter: 63
+chapter: 64
 tags:
   - Deadline
   - Cancellation

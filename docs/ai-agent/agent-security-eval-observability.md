@@ -3,7 +3,7 @@ title: Agent 安全：权限、提示注入与不可信内容边界
 description: 从一段恶意文档进入检索结果开始，逐层处理身份、范围、工具权限、间接提示注入、敏感输出与审计。
 category: ai-agent
 part: 答案质量与运行
-chapter: 65
+chapter: 66
 tags:
   - Security
   - Prompt Injection

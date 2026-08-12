@@ -3,7 +3,7 @@ title: PDF、Word、PPT、Excel、HTML 与 Markdown 怎样解析入库
 description: 逐种文件拆开原生文本、版面结构、表格、图片、扫描页与 OCR，最后统一成可追溯的 Block。
 category: ai-agent
 part: 知识怎样进入 Agent
-chapter: 45
+chapter: 37
 tags:
   - Document Parsing
   - OCR

@@ -3,7 +3,7 @@ title: Claim、Evidence、引用生成与答案验证
 description: 把答案拆成可验证 Claim，让每个事实绑定用户可见证据，并对缺证据结论做有限修复。
 category: ai-agent
 part: 答案质量与运行
-chapter: 58
+chapter: 60
 tags:
   - Claim
   - Evidence

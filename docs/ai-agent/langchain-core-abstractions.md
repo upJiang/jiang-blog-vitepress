@@ -3,7 +3,7 @@ title: LangChain 核心抽象：Message、Prompt、Model、Parser 与 Runnable
 description: 从一次无框架模型调用开始，逐层映射 LangChain 的消息、提示模板、聊天模型、输出解析器和统一执行协议，并实际运行同步、批量与异步链路。
 category: ai-agent
 part: LangChain：从函数到 Agent
-chapter: 6
+chapter: 8
 tags:
   - LangChain
   - Message

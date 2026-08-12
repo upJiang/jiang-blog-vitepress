@@ -3,7 +3,7 @@ title: 精确、全文、向量、结构化检索与重排
 description: 用专有名词、同义表达和表格问题解释多路召回、RRF 融合、重排、缓存和降级。
 category: ai-agent
 part: 知识怎样进入 Agent
-chapter: 53
+chapter: 46
 tags:
   - Retrieval
   - Rerank
@@ -21,7 +21,7 @@ practice:
     - 融合不会因分数尺度不同失真
     - 降级后仍保留可解释证据
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # 精确、全文、向量、结构化检索与重排

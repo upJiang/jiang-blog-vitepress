@@ -3,7 +3,7 @@ title: Embedding 批处理、限流、部分失败与幂等写入
 description: 把片段分批发送给 Embedding 服务，处理 Token 上限、速率限制、重试、死信和重复写入。
 category: ai-agent
 part: RAG 与知识工程：Embedding 和写入
-chapter: 48
+chapter: 41
 tags:
   - Embedding
   - Batching

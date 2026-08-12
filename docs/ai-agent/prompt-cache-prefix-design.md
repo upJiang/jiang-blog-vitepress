@@ -1,9 +1,11 @@
 ---
 title: Prompt Cache：GPT 与 Claude 如何复用输入前缀、计算费用并诊断命中
-description: 从 Transformer 的 Prefill 与注意力状态出发，拆解 GPT 和 Claude 的精确前缀缓存、断点、usage、费用、盈亏平衡与多租户隔离。
+description: >-
+  从 Transformer 的 Prefill 与注意力状态出发，拆解 GPT 和 Claude
+  的精确前缀缓存、断点、usage、费用、盈亏平衡与多租户隔离。
 category: ai-agent
 part: 上下文工程：预算和记忆
-chapter: 24
+chapter: 28
 tags:
   - Prompt Cache
   - Prefill

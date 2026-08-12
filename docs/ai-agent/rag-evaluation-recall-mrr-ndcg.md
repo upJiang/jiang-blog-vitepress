@@ -3,7 +3,7 @@ title: RAG 评测：Recall@K、MRR、nDCG、答案支持率与延迟
 description: 从标注问题和相关片段开始，计算召回、排序、证据覆盖和系统时间，建立可复现对照。
 category: ai-agent
 part: RAG 与知识工程：知识组织和评测
-chapter: 57
+chapter: 50
 tags:
   - RAG Eval
   - Recall
@@ -22,7 +22,7 @@ practice:
     - 指标定义和 K 明确
     - 没有数据时不虚构提升数字
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # RAG 评测：Recall@K、MRR、nDCG、答案支持率与延迟

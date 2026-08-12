@@ -3,7 +3,7 @@ title: LangGraph State、Node、Edge、Reducer 与 Checkpoint：从零看懂一�
 description: 从普通函数推导 StateGraph，逐步解释 State channel、节点局部更新、边、super-step、并发合并和恢复边界。
 category: ai-agent
 part: LangGraph：状态图和执行语义
-chapter: 14
+chapter: 16
 tags:
   - LangGraph
   - State

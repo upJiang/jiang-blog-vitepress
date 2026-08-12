@@ -3,7 +3,7 @@ title: pgvector、索引结构、召回率与向量写入
 description: 从精确扫描推进到 HNSW/IVFFlat，理解距离算子、过滤顺序、索引参数、批量写入和召回评测。
 category: ai-agent
 part: 知识怎样进入 Agent
-chapter: 50
+chapter: 43
 tags:
   - PostgreSQL
   - pgvector

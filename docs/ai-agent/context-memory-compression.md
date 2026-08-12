@@ -3,7 +3,7 @@ title: 短期记忆、长期记忆与滚动摘要：Agent 怎样记住而不越�
 description: 从一次环境和偏好对话出发，区分运行状态、短期上下文、会话摘要与长期事实，并实现授权、冲突、TTL 和撤回状态机。
 category: ai-agent
 part: 上下文工程：预算和记忆
-chapter: 29
+chapter: 31
 tags:
   - Context Engineering
   - Memory

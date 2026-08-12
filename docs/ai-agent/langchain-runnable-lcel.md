@@ -1,9 +1,11 @@
 ---
 title: Runnable 与 LCEL：串行、并行、分支和异常怎样传播
-description: 用一个知识问题路由器逐步运行 RunnableSequence、RunnableParallel、RunnableBranch 与 Passthrough.assign，追踪每个节点的数据形状、并发和失败边界。
+description: >-
+  用一个知识问题路由器逐步运行 RunnableSequence、RunnableParallel、RunnableBranch 与
+  Passthrough.assign，追踪每个节点的数据形状、并发和失败边界。
 category: ai-agent
 part: LangChain：从函数到 Agent
-chapter: 8
+chapter: 10
 tags:
   - LangChain
   - LCEL

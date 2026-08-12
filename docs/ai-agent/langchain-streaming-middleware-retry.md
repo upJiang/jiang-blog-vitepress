@@ -1,9 +1,11 @@
 ---
 title: LangChain Streaming、Callback、Middleware 与有限重试
-description: 从同一 create_agent 运行拆开 updates、messages、custom 三类流、Callback 生命周期和 Middleware 包装点，实现稳定公开事件、共享 Deadline 的有限重试与取消传播。
+description: >-
+  从同一 create_agent 运行拆开 updates、messages、custom 三类流、Callback 生命周期和 Middleware
+  包装点，实现稳定公开事件、共享 Deadline 的有限重试与取消传播。
 category: ai-agent
 part: LangChain：从函数到 Agent
-chapter: 12
+chapter: 14
 tags:
   - LangChain
   - Streaming

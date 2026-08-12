@@ -3,7 +3,7 @@ title: 上下文污染与间接提示注入：外部内容怎样保持不可信
 description: 从恶意文档进入 RAG 开始，追踪它如何影响候选工具调用，并用信任标记、能力白名单、参数校验和安全 Eval 阻断副作用。
 category: ai-agent
 part: 上下文工程：预算和记忆
-chapter: 28
+chapter: 30
 tags:
   - Prompt Injection
   - Context Isolation

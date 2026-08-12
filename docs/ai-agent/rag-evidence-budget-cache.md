@@ -3,7 +3,7 @@ title: 融合、Rerank、缓存与证据预算
 description: 从多路候选进入上下文开始，解释分数融合、重排、缓存键、权限复核和 Evidence 数量限制。
 category: ai-agent
 part: RAG 与知识工程：知识组织和评测
-chapter: 54
+chapter: 47
 tags:
   - RAG
   - Rerank
@@ -21,7 +21,7 @@ practice:
     - 缓存不绕过权限
     - 失效后能回到精确检索
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # 融合、Rerank、缓存与证据预算

@@ -1,9 +1,12 @@
 ---
 title: MCP 协议：现代无状态请求、Legacy 握手与两种传输
-description: 以 2026-07-28 规范为主线，拆开 Host/Client/Server、每请求元数据、server/discover、JSON-RPC、MRTR、订阅、stdio 与 Streamable HTTP，并解释旧 initialize 示例为何仍会出现。
+description: >-
+  以 2026-07-28 规范为主线，拆开
+  Host/Client/Server、每请求元数据、server/discover、JSON-RPC、MRTR、订阅、stdio 与 Streamable
+  HTTP，并解释旧 initialize 示例为何仍会出现。
 category: ai-agent
 part: Tool、MCP、Skill 与 SubAgent
-chapter: 33
+chapter: 52
 tags:
   - MCP
   - JSON-RPC

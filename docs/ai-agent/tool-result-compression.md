@@ -3,7 +3,7 @@ title: 工具结果压缩：表格、日志和长文档怎样进入上下文
 description: 区分原始工具结果与模型视图，为日志、表格、搜索和长文档设计结构化压缩、脱敏、分页与可追溯错误。
 category: ai-agent
 part: 上下文工程：预算和记忆
-chapter: 27
+chapter: 29
 tags:
   - Tool Result
   - Compression

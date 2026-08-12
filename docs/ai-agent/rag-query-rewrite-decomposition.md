@@ -3,7 +3,7 @@ title: 查询改写、问题分解与检索计划
 description: 把口语问题变成可搜索查询，同时保护用户范围、时间、实体和否定条件，并把多目标问题拆成有依赖的计划。
 category: ai-agent
 part: RAG 与知识工程：查询理解
-chapter: 51
+chapter: 44
 tags:
   - Query Rewrite
   - Decomposition

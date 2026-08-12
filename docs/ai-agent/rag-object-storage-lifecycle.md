@@ -3,7 +3,7 @@ title: RAG 的对象存储：文件、对象键、校验和与生命周期
 description: 把上传文件和解析片段分开管理，讲清对象键、Multipart、预签名、校验和、孤立对象和删除边界。
 category: ai-agent
 part: RAG 与知识工程：导入和版本
-chapter: 43
+chapter: 35
 tags:
   - Object Storage
   - RAG

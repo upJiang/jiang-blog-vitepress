@@ -3,7 +3,7 @@ title: 消息、Token、上下文窗口与模型输入输出
 description: 从一条真实模型请求开始，拆开消息角色、Token 计量、输入输出预算、工具结果和停止原因。
 category: ai-agent
 part: 模型怎样接收与返回
-chapter: 2
+chapter: 3
 tags:
   - Token
   - Context

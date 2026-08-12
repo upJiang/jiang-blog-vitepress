@@ -22,7 +22,7 @@ practice:
     - 有密钥时读取真实 output_text 与 usage
     - 无密钥时 Fake Adapter 测试不会伪装在线结果
 evidence: official
-updated: 2026-08-12
+updated: 2026-08-12T00:00:00.000Z
 lastUpdated: false
 ---
 # Python 第一次调用真实模型：请求、响应、usage、错误与流式输出

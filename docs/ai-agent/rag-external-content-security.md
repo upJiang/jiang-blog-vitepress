@@ -3,7 +3,7 @@ title: 外部内容进入 RAG 前的安全准入
 description: 从 URL、压缩包和网页内容开始，检查协议、DNS、重定向、MIME、Magic、压缩炸弹和提示注入。
 category: ai-agent
 part: RAG 与知识工程：导入和版本
-chapter: 44
+chapter: 36
 tags:
   - RAG
   - SSRF

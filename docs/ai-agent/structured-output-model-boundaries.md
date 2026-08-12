@@ -3,7 +3,7 @@ title: 结构化输出、Schema 校验与确定性边界
 description: 从一条知识查询请求出发，拆开 JSON、Schema 约束、Pydantic 领域校验、可信字段装配和失败终态，避免把格式正确误认为业务可信。
 category: ai-agent
 part: 模型怎样接收与返回
-chapter: 3
+chapter: 4
 tags:
   - Structured Output
   - JSON Schema

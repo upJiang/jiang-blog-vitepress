@@ -3,7 +3,7 @@ title: SubAgent：上下文隔离、任务契约与并行协作
 description: 把资料检索、代码验证和内容审查拆成独立任务，处理权限继承、结果契约、冲突、成本和停止条件。
 category: ai-agent
 part: Skill：沉淀任务方法
-chapter: 39
+chapter: 59
 tags:
   - SubAgent
   - Context Isolation

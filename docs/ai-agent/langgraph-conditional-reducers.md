@@ -3,7 +3,7 @@ title: LangGraph 条件路由与 Reducer：分支为什么不会互相覆盖
 description: 在最小 StateGraph 上加入问题分类、条件边和并行列表合并，逐步观察状态快照。
 category: ai-agent
 part: LangGraph：状态图和执行语义
-chapter: 15
+chapter: 17
 tags:
   - LangGraph
   - Reducer

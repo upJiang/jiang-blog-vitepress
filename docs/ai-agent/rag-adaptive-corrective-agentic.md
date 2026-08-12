@@ -3,7 +3,7 @@ title: Adaptive、Corrective、多跳与 Agentic RAG 的执行链
 description: 用证据质量作为路由信号，分别处理补搜、外部校验、多跳关系和动态研究，并定义终止条件。
 category: ai-agent
 part: RAG 与知识工程：高级检索
-chapter: 55
+chapter: 48
 tags:
   - Adaptive RAG
   - Corrective RAG
@@ -21,7 +21,7 @@ practice:
     - 每一跳有证据目标
     - 无法补齐时安全拒答
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Adaptive、Corrective、多跳与 Agentic RAG 的执行链

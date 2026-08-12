@@ -3,7 +3,7 @@ title: Agent 并行预处理：安全、上下文、记忆与快速检索怎样�
 description: 把互不依赖的预处理拆成并行节点，说明共享输入、结果 Reducer、失败隔离和预算扣减。
 category: ai-agent
 part: LangGraph：状态图和执行语义
-chapter: 20
+chapter: 23
 tags:
   - LangGraph
   - Preprocess

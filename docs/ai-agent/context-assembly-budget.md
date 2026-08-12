@@ -3,7 +3,7 @@ title: 上下文由什么组成：按预算装配消息、证据和工具结果
 description: 从一次真实问答出发，把规则、问题、历史、工具定义、证据和输出空间装进有限窗口，并实现可解释的装配器。
 category: ai-agent
 part: 上下文工程：预算和记忆
-chapter: 23
+chapter: 25
 tags:
   - Context
   - Token Budget

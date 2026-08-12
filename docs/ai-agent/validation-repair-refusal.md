@@ -3,7 +3,7 @@ title: 验证器、有限修复与安全拒答：答案不可信时怎么办
 description: 把事实、引用、ACL、隐私和注入验证拆开，定义可修复问题、不可修复问题和终态。
 category: ai-agent
 part: 可信运行：证据和回答
-chapter: 59
+chapter: 61
 tags:
   - Validation
   - Repair

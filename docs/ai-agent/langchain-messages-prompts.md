@@ -3,7 +3,7 @@ title: LangChain Message 与 Prompt：装配历史、证据和当前问题
 description: 从消息角色和 PromptValue 开始，逐步装配系统规则、最近历史、可见证据与当前问题，并测试角色注入、缺失变量和不可信资料边界。
 category: ai-agent
 part: LangChain：从函数到 Agent
-chapter: 7
+chapter: 9
 tags:
   - LangChain
   - Message

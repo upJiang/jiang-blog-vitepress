@@ -3,7 +3,7 @@ title: SSE 事件、序号、断线重放与轮询降级
 description: 从浏览器断开开始，说明事件持久化、Last-Event-ID、心跳、重放窗口和轮询兜底。
 category: ai-agent
 part: 可信运行：异步和恢复
-chapter: 64
+chapter: 65
 tags:
   - SSE
   - Event Replay

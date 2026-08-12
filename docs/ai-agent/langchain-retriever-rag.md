@@ -1,9 +1,11 @@
 ---
 title: LangChain Retriever 与 2-Step RAG：从 Document 到 Evidence
-description: 实现绑定 Scope 与 Release 的 BaseRetriever，用 LCEL 串起查询、Document、Evidence、上下文和拒答，解释向量库边界、错误语义、缓存隔离及升级 LangGraph 的条件。
+description: >-
+  实现绑定 Scope 与 Release 的 BaseRetriever，用 LCEL
+  串起查询、Document、Evidence、上下文和拒答，解释向量库边界、错误语义、缓存隔离及升级 LangGraph 的条件。
 category: ai-agent
 part: LangChain：从函数到 Agent
-chapter: 13
+chapter: 15
 tags:
   - LangChain
   - Retriever

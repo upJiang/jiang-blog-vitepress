@@ -3,7 +3,7 @@ title: MCP 客户端、测试、认证与安全边界
 description: 从 listTools 和 callTool 走到超时、取消、OAuth、权限、返回值校验、日志审计与远程部署检查。
 category: ai-agent
 part: MCP：连接外部能力
-chapter: 36
+chapter: 56
 tags:
   - MCP Client
   - OAuth

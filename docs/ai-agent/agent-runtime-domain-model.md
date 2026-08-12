@@ -3,7 +3,7 @@ title: Conversation、Turn、Message、Event、Task：Agent 的业务状态模�
 description: 从聊天页面的一个问题拆出会话、回合、消息、事件和后台任务，解释每个对象的所有权与终态。
 category: ai-agent
 part: LangGraph：状态图和执行语义
-chapter: 18
+chapter: 20
 tags:
   - Runtime
   - Turn

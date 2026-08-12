@@ -3,7 +3,7 @@ title: RAG 策略地图：Naive、Advanced、Adaptive、Corrective 与 Agentic R
 description: 用同一知识问答分别运行固定检索、查询改写、纠错检索和 Agentic 研究，说明复杂度增加换来了什么。
 category: ai-agent
 part: RAG 与知识工程：策略
-chapter: 40
+chapter: 33
 tags:
   - RAG
   - Adaptive RAG

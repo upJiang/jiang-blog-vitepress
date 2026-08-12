@@ -21,7 +21,7 @@ practice:
     - 正常问题产生有证据回答
     - 重复调用和达到上限时确定停止
 evidence: anonymized-practice
-updated: 2026-08-12
+updated: 2026-08-12T00:00:00.000Z
 lastUpdated: false
 ---
 # 不用框架实现第一个有限 Agent 循环

@@ -3,7 +3,7 @@ title: 向量库怎样选：pgvector、Qdrant、Milvus、Weaviate 与 Pinecone
 description: 从数据所有权、过滤、事务、规模、运维和供应商依赖比较向量存储，而不是只看名称。
 category: ai-agent
 part: RAG 与知识工程：Embedding 和写入
-chapter: 49
+chapter: 42
 tags:
   - Vector Database
   - Architecture

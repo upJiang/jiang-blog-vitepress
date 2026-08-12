@@ -3,7 +3,7 @@ title: Agent Eval：从样本集、评分器到版本回归门禁
 description: 把“看起来回答不错”变成可重复比较的评测：固定样本、运行版本、检索指标、Claim 支持、引用、工具轨迹与人工复核。
 category: ai-agent
 part: 答案质量与运行
-chapter: 66
+chapter: 67
 tags:
   - Agent Eval
   - Regression

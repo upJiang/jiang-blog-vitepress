@@ -3,7 +3,7 @@ title: Agent Trace：日志、指标与一次运行怎样关联
 description: 从一次慢回答出发，用 Trace 还原模型、检索、工具、队列和验证阶段，并设计低基数指标与隐私安全日志。
 category: ai-agent
 part: 答案质量与运行
-chapter: 67
+chapter: 68
 tags:
   - OpenTelemetry
   - Trace

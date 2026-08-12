@@ -3,7 +3,7 @@ title: Agent 图和 Runtime 测试：状态快照比最终文本更重要
 description: 用单元、图级和运行级测试验证路由、Reducer、Checkpoint、取消和终态，而不是只断言最后一句话。
 category: ai-agent
 part: LangGraph：状态图和执行语义
-chapter: 22
+chapter: 24
 tags:
   - Testing
   - LangGraph

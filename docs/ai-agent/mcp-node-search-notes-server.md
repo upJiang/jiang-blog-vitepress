@@ -5,7 +5,7 @@ description: >-
   验证正常、空结果和参数错误。
 category: ai-agent
 part: Tool、MCP、Skill 与 SubAgent
-chapter: 34
+chapter: 55
 tags:
   - MCP
   - Node.js

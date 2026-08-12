@@ -1,9 +1,11 @@
 ---
 title: LangChain Tool：Schema、ToolRuntime 与受控执行边界
-description: 从一次 search_notes 调用拆开工具描述、参数 Schema、ToolCall、可信 ToolRuntime、ToolMessage、返回值校验和错误终态，并用七个测试验证权限与失败语义。
+description: >-
+  从一次 search_notes 调用拆开工具描述、参数 Schema、ToolCall、可信
+  ToolRuntime、ToolMessage、返回值校验和错误终态，并用七个测试验证权限与失败语义。
 category: ai-agent
 part: LangChain：从函数到 Agent
-chapter: 10
+chapter: 12
 tags:
   - LangChain
   - Tool Calling

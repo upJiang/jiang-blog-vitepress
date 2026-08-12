@@ -1,9 +1,11 @@
 ---
 title: LangChain 结构化输出：原生约束、Pydantic 解析与有限修复
-description: 区分模型原生 Structured Outputs、Tool Calling 和文本后置解析，使用 PydanticOutputParser 实现嵌套 SearchPlan 校验、错误分类与最多一次修复。
+description: >-
+  区分模型原生 Structured Outputs、Tool Calling 和文本后置解析，使用 PydanticOutputParser 实现嵌套
+  SearchPlan 校验、错误分类与最多一次修复。
 category: ai-agent
 part: LangChain：从函数到 Agent
-chapter: 9
+chapter: 11
 tags:
   - LangChain
   - Pydantic

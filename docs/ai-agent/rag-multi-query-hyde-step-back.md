@@ -3,7 +3,7 @@ title: Multi-Query、HyDE 与 Step-back：三种查询扩展怎样取舍
 description: 用同一召回集比较多查询、假设文档和抽象问题，说明它们改善的召回缺口和引入的噪声。
 category: ai-agent
 part: RAG 与知识工程：查询与召回
-chapter: 52
+chapter: 45
 tags:
   - RAG
   - HyDE
@@ -21,7 +21,7 @@ practice:
     - 记录查询版本和额外成本
     - 噪声增加时有停止条件
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Multi-Query、HyDE 与 Step-back：三种查询扩展怎样取舍
