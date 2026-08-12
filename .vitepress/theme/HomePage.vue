@@ -12,17 +12,17 @@ const router = useRouter()
 
 const featuredPaths = [
   'ai-agent/llm-workflow-rag-agent',
+  'ai-practice/ai-work-modes-opc-full-stack',
   'ai-agent/knowledge-agent-capstone',
   'frontend/relearn/browser/browser_event',
-  'backend/request-connection-to-response',
   'devops/ai-infra-role-map'
 ]
 
 const focusAreas = [
   {
     name: 'AI 全栈实践',
-    description: '前端交互、后端服务、Agent 能力和工程交付一起学习。',
-    href: '/docs/frontend/typescript-type-system-engineering'
+    description: '用规则、MCP、Skill 与工作模式组织一个人的产品和工程交付。',
+    href: '/docs/ai-practice/ai-work-modes-opc-full-stack'
   },
   {
     name: 'Agent 工程师',
@@ -31,7 +31,7 @@ const focusAreas = [
   },
   {
     name: 'AI Infra 工程师',
-    description: '从 Linux、容器和数据服务走到 GPU 推理、容量和恢复。',
+    description: '从运行底座和模型服务走到 GPU、Kubernetes、企业平台与可靠交付。',
     href: '/docs/devops/ai-infra-role-map'
   }
 ]

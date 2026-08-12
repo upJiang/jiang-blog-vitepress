@@ -1,0 +1,8 @@
+node/dist/
+node/node_modules/
+python/.mypy_cache/
+python/.pytest_cache/
+python/.ruff_cache/
+python/.venv/
+python/**/__pycache__/
+

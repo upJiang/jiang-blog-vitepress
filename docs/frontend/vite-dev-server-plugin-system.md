@@ -19,7 +19,7 @@ practice:
     - 转换只作用于目标模块
     - HMR 失效时能定位模块边界
 evidence: public-source
-updated: 2026-08-06T00:00:00.000Z
+updated: 2026-08-11
 ---
 
 # Vite 开发服务器与插件
@@ -87,6 +87,10 @@ export function buildInfoPlugin(version: string): Plugin {
 
 HMR 保留状态不是正确性保证。模块副作用、全局单例和事件监听需要 dispose 清理，否则每次热更新都会重复注册。生产环境也不会运行 HMR 逻辑。
 
+模块图中的节点不是简单文件路径。Vite 会区分浏览器 URL、解析后的 ID、查询参数和虚拟模块；同一文件的 `?raw`、`?url` 或框架子请求可能对应不同转换结果。插件缓存若只按绝对路径作为 key，会把不同请求错误合并。
+
+HMR 更新先定位变化模块，再沿 importers 向上寻找接受边界。自接受模块可以处理自身更新，依赖接受者可以指定依赖，框架插件还会按组件签名判断能否保留状态。走到入口仍没有边界时，全页刷新是正确性降级，不是 HMR 系统失败。
+
 ## 步骤四：调试插件顺序与性能
 
 插件有执行顺序和 apply 条件。开发与构建都运行的 transform 应产生等价语义；只适用 serve 或 build 时明确声明。Source Map 在多次转换中继续组合，否则错误位置会偏移。
@@ -97,7 +101,7 @@ HMR 保留状态不是正确性保证。模块副作用、全局单例和事件�
 
 虚拟模块能在开发与构建中解析；其他 ID 继续交给后续插件；文件变更只更新合法边界；dispose 后没有重复监听。插件生成无效代码、泄露绝对路径或 Source Map 丢失时，测试应失败。
 
-下一篇离开开发服务器，观察 Rollup、esbuild 和代码分割怎样共同生成浏览器最终加载的文件。
+开发服务器的按需模块图与生产构建的 Chunk 图服务于不同阶段，验收插件时必须同时跑 serve 和 build，不能用开发请求正常推断生产产物一定正确。
 
 ## 用网络面板观察一次模块请求
 
@@ -114,3 +118,23 @@ HMR 保留状态不是正确性保证。模块副作用、全局单例和事件�
 给虚拟模块插件写四个测试：公开 ID 能解析，其他 ID 返回 `null`，load 只接受内部 ID，生成内容对引号和换行安全。再运行一次生产构建，确认虚拟模块也能被 Rollup 阶段解析，Source Map 没有丢失。
 
 遇到启动变慢时开启 Vite debug 信息，比较配置加载、依赖扫描、预构建和首批模块转换。先缩小到具体插件或目录，再修改 include/exclude。删除缓存只能作为验证步骤，若没有解释缓存为什么失效，下一次仍会复发。
+
+## 浏览器一条请求如何变成模块
+
+浏览器请求 `/src/main.ts` 时，Vite 中间件先判断 HTML、裸导入、源码或资产；插件容器按 enforce/order 运行 `resolveId`，再由 `load` 取得内容，`transform` 链逐个返回 code 与 Source Map。返回内容被转换为浏览器可执行 ESM，导入的下一模块继续走同一链路。
+
+```text
+GET /src/main.ts -> resolveId -> load(file) -> transform(ts -> js)
+  -> import graph URL rewrite -> browser evaluates module
+```
+
+裸包依赖通常先被依赖预构建为缓存产物，以统一 CJS/复杂包并减少重复转换；预构建 key 受 lockfile、Vite 版本、配置和环境影响。HMR 通过模块图向上寻找 accept 边界，边界外的副作用可能触发整页刷新。`handleHotUpdate` 返回模块集合不是保证状态可保留的承诺。
+
+开发插件可以使用 `configureServer`、文件监听和虚拟模块，但生产由 Rollup 兼容插件容器构建静态产物；只在 serve 钩子注册的模块可能开发正常、生产找不到。插件应声明 apply 阶段，分别测试 dev/build，并检查 Source Map。
+
+## 官方依据
+
+- [Vite Plugin API](https://vite.dev/guide/api-plugin.html)
+- [Vite Dependency Pre-Bundling](https://vite.dev/guide/dep-pre-bundling.html)
+- [Vite HMR API](https://vite.dev/guide/api-hmr)
+- [Vite Build](https://vite.dev/guide/build)

@@ -71,8 +71,11 @@ const semanticRules = [
 ] as const
 
 function decorateSvg(markup: string): string {
-  const documentNode = new DOMParser().parseFromString(markup, 'image/svg+xml')
-  const svgNode = documentNode.documentElement
+  const container = document.createElement('div')
+  container.innerHTML = markup
+  const svgNode = container.querySelector('svg')
+  if (!svgNode) throw new Error('Mermaid 没有返回可渲染的 SVG。')
+
   svgNode.classList.add('xj-mermaid-svg')
   svgNode.setAttribute('aria-hidden', 'true')
   svgNode.setAttribute('focusable', 'false')
@@ -97,7 +100,7 @@ function decorateSvg(markup: string): string {
     node.dataset.xjSemantic = semantic?.name ?? 'program'
   }
 
-  return new XMLSerializer().serializeToString(svgNode)
+  return svgNode.outerHTML
 }
 
 async function renderDiagram(): Promise<void> {

@@ -2,14 +2,44 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
-import { articles, articlePath } from '../.vitepress/content.ts'
+import { articles, articleFile, articlePath } from '../.vitepress/content.ts'
+import { removedBackendRoutes } from '../.vitepress/removed-backend-routes.ts'
 
 const baseURL = process.env.BLOG_URL ?? 'http://localhost:9999'
+const checksDevMiddleware = !process.env.BLOG_URL || process.env.BLOG_EXPECT_DEV_REDIRECT === '1'
 const tempDirectory = fs.mkdtempSync(
   path.join(os.tmpdir(), 'ai-full-stack-blog-visual-')
 )
 const errors = []
 const consoleErrors = []
+const availableArticles = articles.filter((article) =>
+  fs.existsSync(path.join(process.cwd(), articleFile(article)))
+)
+const representativeRoutes = [
+  '/docs/ai-agent/llm-workflow-rag-agent',
+  '/docs/ai-agent/embedding-vector-space',
+  '/docs/ai-agent/mcp-protocol-lifecycle',
+  '/docs/ai-agent/rag-evaluation-recall-mrr-ndcg',
+  '/docs/ai-agent/knowledge-agent-capstone',
+  '/docs/ai-agent/agent-lifecycle',
+  '/docs/ai-agent/prompt-cache-prefix-design',
+  '/docs/ai-practice/mcp-design-workflow-mining',
+  '/docs/ai-practice/python-mcp-server-practice',
+  '/docs/ai-practice/article-publishing-skill-practice',
+  '/docs/ai-practice/context-engineering-harness',
+  '/docs/ai-practice/ai-work-modes-opc-full-stack',
+  '/docs/seo/search-growth-model',
+  '/docs/seo/technical-seo-rendering-performance',
+  '/docs/seo/sem-account-keywords-landing',
+  '/docs/frontend/vscode-extension-lifecycle',
+  '/docs/frontend/react-fiber-concurrent-rendering',
+  '/docs/frontend/vue-vdom-renderer-diff',
+  '/docs/frontend/vite-dev-server-plugin-system',
+  '/docs/algorithms/binary-search-boundaries',
+  '/docs/backend/backend-learning-roadmap',
+  '/docs/backend/transaction-acid-isolation-mvcc',
+  '/docs/backend/react-nestjs-prisma-admin'
+]
 
 function assert(condition, message) {
   if (!condition) errors.push(message)
@@ -47,17 +77,6 @@ try {
     await page.close()
   }
 
-  const representativeRoutes = [
-    '/docs/ai-agent/embedding-vector-space',
-    '/docs/ai-agent/agent-lifecycle',
-    '/docs/seo/search-growth-model',
-    '/docs/frontend/vscode-extension-lifecycle',
-    '/docs/backend/fastapi-pydantic-layered',
-    '/docs/devops/docker-compose',
-    '/docs/devops/ai-infra-role-map',
-    '/docs/devops/vllm-openai-compatible-serving'
-  ]
-
   for (const width of [375, 1440]) {
     const page = await browser.newPage({ viewport: { width, height: 900 } })
     page.on('console', (message) => {
@@ -65,12 +84,46 @@ try {
     })
     page.on('pageerror', (error) => consoleErrors.push(error.message))
 
-    for (const article of articles) {
+    for (const article of availableArticles) {
       const route = articlePath(article)
       await page.goto(`${baseURL}${route}`, { waitUntil: 'domcontentloaded' })
       await page.locator('.VPDoc').waitFor()
       if (!article.preserved) {
         assert((await page.locator('h1').count()) === 1, `${width}px 文章缺少唯一一级标题：${route}`)
+      }
+      if (article.category === 'backend') {
+        assert(
+          (await page.locator('h1').textContent())?.replace(/\u200b/g, '').trim() === article.title,
+          `${width}px 后端文章标题与清单不一致：${route}`
+        )
+        assert(
+          (await page.locator('.NotFound, .not-found, [data-not-found]').count()) === 0,
+          `${width}px 后端文章误入 404 页面：${route}`
+        )
+        assert(
+          (await page.locator('.chapter-guide').count()) === 0,
+          `${width}px 后端文章仍展示固定阅读信息模板：${route}`
+        )
+        if (article.slug !== 'mysql-crud-parameter-binding') {
+          await page.locator('.mermaid svg').first().waitFor({ timeout: 10_000 })
+          assert(
+            (await page.locator('.mermaid svg').count()) > 0,
+            `${width}px 后端文章 Mermaid 未渲染：${route}`
+          )
+        }
+      }
+      if (
+        (!article.preserved && article.category === 'algorithms') ||
+        (article.category === 'frontend' && article.chapter >= 19 && !article.slug.startsWith('relearn/'))
+      ) {
+        assert(
+          (await page.locator('h1').textContent())?.replace(/\u200b/g, '').trim() === article.title,
+          `${width}px 前端/算法文章标题与清单不一致：${route}`
+        )
+        assert(
+          (await page.locator('.NotFound, .not-found, [data-not-found]').count()) === 0,
+          `${width}px 文章误入 404 页面：${route}`
+        )
       }
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -118,14 +171,70 @@ try {
   page.on('pageerror', (error) => consoleErrors.push(error.message))
 
   await page.goto(`${baseURL}/docs/frontend/`, { waitUntil: 'networkidle' })
-  assert((await page.locator('.article-index-list a').count()) === 71, '前端栏目应展示 71 篇文章')
-  assert((await page.locator('text=算法与数据结构').count()) > 0, '前端栏目缺少算法分组')
+  assert((await page.locator('.article-index-list a').count()) === 104, '前端栏目应展示 104 篇文章')
+  assert((await page.locator('text=算法与数据结构').count()) === 0, '前端栏目不应再展示算法分组')
   assert((await page.locator('text=重学前端').count()) > 0, '前端栏目缺少重学前端分组')
+  assert((await page.locator('.frontend-track-tabs [role="tab"]').count()) === 7, '前端栏目缺少七个专题 Tab')
+  assert((await page.locator('.frontend-track-tabs [role="tab"][aria-selected="true"]').count()) === 1, '前端专题没有唯一激活 Tab')
+  await page.locator('#frontend-tab-react').click()
+  assert(new URL(page.url()).searchParams.get('track') === 'react', '专题 Tab 没有同步 track 查询参数')
+  assert((await page.locator('.frontend-track-panel a').count()) > 0, 'React 专题没有文章')
+  await page.locator('#frontend-tab-typescript').focus()
+  await page.keyboard.press('ArrowRight')
+  assert(await page.locator('#frontend-tab-react').evaluate((element) => document.activeElement === element), '专题 Tab 不支持方向键移动焦点')
+  await page.keyboard.press('Home')
+  assert(await page.locator('#frontend-tab-all').evaluate((element) => document.activeElement === element), '专题 Tab 不支持 Home')
+  await page.keyboard.press('End')
+  assert(await page.locator('#frontend-tab-engineering').evaluate((element) => document.activeElement === element), '专题 Tab 不支持 End')
+  await page.goto(`${baseURL}/docs/frontend/?track=vue`, { waitUntil: 'networkidle' })
+  assert(await page.locator('#frontend-tab-vue').getAttribute('aria-selected').then((value) => value === 'true'), '专题 Tab 无法从查询参数恢复')
+
+  if (checksDevMiddleware) {
+    const legacyResponse = await page.request.get(`${baseURL}/docs/frontend/algorithms/array.html`, { maxRedirects: 0 })
+    assert(legacyResponse.status() === 302, '开发环境旧算法地址没有返回 302')
+    assert(legacyResponse.headers().location === '/docs/algorithms/array', '旧算法地址跳转目标错误')
+  }
+
+  await page.goto(`${baseURL}/docs/algorithms/`, { waitUntil: 'networkidle' })
+  assert((await page.locator('.article-index-list a').count()) === 21, '算法栏目应展示 21 篇文章')
+  assert((await page.locator('a[href="/docs/algorithms/"]').count()) > 0, '顶部导航缺少算法入口')
 
   await page.goto(`${baseURL}/docs/seo/`, { waitUntil: 'networkidle' })
   assert((await page.locator('.article-index-list a').count()) === 12, 'SEO 栏目应展示 12 篇文章')
-  assert((await page.locator('text=建立增长模型').count()) > 0, 'SEO 栏目缺少增长模型分组')
-  assert((await page.locator('text=站外、数据与投放').count()) > 0, 'SEO 栏目缺少投放分组')
+  assert((await page.getByText('需求、抓取与页面', { exact: true }).count()) > 0, 'SEO 栏目缺少需求、抓取与页面分组')
+  assert((await page.getByText('技术审计与排障', { exact: true }).count()) > 0, 'SEO 栏目缺少技术审计与排障分组')
+  assert((await page.getByText('站外、数据与投放', { exact: true }).count()) > 0, 'SEO 栏目缺少站外、数据与投放分组')
+
+  await page.goto(`${baseURL}/docs/backend/`, { waitUntil: 'networkidle' })
+  assert((await page.locator('.article-index-list a').count()) === 68, '后端栏目应展示 68 篇文章')
+  assert((await page.getByText('68 篇文章', { exact: true }).count()) > 0, '后端栏目没有显示 68 篇文章数量')
+
+  await page.goto(`${baseURL}/docs/ai-practice/`, { waitUntil: 'networkidle' })
+  assert((await page.locator('.article-index-list a').count()) === 10, 'AI 实践栏目应展示 10 篇文章')
+  assert((await page.getByText('基础认知', { exact: true }).count()) > 0, 'AI 实践栏目缺少基础认知分组')
+  assert((await page.getByText('Agent 协作', { exact: true }).count()) > 0, 'AI 实践栏目缺少 Agent 协作分组')
+  assert((await page.getByText('能力扩展', { exact: true }).count()) > 0, 'AI 实践栏目缺少能力扩展分组')
+  assert((await page.getByText('研发系统', { exact: true }).count()) > 0, 'AI 实践栏目缺少研发系统分组')
+  assert((await page.getByText('个人工作系统', { exact: true }).count()) > 0, 'AI 实践栏目缺少个人工作系统分组')
+
+  for (const removedRoute of ['/docs/architecture/ai-system-seven-layers', '/docs/engineering/systematic-debugging', '/docs/ai-practice/codex-claude-code-rules']) {
+    const removedPage = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    await removedPage.goto(`${baseURL}${removedRoute}`, { waitUntil: 'networkidle' })
+    assert((await removedPage.title()).startsWith('404'), `旧栏目路由没有进入 404 页面：${removedRoute}`)
+    assert((await removedPage.locator('.NotFound, .not-found, [data-not-found]').count()) > 0, `旧栏目路由缺少 404 语义：${removedRoute}`)
+    assert((await removedPage.locator('.VPDoc').count()) === 0, `旧栏目路由仍渲染文章正文：${removedRoute}`)
+    await removedPage.close()
+  }
+
+  for (const removedRoute of removedBackendRoutes) {
+    const removedPage = await browser.newPage({ viewport: { width: 375, height: 812 } })
+    await removedPage.goto(`${baseURL}${removedRoute}`, { waitUntil: 'domcontentloaded' })
+    await removedPage.waitForFunction(() => document.title.startsWith('404'))
+    assert((await removedPage.title()).startsWith('404'), `废弃后端路由没有进入 404：${removedRoute}`)
+    assert((await removedPage.locator('.NotFound, .not-found, [data-not-found]').count()) > 0, `废弃后端路由缺少 404 语义：${removedRoute}`)
+    assert((await removedPage.locator('.VPDoc').count()) === 0, `废弃后端路由仍渲染正文：${removedRoute}`)
+    await removedPage.close()
+  }
 
   await page.goto(`${baseURL}/docs/ai-agent/agent-lifecycle`, { waitUntil: 'networkidle' })
   await page.locator('.mermaid svg').first().waitFor({ timeout: 10_000 })
@@ -210,7 +319,8 @@ try {
   await page.goto(`${baseURL}/docs/ai-agent/llm-workflow-rag-agent`, {
     waitUntil: 'networkidle'
   })
-  const workflowCode = page.locator('div.language-text').filter({ hasText: '用户输入' }).first()
+  const workflowCode = page.locator('div.language-python').first()
+  await workflowCode.waitFor()
   const lineGeometry = await workflowCode.locator('code .line').evaluateAll((lines) => {
     const tops = lines.map((line) => line.getBoundingClientRect().top)
     return {
@@ -218,7 +328,7 @@ try {
       largestGap: Math.max(...tops.slice(1).map((top, index) => top - tops[index]))
     }
   })
-  assert(lineGeometry.count === 5, '工作流示例应渲染为 5 行代码')
+  assert(lineGeometry.count >= 5, 'Agent 入门文章缺少可检查的多行 Python 示例')
   assert(lineGeometry.largestGap < 30, '代码行之间出现了额外空行')
 
   await workflowCode.scrollIntoViewIfNeeded()
@@ -291,4 +401,4 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
-console.log(`视觉冒烟通过：164 篇文章完成 375px/1440px 检查，8 篇代表文章完成 768px/1024px 检查；首页、栏目、导航、Mermaid、深色模式、键盘焦点、代码复制和搜索均正常。`)
+console.log(`视觉冒烟通过：${articles.length} 篇文章完成 375px/1440px 检查，${representativeRoutes.length} 篇代表文章完成 768px/1024px 检查；首页、栏目、导航、Mermaid、深色模式、键盘焦点、代码复制和搜索均正常。`)

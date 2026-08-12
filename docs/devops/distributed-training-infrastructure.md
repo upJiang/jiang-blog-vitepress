@@ -1,141 +1,94 @@
 ---
-title: DDP、FSDP、DeepSpeed、NCCL 与分布式训练基础设施
-description: 从单卡放不下和多卡通信进入数据、参数和流水线并行及网络瓶颈。
+title: 分布式训练：Data、Tensor、Pipeline Parallel、DDP 与 FSDP
+description: 从单卡放不下和训练过慢出发，比较数据、参数和流水线并行的状态分布、通信和检查点。
 category: devops
-part: 第四部分：GPU 与模型制品
-chapter: 13
+part: 第七部分：分布式训练基础设施
+chapter: 32
 tags:
+  - Distributed Training
   - DDP
   - FSDP
-  - NCCL
 prerequisites:
-  - GPU 与深度学习基础
+  - 理解 GPU、显存和网络
 outcomes:
-  - 区分并行策略
-  - 识别通信和存储需求
+  - 区分常见并行策略
+  - 识别计算、通信、存储和恢复需求
 practice:
   type: decision
   result: 设计一张两节点训练拓扑
   verify:
-    - 明确这是官方资料指导的独立操作
-    - 不虚构训练吞吐
-evidence: official-guided-operation
-updated: 2026-08-06T00:00:00.000Z
+    - 策略选择能回到瓶颈
+    - 不提供未经实测的训练吞吐
+evidence: official
+updated: 2026-08-11
 ---
-# DDP、FSDP、DeepSpeed、NCCL 与分布式训练基础设施
 
-一张 GPU 放不下模型，不代表“再加一张卡”就能解决。数据怎样切、参数放在哪里、梯度怎样同步、节点之间用什么网络、检查点怎样写，都会影响训练是否能启动和是否值得扩展。
+# 分布式训练：先问单卡为什么不够
 
-本文只讲 AI Infra 工程师需要掌握的基础设施认知和最小实验设计，不展开训练算法和 CUDA Kernel 开发。没有多卡或多节点环境时，内容只能做拓扑设计和官方配置核对，不能写成训练吞吐成果。
+训练任务扩到八张 GPU，吞吐只提升一点。可能是每张卡的 Batch 太小、梯度 AllReduce 占满网络、数据加载跟不上，也可能是 Pipeline 出现大量空泡。增加 GPU 只增加可用资源，不自动改变瓶颈。
 
-## 四种并行先分清
+分布式训练把数据、参数、激活、梯度和 Optimizer State 分布到多个 Rank。选择策略前先判断目标：模型是否放不下、单步计算是否太慢、数据量是否需要更大吞吐，还是训练时间受检查点与输入管线影响。
+
+## 训练状态占用什么
+
+训练通常同时保存参数、梯度、Optimizer State、激活和临时 Buffer。混合精度还可能保留 FP32 Master Weight。推理显存账本不能直接套到训练。
+
+状态的所有权决定通信。若每个 Rank 都有完整参数，梯度需要同步；若参数也分片，前向和反向前要按需收集；若不同层在不同设备，激活要跨阶段传输。
+
+## Data Parallel 与 DDP
+
+Data Parallel 让每个 Rank 持有完整模型，处理不同 Mini-batch，再同步梯度。PyTorch DistributedDataParallel 通常为每个进程绑定一张 GPU，并在反向传播中按 Bucket 执行 AllReduce，使通信与计算部分重叠。
+
+它适合模型能放入单卡、希望扩大数据吞吐的场景。参数、梯度和 Optimizer State 仍在每张卡重复，因此不能解决大模型单卡容量。Global Batch 等于每 Rank Batch 乘数据并行数再乘梯度累积步数，改变后可能需要调整学习率和训练策略。
+
+## FSDP 与参数分片
+
+Fully Sharded Data Parallel 把参数、梯度和 Optimizer State 按 Rank 分片，并在计算前后按策略 AllGather 与 ReduceScatter。它降低每卡常驻状态，却增加通信和执行编排。
+
+Wrap 粒度过细会产生大量小通信，过粗又提高峰值内存。参数初始化、混合精度、CPU Offload 和状态字典方式都影响容量与检查点。FSDP 不是“打开一个开关就能训练任意模型”。
+
+## Tensor Parallel
+
+Tensor Parallel 把单层矩阵沿维度切到多张 GPU。每个 Rank 计算部分结果，再通过 AllReduce、AllGather 或 ReduceScatter 组合。它能让单层和权重跨卡，但通信发生在大量层内边界，对 NVLink/NVSwitch 等高带宽互联敏感。
+
+切分维度必须与 Head、隐藏维度和 GPU 数兼容。TP 数越大，单卡计算减少，通信比例可能上升；跨慢网络做细粒度 TP 往往代价高。
+
+## Pipeline Parallel
+
+Pipeline Parallel 把连续层分为 Stage，Micro-batch 像流水线一样通过。它减少单设备持有层数，Stage 间只传激活和梯度，但存在 Pipeline Bubble、负载不均、调度与错误恢复复杂度。
+
+层计算量不均时，最慢 Stage 决定吞吐。增加 Micro-batch 可减少空泡，却提高调度和激活状态。跨节点边界应考虑网络，尽量把高频细粒度通信留在节点内。
+
+## 组合并行
+
+大规模训练常把 DP、TP、PP 和分片组合成多维 Mesh。例如节点内用 TP，节点间用 DP；模型更深时再加入 PP。组合后 Rank 到设备的映射、Process Group、随机数、数据分片和 Checkpoint 都更复杂。
 
 ```mermaid
 flowchart TB
-  A[训练数据与模型] --> B{放不下或跑不动的原因}
-  B --> C[数据并行 DDP]
-  B --> D[参数/优化器切分 FSDP/ZeRO]
-  B --> E[层切分 模型并行]
-  B --> F[阶段切分 流水线并行]
-  C --> G[每卡副本 + 梯度同步]
-  D --> H[每卡只保留一部分状态]
-  E --> I[层或张量跨卡通信]
-  F --> J[微批次按阶段流动]
+  subgraph N1[Node 1]
+    A0[TP Rank 0] --- A1[TP Rank 1]
+    B0[TP Rank 2] --- B1[TP Rank 3]
+  end
+  subgraph N2[Node 2]
+    C0[TP Rank 4] --- C1[TP Rank 5]
+    D0[TP Rank 6] --- D1[TP Rank 7]
+  end
+  A0 -.Data Parallel.-> C0
+  A1 -.Data Parallel.-> C1
+  B0 -.Data Parallel.-> D0
+  B1 -.Data Parallel.-> D1
 ```
 
-| 策略 | 每卡放什么 | 主要通信 | 适合解决 |
-| --- | --- | --- | --- |
-| DDP | 完整模型副本 | 梯度 AllReduce | 模型能放一张卡，想提高数据吞吐 |
-| FSDP/ZeRO | 参数、梯度、优化器分片 | 分片收集与归约 | 单卡放不下完整训练状态 |
-| Tensor/模型并行 | 不同卡承担层内计算 | 高频张量通信 | 单层或模型本身过大 |
-| Pipeline 并行 | 不同卡承担不同层 | 激活在阶段间传递 | 深层模型与多卡流水线 |
+图只演示关系，不指定唯一策略。真实拓扑要写清 World Size、Global/Local Rank、节点、GPU UUID、Process Group 与每种并行维度。
 
-实际系统可组合策略，但复杂度和通信要求也相乘。
+## 数据与检查点
 
-## 第一步：DDP 的最小执行链
+分布式采样要避免不同 Rank 重复或遗漏数据，并在恢复时保持 Epoch/Step、随机数和数据位置。数据读取、预处理和网络存储若跟不上，GPU 会等待。
 
-DDP 通常让每个进程绑定一张 GPU，拥有模型副本和不同数据分片；反向传播时通过 NCCL 等集合通信同步梯度，随后各副本更新为一致参数。
+检查点包含模型、Optimizer、Scheduler、Scaler、随机数和训练进度。Sharded Checkpoint 能减少单 Rank 内存与 I/O，但恢复到不同 World Size 需要格式支持。写入使用临时版本、校验和与完成标记，不能让半写文件成为可恢复点。
 
-运行前要准备：
+## 故障与观测
 
-1. 每个进程的 `LOCAL_RANK` 与 GPU 映射。
-2. 进程组初始化地址、端口、World Size 和 Rank。
-3. Dataset Sampler 按 epoch 正确分片，避免不同 rank 重复读同一批数据。
-4. 所有 rank 以相同顺序进入集合通信。
-5. 每个 rank 的 checkpoint 保存策略明确，通常由 rank 0 写或使用分布式写。
+Collective 要求参与 Rank 以一致顺序进入；某个 Rank OOM、数据异常或进程退出，其他 Rank 可能表现为通信超时。日志必须带 job、node、global/local rank、step 和 collective。先找到最早失败 Rank，而不是只看最后超时者。
 
-任何一个 rank 在集合通信前异常退出，其他 rank 可能长时间等待。训练系统需要超时、错误传播和作业级清理，不要只观察 rank 0 日志。
-
-## 第二步：NCCL 和网络是基础设施问题
-
-NCCL 为 NVIDIA GPU 提供集合通信实现。单机多卡可能通过 NVLink/PCIe 通信，多节点还要经过网卡、交换机和 RDMA/TCP 配置。
-
-官方诊断通常包括：确认 GPU 可见性、驱动与 CUDA、网卡接口、容器设备、NCCL 版本、拓扑和进程映射。调试时可以提高 NCCL 日志级别，但不要在长期生产日志中无上限打开详细调试。
-
-用 `nvidia-smi topo -m` 查看 GPU 与 CPU/网卡拓扑线索。结果需要结合目标节点硬件说明；NUMA 距离、PCIe 交换机和网卡路径会影响通信，不要跨机器套用。
-
-网络防火墙要允许进程间的初始化和通信端口；只测试 SSH 通不代表 NCCL 端口可达。两节点实验应保存：节点名、GPU 列表、驱动/CUDA/NCCL 版本、网卡、接口、容器镜像和启动参数。
-
-## 第三步：FSDP/ZeRO 为什么能节省显存
-
-DDP 每卡保存完整参数、梯度和优化器状态。FSDP 或 ZeRO 将这些状态分片：需要计算某层时临时 all-gather，计算后再释放或重新分片，降低单卡峰值显存。
-
-节省显存的代价是通信和调度复杂度：
-
-- 参数收集与释放增加网络/互联通信。
-- Checkpoint 不再是简单每卡一个完整模型，需要合并或分片保存策略。
-- Layer wrapping 影响峰值显存和通信频率。
-- CPU/NVMe offload 可以继续节省显存，但带宽与延迟会变成瓶颈。
-
-容量设计要同时列出模型参数、梯度、优化器、激活、通信 buffer、checkpoint 和数据加载内存。只计算权重大小无法判断训练能否运行。
-
-## 第四步：流水线并行的“气泡”
-
-流水线并行把模型层切成多个 stage，微批次依次流过。不同 stage 之间会传递激活；流水线刚启动和快结束时，有些 stage 空闲，称为气泡。
-
-增加微批次可以减少气泡占比，却增加激活缓存和调度复杂度。stage 划分不均时，最慢 stage 决定吞吐。模型输入长度、激活大小和跨节点带宽要一起评估。
-
-故障恢复也更复杂：一个 stage 失败会影响同一微批次链路，检查点必须保存足够状态以从明确边界重启。
-
-## 第五步：数据、Checkpoint 与对象存储
-
-分布式训练的输入数据不只在 GPU。数据集分片、预取、CPU 内存、缓存、对象存储吞吐和 checkpoint 写入都会成为瓶颈。
-
-Checkpoint 要记录：代码提交、配置、模型/Tokenizer 版本、数据集版本、随机种子、optimizer/scheduler 状态、全局 step、并行拓扑和精度。只保存模型权重无法精确恢复训练进度。
-
-多 rank 同时写对象存储可能产生大量小对象和热点。可使用 rank 0 协调、分片文件清单、临时目录 + 原子 manifest；写完后校验大小与 checksum，再把版本标记为可恢复。
-
-训练中断恢复实验应故意终止作业，确认：旧 checkpoint 不被覆盖；新作业读取了正确 step；数据 sampler 没有静默跳过或重复异常；恢复后的日志和指标能与前一段对齐。
-
-## 第六步：最小两节点拓扑设计
-
-先不运行，画清对象：
-
-```text
-节点 A: GPU x 4, rank 0-3, 数据读取, Checkpoint 协调
-节点 B: GPU x 4, rank 4-7
-控制面: 作业提交、日志、指标、失败清理
-网络: GPU 间高速互联（若没有，明确使用 TCP 的性能边界）
-存储: 只读数据集 + 可写 checkpoint Bucket
-```
-
-拓扑图还要标注：GPU 到网卡路径、节点间端口、容器设备、共享数据是否同版本、作业失败时谁负责释放资源。
-
-## 故障定位顺序
-
-| 现象 | 先核对 | 证据 |
-| --- | --- | --- |
-| 某 rank 看不到 GPU | 设备映射、驱动、容器 | 每 rank 的 `nvidia-smi` |
-| 初始化卡住 | 地址、端口、网卡、Rank/World Size | NCCL/launcher 日志 |
-| 通信很慢 | GPU/网卡拓扑、带宽、NUMA | NCCL benchmark 与系统指标 |
-| OOM | 参数/梯度/激活/通信 buffer | 峰值显存与配置 |
-| 只有某 rank 失败 | 数据分片、文件、异常栈 | rank-specific logs |
-| 恢复后指标跳变 | checkpoint 与 sampler | step、seed、数据版本 |
-
-先确认是否所有 rank 都进入同一阶段，再调整 NCCL 环境变量。环境变量能改变行为，却不能修复错误的分片或资源模型。
-
-## 官方资料指导的独立操作
-
-在有明确硬件和许可的隔离集群中，可以用官方 PyTorch Distributed、FSDP 或 DeepSpeed 示例完成小规模启动。记录完整环境，不提供没有在该硬件上测得的 Token/s、加速倍数或成本数字。
-
-没有多卡环境时，完成这些产物也有价值：并行策略决策表、两节点拓扑、端口与资源清单、checkpoint 恢复 Runbook 和故障诊断树。它们是进入集群操作前的前置能力。
+指标包括 step time 分解、计算/通信重叠、每 Rank 显存、网络、数据等待、Gradient Norm、Checkpoint 时间和失败恢复。当前环境没有训练集群，因此不提供扩展效率数字；文章产物是一张能解释状态分布、通信边和恢复方式的拓扑。

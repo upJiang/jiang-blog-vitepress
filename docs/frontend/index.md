@@ -7,4 +7,4 @@ aside: false
 footer: false
 ---
 
-<SectionIndex category="frontend" />
+<FrontendSectionIndex />

@@ -1,210 +1,83 @@
 ---
-title: OCI 镜像、容器、Namespace、cgroup 与信号
-description: 从镜像 Layer 到容器进程，理解隔离、资源限制、PID 1 和优雅退出。
+title: OCI 镜像、容器隔离、cgroup 与进程生命周期
+description: 从镜像清单到容器进程，解释 Layer、Namespace、cgroup、PID 1、挂载和优雅退出。
 category: devops
-part: 第二部分：容器与入口
+part: 第一部分：认识 AI Infra 与运行底座
 chapter: 4
 tags:
-  - Docker
   - OCI
+  - Container
   - cgroup
 prerequisites:
-  - Linux 进程基础
+  - 理解 Linux 进程
 outcomes:
-  - 解释镜像与容器区别
-  - 设置资源和停止策略
+  - 解释镜像、容器和进程的区别
+  - 为 AI 服务设置资源与停止边界
 practice:
-  type: implementation
-  result: 检查一个容器的进程与限制
+  type: walkthrough
+  result: 完成一张容器运行模型图
   verify:
-    - SIGTERM 能传到应用
-    - 资源限制可从 inspect 核对
-evidence: official-guided-operation
-updated: 2026-08-06T00:00:00.000Z
+    - 资源限制能回到 cgroup
+    - SIGTERM 能到达业务进程
+evidence: official
+updated: 2026-08-11
 ---
-# OCI 镜像、容器、Namespace、cgroup 与信号
 
-把 API 放进容器后，它在开发机运行正常，到了限制 512 MiB 内存的环境却被终止；执行 `docker stop` 时还要等满超时时间，最后被强制杀掉。问题不一定在 Docker，而可能是应用没有理解自己仍然是一个 Linux 进程。
+# OCI、容器隔离与进程生命周期
 
-本章会运行一个最小容器，检查镜像层、Namespace、cgroup、PID 1 和停止信号。完成后，你能解释“容器隔离了什么、没有隔离什么”，也能为下一章的多服务 Compose 打基础。
+同一个模型镜像在开发机能启动，到另一台机器却提示架构不匹配；容器显示内存只有几 GB，宿主机明明还有空闲；停止容器时应用也没有执行清理。这三个现象分别落在镜像平台、cgroup 资源边界和 PID 1 信号处理，不能用“Docker 有问题”概括。
 
-## 镜像和容器不是同一个东西
+容器不是轻量虚拟机的同义词。它首先是宿主机上的进程，只是使用 Namespace 获得隔离视图，使用 cgroup 获得资源计量与限制，再叠加镜像文件系统和 Runtime 生命周期。
 
-**镜像**是只读文件系统层、配置和元数据组成的制品。多个容器可以使用同一个镜像。
-
-**容器**是镜像配置的一次运行：内核创建进程，为它设置 Namespace 和 cgroup，再叠加一个可写层。删除容器，可写层通常也被删除；挂载的 Volume 另有生命周期。
+## 从镜像到容器进程
 
 ```mermaid
-flowchart TB
-  A[OCI Image Manifest] --> B[只读 Layer]
-  A --> C[Config: Entrypoint Env User]
-  B --> D[容器可写层]
-  C --> E[容器 PID 1]
-  E --> F[Namespaces]
-  E --> G[cgroup 限制与统计]
-  H[Host Kernel] --> E
+flowchart TD
+  I[OCI Image Manifest] --> L[Read-only Layers]
+  L --> B[Bundle: config + rootfs]
+  B --> R[OCI Runtime]
+  R --> N[Namespaces]
+  R --> C[cgroup]
+  R --> P[Container PID 1]
+  P --> A[Application Threads / Children]
 ```
 
-容器不包含独立内核。Linux 容器与宿主共享内核，所以内核漏洞、能力、设备和挂载配置仍是安全边界的一部分。
+镜像清单描述平台、配置与 Layer；Layer 是内容寻址的只读文件变化；创建容器时，Runtime 准备 root filesystem、Namespace、cgroup 和进程参数，再启动容器的第一个进程。容器还会得到一层可写文件系统，但它通常随容器删除，不适合保存数据库、模型上传或持久任务状态。
 
-## 第一步：检查镜像究竟包含什么
+## OCI 解决的是可交换契约
 
-选择一个固定版本的公开镜像，不用浮动 `latest`：
+OCI Image Specification 定义镜像布局和配置，Runtime Specification 定义怎样从 Bundle 创建进程，Distribution Specification 定义 Registry 交互。Docker、containerd、CRI-O 与低层 Runtime 可以在这些契约上协作。
 
-```bash
-docker pull nginx:1.27-alpine
-docker image inspect nginx:1.27-alpine
-docker history --no-trunc nginx:1.27-alpine
-```
+镜像标签只是可变名称，Digest 才指向具体内容。生产发布若只记录 `latest`，同一配置可能在不同时间拉到不同内容；应把镜像 Digest、模型 Revision 和配置版本共同写入发布记录。
 
-`image inspect` 查看架构、入口、默认命令、环境、工作目录和层摘要；`history` 查看层的创建历史，但不应把它当成完整 SBOM。镜像内容审计还需要 SBOM 与漏洞扫描。
+多架构镜像使用 Manifest List 或 Image Index 为 `linux/amd64`、`linux/arm64` 等平台选择具体 Manifest。平台选错时，二进制可能直接无法执行。GPU 能力也不会因为镜像名称里包含 CUDA 自动出现，它仍依赖宿主机驱动、容器 Runtime 配置和设备注入。
 
-镜像层按内容摘要寻址。构建时每条会改变文件系统的指令可能形成新层，后续删除前一层中的 Secret 并不会让它从历史层消失。因此 Secret 不能通过 `COPY` 放进构建上下文后再删除，应使用构建时 Secret 挂载，并检查最终层。
+## Namespace 隔离的是视图
 
-镜像标签可以移动，Digest 才精确标识内容。生产提升同一个不可变制品时，记录 `repo@sha256:...`，不要在每台服务器重新构建“同名镜像”。
+PID Namespace 让容器看到自己的进程编号；Mount Namespace 提供独立挂载视图；Network Namespace 提供接口、路由和端口空间；User Namespace 可以映射容器与宿主用户。Namespace 不复制一套内核，容器进程仍共享宿主机内核。
 
-## 第二步：运行容器并检查 PID 1
+因此，容器内看到的 `localhost` 指向自己的 Network Namespace，不是数据库容器。跨容器通信要通过同一网络中的服务名或明确地址。进程在容器内是 PID 1，在宿主机上会有另一个 PID，两种视图都可能用于排障。
 
-```bash
-docker run --name runtime-demo --rm -d \
-  --read-only --tmpfs /var/cache/nginx --tmpfs /var/run \
-  -p 8080:80 nginx:1.27-alpine
+## cgroup 管理资源预算
 
-docker top runtime-demo -eo pid,ppid,user,stat,cmd
-```
+cgroup 记录和限制 CPU、内存、进程数与 I/O 等资源。内存限制不是预留量：宿主机有空闲内存，也不代表容器可以超过自己的上限。达到硬边界时，进程可能被 cgroup 范围内的 OOM 处理终止。
 
-`--read-only` 把容器根文件系统设为只读，两个 `tmpfs` 为 Nginx 确实需要写入的临时目录提供内存文件系统；`-p` 把宿主 8080 映射到容器 80。示例结束后因为 `--rm` 会在停止时自动删除容器。
+CPU quota 控制可使用的时间份额，cpuset 控制允许在哪些 CPU 上运行，两者语义不同。AI 服务还要区分主存与 GPU 显存；普通容器内存限制不会替代 GPU 显存管理，GPU 设备资源要由 NVIDIA Runtime 或 Kubernetes Device Plugin 暴露。
 
-容器内的第一个进程是 PID 1。它负责接收停止信号，也需要回收已经退出的子进程。shell 形式入口如 `sh -c "my-server"` 可能让 shell 成为 PID 1，如果没有 `exec`，信号不一定按预期传到真正应用。
+## PID 1 为什么特殊
 
-Dockerfile 优先使用 exec 形式：
+容器停止时，Runtime 通常向 PID 1 发送 `SIGTERM`，等待宽限期，再发送 `SIGKILL`。如果入口是不会转发信号的 Shell，真正的模型服务收不到停止通知；如果 PID 1 不回收子进程，还会积累僵尸进程。
 
-```dockerfile
-ENTRYPOINT ["/app/server"]
-CMD ["serve", "--port", "8000"]
-```
+入口应使用 exec 形式让业务程序直接成为 PID 1，或使用能正确转发信号和回收子进程的 init。应用收到 `SIGTERM` 后停止接流量、取消或排空请求、刷新必要状态并退出。所有耗时步骤都要小于 Runtime 的停止宽限期。
 
-启动容器时 Docker 依次执行 `ENTRYPOINT` 和 `CMD`，JSON 数组参数直接传入进程，不经过 shell 展开，应用直接成为 PID 1。收到停止信号后，PID 1 负责把信号传给应用并等待退出；确实需要启动脚本时，脚本最后使用 `exec "$@"` 替换 shell。会产生子进程且自身不负责回收的应用，可以使用 `--init` 加入小型 init。验证方式是发送 SIGTERM 后观察应用是否在 grace period 内退出，而不是只看容器是否被强制删除。
+## 挂载决定数据所有权
 
-## 第三步：Namespace 隔离“看见什么”
+Bind Mount 把宿主路径直接暴露给容器，方便开发但耦合具体目录与权限。Named Volume 由容器平台管理，适合数据库等持久数据。对象存储和远程模型仓库则通过网络提供独立生命周期。
 
-Namespace 为进程提供不同的系统视图。常见类型：
+不要把持久化问题简化为“挂一个目录”。要写清数据所有者、写入用户、备份方式、升级兼容、并发访问和删除条件。模型缓存可以重建，业务数据库不能；两者应使用不同的恢复与清理策略。
 
-| Namespace | 隔离对象 | 容器中的表现 |
-| --- | --- | --- |
-| PID | 进程编号 | 容器有自己的 PID 1 |
-| Mount | 挂载点 | 容器看到自己的根文件系统 |
-| Network | 网卡、路由、端口 | 容器有独立网络栈 |
-| UTS | 主机名 | 容器可有独立 hostname |
-| IPC | 共享内存、消息队列 | 不默认与宿主共享 |
-| User | UID/GID 映射 | 容器 root 可映射为宿主非 root |
+## 判断容器设计是否成立
 
-从宿主查容器进程，再查看 Namespace 链接：
+一份可审查的容器设计至少回答：镜像由哪个 Digest 标识，目标平台是什么，进程以哪个用户运行，CPU/内存/PID 上限是多少，哪些目录可写，哪些状态必须持久化，健康检查验证什么，收到停止信号后怎样结束。
 
-```bash
-container_pid=$(docker inspect -f '{{.State.Pid}}' runtime-demo)
-ls -l "/proc/${container_pid}/ns"
-```
-
-`container_pid` 是任务专用变量，不会覆盖系统常用环境变量。`/proc/PID/ns` 中每个链接的 inode 可用于比较两个进程是否共享 Namespace。
-
-`--network host`、`--pid host` 等参数会放弃相应隔离。使用前要明确需求和风险，不能为了“网络连不上”就默认共享宿主命名空间。
-
-## 第四步：cgroup 控制“能使用多少”
-
-Namespace 管可见性，cgroup 管资源统计和限制。启动一个带资源边界的容器：
-
-```bash
-docker run --name limited-demo --rm -d \
-  --memory 256m --cpus 0.5 --pids-limit 128 \
-  nginx:1.27-alpine
-
-docker inspect limited-demo --format \
-  'memory={{.HostConfig.Memory}} nano_cpus={{.HostConfig.NanoCpus}} pids={{.HostConfig.PidsLimit}}'
-```
-
-`--memory` 限制内存，`--cpus 0.5` 表示配额约为一个 CPU 的一半，`--pids-limit` 限制进程/线程数量。`inspect` 输出使用字节和内部单位，要确认最终生效值，而不是只相信启动命令。
-
-内存到达硬限制时，cgroup 内进程可能被 OOM Kill。检查：
-
-```bash
-docker inspect limited-demo --format \
-  'status={{.State.Status}} oom={{.State.OOMKilled}} exit={{.State.ExitCode}}'
-docker stats --no-stream limited-demo
-```
-
-`OOMKilled=true` 是比“退出码 137”更直接的容器证据。还要结合主机 cgroup 事件和应用内存 Profile 判断为什么增长。
-
-CPU 限制常表现为 throttling，而不是进程退出。延迟上升但 CPU 百分比看似没有打满时，检查 cgroup CPU 统计。线程数也计入 PID 限制；高并发运行时创建大量线程，可能遇到 `resource temporarily unavailable`。
-
-## 第五步：理解网络端口映射
-
-容器内监听 `0.0.0.0:80`，并不自动对宿主开放。`-p 8080:80` 建立发布规则，客户端访问宿主 8080，由容器运行时转发到容器 80。
-
-```bash
-curl --fail-with-body http://127.0.0.1:8080/
-docker port runtime-demo
-docker exec runtime-demo ss -lnt
-```
-
-三条命令按请求路径逐层执行：`curl` 从宿主访问发布端口并返回 HTTP 结果，`docker port` 输出宿主端口到容器端口的映射，`docker exec` 进入容器检查进程实际监听的地址。宿主请求失败但映射存在时，再根据内部监听结果判断应用是否只绑定了错误地址。如果镜像没有 `ss`，不要临时把排障工具装进正在运行的生产容器；可以让受控调试容器加入同一 Network Namespace。
-
-容器里的 `127.0.0.1` 指向容器自己，不是宿主，也不是另一个容器。多容器通信应使用用户定义网络和服务 DNS 名称，下一章会实操。
-
-## 第六步：把文件分成三种生命周期
-
-1. 镜像层：随制品发布，只读、可重建。
-2. 容器可写层：随容器存在，适合临时文件，不保存唯一数据。
-3. Volume 或绑定挂载：生命周期独立，用于数据库、对象或明确配置。
-
-`--read-only` 能迫使应用说明自己需要写哪里，也减少运行时篡改面。日志优先输出 stdout/stderr 由平台收集；本地文件日志需要轮转、容量和挂载策略。
-
-Volume 不是备份。误删、应用错误和数据损坏会一起写入 Volume，仍需要独立备份与恢复验证。
-
-## 第七步：验证 SIGTERM 与优雅退出
-
-先观察容器停止所需时间：
-
-```bash
-time docker stop --time 10 runtime-demo
-```
-
-Docker 先向容器 PID 1 发送配置的停止信号，等待十秒；仍未退出才发送 SIGKILL。应用应该在 SIGTERM 后：
-
-1. readiness 变为失败，停止接新流量。
-2. 取消后台循环和下游调用。
-3. 在途请求与任务按 Deadline 排空。
-4. Flush 日志与遥测。
-5. 主进程退出并返回可解释状态。
-
-若每次都等满十秒，检查 PID 1 是谁、应用是否监听信号、是否有无法结束的子进程。不要简单把停止超时调大来掩盖问题。
-
-## 第八步：减少默认权限
-
-容器 root 仍然是高权限身份。镜像中创建非 root 用户，并在 Dockerfile 用 `USER` 切换；运行时移除不需要的 Linux Capability，启用只读根文件系统与 `no-new-privileges`，只挂载必要路径。
-
-不要把 Docker Socket 挂进普通应用容器。能访问宿主 Docker Socket 的进程通常可以控制其他容器和宿主资源，这接近宿主 root 权限。
-
-镜像安全还包括：固定基础镜像、最小化包、生成 SBOM、扫描已知漏洞、签名并按 Digest 部署。安全扫描发现问题后仍需判断可达性和升级兼容，不是只追求零告警数字。
-
-## 一次完整检查应得到什么
-
-| 检查 | 命令 | 预期结论 |
-| --- | --- | --- |
-| 镜像身份 | `docker image inspect` | 架构、入口、Digest 明确 |
-| 容器进程 | `docker top` | PID 1 是预期应用或 init |
-| 资源边界 | `docker inspect` | 内存、CPU、PID 限制可核对 |
-| 运行状态 | `docker stats` | 使用量未持续逼近限制 |
-| 网络 | `docker port` + curl | 宿主入口映射到正确端口 |
-| 文件 | inspect mounts | 唯一数据不在可写层 |
-| 停止 | `docker stop` | SIGTERM 后在预算内退出 |
-
-清理本章容器：
-
-```bash
-docker stop limited-demo
-```
-
-`runtime-demo` 若尚未停止也执行同样命令。它们使用 `--rm`，停止后自动删除。不要用无目标的 prune 命令清理来源不明的镜像、Volume 或构建缓存。
-
-迁移练习：把自己的开发 API 做成非 root、只读根文件系统容器。列出它确实要写的目录，以 tmpfs 或 Volume 精确挂载；发送 SIGTERM 并记录 readiness 与在途请求的变化。
+容器带来的价值是可重复的运行边界，而不是让故障消失。只有把镜像、进程、Namespace、cgroup、挂载和信号逐层对应起来，后面的 Compose 与 Kubernetes 才不会变成配置背诵。

@@ -1,0 +1,21 @@
+:root {
+  color: #17202a;
+  background: #f4f6f8;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+.login-shell, .status-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.login-panel { width: min(420px, 100%); background: #fff; border: 1px solid #dfe3e8; padding: 28px; }
+.app-shell { min-height: 100vh; }
+.app-header { display: flex; align-items: center; justify-content: space-between; background: #fff; border-bottom: 1px solid #dfe3e8; padding-inline: 24px; }
+.app-header h2 { margin: 0; }
+.app-content { width: min(1120px, 100%); margin: 0 auto; padding: 24px; display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 24px; }
+.project-form, .project-list { background: #fff; border: 1px solid #dfe3e8; padding: 24px; }
+.full-width { width: 100%; }
+
+@media (max-width: 760px) {
+  .app-content { grid-template-columns: 1fr; padding: 16px; }
+  .app-header { padding-inline: 16px; }
+}

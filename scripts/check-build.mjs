@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { draftArticleFiles } from '../.vitepress/drafts.ts'
+import { removedBackendRoutes } from '../.vitepress/removed-backend-routes.ts'
 
 const root = process.cwd()
 const sitemapFile = path.join(root, '.vitepress/dist/sitemap.xml')
@@ -40,6 +42,7 @@ const installerRequirements = [
   /restore_config/,
   /--resolve 'junfeng530\.xyz:443:127\.0\.0\.1'/,
   /\/docs\/ai-agent\/agent-lifecycle/,
+  /rewrite \^\/docs\/frontend\/algorithms\/\(\[\^\/\.\]\+\).*\/docs\/algorithms\/\$1 permanent;/,
 ]
 
 if (installerRequirements.some((pattern) => !pattern.test(cleanUrlInstaller))) {
@@ -69,12 +72,23 @@ if (workflowRequirements.some((pattern) => !pattern.test(workflow))) {
 const expectedUrls = new Set([`${hostname}/`])
 const removedRoutes = [
   '/docs/agent-practice/01-system-boundaries',
+  '/docs/architecture/ai-system-seven-layers',
+  '/docs/engineering/systematic-debugging',
+  '/docs/ai-practice/codex-claude-code-rules',
   '/docs/backend/fastapi-layered-architecture',
+  ...removedBackendRoutes,
   '/docs/frontend/typescript-engineering'
 ]
+const legacyAlgorithmSlugs = [
+  'dataStructures', 'complexity', 'array', 'string', 'stack', 'queue', 'chain',
+  'chainHead', 'chainCicle', 'sort', 'tree', 'ergodicTree', 'bstTree', 'DFS',
+  'thinking', 'dynamic'
+]
 
+const draftSet = new Set(draftArticleFiles)
 for (const file of walk(path.join(root, 'docs')).filter((item) => item.endsWith('.md'))) {
   const relative = path.relative(root, file).split(path.sep).join('/')
+  if (draftSet.has(relative)) continue
   const route = relative.endsWith('/index.md')
     ? `${relative.slice(0, -'index.md'.length)}`
     : relative.slice(0, -'.md'.length)
@@ -117,6 +131,19 @@ for (const route of removedRoutes) {
   }
   if (actualUrls.has(`${hostname}${route}`)) {
     console.error(`构建检查失败：已移除路由仍进入 Sitemap：${route}`)
+    process.exit(1)
+  }
+}
+
+for (const slug of legacyAlgorithmSlugs) {
+  const legacyRoute = `/docs/frontend/algorithms/${slug}`
+  const canonicalRoute = `/docs/algorithms/${slug}`
+  if (actualUrls.has(`${hostname}${legacyRoute}`)) {
+    console.error(`构建检查失败：旧算法路由仍进入 Sitemap：${legacyRoute}`)
+    process.exit(1)
+  }
+  if (!actualUrls.has(`${hostname}${canonicalRoute}`)) {
+    console.error(`构建检查失败：新算法路由没有进入 Sitemap：${canonicalRoute}`)
     process.exit(1)
   }
 }

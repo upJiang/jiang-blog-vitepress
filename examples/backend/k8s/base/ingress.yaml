@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-api
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '30'
+spec:
+  rules:
+    - host: backend.example.test
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-api
+                port: { name: http }

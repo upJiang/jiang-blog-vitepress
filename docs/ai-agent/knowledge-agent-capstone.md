@@ -3,7 +3,7 @@ title: 知识 Agent 工程实践：从文档进入系统到可审计回答
 description: 把导入、版本、权限、检索、工具、证据、事件、取消、恢复、评测和观测串成一条匿名工程实现。
 category: ai-agent
 part: 答案质量与运行
-chapter: 28
+chapter: 69
 tags:
   - Agent
   - RAG
@@ -22,7 +22,8 @@ practice:
     - 正常、无证据、无权限、取消和恢复均有终态
     - 每个事实结论能追溯到可见证据
 evidence: anonymized-practice
-updated: 2026-08-07
+updated: 2026-08-07T00:00:00.000Z
+lastUpdated: false
 ---
 # 知识 Agent 工程实践：从文档进入系统到可审计回答
 
@@ -36,7 +37,7 @@ updated: 2026-08-07
 
 > “生产环境访问申请需要谁审批？有效期多久？”
 
-一个可信回答至少要带出两个事实和对应位置。如果只有一个“看起来合理”的句子，没有版本、范围和证据，它仍然是不合格的。系统应能给出三类终态：
+一个可信回答至少要带出两个事实和对应位置。如果只有一个“看起来合理”的句子，没有版本、范围和证据，它仍然是不合格的。系统应能给出三类**终态**：
 
 ```text
 completed  找到可见证据，回答并引用
@@ -44,7 +45,7 @@ no_evidence  在允许范围内没有足够证据，明确说明缺口
 rejected  用户没有访问该范围，拒绝透露越界内容
 ```
 
-`no_evidence` 与 `rejected` 不能混成“没找到”。前者是资料覆盖或查询表达的问题，后者是权限边界，处理动作完全不同。
+`no_evidence` 与 `rejected` 不应混成“没找到”。前者是资料覆盖或查询表达的问题，后者是权限边界，处理动作完全不同。
 
 ## 把系统拆成六个阶段
 
@@ -74,7 +75,7 @@ flowchart LR
   class X failure;
 ```
 
-用户输入和授权范围进入系统后，先创建一个有稳定 ID 的回合。回合固定知识版本、策略版本和截止时间，避免运行期间混用不同快照。理解阶段把问题拆成检索计划；检索阶段在 SQL 和搜索通道中执行权限过滤；证据阶段把候选转换成可引用的 Evidence 和 Claim；回答阶段只使用被选中的证据；验证失败时不能直接把草稿当成答案。
+用户输入和授权范围进入系统后，先创建一个有稳定 ID 的回合。回合固定知识版本、策略版本和截止时间，避免运行期间混用不同快照。理解阶段把问题拆成检索计划；检索阶段在 SQL 和搜索通道中执行权限过滤；证据阶段把候选转换成可引用的 **Evidence** 和 Claim；回答阶段只使用被选中的证据；验证失败时不应直接把草稿当成答案。
 
 ## 阶段一：创建回合，而不是只接收 HTTP 请求
 
@@ -94,17 +95,21 @@ HTTP 连接可能中断，用户也可能重复点击。系统需要一个比连
 
 创建流程：验证用户身份和知识库权限 → 按幂等键查询已有回合 → 固定快照和 Deadline → 写入 `turn.created` 事件 → 投递执行任务。数据库唯一约束和锁负责最终去重，Redis 等短期协调工具不能成为最终事实。
 
-幂等键不能只放在内存字典中。两个 API 实例同时收到相同请求时，只有数据库约束才能保证只创建一个回合。另一个请求应读取已存在记录，而不是重新消耗模型和检索资源。
+幂等键不应只放在内存字典中。两个 API 实例同时收到相同请求时，只有数据库约束才能保证只创建一个回合。另一个请求应读取已存在记录，而不是重新消耗模型和检索资源。
 
 ## 阶段二：理解问题，但不让模型接管权限
 
 模型适合把自然语言转换成结构化意图，例如：
 
-```json
+
+理解节点只产出检索意图、实体和字段需求。Scope、Release 与用户身份继续保留在 Runtime 的可信状态中，不会出现在这个模型候选对象里。
+```jsonc
 {
+  // intent 是模型对问题类型的候选判断，程序只允许预先定义的枚举值。
   "intent": "lookup_policy",
   "entities": ["生产环境", "访问申请"],
   "requested_fields": ["审批人", "有效期"],
+  // 精确标记表示必须核对结构化事实，不能只依赖语义相似片段。
   "needs_exact": true
 }
 ```
@@ -130,13 +135,13 @@ retrieval_channel
 retrieval_score
 ```
 
-SQL 或搜索请求先过滤知识库、已激活版本、状态和 ACL，再执行精确、全文、向量或表格通道。缓存键必须包含用户范围和版本，否则一个用户的结果可能被另一个用户命中。
+SQL 或搜索请求先过滤知识库、已激活版本、状态和 **ACL**，再执行精确、全文、向量或表格通道。缓存键必须包含用户范围和版本，否则一个用户的结果可能被另一个用户命中。
 
 检索完成后还要做一次可见性复核。原因是回合执行可能跨过权限撤销；创建时快照决定版本语义，但当前权限策略可能要求在输出前再次阻止已撤销对象。系统要明确采用哪一种策略，并把结果写入观测。
 
 ## 阶段四：Evidence 和 Claim 是两个对象
 
-Evidence 是系统看到的来源片段，Claim 是回答准备表达的事实。一个 Evidence 可以支持多个 Claim，一个 Claim 也可能需要多个 Evidence。不要把一段长上下文直接作为“引用”。
+Evidence 是系统看到的来源片段，**Claim** 是回答准备表达的事实。一个 Evidence 可以支持多个 Claim，一个 Claim 也可能需要多个 Evidence。不要把一段长上下文直接作为“引用”。
 
 ```mermaid
 flowchart LR
@@ -238,6 +243,231 @@ turn.completed / turn.failed / turn.cancelled
 
 读者可以拿任意一个内部问答需求替换“生产访问”场景，检查每一步是否有明确输入和输出。只要其中一步只能用“模型自己判断”解释，就应该补一个结构化状态或程序校验。
 
+## 串起一个最小只读 Runtime
+
+下面的实现只依赖标准库，不访问真实数据库或模型。它通过 Protocol 把 Retriever、Generator 和 EventSink 放在边界外，核心 Runtime 只负责可信 Scope/Release、Evidence 复核、Claim 引用和唯一终态。输入是一份 `TurnContext` 与问题，输出是 `RunResult` 和有序事件。
+
+```python
+# Runtime 依次创建 Turn、固定快照、检索、绑定 Claim、验证并原子提交终态，适配器保持可替换。
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Protocol
+
+
+class Terminal(StrEnum):
+    COMPLETED = "completed"
+    NO_EVIDENCE = "no_evidence"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True)
+class TurnContext:
+    turn_id: str
+    release_id: str
+    visible_scope_ids: frozenset[str]
+    deadline_ms: int
+# Evidence 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
+
+
+@dataclass(frozen=True)
+class Evidence:
+    evidence_id: str
+    text: str
+    release_id: str
+    scope_id: str
+    source_locator: str
+# ClaimDraft 表示一个可单独核查的事实单元，后续必须为它找到证据或明确拒绝。
+
+
+@dataclass(frozen=True)
+class ClaimDraft:
+    text: str
+    evidence_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RunResult:
+    terminal: Terminal
+    answer: str
+    evidence_ids: tuple[str, ...]
+
+
+class Retriever(Protocol):
+    # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
+    def search(
+        self, question: str, *, release_id: str, scope_ids: frozenset[str]
+    ) -> tuple[Evidence, ...]: ...
+
+
+class Generator(Protocol):
+    def generate(
+        self, question: str, evidence: tuple[Evidence, ...]
+    ) -> tuple[ClaimDraft, ...]: ...
+
+
+# EventSink 保存可排序、可重放的事件状态，让断线恢复仍能重建相同执行轨迹。
+class EventSink(Protocol):
+    def append(self, turn_id: str, event_type: str, payload: str) -> None: ...
+
+
+class ReadOnlyRuntime:
+    def __init__(
+        self,
+        retriever: Retriever,
+        generator: Generator,
+        events: EventSink,
+    ) -> None:
+        self._retriever = retriever
+        self._generator = generator
+        self._events = events
+
+    # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
+    def run(self, context: TurnContext, question: str) -> RunResult:
+        self._events.append(context.turn_id, "retrieval.started", "")
+        # 用当前查询和可信范围执行检索；返回候选会继续接受去重、排序或证据校验。
+        evidence = self._retriever.search(
+            question,
+            release_id=context.release_id,
+            scope_ids=context.visible_scope_ids,
+        )
+        if not evidence:
+            return self._finish(context, Terminal.NO_EVIDENCE, "没有找到可见证据", ())
+
+        for item in evidence:
+            if item.release_id != context.release_id:
+                return self._finish(context, Terminal.REJECTED, "证据版本不一致", ())
+            if item.scope_id not in context.visible_scope_ids:
+                return self._finish(context, Terminal.REJECTED, "证据超出可见范围", ())
+            if not item.source_locator or not item.text.strip():
+                return self._finish(context, Terminal.NO_EVIDENCE, "证据无法定位", ())
+
+        self._events.append(
+            context.turn_id,
+            "evidence.selected",
+            ",".join(item.evidence_id for item in evidence),
+        )
+        claims = self._generator.generate(question, evidence)
+        evidence_by_id = {item.evidence_id: item for item in evidence}
+        for claim in claims:
+            if not claim.evidence_ids:
+                return self._finish(context, Terminal.NO_EVIDENCE, "Claim 缺少引用", ())
+            if any(item_id not in evidence_by_id for item_id in claim.evidence_ids):
+                return self._finish(context, Terminal.NO_EVIDENCE, "Claim 引用了未知证据", ())
+
+        answer = "\n".join(
+            f"{claim.text} [{' '.join(claim.evidence_ids)}]"
+            for claim in claims
+        )
+        used_ids = tuple(
+            dict.fromkeys(
+                evidence_id
+                for claim in claims
+                # 逐项保留正文之外的来源和稳定标识，后续引用才能回到原始位置。
+                for evidence_id in claim.evidence_ids
+            )
+        )
+        return self._finish(context, Terminal.COMPLETED, answer, used_ids)
+
+    def _finish(
+        self,
+        context: TurnContext,
+        terminal: Terminal,
+        answer: str,
+        evidence_ids: tuple[str, ...],
+    ) -> RunResult:
+        self._events.append(context.turn_id, f"turn.{terminal}", answer)
+        return RunResult(terminal, answer, evidence_ids)
+```
+
+`TurnContext` 保存入口已经确定的版本、Scope 和 Deadline；示例没有调用时钟，生产节点要在每次外部调用前使用它计算剩余预算。`Retriever` 接收可信过滤，返回 Evidence；Runtime 仍逐条复核 Release、Scope、定位和正文，防止适配器或缓存错误。
+
+`Generator` 只产生 Claim 和候选 Evidence ID，不能修改权限或终态。Runtime 检查每个 Claim 至少有引用且引用存在，然后才拼装教学用答案。生产生成器应返回结构化对象，Citation 渲染器使用 Reference 与 source locator，不直接拼字符串。
+
+`_finish` 是唯一提交终态的位置，保证每条路径都会产生终态事件。这个内存实现没有数据库条件更新；真实 Repository 用 `WHERE status NOT IN terminal` 和 owner token 保证并发 Worker 只能提交一次。Deadline、取消、**有限修复**和 Trace 由前面文章定义的组件围绕该核心状态机扩展。
+
+## 用 Fake Adapter 验证三条关键路径
+
+下面的测试直接复用前文实现。下面的测试不需要 API Key。Fake Retriever 决定返回哪条 Evidence，Fake Generator 只引用第一条，ListEvents 保存事件；输入分别覆盖公开证据、空证据和越权证据。
+
+
+为了验证“用 Fake Adapter 验证三条关键路径”，下面的测试把“Fake Adapter 提供可控检索与模型结果，测试正常、无证据和越权路径而不依赖外部服务”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
+
+```python
+# Fake Adapter 提供可控检索与模型结果，测试正常、无证据和越权路径而不依赖外部服务。
+from knowledge_runtime import (
+    ClaimDraft,
+    Evidence,
+    ReadOnlyRuntime,
+    Terminal,
+    TurnContext,
+)
+
+
+class FakeRetriever:
+    def __init__(self, result: tuple[Evidence, ...]) -> None:
+        self.result = result
+
+    # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
+    def search(self, question: str, *, release_id: str, scope_ids: frozenset[str]):
+        return self.result
+
+
+class FakeGenerator:
+    def generate(self, question: str, evidence: tuple[Evidence, ...]):
+        return (ClaimDraft("申请由负责人审批", (evidence[0].evidence_id,)),)
+
+
+class ListEvents:
+    def __init__(self) -> None:
+        self.items: list[tuple[str, str, str]] = []
+
+    def append(self, turn_id: str, event_type: str, payload: str) -> None:
+        self.items.append((turn_id, event_type, payload))
+
+
+# CONTEXT 来自服务端可信上下文，不能被用户文本或模型输出覆盖。
+CONTEXT = TurnContext("turn-1", "r8", frozenset({"public"}), 10_000)
+PUBLIC = Evidence("e1", "提交后由负责人审批", "r8", "public", "page:3")
+
+
+# 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
+def make_runtime(evidence: tuple[Evidence, ...]):
+    events = ListEvents()
+    return ReadOnlyRuntime(FakeRetriever(evidence), FakeGenerator(), events), events
+
+
+# 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
+def test_visible_evidence_completes_with_a_reference() -> None:
+    runtime, events = make_runtime((PUBLIC,))
+    result = runtime.run(CONTEXT, "谁审批？")
+    assert result.terminal is Terminal.COMPLETED
+    assert result.evidence_ids == ("e1",)
+    assert events.items[-1][1] == "turn.completed"
+
+
+# 空输入或空命中属于独立业务路径；这个用例确认它不会越过校验边界触发多余调用。
+def test_empty_retrieval_does_not_ask_the_model_to_guess() -> None:
+    runtime, events = make_runtime(())
+    result = runtime.run(CONTEXT, "有效期多久？")
+    assert result.terminal is Terminal.NO_EVIDENCE
+    assert events.items[-1][1] == "turn.no_evidence"
+
+
+def test_invisible_evidence_is_rejected_before_generation() -> None:
+    private = Evidence("e2", "私有流程", "r8", "private", "page:9")
+    runtime, events = make_runtime((private,))
+    result = runtime.run(CONTEXT, "私有流程是什么？")
+    assert result.terminal is Terminal.REJECTED
+    assert result.evidence_ids == ()
+    assert events.items[-1][1] == "turn.rejected"
+```
+
+执行 `python -m pytest -q`，预期三条通过。正常路径产生 Evidence ID 和 `turn.completed`；空结果在调用 Fake Generator 前结束；越权 Evidence 也在生成前被拒绝。进一步练习应添加旧 Release、未知引用、显式取消、Deadline 到期、Worker 迟到终态和 SSE 重放测试。
+
+这套 Fake 测试验证控制语义，不验证真实检索质量或模型表达。集成测试要把 Retriever 换成隔离数据库，把 Generator 换成固定脚本模型或真实候选模型，并继续复用同一个 Runtime 入口。
+
 ## 五条验收路径
 
 ### 正常回答
@@ -252,9 +482,9 @@ turn.completed / turn.failed / turn.cancelled
 
 准备用户只能看到预发范围但问题指向生产。召回 SQL 和输出复核都应阻止越界，终态为 `rejected`，不能用“未找到”掩盖权限拒绝。
 
-### 客户端断线和取消
+### 客户端断线和显式取消
 
-在回答流式输出时关闭客户端，确认事件持久化、后端收到取消、可取消调用停止，重新连接可以从序号继续或看到明确终态。
+在回答流式输出时关闭连接，确认事件继续持久化，重新连接可以从序号继续或看到明确终态；随后单独调用取消接口，确认持久化取消标记传播到可取消调用并进入 `cancelled`。断线本身不自动等于业务取消，除非产品策略明确如此。
 
 ### Worker 中断
 
@@ -289,3 +519,45 @@ turn.completed / turn.failed / turn.cancelled
 ```
 
 如果这份清单无法由代码、测试、配置或隔离实验回答，结论应写成“待验证”，而不是用架构名词填空。知识 Agent 的可靠性来自每个边界都可观察、可解释和可恢复。
+
+## 常见问题
+
+### 一个企业知识 Agent 的最小完整链路有哪些阶段？
+
+至少包括认证与请求校验、**Turn** 幂等创建与版本快照、资源准入和任务派发、结构化理解与有限计划、多路检索和权限过滤、Evidence/Claim 绑定、生成与流式事件、五类验证、终态持久化与重放。小项目可以同步执行或减少通道，但这些责任仍要有明确归属。只完成“向量检索后调用模型”能做演示，却无法解释重复请求、越权、断线和错误恢复。
+
+### 为什么 API 创建 Turn 后不直接在请求线程跑完整 Agent？
+
+完整执行可能跨模型、检索、工具和验证，耗时受外部依赖影响。API 用短事务完成身份、幂等、快照、事件与 Outbox，快速返回 Turn ID；Worker 再取得 Lease 执行，同一事实状态可供 SSE 与轮询读取。这样客户端断线不会让业务状态丢失，重复请求也不会创建多个执行单元。短任务可选择同步优化，但仍应复用同一 Runtime 与终态语义。
+
+### 模型在这条链路中到底控制什么？
+
+模型可以结构化理解问题、提出 SearchPlan、选择允许工具候选、生成和有限修复文本；身份、Scope、Release、资源预算、状态转移、工具白名单、执行、权限验证和终态锁由确定性程序控制。模型输出先进入 Schema 与编译器，不能直接变数据库命令。这样的边界允许模型处理不确定语言，又让安全、成本和恢复可测试。把 Planner 换成规则时，其他 Runtime 责任仍保持不变。
+
+### 没有检索到 Evidence 时，系统为什么不能让模型先回答再说？
+
+只读知识 Agent 的承诺是答案来自当前用户可见的指定资料。模型预训练知识可能过期、与内部版本冲突，也无法生成真实引用。无 Evidence 时可以进行有限改写、其他允许通道或澄清；仍不足则进入 `insufficient`，说明缺少什么。Eval 用无资料样本检查错误成功为零。若产品另外允许通用知识，必须明确标识来源和边界，不能伪装成知识库证据。
+
+### 流式输出已经发给用户后，验证发现错误怎么办？
+
+不要把未验证候选当最终事实永久展示。可以流式发送受控阶段事件或标记为 provisional 的文本，最终通过验证后发 `finalized`；发现硬失败时发撤销/拒答终态，前端替换候选。高风险场景甚至等验证完成再流正文。数据库只有一次 Finalize 条件更新，迟到 token 不能覆盖。产品体验与可信边界要共同设计，不能为了 TTFT 提前承诺未验证答案。
+
+### Worker 在模型返回后、终态提交前崩溃会怎样恢复？
+
+Checkpoint 保存步骤、输入 hash、已完成副作用与事件序号，模型或工具调用使用稳定 attempt/request ID。新 Worker 取得 fencing token 后先查询是否已有候选结果或终态；已完成则继续验证/Finalize，未知再按幂等与 Deadline 决定重试。旧 Worker 迟到提交被条件更新拒绝。测试应专门在“外部完成、数据库未写”和“数据库写、事件未发”两个窗口注入故障。
+
+### SSE 断线是否会影响 Agent 执行？
+
+通常不会。Agent 状态和事件先持久化，Redis 只唤醒 SSE；连接断开后 Worker 继续，用户重连用 Last-Event-ID 补发，过窗口则查询状态快照。只有用户显式取消或产品定义“断线即取消”时才传播取消，而且终态写入数据库。这样传输层故障不等于业务失败，也不会因为一个慢浏览器长期占住 Runtime 内存。
+
+### 为什么 Eval 必须走同一个 Runtime？
+
+若 Eval 绕过准入、快照、缓存、工具权限、验证和恢复，只测试一个 Prompt，就无法发现真实系统的状态与安全回归。评测入口可以注入 Fake 模型、Retriever 和时钟以获得可重复结果，但应调用相同领域状态机和执行器。逐样本保存 runId、traceId、版本、Evidence 与终态，候选通过硬门禁后才进入旁路或 Canary。测试的是系统，不是另一个简化脚本。
+
+### 完整 Agent 应该先从哪些测试开始？
+
+先固定五条业务路径：正常有证据、无证据、无权限、客户端断线/取消和 Worker 中断恢复；再补幂等重复、Deadline、工具超时、提示注入、引用过期与模型格式错误。断言不仅看答案，还看 Turn 状态、事件序号、Evidence Scope、工具副作用和资源释放。外部服务用 Fake Adapter 做单元与图测试，再在隔离环境做数据库、队列和 SSE 集成。
+
+### 怎样判断系统已经达到可以上线的程度？
+
+没有单一“生产级”标签。需要代码与测试证明权限、版本、幂等、取消、恢复和拒答语义；RAG 与 Agent Eval 通过预先定义的硬门禁；Trace、指标和 Runbook 能定位失败；容量和 Deadline 在隔离压测中满足目标；候选经过旁路验证并有回滚点。任何未验证能力明确标记为待验证，不用架构图替代运行证据。上线后仍通过反馈与 Trace 扩充回归集。

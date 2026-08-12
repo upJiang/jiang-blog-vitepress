@@ -1,6 +1,6 @@
 ---
-title: Vue 3 响应式与调度器
-description: 从连续修改状态只渲染一次开始，实现依赖收集、触发和批量更新的最小模型。
+title: Vue 3 响应式系统：依赖图与 Effect
+description: 从一次属性读取和修改进入 Proxy、ReactiveEffect、Track、Trigger、依赖清理与分支切换。
 category: frontend
 part: 现代前端：框架内部机制
 chapter: 3
@@ -19,104 +19,101 @@ practice:
     - 重复读取不会重复订阅
     - 同步修改被合并刷新
 evidence: public-source
-updated: 2026-08-06T00:00:00.000Z
+updated: 2026-08-11
 ---
 
-# Vue 3 响应式与调度
+# Vue 3 响应式系统：依赖图与 Effect
 
-在同一个点击事件里连续修改两次 `count`，页面通常不会同步渲染两遍，而是在本轮同步代码结束后统一更新。这里有两个不同问题：响应式系统怎样知道谁依赖 `count`，调度器又怎样把重复更新合并。
+模板读取 `state.price * state.count` 后，修改 count 会让组件更新，修改无关字段不会。Vue 不是定时比较整个对象，而是在 Effect 执行期间记录“哪个副作用读取了哪个 target/key”，写入时沿依赖图找到受影响 Effect。
 
-本篇先观察页面结果，再拆开 Proxy、effect 与 Job Queue。教学示例只帮助理解主线；Vue 的真实实现还包含嵌套 effect、依赖清理、computed、watch 和组件更新顺序。
+## 依赖图的数据结构
 
-## 先看一次更新流程
-
-本篇目标是解释“状态改了，DOM 什么时候变”的现象。开始前需要会读 Vue 组件和事件处理器；不需要阅读 Vue 源码，先用一个按钮实验区分依赖收集、触发和调度。
+全局 WeakMap 以原始 target 为键，避免阻止对象回收；每个 target 对应 Map，按属性 key 找到 Dep；Dep 保存订阅该属性的 ReactiveEffect。概念结构是 `WeakMap<object, Map<PropertyKey, Set<Effect>>>`，当前源码为性能加入更复杂标记，但职责不变。
 
 ```mermaid
 flowchart LR
-  R[组件渲染读取 count] --> T[track 记录依赖]
-  M[事件修改 count] --> G[trigger 找到 effect]
-  G --> Q[任务进入队列并去重]
-  Q --> F[微任务刷新]
-  F --> V[组件重新渲染]
+  T[target] --> K1[price]
+  T --> K2[count]
+  K1 --> E[render effect]
+  K2 --> E
+  K2 --> W[watch effect]
 ```
 
-响应式解决“哪些计算受这个值影响”，调度解决“何时以及按什么顺序重新执行”。把二者混成“Proxy 自动刷新 DOM”，会看不懂 computed 和 watch 为什么有不同时间语义。
+Effect 反向也要记录自己加入过哪些 Dep。重新执行前清理旧依赖，才能处理条件分支。否则 `ok ? text : fallback` 从 ok=true 切到 false 后，仍订阅 text，产生无效更新。
 
-## 步骤一：读取时收集依赖
+## Proxy 只负责拦截，不等于完整响应式
 
-`reactive()` 使用 Proxy 拦截属性读取与写入。组件渲染在一个活跃 effect 中执行；读取 `state.count` 时，将当前 effect 记录到目标对象与属性对应的依赖集合。没有活跃 effect 的普通读取不会被订阅。
+`reactive` 返回 Proxy。get 中 track，set 中比较旧值和新值再 trigger。还需缓存原对象与 Proxy，避免重复代理；处理嵌套对象、数组 length、迭代键、Map/Set 方法和 readonly 语义。一个十行 Proxy 示例只能说明入口。
 
-真实实现会在每次运行前后维护 effect 栈并清理旧依赖。例如条件从 `showA` 切到 `showB` 后，组件不应继续订阅已经不再读取的 A。数组长度、Map/Set 迭代与属性新增也有专门依赖键，不能用一个简单对象 Map 覆盖全部语义。
+```ts
+let activeEffect: (() => void) | undefined
+const graph = new WeakMap<object, Map<PropertyKey, Set<() => void>>>()
 
-## 步骤二：写入时触发，但不立即重渲染
-
-Proxy 的 setter 比较旧值与新值，并区分新增、修改和删除，再找到相关 effect。普通同步 effect 可以直接执行；组件 effect 通常交给 scheduler，避免同一调用栈内多次改动造成重复渲染。
-
-下面是可运行的观察示例。输入是在一次点击中连续赋值，预期是同步日志先结束，`nextTick` 后 DOM 显示最终值 2。代码不模拟 Vue 内部实现，只验证公开更新时序。
-
-```vue
-<script setup lang="ts">
-import { nextTick, ref } from 'vue'
-
-const count = ref(0)
-
-async function updateTwice() {
-  count.value = 1
-  count.value = 2
-  console.log('sync DOM:', document.querySelector('#count')?.textContent)
-
-  await nextTick()
-  console.log('updated DOM:', document.querySelector('#count')?.textContent)
+function track(target: object, key: PropertyKey): void {
+  if (!activeEffect) return
+  const keys = graph.get(target) ?? new Map()
+  graph.set(target, keys)
+  const effects = keys.get(key) ?? new Set()
+  keys.set(key, effects)
+  effects.add(activeEffect)
 }
-</script>
 
-<template>
-  <button @click="updateTwice">更新两次</button>
-  <span id="count">{{ count }}</span>
-</template>
+function trigger(target: object, key: PropertyKey): void {
+  const effects = new Set(graph.get(target)?.get(key) ?? [])
+  for (const effect of effects) effect()
+}
 ```
 
-点击按钮后，`updateTwice` 先连续写入两次响应式状态，Vue 把组件更新任务放入同一轮队列并去重；第一次日志在同步代码中执行，因此可能仍读取旧 DOM。`await nextTick()` 等待当前更新队列执行完成，第二次日志应输出 2。这个函数的返回只表示 Vue 已完成本轮 DOM 更新，它不是通用延时器，也不保证浏览器已经完成下一帧绘制。
+track 的输入是当前 target/key 与 activeEffect，执行后在依赖图中建立唯一订阅；trigger 复制集合再逐个调用，输出是相关 Effect 重新执行。示例缺少 cleanup、嵌套栈和 scheduler，所以分支切换会保留旧订阅，异常函数也需要 finally 恢复上下文，不能直接用于生产。
 
-## 步骤三：队列怎样保持稳定顺序
+复制 Set 再执行，避免 Effect 运行时清理并重新加入同一 Dep 导致迭代异常。教学模型省略 Effect 栈、cleanup、scheduler 和集合类型，不能当作 Vue 源码替代。
 
-调度器把 Job 去重并安排到微任务刷新。组件更新要考虑父子顺序、已卸载任务和刷新过程中新增任务。Vue 还区分 pre、component job 和 post 等时机；`watch` 的 `flush` 选项决定回调在组件更新前、后或同步执行。
+## ReactiveEffect 的执行状态
 
-`flush: 'sync'` 会失去批处理保护，适合极少数明确场景。默认时机下如果要读取更新后的 DOM，使用 post flush 或 `nextTick`。不要依赖未公开的队列字段和内部函数名，它们会随版本演进。
+嵌套 computed 或组件会形成 Effect 栈。执行前保存父 Effect，设置 activeEffect，清理/准备依赖；finally 中恢复父级。缺少 finally 时，用户函数抛错会污染全局 activeEffect，后续普通读取被错误收集。
 
-## computed 和 watch 为什么不同
+Effect 还要阻止不允许的递归触发，并把“立即执行”与“交给 scheduler”分开。trigger 找到 Effect 后，若有 scheduler 就把 job 交给队列，而不是同步重跑组件。
 
-computed 是带缓存的派生值。依赖变化时先标记为需要重新计算，下一次读取才求值，并通知依赖它的消费者。watch 用于副作用，关注源值变化后执行回调，还需要处理 cleanup，避免旧异步请求晚到覆盖新结果。
+## ref、reactive 与解包
 
-| 场景 | 合适工具 |
-| --- | --- |
-| 从已有状态计算显示值 | computed |
-| 状态变化后发请求或写存储 | watch |
-| 等待本轮 DOM 更新 | nextTick / post flush |
-| 修改状态本身 | ref / reactive |
+reactive 适合对象代理；ref 用带 value 的容器承载原始值或对象，并有自己的 Dep。模板和 reactive 属性在部分场景自动解包 ref，但数组、集合和类型边界存在差异。`toRefs` 用属性 ref 保持解构后的连接；直接解构 reactive 的原始属性只得到当时值。
 
-## 正常结果和失败结果
+computed 是带缓存和脏标记的特殊 Effect。依赖变化时先标脏并通知消费者，下次读取 value 才重算。watch 建立显式数据源与回调，watchEffect 自动收集同步执行阶段读取的依赖；await 之后的读取不属于最初同步收集窗口。
 
-连续同步修改会合并到一次组件更新；条件依赖变化后旧分支应被清理；组件卸载后排队 Job 不应继续更新。若 watch 发出多个请求，要在 cleanup 中取消旧请求或使用序号防止乱序。
+## 验证依赖清理
 
-验证时关注公开行为：渲染次数、DOM 时序、cleanup 和父子组件结果。阅读源码可以从 reactivity effect 测试和 runtime-core scheduler 测试进入，但文章结论应标明 Vue 版本，内部结构不作为永久 API。
+实现 `state.ok ? state.text : 'hidden'` 的 Effect，记录每次 track/trigger。切换 ok=false 后修改 text，Effect 不应再运行；切回 true 后应重新订阅。再测试重复读取同一 key 只保留一个订阅、停止 Effect 后 Dep 不再持有它。
 
-## 在浏览器里做三次时序实验
+数组 push、删除属性、`in`、Object.keys 和 Map size 需要额外迭代依赖，若教学实现不支持要明确标注。生产排查可使用 Vue Devtools 和组件 onRenderTracked/onRenderTriggered，定位具体 target/key 操作。
 
-先打开示例并在一次点击中连续写入 `1`、`2`，记录同步日志、`nextTick` 日志和页面最终值。第二次把 watch 设为默认 flush，在回调中读取 DOM；第三次改为 `flush: 'post'`。通过结果区分“响应式值已经变化”和“组件 DOM 已经提交”。
+面试回答 Vue 响应式不能停在“Proxy 劫持”。完整链路是代理拦截、Effect 上下文、双向依赖图、cleanup、trigger 分类和 scheduler 入口。
 
-| 观察点 | 预期解释 |
-| --- | --- |
-| 同步读取 `count.value` | 已经是最新值 2 |
-| 同步读取 DOM | 可能仍是上次渲染结果 |
-| `nextTick` 后读取 DOM | 当前组件更新队列已经刷新 |
-| post watch | 在组件 DOM 更新后执行 |
+## targetMap 与 Dep 怎样互相找到
 
-再做依赖清理实验：渲染表达式为 `enabled ? a : b`，先修改 A 观察更新，再把 `enabled` 设为 false，随后修改 A 和 B。切换后 A 不应继续触发本组件，B 应成为新依赖。这个实验能直观看到 effect 每轮执行都要清理和重新收集依赖。
+概念模型可以写成 `WeakMap<object, Map<PropertyKey, Dep>>`。WeakMap 以原对象为键，不阻止对象回收；每个属性对应一个 Dep，Dep 记录订阅它的 ReactiveEffect。Effect 反向保存自己加入过的 Dep，下一次运行前据此 cleanup，解决条件分支变化后的幽灵依赖。
 
-工作中遇到“watch 为什么执行两次”或“DOM 还是旧的”，先记录 Vue 版本、开发/生产模式、flush 时机、状态写入调用栈和组件是否被重复挂载。不要先用 `setTimeout` 掩盖时序；确认需要等待的是 Vue 更新队列还是浏览器下一帧，再选择 `nextTick`、post watch 或 `requestAnimationFrame`。
+```text
+activeEffect = renderEffect
+读取 state.ok   -> targetMap[state].get('ok').add(renderEffect)
+读取 state.text -> targetMap[state].get('text').add(renderEffect)
+renderEffect.deps = [okDep, textDep]
 
-## 这套解释的边界
+下一轮 ok=false：先从旧 deps 删除 effect，只重新订阅 ok
+后续修改 text：textDep 已不含 renderEffect，不触发组件更新
+```
 
-本文描述的是 Vue 3 的公开响应式和调度行为，便于排查组件更新时序。它不承诺内部队列字段、函数名或具体微任务实现永远不变，也不覆盖服务端渲染、Suspense 和第三方渲染器的全部细节。遇到这些场景，应以当前 Vue 版本的公开 API 和测试结果为准。
+真实实现会用 Effect flags、Dep 链接和版本计数优化订阅维护，不能把某个版本的 `Set` 教学模型当成永久源码形状。稳定职责是双向可清理关系、嵌套 Effect 上下文和重复订阅去重。
+
+## trigger 为什么不能只找同名 key
+
+`SET` 通常触发该 key；`ADD`/`DELETE` 还会影响 `in`、`Object.keys`、数组长度或 Map/Set 迭代；清空集合影响所有相关读取。数组索引新增可能改变 length，缩短 length 又会影响越界索引。触发器先收集 Effect，再执行 scheduler 或直接 run，必须避免在遍历 Dep 时同步修改同一集合造成重复/死循环。
+
+Ref 通过 `.value` 持有自己的 Dep；reactive 深层代理与 `shallowReactive`、`shallowRef` 的边界不同。解构普通 reactive 属性会丢失后续 getter 跟踪，`toRef/toRefs` 用稳定 Ref 连接原对象。`markRaw`、`toRaw` 是互操作工具，不应成为绕开状态设计的默认手段。
+
+## 源码与官方依据
+
+- [Vue: Reactivity in Depth](https://vuejs.org/guide/extras/reactivity-in-depth.html)
+- [Vue source: effect.ts](https://github.com/vuejs/core/blob/main/packages/reactivity/src/effect.ts)
+- [Vue source: baseHandlers.ts](https://github.com/vuejs/core/blob/main/packages/reactivity/src/baseHandlers.ts)
+
+调试特定版本时锁定 `vue` 的实际版本和对应源码 tag。Devtools 的 tracked/triggered 信息用于定位依赖来源，业务代码不应读取内部 Dep 或依赖私有 flags。

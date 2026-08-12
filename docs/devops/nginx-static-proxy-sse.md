@@ -1,122 +1,118 @@
 ---
-title: Nginx 静态站、Clean URL、反向代理、TLS 与 SSE
-description: 从文章刷新 404 和流式响应被缓冲两个问题进入 location、try_files、proxy 和热加载。
+title: Nginx、TLS、模型 API 与 SSE 流式入口
+description: 从普通响应正常但 Token 长时间不出现的问题进入反向代理、缓冲、连接超时、TLS 和热加载。
 category: devops
-part: 第二部分：容器与入口
+part: 第一部分：认识 AI Infra 与运行底座
 chapter: 6
 tags:
   - Nginx
+  - SSE
   - Reverse Proxy
 prerequisites:
-  - HTTP 与 Linux 基础
+  - 理解 HTTP 与代理
 outcomes:
-  - 配置 VitePress Clean URL
-  - 代理普通 API 和 SSE
+  - 设计普通 API 和 SSE 的入口规则
+  - 区分代理缓冲与模型生成延迟
 practice:
   type: implementation
-  result: 编写并验证一份 Nginx 配置
+  result: 完成一份入口请求链配置
   verify:
-    - 文章刷新返回 200
-    - 不存在路径保持 404
-    - nginx -t 通过后才 reload
-evidence: anonymized-practice
-updated: 2026-08-06T00:00:00.000Z
+    - SSE 事件能够及时转发
+    - 配置检查通过后才允许热加载
+evidence: official-guided-operation
+updated: 2026-08-11
 ---
 
-# Nginx 与反向代理
+# Nginx、TLS 与 SSE：为什么模型已经生成，页面还没看到 Token
 
-本篇目标是让初学者能解释一个请求如何在静态文件、API 和事件流之间路由，并亲手验证配置。开始前需要知道域名、端口和 HTTP 状态码；示例以 VitePress 文章刷新 404 为贯穿问题，先理解路径映射，再接触缓存和切流。
+非流式接口三秒返回，改成 SSE 后却等到一分钟才一次性出现全文。应用日志显示每个 Token 都按时产生，这时应先检查代理是否缓冲响应，而不是继续优化模型。反向代理位于客户端和应用之间，它能终止 TLS、选择 upstream、改写 Header、限制请求，也能无意中改变流式语义。
 
-Nginx 位于浏览器和应用之间，可以终止 TLS、提供静态文件并把 `/api/` 转给后端。配置看起来只是路径转发，但错误的请求头、缓存和 fallback 会造成登录异常、SSE 延迟，或者文章刷新直接 404。
+本篇把普通 API、SSE 与静态站入口放进同一请求模型，重点解释配置为什么生效、失败会呈现什么证据，以及怎样在不中断进程的情况下安全加载变更。
 
-本篇先代理普通 API，再处理 VitePress 静态文章、哈希资源和 SSE。每次修改都先执行配置语法检查，再用真实 GET 验证正常页和不存在页。
-
-## 请求通过代理后发生了什么
-
-浏览器连接 Nginx，Nginx 重新连接 upstream。客户端可以伪造 `X-Forwarded-For` 和 `X-Forwarded-Proto`，代理应覆盖或按受信链追加；应用也只信来自受控代理的这些头。Host 使用允许列表，避免绝对链接、缓存和重置邮件受到 Host 注入。
+## 入口承担什么责任
 
 ```mermaid
 flowchart LR
-  B[浏览器] -->|HTTPS| N[Nginx]
-  N -->|/api| A[API upstream]
-  N -->|/docs| F[静态文件]
-  N -->|/events| S[SSE upstream]
+  B[Browser] -->|HTTPS| N[Nginx]
+  N -->|/v1/*| A[Model API]
+  N -->|/events/*| S[SSE API]
+  N -->|other paths| F[Static Files]
+  N -.access log.-> O[Observability]
+  A -.request id.-> O
+  S -.event / cancel.-> O
 ```
 
-## 步骤一：代理普通 API
+TLS 证书和私钥属于入口安全边界；路由决定请求交给哪个 upstream；代理 Header 保存原始主机、协议和客户端信息；访问日志记录入口状态、上游状态和耗时。鉴权可以在入口做粗粒度门禁，但业务权限和租户数据范围仍要由应用落实。
 
-连接、发送和读取超时含义不同，它们通常控制相邻 I/O 操作，而不是完整业务 Deadline。应用仍要传播总预算。非幂等写请求不应因 upstream 失败被代理随意重试到另一个实例，因为原实例可能已经提交副作用。
+## SSE 与普通响应的差异
 
-## 步骤二：让 VitePress 深层路由刷新可访问
+SSE 使用一个持续的 HTTP 响应发送文本事件。事件以字段和空行分隔，客户端逐段消费。连接建立后的 200 只表示流开始，最终结果还要靠完成事件、错误事件或连接终止表达。
 
-VitePress 生成的无扩展路由通常对应磁盘上的 `path.html`。用户在站内跳转由客户端路由接管；直接刷新 `/docs/ai-agent/agent-lifecycle` 时，Nginx 必须尝试同名 `.html`。若只查 `$uri` 和 `$uri/`，磁盘文件存在却匹配不到，就返回 404。
+代理缓冲适合聚合普通上游响应，却会推迟小块事件；压缩也可能积累数据后再输出。SSE 入口通常关闭响应缓冲和不必要的转换，并给读取超时留出覆盖最长允许生成时间的预算。应用还应发送心跳，避免中间设备把安静连接误判为空闲。
 
-下面是静态博客的最小规则。输入是无扩展 URL，输出是对应 HTML；随机不存在地址仍返回真实 404。它不同于管理后台 SPA 的统一 `index.html` fallback。
+## 一份解释边界的配置
+
+下面配置中的域名、证书路径、静态目录和 upstream 都是占位值。输入是 HTTPS 请求，目标是让普通 API 与 SSE 分别采用合适代理策略，同时保留请求关联字段。
 
 ```nginx
-server {
-    root /srv/blog;
+upstream model_api {
+    server model-api:8000;
+    keepalive 32;
+}
 
-    location /assets/ {
-        try_files $uri =404;
-        add_header Cache-Control "public, max-age=31536000, immutable";
+server {
+    listen 443 ssl http2;
+    server_name ai.example.com;
+
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/privkey.pem;
+
+    location /v1/ {
+        proxy_pass http://model_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 90s;
+    }
+
+    location /events/ {
+        proxy_pass http://model_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_buffering off;
+        proxy_cache off;
+        gzip off;
+        proxy_read_timeout 15m;
     }
 
     location / {
-        if ($uri ~ ^(.+)/$) { return 308 $1; }
+        root /srv/site;
         try_files $uri $uri.html $uri/ =404;
-        add_header Cache-Control "no-cache";
     }
 }
 ```
 
-`root` 把 URL 映射到站点构建目录；`location /assets/` 单独管理带哈希静态资源；第一条 `if` 只把文章末尾斜杠规范化为无斜杠地址；`try_files` 依次尝试原文件、同名 `.html` 和目录。`=404` 保留真实不存在状态。
+Nginx 解析配置时先匹配 `server`，再选择 `location`。普通 `/v1/` 请求使用连接与读取超时；`/events/` 关闭缓冲、缓存和压缩，让上游写出的事件更快到达客户端。`X-Request-ID` 用于把入口日志与应用 Trace 关联。静态站的 `try_files` 按存在顺序查找文件，并在都不存在时返回真实 404，避免所有未知路径都伪装成首页成功。
 
-这里的 `if` 只执行 `return`，用途明确；不要把复杂代理和变量改写堆进 Nginx `if`。这条 `$uri.html` 正是修复生产文章刷新 404 的关键。不能把所有未知博客地址都回退到首页，否则服务器对不存在文章返回 200，形成 Soft 404，也会掩盖内部坏链接。若构建产物使用目录 `index.html` 形式，则顺序按实际文件布局调整并测试。
+`proxy_read_timeout` 表示两次上游读取之间允许的安静时间，不等于整个请求绝对 Deadline。即使代理允许 15 分钟，应用和业务仍要设置更短的最大生成时间、Token 上限和取消规则，防止失去客户端后继续消耗模型资源。
 
-## 步骤三：静态资源和 HTML 分开缓存
+## 怎样区分生成慢和代理缓冲
 
-带内容哈希的 JS、CSS、字体和图片可以长期 `immutable`；HTML 与运行配置需要短缓存或协商缓存，使新入口及时引用新资源。静态资源不存在时返回 404，不能返回 HTML 200，否则浏览器会报 MIME 错误。
+同时观察三条时间线：模型服务写出事件的时间、Nginx 收到和发送字节的时间、浏览器收到事件的时间。如果上游持续写而客户端最后一次性收到，检查缓冲、压缩和中间 CDN；如果上游本身迟迟没有首事件，继续看排队、Prefill 和模型调度。
 
-HTTP/2 Server Push 已不再是主流优化手段。资源预加载、Early Hints 和压缩都要根据真实瀑布与浏览器支持验证。Source Map 通常上传到监控系统后不对公网提供。
+客户端断开后，Nginx 会关闭上游连接，但应用是否捕获取消、Serving 是否停止 Decode 仍需单独验证。把“连接没了”当作“计算已停止”会导致隐藏成本。
 
-## 步骤四：SSE 关闭缓冲
+## TLS、Header 与安全边界
 
-SSE 需要事件逐条到达。Nginx 的响应缓冲、压缩中间件、CDN 或 Ingress 都可能攒批。SSE location 通常使用 HTTP/1.1 上游连接，关闭 proxy buffering、缓存和 gzip，并让应用发送间隔小于读取超时的心跳。
+证书要覆盖访问域名并包含完整信任链，私钥文件只允许入口进程读取。来自公网的 `X-Forwarded-*` Header 不能无条件信任，应由可信代理覆盖，应用再基于已知代理链解释真实协议和地址。
 
-只看最终响应完整不够，测试要测首事件和分段到达时间。连接断开不代表后台任务失败；事件先持久化，客户端带 `Last-Event-ID` 重连补发。WebSocket 还要转发 Upgrade，并在应用层处理 Origin、认证、消息大小、背压和恢复。
+模型 API 还应限制 Body 大小、并发和请求速率，但限制发生在哪一层要有统一错误结构。入口拒绝与应用拒绝都要留下请求 ID、主体和规则版本，且日志不能包含 API Key、完整 Prompt 或文档原文。
 
-## 正常结果和失败结果
+## 热加载不是跳过验证
 
-| 请求 | 预期 |
-| --- | --- |
-| `/docs/.../article` 刷新 | 命中 `article.html`，返回 200 |
-| 随机不存在文章 | 返回 404，不回首页 |
-| 哈希资源 | 长缓存且文件缺失为 404 |
-| 普通 API | Host、协议和客户端地址正确传递 |
-| SSE | 首事件及时到达，不整段缓冲 |
-| upstream 超时 | 明确 502/504，日志含 requestId |
-| 配置语法错误 | `nginx -t` 阻止 reload |
+安全变更顺序是：生成候选配置、静态检查、在旁路入口验证普通与流式请求、保留旧配置，然后执行热加载。热加载让新 Worker 使用新配置并让旧 Worker 排空连接，不代表错误配置可以自动回滚。
 
-候选切流只改变 upstream 或代理指针，先保存旧配置，`nginx -t` 通过后平滑 reload。旧实例保留为回滚点，不需要顺带重启数据库、缓存或整套 Compose。
-
-## 从构建目录到公开 URL 做一次核对
-
-先在构建机确认 `.vitepress/dist/docs/ai-agent/agent-lifecycle.html` 存在。部署后确认 Nginx `root` 正好指向产物根目录，而不是仓库根目录或多套了一层 `dist`。路径映射关系应是：公开 URL `/docs/ai-agent/agent-lifecycle`，磁盘文件 `${root}/docs/ai-agent/agent-lifecycle.html`。
-
-修改线上配置时使用幂等脚本：只在旧规则出现一次时替换；修改前复制保留权限的备份；生成候选配置；`nginx -t` 通过后 reload；随后从本机 Nginx 入口发真实 GET。任何检查失败都恢复备份并再次测试语法、热加载。
-
-| 回归请求 | 预期结果 |
-| --- | --- |
-| `/` | 200，首页 HTML |
-| 无斜杠文章 | 200，命中同名 `.html` |
-| 带斜杠文章 | 308 到无斜杠，再得到 200 |
-| 显式 `.html` | 200，便于核对磁盘映射 |
-| 页面引用的哈希资源 | 200，长期缓存 |
-| 随机不存在地址 | 404，不返回首页正文 |
-
-健康检查使用 `--resolve` 直接命中本机 Nginx，可以在 DNS 或 CDN 之外确认源站规则；公开入口仍要在部署任务完成后单独回归。安装脚本不改变 GitHub Actions 的触发方式，主分支推送仍在完整验证通过后自动部署已验证制品。
-
-## 这条配置的适用范围
-
-`try_files $uri $uri.html $uri/ =404;` 适用于构建产物中存在同名 HTML 文件的静态站。它不适用于需要把所有未知路径交给应用路由的后台 SPA，也不能替代 API 的鉴权、请求级 Deadline 或 SSE 事件存储。上线前要用实际 `root` 检查一条存在路径和一条不存在路径，确认文件布局与规则一致。
+验收至少覆盖首页、真实 404、普通 API、SSE 首事件、长连接心跳、客户端取消、上游不可用和证书链。只有入口与应用日志能用同一请求 ID 对上，才算建立了可诊断的流式边界。

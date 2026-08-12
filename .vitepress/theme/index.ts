@@ -5,6 +5,7 @@ import Layout from './Layout.vue'
 import HomePage from './HomePage.vue'
 import MermaidDiagram from './MermaidDiagram.vue'
 import SectionIndex from './SectionIndex.vue'
+import FrontendSectionIndex from './FrontendSectionIndex.vue'
 import './style.css'
 
 export default {
@@ -14,5 +15,6 @@ export default {
     app.component('HomePage', HomePage)
     app.component('MermaidDiagram', MermaidDiagram)
     app.component('SectionIndex', SectionIndex)
+    app.component('FrontendSectionIndex', FrontendSectionIndex)
   }
 } satisfies VitePressTheme

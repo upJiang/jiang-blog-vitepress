@@ -1,0 +1,151 @@
+---
+title: 图片、视频与媒体 SEO
+description: 让图片和视频兼顾语义、无障碍、结构化数据、抓取与加载性能。
+category: seo
+part: 第三部分：页面与内容
+chapter: 9
+tags:
+  - Image SEO
+  - Video SEO
+prerequisites:
+  - 读过第 7、8 章
+outcomes:
+  - 配置图片语义与加载优先级
+  - 验证视频和多语言信号
+practice:
+  type: implementation
+  result: 完成媒体资源规格与检查表
+  verify:
+    - 首屏和屏外媒体策略不同
+    - 媒体字段与可见内容一致
+evidence: official-guided-operation
+updated: 2026-08-11
+---
+
+# 一张漂亮的首图，为什么同时伤害理解和速度
+
+预约工具首页放了一段自动播放视频作为首屏。设计电脑上效果流畅，低端手机却要等数秒才出现主要画面；视频没有 Poster，关键功能只写在画面里；页面里的六张产品截图都使用 `alt="预约系统"`，也没有宽高。
+
+这里至少有三类问题：用户和搜索系统难以理解每张媒体表达什么；浏览器无法提前预留尺寸，页面会跳动；首屏资源优先级错误，主要内容出现更慢。把图片压成 WebP 只能解决其中一部分。
+
+上一篇的[内容生产简报](/docs/seo/content-ai-media-topic-pages)已经说明每个媒体承担的信息任务。本篇把任务转成文件规格、HTML 语义、加载顺序和结构化数据，产出一张可交给内容、设计和开发共同验收的媒体表。
+
+## Alt Text 不是图片关键词栏
+
+**Alt Text（Alternative Text，替代文本）**是 `img` 元素的 `alt` 属性，在图片无法显示或读屏软件读取页面时表达图像信息。它解决“没有视觉图像时，用户是否仍能理解该信息”，也为搜索系统提供上下文。
+
+写 Alt 前先判断图片角色：
+
+| 图片角色 | Alt 处理 | 示例 |
+| --- | --- | --- |
+| 信息图、产品状态、结果图 | 描述本页需要理解的信息 | `alt="自然搜索点击在三个月内先降后升"` |
+| 可点击图片 | 说明链接目的，而不只描述外观 | `alt="查看团队版预约功能"` |
+| 与旁边文字重复的装饰图 | 使用空 `alt=""` | 分隔线、背景纹理 |
+| 复杂图表 | Alt 概括结论，正文提供数据或长说明 | 不把整张表塞进 Alt |
+
+缺少 `alt` 与空 Alt 含义不同：缺少可能是模板遗漏，空 Alt 明确表示图片不需要单独朗读。链接中只有图片时，空 Alt 会让链接没有可访问名称，应优先修复。
+
+常见低质量 Alt 包括复制页面 Title、直接使用 `IMG_3021.webp` 文件名、所有图重复同一句话，或堆叠多个近义关键词。审核时要结合附近正文判断语义，自动规则只能标记风险候选，无法完全理解图片内容。
+
+## 尺寸解决的不只是清晰度
+
+图片有三个相关尺寸：原始像素、CSS 显示尺寸和设备像素密度。原图小于设备实际需要时会模糊，远大于容器又会浪费传输。
+
+HTML 的 `width` 和 `height`，或 CSS 的 `aspect-ratio`，让浏览器在图片下载前计算比例并预留空间。这能减少后文会讲的 CLS，但不代表必须固定响应式宽度。图片仍可使用 `max-width: 100%; height: auto` 缩放。
+
+下面示例用于公开内容页。输入是准备好的 480、960 两档 AVIF/WebP/JPEG，目标是让浏览器按视口选择接近容器的文件，同时在下载前知道 16:9 比例：
+
+```html
+<picture>
+  <source type="image/avif" srcset="/media/audit-480.avif 480w, /media/audit-960.avif 960w">
+  <source type="image/webp" srcset="/media/audit-480.webp 480w, /media/audit-960.webp 960w">
+  <img
+    src="/media/audit-960.jpg"
+    srcset="/media/audit-480.jpg 480w, /media/audit-960.jpg 960w"
+    sizes="(max-width: 640px) 100vw, 960px"
+    width="960"
+    height="540"
+    alt="页面审计从响应检查到复验的六个阶段">
+</picture>
+```
+
+浏览器读取 `type` 选择支持的格式，再根据 `srcset` 与 `sizes` 估算所需宽度；最终仍可退回 `src`。上线后应在窄屏和宽屏查看实际请求，而不是只检查代码里是否存在 WebP。CDN 裁剪还要防止产品主体被切掉，文字截图也不能过度压缩。
+
+## Loading Priority 要按首屏位置判断
+
+**Lazy Loading（懒加载）**是在资源接近视口时再加载，适合屏外图片；它不是所有图片的默认优化。首屏最大图片若设置 `loading="lazy"`，可能推迟 LCP 资源发现。
+
+首屏主图通常直接加载，并可在证据确认它是 LCP 候选后使用 `fetchpriority="high"`；屏外内容图可以使用 `loading="lazy"` 和 `decoding="async"`。不要给所有图片高优先级，否则资源仍会互相竞争。
+
+```html
+<!-- 首屏主图 -->
+<img src="/media/hero.webp" width="1280" height="720" fetchpriority="high" alt="预约看板的周视图">
+
+<!-- 屏外案例图 -->
+<img src="/media/case.webp" width="800" height="600" loading="lazy" decoding="async" alt="启用提醒后的预约状态分布">
+```
+
+浏览器读取这些属性后，会把首屏主图纳入较早的请求调度，把屏外案例图延后到接近视口时请求。输出不是一个固定加载顺序，网络、缓存、图片是否真的在首屏都会影响结果。验证要看网络瀑布、实际 LCP 元素和布局变化；若主图未成为 LCP，或高优先级资源过多，就应撤销错误配置。仅看到 `loading` 属性，不能证明加载策略已经正确。
+
+## 视频需要可见上下文和失败路径
+
+首屏视频文件大、解码成本高，还可能成为主要内容元素。**Poster（视频封面）**让视频数据未就绪时先显示稳定图像；`preload="metadata"` 表示先获取必要元数据，而不是默认下载完整视频。
+
+下面示例的输入是轻量 Poster、WebM/MP4 两种来源与文字摘要。目标是在不自动下载整个视频的情况下提供播放能力；浏览器不支持视频或资源失败时，用户仍能读到内容说明：
+
+```html
+<video controls playsinline preload="metadata" poster="/media/demo-poster.webp" width="1280" height="720">
+  <source src="/media/demo.webm" type="video/webm">
+  <source src="/media/demo.mp4" type="video/mp4">
+  <p>演示从创建服务到客户完成预约的完整步骤。</p>
+</video>
+```
+
+浏览器按顺序匹配能够播放的 `source`，资源失败或格式不支持时再显示元素内的文字结果。上线后要分别测试 WebM、MP4、Poster 和禁用视频的失败状态，避免某个 CDN 请求失败后只留下空白区域。视频外还应有标题、摘要、章节或文字记录，关键产品事实不能只存在于画面和音频。自动播放若确有业务必要，应默认静音、允许暂停并尊重节流与可访问性要求。
+
+## VideoObject 怎样验证
+
+**VideoObject** 是 Schema.org 描述视频的结构化类型。它可以表达名称、描述、缩略图、上传日期、时长和内容地址，帮助搜索系统理解视频，但不保证视频富结果。
+
+输入必须来自页面真实视频数据，处理时输出合法 JSON-LD，结果要同时通过语法与语义核对。`name`、`description`、`thumbnailUrl`、`uploadDate` 等字段应与可见内容和实际资源一致；不要为没有公开视频的页面生成 VideoObject，也不要虚构观看量。
+
+若视频需要登录、资源禁止抓取、缩略图 404 或结构化字段与页面标题冲突，应先修资源与页面，再谈富结果。搜索平台的增强报告只能证明平台发现的结构化问题，不能证明所有页面都已索引。
+
+## hreflang 不是媒体规则，但经常和视频语言一起出错
+
+多语言视频页常同时替换字幕、正文和 URL。`hreflang` 用来声明语言/地区替代页面，例如 `zh-CN`、`en` 和可选的 `x-default`。每个目标都应返回 200、允许索引、内容语言正确，并形成互返关系。
+
+播放器里有中文字幕，不代表英文 URL 是中文页面；HTML `lang`、可见正文、视频字幕、Canonical 和 hreflang 应共同表达真实版本。自动规则可以检查 URL 和互返候选，翻译质量仍需人工审核。
+
+## 媒体响应也要检查
+
+从浏览器能看到图片，不代表资源交付没有问题。抽查：
+
+- 最终状态与 `Content-Type` 是否匹配；
+- 是否被 robots.txt 误禁；
+- 带内容指纹的静态资源是否使用合理长期缓存；
+- 文件名固定但会覆盖的资源是否误用 `immutable`；
+- 首屏是否下载不需要的大视频或多档图片；
+- 资源失败时页面是否仍能完成任务。
+
+`transferSize` 为 0 可能表示缓存命中或跨域计时限制，不代表文件没有体积。资源清单能指出重复 URL 和加载候选，却不能在没有 Coverage、依赖和交互测试时证明某段代码可删除。
+
+## 本篇产物：媒体资源规格表
+
+为一个真实页面逐项记录：
+
+```text
+资源 URL｜信息任务｜首屏/屏外｜原始像素｜显示尺寸｜候选格式与宽度｜
+Alt 或文字替代｜width/height｜加载优先级｜缓存策略｜结构化字段｜
+窄屏结果｜宽屏结果｜失败降级｜负责人
+```
+
+内容负责人写信息任务和 Alt，设计负责人确认裁剪与视觉质量，开发负责人实现响应式资源、尺寸、加载和缓存，SEO 负责人核对抓取与结构化语义。至少在窄屏和宽屏各验证一次实际资源，并测试视频或图片请求失败。
+
+下一篇会把页面、媒体和 URL 清单放入全站索引治理，明确 robots.txt、noindex、Canonical 和 Sitemap 各自负责什么。
+
+## 继续学习
+
+- 上一篇：[内容体系、AI 写作与主题覆盖](/docs/seo/content-ai-media-topic-pages)
+- 下一篇：[Robots、Sitemap、Canonical 与索引治理](/docs/seo/robots-sitemap-canonical-strategy)
+- 性能指标：[Core Web Vitals 与网站性能指标](/docs/seo/technical-seo-rendering-performance)

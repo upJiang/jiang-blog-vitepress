@@ -1,0 +1,403 @@
+openapi: 3.1.0
+info:
+  title: Backend Learning Admin API
+  version: 1.0.0
+  description: Shared contract implemented by NestJS, FastAPI, and Gin.
+servers:
+  - url: http://localhost:3001/api
+    description: NestJS
+  - url: http://localhost:3002/api
+    description: FastAPI
+  - url: http://localhost:3003/api
+    description: Gin
+security:
+  - bearerAuth: []
+paths:
+  /health/live:
+    get:
+      operationId: live
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/Health' }
+  /health/ready:
+    get:
+      operationId: ready
+      security: []
+      responses:
+        '200': { $ref: '#/components/responses/Health' }
+        '503': { $ref: '#/components/responses/Problem' }
+  /auth/login:
+    post:
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginInput' }
+      responses:
+        '200':
+          description: Access token returned; rotating refresh token set as HttpOnly cookie.
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/AccessToken' } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /auth/refresh:
+    post:
+      operationId: refresh
+      security: []
+      responses:
+        '200':
+          description: Refresh token rotated; replay revokes the complete token family.
+          headers:
+            Set-Cookie: { schema: { type: string } }
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/AccessToken' } }
+        '401': { $ref: '#/components/responses/Problem' }
+  /auth/logout:
+    post:
+      operationId: logout
+      responses:
+        '204': { description: Session revoked and refresh cookie cleared. }
+  /me:
+    get:
+      operationId: currentUser
+      responses:
+        '200':
+          description: Current authenticated principal.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Principal' } }
+        '401': { $ref: '#/components/responses/Problem' }
+  /projects:
+    get:
+      operationId: listProjects
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Tenant-scoped cursor page.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/ProjectPage' } }
+        '401': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createProject
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/ProjectInput' } }
+      responses:
+        '201':
+          description: Project created.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Project' } }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /projects/{projectId}:
+    parameters:
+      - { $ref: '#/components/parameters/ProjectId' }
+    get:
+      operationId: getProject
+      responses:
+        '200':
+          description: Project in the current tenant and data scope.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Project' } }
+        '404': { $ref: '#/components/responses/Problem' }
+    patch:
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/ProjectUpdate' } }
+      responses:
+        '200':
+          description: Project updated using optimistic version.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Project' } }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deleteProject
+      responses:
+        '204': { description: Project soft deleted. }
+        '404': { $ref: '#/components/responses/Problem' }
+  /tenants:
+    get: { $ref: '#/components/pathItems/CursorCollection' }
+  /departments:
+    get: { $ref: '#/components/pathItems/CursorCollection' }
+  /users:
+    get: { $ref: '#/components/pathItems/CursorCollection' }
+  /roles:
+    get: { $ref: '#/components/pathItems/CursorCollection' }
+  /permissions:
+    get: { $ref: '#/components/pathItems/CursorCollection' }
+  /audit-logs:
+    get: { $ref: '#/components/pathItems/CursorCollection' }
+  /files/presign:
+    post:
+      operationId: presignFile
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/FileIntent' } }
+      responses:
+        '201':
+          description: Short-lived direct upload URL.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/PresignedUpload' } }
+        '422': { $ref: '#/components/responses/Problem' }
+  /files/{fileId}/download:
+    get:
+      operationId: downloadFile
+      parameters:
+        - { name: fileId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+      responses:
+        '302':
+          description: Redirect to a short-lived signed object URL after authorization.
+          headers:
+            Location: { schema: { type: string, format: uri } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /tasks/{taskId}:
+    get:
+      operationId: getTask
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+      responses:
+        '200':
+          description: Task state.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Task' } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /tasks/{taskId}/events:
+    get:
+      operationId: streamTaskEvents
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+        - { name: Last-Event-ID, in: header, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Replayable task events followed by live SSE events.
+          content:
+            text/event-stream: { schema: { type: string } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /products:
+    get: { $ref: '#/components/pathItems/CursorCollection' }
+  /orders:
+    post:
+      operationId: createOrder
+      parameters:
+        - { $ref: '#/components/parameters/IdempotencyKey' }
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/OrderInput' } }
+      responses:
+        '201':
+          description: Inventory reserved and order created in one transaction.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Order' } }
+        '409': { $ref: '#/components/responses/Problem' }
+  /payments/callback:
+    post:
+      operationId: paymentCallback
+      security: []
+      parameters:
+        - { name: X-Signature, in: header, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Idempotent callback accepted. }
+        '401': { $ref: '#/components/responses/Problem' }
+  /knowledge-bases:
+    get: { $ref: '#/components/pathItems/CursorCollection' }
+  /knowledge-bases/{knowledgeBaseId}/documents:
+    post:
+      operationId: createDocumentTask
+      parameters:
+        - { name: knowledgeBaseId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { type: object, required: [fileId], properties: { fileId: { $ref: '#/components/schemas/Uuid' } } } }
+      responses:
+        '202':
+          description: Parsing task accepted.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Task' } }
+        '404': { $ref: '#/components/responses/Problem' }
+  /chat-runs:
+    post:
+      operationId: createChatRun
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/ChatRunInput' } }
+      responses:
+        '202':
+          description: Chat run accepted; events are streamed from the returned task.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/Task' } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Cursor: { name: cursor, in: query, required: false, schema: { type: string, maxLength: 512 } }
+    Limit: { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 16, maxLength: 128 } }
+    ProjectId: { name: projectId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
+  responses:
+    Health:
+      description: Process or dependency health.
+      content:
+        application/json:
+          schema: { type: object, required: [status], properties: { status: { type: string, enum: [ok] } } }
+    Problem:
+      description: Stable problem response.
+      content:
+        application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } }
+  pathItems:
+    CursorCollection:
+      operationId: listGenericCollection
+      parameters:
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200':
+          description: Tenant-scoped cursor collection.
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/GenericPage' } }
+        '401': { $ref: '#/components/responses/Problem' }
+  schemas:
+    Uuid: { type: string, format: uuid }
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 190 }
+        password: { type: string, minLength: 8, maxLength: 1024 }
+    AccessToken:
+      type: object
+      additionalProperties: false
+      required: [accessToken, expiresIn]
+      properties:
+        accessToken: { type: string }
+        expiresIn: { type: integer, const: 900 }
+    Principal:
+      type: object
+      required: [userId, tenantId, permissions]
+      properties:
+        userId: { $ref: '#/components/schemas/Uuid' }
+        tenantId: { $ref: '#/components/schemas/Uuid' }
+        permissions: { type: array, items: { type: string } }
+    ProjectInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 4000 }
+    ProjectUpdate:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 4000 }
+        version: { type: integer, minimum: 1 }
+    Project:
+      allOf:
+        - { $ref: '#/components/schemas/ProjectInput' }
+        - type: object
+          required: [id, tenantId, version, createdAt, updatedAt]
+          properties:
+            id: { $ref: '#/components/schemas/Uuid' }
+            tenantId: { $ref: '#/components/schemas/Uuid' }
+            version: { type: integer, minimum: 1 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    ProjectPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Project' } }
+        nextCursor: { type: [string, 'null'] }
+    GenericPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items: { type: array, items: { type: object, additionalProperties: true } }
+        nextCursor: { type: [string, 'null'] }
+    FileIntent:
+      type: object
+      additionalProperties: false
+      required: [filename, contentType, size, sha256]
+      properties:
+        filename: { type: string, minLength: 1, maxLength: 255 }
+        contentType: { type: string, maxLength: 120 }
+        size: { type: integer, minimum: 1, maximum: 52428800 }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+    PresignedUpload:
+      type: object
+      required: [fileId, objectKey, uploadUrl, expiresAt]
+      properties:
+        fileId: { $ref: '#/components/schemas/Uuid' }
+        objectKey: { type: string }
+        uploadUrl: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+    Task:
+      type: object
+      required: [id, type, status, progress, attempt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        type: { type: string }
+        status: { type: string, enum: [queued, running, retrying, completed, failed, cancelled] }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        attempt: { type: integer, minimum: 0 }
+        result: { type: [object, 'null'], additionalProperties: true }
+    OrderInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [productId, quantity]
+            properties:
+              productId: { $ref: '#/components/schemas/Uuid' }
+              quantity: { type: integer, minimum: 1, maximum: 999 }
+    Order:
+      type: object
+      required: [id, status, amount, version]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        status: { type: string, enum: [pending, paid, cancelled, refunded] }
+        amount: { type: string, pattern: '^\d+\.\d{2}$' }
+        version: { type: integer, minimum: 1 }
+    ChatRunInput:
+      type: object
+      required: [knowledgeBaseId, question]
+      properties:
+        knowledgeBaseId: { $ref: '#/components/schemas/Uuid' }
+        question: { type: string, minLength: 1, maxLength: 8000 }
+    FieldError:
+      type: object
+      required: [field, messages]
+      properties:
+        field: { type: string }
+        messages: { type: array, items: { type: string } }
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [status, code, detail, requestId]
+      properties:
+        status: { type: integer, minimum: 400, maximum: 599 }
+        code: { type: string }
+        detail: { type: string }
+        requestId: { type: string }
+        fields: { type: array, items: { $ref: '#/components/schemas/FieldError' } }

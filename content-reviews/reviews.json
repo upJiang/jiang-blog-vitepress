@@ -1,2777 +1,2389 @@
 {
   "docs/ai-agent/llm-workflow-rag-agent.md": {
-    "bodyHash": "e67355afdc5359a8e61622df7ab25b04c280bee4befcb781e291b08196870aa0",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "ccfec751401eb3a71b73ee45a035dcfbe7d867107ce5d172e21c3cd9d12ccd3c",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/messages-tokens-context.md": {
-    "bodyHash": "511b851ae129e39f1ea293065d89e2d441e820d4b9e8f883c27c73cb117b0eb9",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "b2a866b8c4caddc208fdb00de50d0d205605deb79189a057f3b5c365bca39fb6",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/structured-output-model-boundaries.md": {
-    "bodyHash": "92f285c5dc8cce3923e6c5e1b7b8e1266374c82a98ea07e1b4d316b77365f4be",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "db7421fe0ffc4f4e7632616de888f4c501fd1fe246f29eda1bee585660a6266d",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/agent-lifecycle.md": {
-    "bodyHash": "544437945e49c094f343a8e39f543b12aab686a88fe869290498c5142c98a3f3",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "479eb25ef534ae3957db56264b5015725aaf409446042267ef7ec8e0a4f3b87f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/agent-framework-selection.md": {
-    "bodyHash": "7624cb03e6e042b0dfd2a15b1e07fd7b86e27a768320e51e5cb2f140edcff1b8",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "15ff5ab1b20e674dfdf066df968faa3b3df1effcac5cfb41fdf5a659f0f2ac2f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/langgraph-state-runtime.md": {
-    "bodyHash": "241834e5b9b17ef358724bf4bd38e6c86c49adfe1570276328137a837b799331",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "9c56803f45240956c4156ce3368e3861a11901dfa16b52d0ce5a78cb6e5bd8f4",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/tool-calling-contracts.md": {
-    "bodyHash": "25231d2ef22acf34be52255c6668871b56a47d3489df129e4f790e49d89f447e",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "7f064353da4da1bd0b436d1252f4683f85af78a66925118f1c87940c1972d824",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/mcp-skills-subagents.md": {
-    "bodyHash": "846282a4f4298292eb8677c50fa881c35c480497c34e22ac9314639243950624",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "2f65da72a9f5a377b72f5b5fcbdbe601679e90aad97f09615f81ccb0071d6903",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/mcp-protocol-lifecycle.md": {
-    "bodyHash": "672dabeff3b9db4bb5063f0a91b3299402fc241b00f305bd16f4800e26d4a67c",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "d54b315aef0a5d6254b2365e0664eedd84888ffe515c442fe6d1eb2dc318c2d8",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/mcp-node-search-notes-server.md": {
-    "bodyHash": "8699caef4f0aec5929974c5e7b261b06842076696a1f2ea49034af987b2d02cf",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "81ac17e3f7f1915ca04350604a3f092529cf85815f4690995aec3fefc3a05cb9",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/mcp-python-search-notes-server.md": {
-    "bodyHash": "8c928c89edba0d5739da26d005eea254dd4c2a232e5b0396155def6e5e1bb2e2",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "72141292954b38a28e71b894bf24fbf28530fa303d23e6257276d32e02919373",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/mcp-client-security-testing.md": {
-    "bodyHash": "4eea729d55d44753151d664c2545bb477f667a62cfd3e9f7e5f4a2c3b6bf7515",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "201d7a4b54dad7ce1947528ea4da5a81ce83e84d9011b67a0e03d7cb275d3ef8",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/skill-system-progressive-disclosure.md": {
-    "bodyHash": "3beca7c8260b02c07c5310eca38a195e0a634cf25bf4c9cfbd4eb82ebf08bd02",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "fe9daf4864155e2a33a90c56da4d7f9364c1e9d8d89319925e88db45088d3595",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/skill-authoring-practice.md": {
-    "bodyHash": "1ee8ba171032aa9ebca3e5ab92788eee61b08560002d42062a9a26e8fbdb3363",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "a3395c7742e070be7ad862d6a119a9fe9e35c736f22ec6ab97754d531d402655",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/subagent-context-contracts.md": {
-    "bodyHash": "8322adcc78413327b083f1f380a1f921d71237410a4ae61a61753412f06fe032",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "c785e05687fc78a5022a16bf547151cd26f2d5184046e7519617f01673e0c63a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/rag-ingestion-pipeline.md": {
-    "bodyHash": "47a331bc6c1c1e84aa8f2e88521ccf8314f3d8ad1babcd96dd36c844f8af8708",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "122a36bf239f2b2b80e3ca2a6eca89e499667e685ef74c17c9fd70c5a6d79d86",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/document-format-parsing-ocr.md": {
-    "bodyHash": "0657637c377c70fdff4ca76f1208d45d7dc82d048256af877109cc4a060d6f8f",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "348708133be5cb2972a34c0347088b35b95eec879d674ad07b56290e344a521b",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/semantic-chunking-structure.md": {
-    "bodyHash": "4c2c7506386a59c84498544afdb566f0fba66c6b34559880be62f64a991998ba",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "d326b4a884ddbc7a5e65f9b664576b9e3c54a3e2b7d6f0db138cc18e5ddb13d6",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/embedding-vector-space.md": {
-    "bodyHash": "3f0990a8054b37fcbfb0bdbe919697209015b7ceeb010ffca6325e1d93689042",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "cf81ae9d5232c4d5363d0443cefd9219204569877d2073a52a2814bca59cd505",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/pgvector-index-recall.md": {
-    "bodyHash": "c98f0d8de79c45ae5ea69fb08e7efaa97a8ae0301a7631cc32ac70ac14c969ad",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "90193e32f584e04ce3548af26808952bd3eef05519654b2309fff84bac2290c9",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/hybrid-retrieval-rerank.md": {
-    "bodyHash": "84920ad150346150da3ae6d4b13e63006be60bf2b2cc717e21d6a470b708da6c",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "fb67b884ec8def1ae3c6b6c120c23d62450d48bc358d0715235cb2c4eac7df3f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/context-memory-compression.md": {
-    "bodyHash": "8148cfb253f645a1f6657dda8a7c85dfb718b3c66fe0438e48ec385ad2e64098",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "82e64532845c2aa5681dfd9901b5d8ac868ddfffad313d5b8c57cb8ea52b9959",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/claims-evidence-citations.md": {
-    "bodyHash": "38b941120918f5dba666cfa2ed66f6e09c1f3d4f22db7b9b29b80b2e6426c524",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "505a77e211e2fc1046e8820d1a452eb410707ce983f685169af2f19d8f04e686",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/agent-security-eval-observability.md": {
-    "bodyHash": "a45b54bcd0a86c317b4283125c48003c754c511ce8e6762c904bb8e461c2951c",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "c5421b66e358f354bd8a973a1a5cb0d4521688cbe3f12560891fc556918f0f49",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/agent-evaluation-regression.md": {
-    "bodyHash": "01ffc3893c8f07c05e1e49bb060d11fbf7f474f624190a8aa5c5d2ff87c26241",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "62cf52d692daf027ed506ea9c9715574351682d54d210d931e4aaa131ca30473",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/agent-trace-observability.md": {
-    "bodyHash": "e94e9de760f0b711937295573e5a5fdff205e6ec818b4ccae4a2faceaba6904a",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "db223a0c23853cff9fb47319d6f96e282f9a373f8eed90d6a6dafcf58b2a5437",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/agent-cost-deadline-reliability.md": {
-    "bodyHash": "cb2dbbb029aa864469b0be6b3e332855d9350f86e7d90b0fac96bee28e1c9666",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "ab2d8ea4e6c7c7b2bd853e6c75101dd7ec9e9f1c4ead794ca8838166cd68ace7",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/ai-agent/knowledge-agent-capstone.md": {
-    "bodyHash": "8851d083048aea0a534480255a78fd321134728b9974c943deb5b398085df9f2",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "44e4d1d392bbe1d3d230b16d711e9a6fb4a3f17af0a4ed137529b83a57ffa4e7",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/search-growth-model.md": {
-    "bodyHash": "984e321af17dde9fe6178308cad6b6a44b8bd2ea88e66fe23ba58794cc8b2009",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "f0ce85215ea113f2ff0272c6e2a74de45715693b80914d9509a65b6eb0bfdb89",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/seo-project-evaluation.md": {
-    "bodyHash": "ef75e666199a2441ca5fe2c68d3e5da53c970a965bfa7c953762dd6c64111212",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "6be40ecdc5fbda5322d6107fcaa5db855fea188dd17d9bdea11d2cac61efdb8f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/crawl-index-ranking.md": {
-    "bodyHash": "af44e03f18cf37e536e4c362d920e5002b162c94798838ceb439fd22b44d1691",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "beee650c196f340fb7c153a850427d7c996e8ece2be4aecbcb781b3fe3e7641c",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/keyword-intent-page-mapping.md": {
-    "bodyHash": "c71a64367e13daa6b16fda0b46562b4e9bca7231f2e0ac110130b1982fe252ba",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "824ccf5ba1709d6b5a85c361040998952621b442c40e6acb00c68ff395b2a8de",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/site-structure-page-planning.md": {
-    "bodyHash": "d96cca6d9e33f491b02f668daeac1a9d60459ae4620b186b39d5a8032a309178",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "e60aa60c2a7e661a99c9ff8dc9f5dcf9e4328aa7bf222cc21fd820df11381e15",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/on-page-seo-structured-data.md": {
-    "bodyHash": "b19f3768a4fb05d5c2f483a59e53115027f39da6939f786d596275fd02e4ce91",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "58602ec8fd6fafa4d105fa361b21b9df52e18c55dfde3b86e0b45fd76ac38d28",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/content-ai-media-topic-pages.md": {
-    "bodyHash": "7cc165c79535fe13cea678b9ac5df62f9afa88bd3662dd5959c67964c0d91b4f",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "34064566a0139965ffb1db76bb234c179b32a68f64c683e3a38e42aa719eb58c",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/technical-seo-rendering-performance.md": {
-    "bodyHash": "f8784160110bace886fb3de808f8a42d18b9bc49cd18df674260687bb32b9b39",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "169b95e49e4021161bb24dddd3d0da34af9fcbd36e0e7e68c7503125f4f12e38",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/browser-page-seo-audit.md": {
-    "bodyHash": "6907d3b3a524a7ddd076eec89a2db5a1c2563e71cd0d4d76d1668e67c3b24ce6",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "61c82fecf8bb475c324e34e50071d25375bf17526ac6e29e51fa39dd9b1842b1",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/crawl-index-duplicate-troubleshooting.md": {
-    "bodyHash": "7b070ff221a7e60d9b4088b041cf460b87106c3089b908eb6109160fc9f82032",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "e6fc72011f655da730cc61785248252d58382a2d1a783d55c44ec59c990419a3",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/links-brand-analytics-attribution.md": {
-    "bodyHash": "8d89b1b3e57eb9bdedb4bf04183e09efd0a384a846b96bc89bf0f51b9bbe7167",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "1a4470d4885ffe8905ab9fd4f39bc3fa3337f8a9587c3e8e6a30a15647f8c519",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/seo/sem-account-keywords-landing.md": {
-    "bodyHash": "48f61a4ae2512373dbd58abfc4f516f4e2abea817723c1f0942c167a41853c2c",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "a5d99371831d633d07977eb6d374dbe963448970220d1791773acdcab7fc6f72",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/seo-evidence-scoring-boundaries.md": {
+    "bodyHash": "6be675ca6e0dd09fc5551dddf3a43e337bae55397fa741be79cea34e7afab22f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/media-video-structured-data.md": {
+    "bodyHash": "54a96d5b08adc13f5b81231f1a61b9b130da1a20e43ce4ad0f14918da4da90cd",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/robots-sitemap-canonical-strategy.md": {
+    "bodyHash": "d2a5da90244277c942ada6bbeedf32b0ccb1d3eb7804244a747ced0dd24d75a9",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/http-javascript-rendering-seo.md": {
+    "bodyHash": "856746a6968b641b16073eb5da508f4da663d0e792cff3aaeb6e4de47fa92d83",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/developer-performance-optimization.md": {
+    "bodyHash": "fbbe7b73b6ddf3ca20aff1457a4beff4c37c2c301ff4fcc64fd930ae78a5323f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/search-performance-attribution.md": {
+    "bodyHash": "694e9edd992f4c025c31d75247a58360e0c52ef784f35a4f1dab560e7385eca5",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/sem-search-terms-bidding-budget.md": {
+    "bodyHash": "21c2fd5e43350afeac1533e49b971b28fccff3f8fd4f1e7e4dc20ce2e7dc6e4e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/sem-creative-landing-tracking.md": {
+    "bodyHash": "da12a56abddb11dcc2aebeba1dae2fc20c385b686b2292c75b700d68727b6fb1",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/sem-platform-diagnostics.md": {
+    "bodyHash": "2f88c23c0b413c3dc2e7095bcb2629015b0dc957c67ffabfddb9bd6452fc5603",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/seo-sem-90-day-plan.md": {
+    "bodyHash": "e5e14a0fb3e87ff065df51a82ac990a87e9fc054d469e9ed845a5a26293da4f0",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/seo/seo-optimizer-chrome-extension.md": {
+    "bodyHash": "db31f6df025b949db35db6d31212b17e49b534dd8ed1de77c9891301192a8540",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/typescript-type-system-engineering.md": {
-    "bodyHash": "ffc7c4bdfbf4ca74bfd19e30351f9322f22bf755e143fea2d9ce76d1f9de6c72",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "13889bc64d21991094f4337c8f571bc9e0652e9363f2407b098de6a886631c82",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/browser-render-event-loop.md": {
     "bodyHash": "3e89c4c72bad529fed0a9c0aad69a58005b996508acaf5516e6437c15174bb3a",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/vue-reactivity-scheduler.md": {
-    "bodyHash": "80acce6761a6e922aaaf27c1c3a8ace7a61ca1bc1f881b6dc75297713125e6e3",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "004b9f0b59923dd885e7e1f3ed6bfe81b6a232e4fd6892ca2b4ec703728f8181",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/react-fiber-concurrent-rendering.md": {
-    "bodyHash": "ebed65b9d6569a6c29dd40513a776c25afaca85620f92a9e8c07b41c26764a35",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "aa6738e3be76c8e23cd885d0400a415c69cf9861cbbd0d9665c0c4c02ef171e0",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/nextjs-rendering-cache-invalidation.md": {
     "bodyHash": "8c460465fffceefe97c1c526b27e9ef47eec9ac1c2c1705f863ac94db4946161",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/vite-dev-server-plugin-system.md": {
-    "bodyHash": "06ae776e0c58ac18ce972bc8d6215e4cade6a50d4c4e78afbd8e5db9231fac71",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "ac65d25ed906bdc5316910fde6c54f62122989df348fbcafdb0e1b17ae2b0a5e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/rollup-esbuild-code-splitting.md": {
-    "bodyHash": "a9cebecfee38862d5247acf9446d4f90607eca0f133204c0624c3ca5c509b71c",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "0f2ea426cdd0f74ba5b3706f99af73b61ce20c40721bdd30601e6d9fa10c768d",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/component-library-design-system.md": {
     "bodyHash": "33bc12fdb46e7fffde2836f20576b147c0b74c4e47fd22f746077ce0026c04bb",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/web-performance-measurement.md": {
     "bodyHash": "095f718612e0da3ba5cc6f7601d9c365af26c279ef234c3fdd751dea9a9af9e2",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/sentry-sourcemap-observability.md": {
     "bodyHash": "95358f2e111b33cd84aaad9f0dff0f19e1e1d9399151a17c4210f491e8cd097e",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/browser-security-boundaries.md": {
     "bodyHash": "199cc370e692e03a5b65972e2a3be588efbf4fc89c5e7258eb4bf103b6f98859",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/sse-websocket-streaming-ui.md": {
     "bodyHash": "02654192142c1aa8223e3821016d7d755266de84570f283f64db9a5471b1a6b8",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/service-worker-cache-offline.md": {
     "bodyHash": "2dae4e49c3a084bbc98b8d457e7617e168b46e79273a5cd88ca4278484f29462",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/large-file-resumable-transfer.md": {
     "bodyHash": "ab92357faa7ce48919ec80be3a5918ddc90e6e8c7491ed14f9afb5be2b39bd20",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/manifest-v3-extension.md": {
     "bodyHash": "590b04a4912ae5e484c86a2879a548f6493ab56f595958da2f9f4b9e177a7248",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/vscode-extension-lifecycle.md": {
     "bodyHash": "ab53bff61424a51cda5fa9d7b9c66db40483fbb5e46b41374f01b9bd7ca1a697",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/vscode-webview-csp-state.md": {
     "bodyHash": "4703aabb361c98e5c22b5cd43113e51ac06d0fbc6531ee01bc26cb566159debc",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/frontend/vscode-extension-test-release.md": {
     "bodyHash": "1b81b2bdd44cec79e6170a566a82e42d4d7681241b507415e5ec5f1d84692dcd",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/request-connection-to-response.md": {
-    "bodyHash": "e60b2a147f0c9dbe68a797eeef3f37c4785d11a4d48ffeceb27f82e1a2ff3eb8",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/http-rest-openapi-errors.md": {
-    "bodyHash": "994ab1810ce799e6df19778d23e60306bbecc7a46eb42409af45a9c0285f96e3",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/session-jwt-rbac-acl.md": {
-    "bodyHash": "e00cd8b4c5b0cbce58cd056e8397144d5e7ea0210d5e3280134a390eed82f3ef",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/postgresql-index-transactions-locks.md": {
-    "bodyHash": "db20d53a90b28fb4beeea43b64b999140f7c072f4a8a507f91cf7f31b589e00d",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/redis-data-cache-coordination.md": {
-    "bodyHash": "10df72d026461eafb314c3089a6b298dd04b39fa5d8ee151fcc97cf524981641",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/rabbitmq-kafka-messaging.md": {
-    "bodyHash": "8c71aa855342f746e689437577fe770969756baa1ce8b297fe82762f49454ef6",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/idempotency-retry-dlq-outbox-saga.md": {
-    "bodyHash": "d2ae645ba16da30691985763ae010535b169bbdd5888a2ce83f41fa5bd379c0c",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/streaming-backpressure-testing-observability.md": {
-    "bodyHash": "95f7ff6047661d8f30c82ce5cab11f7b9bbaf4b777cfeb029191705b0ad940b5",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/nestjs-request-layered-project.md": {
-    "bodyHash": "112de7cdf56c8b522c54a20d8d3aa9e3955b4544e931121f516a6277217ed418",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/nestjs-postgres-auth-scope.md": {
-    "bodyHash": "7ad783d33c2ae71cf5abd788cd75e50244465ce916439ef1c641e40deeb88b56",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/nestjs-redis-rabbitmq-worker.md": {
-    "bodyHash": "6b5f72cec5f9900b26c6c43d3cb580326b68cd3e9dd3ab14df236670c9a46ee8",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/nestjs-realtime-test-deploy.md": {
-    "bodyHash": "1eb287695eb6c633198cf987f13830ad8e5401c5839f5d9d1efb98307cd43222",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/fastapi-pydantic-layered.md": {
-    "bodyHash": "d07890ff8850bbb9276f296ed0c77acb6e604869eaf8893b38d679b9e9dc6305",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/fastapi-sqlalchemy-postgres-redis.md": {
-    "bodyHash": "681b6be6fa65c52d1c983e94b3703a6fe81a2a3ad95f5176446c8ee0f712c042",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/python-asyncio-celery-recovery.md": {
-    "bodyHash": "d07b21701cf4936d48ad42d43e8e9b281f4fa09019ae5c90f9fa1301157c47f5",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/fastapi-stream-errors-test-deploy.md": {
-    "bodyHash": "0cdf7b5bd4dda60f639c38aad7c9727a6c8c336ae5ba48d620ed500eadcce67e",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/go-gin-layered-errors.md": {
-    "bodyHash": "737b4356500bf699028c34da23817cb33fd255357b973e9dc0108b36571e1d11",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/go-gorm-redis-context.md": {
-    "bodyHash": "b61f7d676cce65a6322c975b65e53c8db90450d16f1481abeac296800f7f27fe",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/go-grpc-protobuf-messaging.md": {
-    "bodyHash": "9f3e6c720af542dbf70ae04128d0aa622de0cbc82403f54e36dbfcb2c6b09856",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
-  },
-  "docs/backend/go-otel-testing-deployment.md": {
-    "bodyHash": "8e42fdfdb8280e8935a44dcfcce25a779487871b1bcd482d70024ef79e7d715f",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
-    "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/ai-infra-role-map.md": {
-    "bodyHash": "cc1ed9b53f485822e0ffdf5b0c85008b1a3f1e64d91e6d534bef31d609d2b00f",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "f96b2d86e35d12d71fa6f9036b55579b75ad6c591b8c37163b0ef9d53f663538",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/linux-service-troubleshooting.md": {
-    "bodyHash": "63478d8154ee0e26a28363a91c8f4ee3bf769931b9276f49349f7270cc3adc29",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "a589b5be721063fa5994652894b0af332b0cee2068a5724a48c20d109a3c687c",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/network-dns-tls-http-proxy.md": {
-    "bodyHash": "fe088d1370f94796c7ab63b6d233408b2510cf427c1c06afdd9da3697a772922",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "a124959acd2b3770401ce09d006086c71476f124d32793780bddfc18b73c3291",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/oci-container-runtime.md": {
-    "bodyHash": "9a5c860fc080334eea17e74d9237dda1deaed513f87b46eb198e357694e43e66",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "3d42eb47d06c613ff05982d9313bb1e4743853b7866a8728dc23f7fcf290b393",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/docker-compose.md": {
-    "bodyHash": "1b46b6bd7b89eb3eb9fdf1ba7c98ff9ce80bdb25a5398ba8a5d367fdec8c6be7",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "86ab1cef40d31615b2eaaedcbd272d7fcd42a0755032161bb00c982eea9cbea8",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/nginx-static-proxy-sse.md": {
-    "bodyHash": "47ccb52fc1933035d6b7ca1a4822ec69eb8687968ba1d0933c64dffa79587a68",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "d5be5cea663d7e39ca48406be6684f1ddfeb33cb1ec32b8904aa6761408fc7ab",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/postgres-pgbouncer-operations.md": {
-    "bodyHash": "281686a9c5e78d5df06cdbfa8b4bcb0f6b4a3a719be62a4ad9ba6964281a9a76",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "ef7628030f29452ecf8fda00847731e4c02909f0673776d9b148d630df0d7f74",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/redis-operations.md": {
-    "bodyHash": "a6a1967cd84bc8b96b0133bf28eae806a201d426ddaa7feceb99c589e9a24d66",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "78149ad4e2203ca510741db84e939f2513b5a1d6ec56b799ebbdb1f39268994b",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/queue-worker-plane.md": {
-    "bodyHash": "25363be89db7fa4ca746afdc705832f9b7534235a2227f68dabc3ac623cc5a54",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "5ac8df124e223466dc19ba99f396cd8d311e6ac61410aa24f02848ad3dd03081",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/object-storage-minio.md": {
-    "bodyHash": "901b876b261f70747d6bd402e491084465b3fcfe63335a76abcdf9678d95462a",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "93ad887864b82af14dc752837331aa76592641c81f0327ab56588fb29f475064",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/gpu-cuda-vram-nvidia-smi.md": {
-    "bodyHash": "10a2aa8359fc82d722e16f3704c0b7c5fd189ef5dc8a71ce34d5b8013bfff4b0",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "92cbda54f9bbece8b02c79eb8718a027511a1746f894272b93a229400e575d56",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/model-artifacts-precision-quantization.md": {
-    "bodyHash": "f6fb7005a07c57d8717ef38662e7bcbe82736a6da253edc314f5e040ee20c946",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "f30d68145d4c0bdf04d6f0a873661cb6867895df12555a0022ebb5507d27b626",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/distributed-training-infrastructure.md": {
-    "bodyHash": "8b6685b93ad94edadf4e785b0db3f743ded3e246b439ed2fa151d19fa291083b",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "b35dd9f43dfe166f810b549e844fa4ad18f054c41e48189863a591ef2f8c306a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/transformer-inference-lifecycle.md": {
-    "bodyHash": "ea640b9fcaf75068a1ec4e07aeb6d6d69f05a0cf473a7385db650233b413d706",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "b9b085811170ce82699dcc5ab363fbdedac29c8aefc406d5c09a09542b99f784",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/continuous-batching-kv-cache.md": {
-    "bodyHash": "c2241af928341d79f6ba1d0e037da308030bc69efd261994e2c5f9945154b40d",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "2a82a335604f13e02568788780bef186f66d3661e8dd0a2980e203ba22fee66c",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/vllm-openai-compatible-serving.md": {
-    "bodyHash": "d144e3178aaa413e81810fdf6dcb7bff14ecbc81df122f877c1d9f3bad872836",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "d6f960039c92f2c598f51e7dda9f49578b658a9a1c5f95f4b8186f65513e81ad",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/kubernetes-gpu-scheduling.md": {
-    "bodyHash": "826e6f73882e7f58cb230c87468ef1afcc9278aac1dbabf9e5ef1b35564d11b6",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "44a0c8c087fa6f329487f38c6e9758fa46ee9d65a08e180473cacf668984e5e1",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/ai-observability-slo.md": {
-    "bodyHash": "c458f8ca8bb27fbfa2a9b7409b1c430fc037d70d8a888478023686cb9e1aebde",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "bf015860ad422d81c8c4dceec4b94673409f6d1b74dd7af1006118df932e6afb",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/ai-capacity-load-cost.md": {
-    "bodyHash": "e65a45836e96891b37b88adae77e761977df3f1d438c472e0e21d8d1f07c99e9",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "f3afc41c579491f12a81a928f0ae7faf8c6ad8964dd062c3cd1cc003fa48da27",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/ci-cd-artifact-security.md": {
-    "bodyHash": "854c6129c30116896fc62705273ac14b52d3e94e9a1fb449539babf95edc7cdd",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "8f1d0ea74d4980c0398e3e3a32db99f26a0acc49b7f1fac8888aa5306c145a77",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
   "docs/devops/candidate-migration-rollback-recovery.md": {
-    "bodyHash": "b851f9ddbfee9c1c0ba3d10f18bb50ed97f0ab6453e19494e794938adb313c43",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+    "bodyHash": "c3c1ce04fe53292cce46a27fc4522642efaf6b7426561e845742ab1e06ff1dfa",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/architecture/ai-system-seven-layers.md": {
-    "bodyHash": "d45acef53fdee152f6a8002c1eb7287d40bf2565638c36b69bcd2b37df26b8e1",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langchain-core-abstractions.md": {
+    "bodyHash": "0a8fb7df329587312bac40fb9545a580ed9262bc00b4ed58b8dd59c970580ed3",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/architecture/deterministic-vs-model-boundaries.md": {
-    "bodyHash": "b037533d88fd2e505e126fa82e2894ebd244ba26603d8a27487f3c1c76010561",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langchain-messages-prompts.md": {
+    "bodyHash": "a9874d26dced8d11801d0fff9aa72340749abe3b2629cf583564952eb309fc59",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/architecture/api-runtime-rag-infra-layers.md": {
-    "bodyHash": "c4d21d05c4a8d9670a21ad868a2059b4106a884712fcae94d2724864af37f683",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langchain-runnable-lcel.md": {
+    "bodyHash": "3a372ad0a19923c18ccde464d8f32a69fa0cc9bb2a3d72e6011e903a2a4f1095",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/architecture/conversation-event-task-ownership.md": {
-    "bodyHash": "cf46c7ec30d6b2fcf7f61780c916a6c4dea1d92b676909ac3b0d81558f0c744d",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langchain-pydantic-output.md": {
+    "bodyHash": "80d4591c8a55ab058cda6141275c28cef64426264e9eb5fd592f519a050018c9",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/architecture/evidence-driven-ai-systems.md": {
-    "bodyHash": "59a4f0742ef09d2da2d902b547ee4cc714337a16a9df5f70b0ad32377e58cebf",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langchain-tool-design.md": {
+    "bodyHash": "f2feec8004466e3b017f96666bd7257c061fb957bda198701a3057c4bfe04c89",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/architecture/multi-tenant-model-gateway-platform.md": {
-    "bodyHash": "6502abf9c4093170b59a830c780d207d68c12c7c98f35fba3d32730036b85728",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langchain-simple-agent.md": {
+    "bodyHash": "49cbab598b7689e48d250c324bf5a4c14c78d1327409dee1da4636e64f7d0aa0",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/architecture/ai-reliability-eval-cost-tradeoffs.md": {
-    "bodyHash": "2123ecb0fb087bbd2bce1447037962fcf6c6804bc86355fd652a3194f2f0bb4d",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langchain-streaming-middleware-retry.md": {
+    "bodyHash": "d95ce7fd5f381e8d3050e290963effa8daff9181074e48e33446ee4aabc5dc39",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/engineering/systematic-debugging.md": {
-    "bodyHash": "7b1ac98222b08e1a051b33b6c312774eb1b51f1a6dabbee1ef602afd56ab8960",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langchain-retriever-rag.md": {
+    "bodyHash": "2ab0290669cacb9f775f6337ee15448eba4c3a86d7dfdccf74709e647c127276",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/engineering/git-change-release-rollback.md": {
-    "bodyHash": "5642805ed8724dd0ebdfb3cab8129b06a6fcc4e58bfee4226c9ca33e1550eb65",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langgraph-conditional-reducers.md": {
+    "bodyHash": "445cb143cbbe62800bda306ebe15b7cc326a6ce5d7c5c12e7a3ab48558023b29",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/engineering/testing-pyramid-contract-e2e.md": {
-    "bodyHash": "9eefa40aee7b834a5daa2335620b6bd0b250ccab4c3ef3da5bff87c8b89822b5",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langgraph-parallel-fanout.md": {
+    "bodyHash": "371064ef7f53390c0a2abfee492bcf373b262699f6931fdf2b1ba67f8e12b511",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/engineering/docs-source-issue-verification.md": {
-    "bodyHash": "61be794bbd7d7342f346cf5e13f1615ecd39332f651f3f4939b43da4c33dce7a",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/langgraph-checkpoint-threads.md": {
+    "bodyHash": "f7dea2e30709754f1e43981cc9332d26c8c27ca03e1f0434dcf9d6b28a32f31d",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   },
-  "docs/engineering/adr-retrospective-knowledge-system.md": {
-    "bodyHash": "b4f5089001afe95beb0484c143c14bd213e70437e2cddfa02555763e503f019a",
-    "beginner": true,
-    "senior": true,
-    "practiceVerified": true,
-    "sourcesVerified": true,
+  "docs/ai-agent/agent-runtime-domain-model.md": {
+    "bodyHash": "6ccbd20aff18abca963ed02d9da2c5a46ff1a6dac769a3762eabe082424b9a9a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
     "privacyVerified": true,
-    "beginnerChecks": [
-      "goal",
-      "prerequisites",
-      "terms",
-      "flow",
-      "verification",
-      "transfer",
-      "boundary"
-    ],
-    "seniorChecks": [
-      "facts",
-      "execution",
-      "state",
-      "failure",
-      "privacy"
-    ],
-    "reviewedAt": "2026-08-07"
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/agent-request-lifecycle-runtime.md": {
+    "bodyHash": "27a859a53aff92eb06ae5095f505f839b86db7193e7cefe78c2c15df913e78d2",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/agent-parallel-preprocess.md": {
+    "bodyHash": "5386f4edd74f14af2885eedbf59b23a84fd6345017fd6e70b3fada1d084d1ebc",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/agent-planner-search-plan.md": {
+    "bodyHash": "d5063eb71d775171fd40df37bc90275d947bb811ac4a5f143a6070fad1ea1130",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/agent-graph-runtime-testing.md": {
+    "bodyHash": "ad8875bcad9f725abb93250a9544d9d33ae0b348a968f8749b18701dc2f83b36",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/context-assembly-budget.md": {
+    "bodyHash": "0075a6380ff40f08a6935ba8be18d9a2ca79b2377eb01b16cf81396a2d12bd29",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/prompt-cache-prefix-design.md": {
+    "bodyHash": "4e5fc5ccefa6360e6ae96fcf4fb9ac4d3d24d7e3ac1aba43958e3143168e825e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/codex-context-compaction.md": {
+    "bodyHash": "17a6ba225d74ff5efe19c0aa9aeab6f9a0fd5da9dcc5535827d8afd7705166c6",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/context-window-strategies.md": {
+    "bodyHash": "bdc4f93fe3fd2cfc553a6dbab793cd1f9052549f918b8b7746b575b9453131d9",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/tool-result-compression.md": {
+    "bodyHash": "4f3b0687ee14d710e205f15a0d8c2fedca378385cb50cf9c2c7d85d18387eec2",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/context-pollution-injection.md": {
+    "bodyHash": "71cfd50adc4a54de80dda9841be6e70a54dce0ffddbdae1c25e2b591f8b1de23",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/memory-quality-evaluation.md": {
+    "bodyHash": "88b1f11fdc33637fe60ee223875efd1ec2f3ce2895170e603f0fa6345f1e208a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/rag-strategy-map.md": {
+    "bodyHash": "ccc228253a2797f8c40398bab34eff5ee746f53ef7018600062b717bcd8c3391",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/knowledge-version-release.md": {
+    "bodyHash": "a2381ae5cc64619caf75f55bcfda483e6730ff56a71784264fb2f6dde3bffacb",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/rag-object-storage-lifecycle.md": {
+    "bodyHash": "1ed9cb040c7d82f67d99ee656126b888974a0a0c56fb1600571f01c1f17c06b4",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/rag-external-content-security.md": {
+    "bodyHash": "352f6fc9a3ebc8486005bcbb39ae610f57b52177fde4af7b7cadf16e37fdedeb",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/embedding-batch-idempotency.md": {
+    "bodyHash": "f4b415686e2a8cd6c9373258ecbd382148a713bd5a044f67106198af7b74606e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/vector-store-selection.md": {
+    "bodyHash": "2524465d0ce5871ea3e2b7ea6e2f4aff4f04b5aca370fe7c70ee2fdc38ff3bea",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/rag-query-rewrite-decomposition.md": {
+    "bodyHash": "9e59961703d17da4306b37bf8269936091596ddff82e37cc83e70bc3db2da90f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/rag-multi-query-hyde-step-back.md": {
+    "bodyHash": "4f9e75297ada85f449afc3ff07686979f4bf9635cc0c2a530b7ae028245e4658",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/rag-evidence-budget-cache.md": {
+    "bodyHash": "ade35988fb132c6ed953f2b38af95bfe53cafe3240e78d80a0dd92cc84207e5e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/rag-adaptive-corrective-agentic.md": {
+    "bodyHash": "f49dcf98eebe0f05530c75b73f3bb65b0a670d33b9c5294d7d4754708f82905e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/knowledge-graph-wiki-alias-acl.md": {
+    "bodyHash": "ac618c7e76c909a9289dd33e5360d67f7bd07a19ada159a7fde1d14633b8b282",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/rag-evaluation-recall-mrr-ndcg.md": {
+    "bodyHash": "c7b478e9533b6020aefe5f793167962ae373f95aa42b9eb6fea6b8a726e007e0",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/validation-repair-refusal.md": {
+    "bodyHash": "b8d29d656a625f465db787c36ac989fd7fa57e7b52e74022f64ef86b0bfb7be5",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/turn-idempotency-version-snapshot.md": {
+    "bodyHash": "3af4a7fbe5f8d8f2f2e7be994a458288fad033d9aff9119542fd69a0282e319c",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/admission-model-resource-slots.md": {
+    "bodyHash": "ae9c0b177a3690abf550187f0ec168ac0ffa8f43c24893752a0b04dda45fcf54",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/celery-worker-ack-lease.md": {
+    "bodyHash": "22dc101a8e989a09fdd5ccb263c0a9f084a0c335f4434bd819207931acee3756",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/deadline-cancel-checkpoint-recovery.md": {
+    "bodyHash": "bf2edf58d5c8d50190045a3c44e622e267554463c05f231251ca8b15af00e7d3",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-agent/sse-events-replay-fallback.md": {
+    "bodyHash": "4d91b75ca235720c5627d495ebb7288f08f1fb2deddcc2175033a626d4093baf",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/promise-async-control-handwritten.md": {
+    "bodyHash": "68a7e52bfa2462adf7b970f5f49306ea154062bb8f7952470e7fb3cb3040aac9",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/debounce-throttle-functional-tools.md": {
+    "bodyHash": "7a79bb2dec9a2a548c3c9eaccc94ce7ca948a524c151815d3c1c6352bd0e0233",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/new-bind-instanceof-inheritance-deep-clone.md": {
+    "bodyHash": "2c31c9d65e84bce108c3778f3a1315773bae4d3ba2003b5ab2bb116b96843e50",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/design-patterns-event-emitter.md": {
+    "bodyHash": "34ab04bc0351be2130862678cdc0904dadec06acffb59720e3ca0d5cae4bfe9b",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/typescript-type-relations.md": {
+    "bodyHash": "7d8950211e3fabaa58e435014a0b2bfb595fbd4fba435a0d07fb466ca4e9bc33",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/typescript-narrowing-satisfies.md": {
+    "bodyHash": "3e1479f016b6054ed5ba245dc82631fbe2c658628ae167c3f64693f9d3425fd7",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/typescript-generics-keyof.md": {
+    "bodyHash": "048aab63f08b537a00273a131c0f09d7157e68418aa6dc4b16a7be2f5d9bb81d",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/typescript-conditional-infer-mapped.md": {
+    "bodyHash": "56bb08b4525351847e7770f665b31e4e9e196325f2d884ceb523ea4db7bf1fad",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/typescript-functions-overloads-variance.md": {
+    "bodyHash": "935e6c6da77009fc96227c6198c7dbf3c857c15933eb2bcb7f33a5f6c139b854",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/typescript-decorators-metadata.md": {
+    "bodyHash": "49b2cd19fc396d37f7cf2301c53915196ddf8dce6f5f02fab33070488b3136b7",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/typescript-modules-declarations-project-references.md": {
+    "bodyHash": "ef5c84e921c9562212dec609d8fbf4d0184215cad88114b9f2db6868d2eb1d96",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-jsx-elements-component-model.md": {
+    "bodyHash": "a7a7bc3be9d75b8af0872822f4ebccdab11057d21392b37370d3d2b028907d67",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-reconciliation-keys.md": {
+    "bodyHash": "69365131408ffbd804478ede379128fde885605e93c0a1810a429821c6a86a76",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-work-loop-scheduler-lanes.md": {
+    "bodyHash": "604431f33af0f501a0a7ae882c54c8d033af2b115c208f6d6597c335c43c6228",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-render-commit-effects.md": {
+    "bodyHash": "beaec24f5c2a2545f24e3e664d8045ca79745399b19fb3a92ee6f51e8c086ddc",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-hooks-state-queues-closures.md": {
+    "bodyHash": "25ab539f6a353015ac6e5522bc2708ed463fae02ad0fabb0b54aa27b07d2a80a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-effect-lifecycle-cleanup.md": {
+    "bodyHash": "660f97752b0e1c2e91b4fc5b5159bee91fd1bcafb3080fe1bbd14ab9b8b233fc",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-concurrent-suspense-transitions-hydration.md": {
+    "bodyHash": "a398ff5e722a4834c95e19872358cc8b7a57fda248052a4b285ff08928656cd1",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-component-state-accessibility.md": {
+    "bodyHash": "93fe8eeb714fb4661276bbce671c40db6fd3a394b5f2632c0d9b6e7c1eae925b",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/react-performance-profiling-testing.md": {
+    "bodyHash": "de444ff93f4db1029b136fe333fbfacff790b89dfccf35f1e9b30f0e531f2a38",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/vue-components-lifecycle-slots.md": {
+    "bodyHash": "ec180ac8c92c0fafa647705cbecf38c004cc31e0b8c38dcb0d186bed4c7faca5",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/vue-scheduler-computed-watch-nexttick.md": {
+    "bodyHash": "94e9b81e3dfdd64996cd2f926b4fa3e928b426b0344744e8175ef85517d4a1c1",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/vue-compiler-pipeline.md": {
+    "bodyHash": "57445191066c4e34fbc24a93c82e3129edbc18692f6b9b97d70eda359c51bf53",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/vue-vdom-renderer-diff.md": {
+    "bodyHash": "4e1066e1eaf886ebe5fa84e92a985a02072eaad2e1221c45ab1569a352c46d2d",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/vue-composition-pinia-router.md": {
+    "bodyHash": "9f9999a6c3010fa9f3d13b846eec9e32b93b6ac882e9e8c12f01c029f453bbd6",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/vue-performance-testing.md": {
+    "bodyHash": "cc946d6c4650624c2a32356ac062bf7603f43786f6cc952b02357c353edec9fd",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/vue-ssr-hydration.md": {
+    "bodyHash": "30b8f3413ed960ecfad090f28aac38792b651f91e299d36fd655182ecad5873d",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/webpack-module-graph-loaders-plugins.md": {
+    "bodyHash": "bf87fd22123dd70b664d5a0c841ba8594ba67bb64f69064a2e90c3c4be8611af",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/bun-runtime-toolchain.md": {
+    "bodyHash": "51edfd16756e0db2d955ba324d13ef2dce05f74d0fed4b559c07b5a1a488da16",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-build-tools-comparison.md": {
+    "bodyHash": "4b6e7e4b45a7c6816ddfb126e34556cc9de2ee2cf99de1f57514605a83d21ede",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/package-managers-lockfiles-monorepo.md": {
+    "bodyHash": "f8ca06491a757fbe42c21ffff119a4debd11d0d7addc2db623ad019d0994b1c3",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-cli-scaffolding-plugin-system.md": {
+    "bodyHash": "bc1ce85e3f00ebcee4259d513614b12cd0ac38b2fc7db3d24eecfd77a6110284",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-ci-cd-release.md": {
+    "bodyHash": "729fe705a7266ad31c9040d8f0cab01cb580717823fbd9d976d152a902ea9e56",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/browser-url-navigation-rendering.md": {
+    "bodyHash": "2385f00e8c65f0381f1607bc9d01692dc2d23db660dff22b0a2f562360960893",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/http-evolution-connections.md": {
+    "bodyHash": "5c4aed954c7964a95962baa942bc2f3216d74147c5179b18a44577f5656b6745",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/browser-cache-resource-hints.md": {
+    "bodyHash": "f0d2d4f63155415f0daf6afec2b95d905f92e88ef404cd369f29262748462230",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/web-worker-off-main-thread.md": {
+    "bodyHash": "7200416970560f17d1ebd3f59ef6d1dd9907d19204a7db63240b446ade5a7f8f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-performance-memory-diagnostics.md": {
+    "bodyHash": "393f2487d900e2393bcf92a373e3b982bca6cfede7d9d34b3d4d570fac52fd6e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-auth-sso-oauth-oidc-pkce.md": {
+    "bodyHash": "d045e313722c4b0abe6e53d8f0b9e019835d6bccce717f7dbed253e8754ba5fe",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-security-defense-in-depth.md": {
+    "bodyHash": "a7db5eacc837d154fd7500118f790f9fa8c77fe280ea3c4b0461607a0831be67",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/micro-frontend-architecture.md": {
+    "bodyHash": "8a013c2c3bd0de1935100036b7d806aa96605197b826cd498fd7b5e916ddce15",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-quality-testing-system.md": {
+    "bodyHash": "448aa228309b86461ca5335876350b6684182b44d7ddc1234b6a1836e86eb972",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-observability-platform.md": {
+    "bodyHash": "aa8df75e61f43788fef4ab19181dba219706982885504c383909f25077be6b87",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/frontend-performance-delivery.md": {
+    "bodyHash": "59250995e5a5463dcbd31e29aae5df57478e3c07aebb2acbefa33dd657cd2277",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/request-client-contract-resilience.md": {
+    "bodyHash": "6c7b2ff60be0e1bdaf9274770c9ac646eaa29f26a965d4c71f524f8ebf93b298",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/webview-jsbridge-security.md": {
+    "bodyHash": "4707c4c8f58a7b6272ca3dc1cafdd13601c5253273b2207392ecb522b5655044",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/cross-platform-react-native-flutter-electron.md": {
+    "bodyHash": "da4804c6e410aef1e24f7684b624aa2e8be10c413a57cbebe333661daf66c746",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/mini-program-runtime-lifecycle.md": {
+    "bodyHash": "ce73cdff6b54b4381d1a45a548365907f27fea0467411516d62092cb68fe5ece",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/frontend/mini-program-auth-packaging-performance.md": {
+    "bodyHash": "a0a30225fd16dc86511a836d637e5ad17e78c904ae97576c17d4cf6be2fbd440",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/algorithms/binary-search-boundaries.md": {
+    "bodyHash": "eee52f9f9e9398430f9b1781de25360cd47c419a751e4332062bc84c51630505",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/algorithms/bfs-topological-shortest-path.md": {
+    "bodyHash": "bd890ea7cd98397fd6a8fc796363766b44840d164b24b53c54f2e933c0c5f6fc",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/algorithms/greedy-intervals.md": {
+    "bodyHash": "c6d1e6d1ac2d220efdffd2c89159a657d3059f26256fa933858b56442a0fef83",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/algorithms/lru-cache-design.md": {
+    "bodyHash": "ca5bb18e15e67779d71113b31603804130eaa57e72136b3258d8c8fc180eb69e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/algorithms/kmp-string-matching.md": {
+    "bodyHash": "54c01e26604d9fb79bf9f3594aea05b0d8b2470589ff30fb26ea751649989e81",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/agent-runtime-infrastructure.md": {
+    "bodyHash": "6516de3d57ed4f9dd8fd4d207ed3c0b8fd8edded6c0ed99cd39fd16c2ec583ba",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/ai-platform-security.md": {
+    "bodyHash": "d660b4214392bf844004f1263a60f92d4cec3a8a0d43f6e1613726fbba3acd8d",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/cuda-programming-model.md": {
+    "bodyHash": "b8b3b974b38dc3e5475679245d7d1399b4d3658907bce0010a388786ecc51d1e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/deepspeed-zero-infrastructure.md": {
+    "bodyHash": "14510ed5b07c1628e9c912787e814d94741af6decc991832b03e121dc35c942d",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/enterprise-ai-platform-capstone.md": {
+    "bodyHash": "9c22f781e99c9e3e2a4920aeb7edf2ef902bc13024a6cf5550bac1f638725276",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/fastapi-openai-compatible-service.md": {
+    "bodyHash": "2ffcdccd0cc24f19bde725848a511cd9d6533ade8e2cef0519d02791f4b66cd7",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/gpu-computing-foundations.md": {
+    "bodyHash": "2f2d96bcb4d9541524ca8542d6864a552b993f50c9cc3e08c6279d7300efd951",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/kubernetes-ai-platform-basics.md": {
+    "bodyHash": "ac40426608290568aad0d17b1480f48a9998b378aedf0dcd67e4f706578e08aa",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/kubernetes-ai-service-deployment.md": {
+    "bodyHash": "c5c2dd9fc4e2f6cc41d31232d55c7cde761792d0fd7ab362441bfef69883d782",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/llm-gateway-design.md": {
+    "bodyHash": "0233c5ac2d62b3c4d5cdd01f61e7de114ba727287ed209d440d2aca5033c446f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/llm-serving-architecture.md": {
+    "bodyHash": "3085fa8522317554f5ef1ee18c5b0736e42457a4b7ef62e3e8381c943d7fd4fc",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/multi-model-platform.md": {
+    "bodyHash": "274682bd8a16f08f1b79b309c54d266874d14a9749ecf3a513f7cc3df9f6e645",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/nccl-gpu-communication.md": {
+    "bodyHash": "7f51b62840b7d386d2f52c7cca552773a5aae95528841e538c741a76f86175bb",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/open-model-huggingface-deployment.md": {
+    "bodyHash": "fa2df001e4e1dc1ab322b1688b661c9a1a4ea444d1d81285f746b9ed73fcb96a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/python-ai-service-runtime.md": {
+    "bodyHash": "b70921c6b2060f92c67c42b1dd7771304422c4ac5dfd5924df73f07b38a5ccc0",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/devops/rag-infrastructure.md": {
+    "bodyHash": "74d3477b1613a9c379332761eb1f18c4d54c0d4aaa1403f5c6c9c8f1f66115eb",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/mcp-design-workflow-mining.md": {
+    "bodyHash": "3de74b764e5c4bff9997e62279762c4096934a0cbe60d3e171f102018376f86a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/subagent-development-workflows.md": {
+    "bodyHash": "a9b716caf5d2924916b596c57a232f1919080865392eb4c078b4dcb8bf7a9643",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/skill-design-workflow-mining.md": {
+    "bodyHash": "b3307865b1a3e1cf51bdbc9a32d5d7b39e5818380e61efdcca49a19fc30ebd2c",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/ai-work-modes-opc-full-stack.md": {
+    "bodyHash": "3b4e81a07e45bf25db1d672cd3df362e34f38687252388b4b7c476e38014c983",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/ai-capability-concepts.md": {
+    "bodyHash": "cbb30a16f04eaf6cd89360c57de6bc66a6172ef62df58a002c57a23a3f14bb59",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/python-mcp-server-practice.md": {
+    "bodyHash": "b0fc69e6c7c7d091ef6423b51da4bfd961cd9c7a255f12e5c9e95209e375e83a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/article-publishing-skill-practice.md": {
+    "bodyHash": "232a34827f91d82328b724cdc8d22c78ef4cd656c7b41417065d1476e8f53bcd",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/ai-coding-development-loop.md": {
+    "bodyHash": "03a121eca908603ec0918de6e082223006720e664bc7a9a2e257fa130c989c04",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/spec-sdd-plan-first-development.md": {
+    "bodyHash": "8dae8ecc0a412475bb07e1bdca3cdd1745276634c84fbd8f38cdba9c46613a39",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/ai-practice/context-engineering-harness.md": {
+    "bodyHash": "8af077a6f0fd7c86fa267ffd474c62cd7a202718b77629131d6d9d0badd37ed0",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/backend/backend-learning-roadmap.md": {
+    "bodyHash": "af8c899738a74a39f80ef42144c3899066c2d0251d519a93419593d67cc1058a",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/backend/dns-tcp-request-path.md": {
+    "bodyHash": "fdaaf935638c4a69da5f4eb9a13e1692777302f2fcbde908ecfae81bd141f27f",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/backend/mysql-crud-parameter-binding.md": {
+    "bodyHash": "5a9df9ede14a95e9382819c7d373d735980e3b25783b9bdd817c334ea5a26411",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/backend/transaction-acid-isolation-mvcc.md": {
+    "bodyHash": "cd00fbc9f851cabf818fca5be7b382620d04a202a125cde1ca58a633c07fa73e",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/backend/jwt-access-refresh-token-lifecycle.md": {
+    "bodyHash": "a088bd4718299382cf269be24803dc4097e0c71630e239e64f5250ce59a58745",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
+  },
+  "docs/backend/react-nestjs-prisma-admin.md": {
+    "bodyHash": "d9d7744c499e77d54c384b0bcaa1969d9d8f4768e948c13888fe6feb01881004",
+    "beginnerReviewed": true,
+    "technicalReviewed": true,
+    "factsVerified": true,
+    "examplesVerified": true,
+    "privacyVerified": true,
+    "continuityReviewed": true,
+    "voiceReviewed": true,
+    "reviewedAt": "2026-08-12"
   }
 }

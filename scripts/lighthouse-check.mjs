@@ -10,12 +10,16 @@ const threshold = Number(process.env.LIGHTHOUSE_MIN_SCORE ?? 90)
 const defaultRoutes = [
   '/',
   '/docs/ai-agent/knowledge-agent-capstone',
+  '/docs/ai-agent/prompt-cache-prefix-design',
   '/docs/seo/browser-page-seo-audit',
   '/docs/frontend/typescript-type-system-engineering',
-  '/docs/backend/fastapi-pydantic-layered',
+  '/docs/backend/python-fastapi-runtime-layering',
   '/docs/devops/vllm-openai-compatible-serving',
-  '/docs/architecture/ai-system-seven-layers',
-  '/docs/engineering/systematic-debugging'
+  '/docs/ai-practice/',
+  '/docs/ai-practice/python-mcp-server-practice',
+  '/docs/ai-practice/article-publishing-skill-practice',
+  '/docs/ai-practice/context-engineering-harness',
+  '/docs/ai-practice/ai-work-modes-opc-full-stack'
 ]
 const routes = process.env.LIGHTHOUSE_ROUTES
   ? process.env.LIGHTHOUSE_ROUTES.split(',').map((route) => route.trim()).filter(Boolean)

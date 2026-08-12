@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @db.Char(36)
+  tenantId     String        @map("tenant_id") @db.Char(36)
+  email        String        @unique @db.VarChar(190)
+  passwordHash String        @map("password_hash") @db.VarChar(255)
+  sessions     AuthSession[]
+  projects     Project[]
+  createdAt    DateTime      @default(now()) @map("created_at") @db.DateTime(6)
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model AuthSession {
+  id               String    @id @db.Char(36)
+  userId           String    @map("user_id") @db.Char(36)
+  tokenFamilyId    String    @map("token_family_id") @db.Char(36)
+  refreshTokenHash Bytes     @unique @map("refresh_token_hash") @db.Binary(32)
+  expiresAt        DateTime  @map("expires_at") @db.DateTime(6)
+  rotatedAt        DateTime? @map("rotated_at") @db.DateTime(6)
+  revokedAt        DateTime? @map("revoked_at") @db.DateTime(6)
+  revokeReason     String?   @map("revoke_reason") @db.VarChar(80)
+  lastUsedAt       DateTime? @map("last_used_at") @db.DateTime(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime(6)
+  user             User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([tokenFamilyId])
+  @@map("auth_sessions")
+}
+
+model Project {
+  id          String    @id @db.Char(36)
+  tenantId    String    @map("tenant_id") @db.Char(36)
+  ownerId     String    @map("owner_id") @db.Char(36)
+  name        String    @db.VarChar(120)
+  description String?   @db.Text
+  version     Int       @default(1) @db.UnsignedInt
+  deletedAt   DateTime? @map("deleted_at") @db.DateTime(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.DateTime(6)
+  owner       User      @relation(fields: [ownerId], references: [id])
+
+  @@unique([tenantId, name])
+  @@index([tenantId, updatedAt, id])
+  @@map("projects")
+}

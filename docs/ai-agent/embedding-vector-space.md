@@ -1,22 +1,35 @@
 ---
-title: "Embedding：从文档解析、向量入库到检索索引"
-description: "从 PDF、Word、PPT 和 Markdown 的统一处理开始，讲清 Embedding、向量库、批量写入、索引与召回评估。"
+title: Embedding：从文档解析、向量入库到检索索引
+description: 从 PDF、Word、PPT 和 Markdown 的统一处理开始，讲清 Embedding、向量库、批量写入、索引与召回评估。
 category: ai-agent
-part: "知识怎样进入 Agent"
-chapter: 19
-tags: ["Embedding", "Vector Database", "pgvector", "RAG"]
-prerequisites: ["理解数组和函数", "知道数据库表和索引的基本概念", "了解文档解析与语义切片"]
-outcomes: ["把多种文档转换为可向量化片段", "选择向量库和索引", "设计批量向量写入与召回评估"]
+part: 知识怎样进入 Agent
+chapter: 47
+tags:
+  - Embedding
+  - Vector Database
+  - pgvector
+  - RAG
+prerequisites:
+  - 理解数组和函数
+  - 知道数据库表和索引的基本概念
+  - 了解文档解析与语义切片
+outcomes:
+  - 把多种文档转换为可向量化片段
+  - 选择向量库和索引
+  - 设计批量向量写入与召回评估
 practice:
   type: implementation
-  result: "完成一张从文件到向量检索的设计表"
-  verify: ["能解释每种文件如何解析", "能用精确扫描作为索引召回基线"]
+  result: 完成一张从文件到向量检索的设计表
+  verify:
+    - 能解释每种文件如何解析
+    - 能用精确扫描作为索引召回基线
 evidence: official
-updated: 2026-08-07
+updated: 2026-08-07T00:00:00.000Z
+lastUpdated: false
 ---
 # Embedding：从文档解析、向量入库到检索索引
 
-如果只把 Embedding 解释成“把文字变成数字”，读者仍然不知道一个 PDF 怎样进入知识库，也不知道为什么换了模型后旧向量不能继续用。
+如果只把 **Embedding** 解释成“把文字变成数字”，读者仍然不知道一个 PDF 怎样进入知识库，也不知道为什么换了模型后旧向量无法继续使用。
 
 这篇文章从一个真实的导入任务开始：把 PDF、Word、PPT、Excel 和 Markdown 放进同一个只读知识库，用户提问时能检索到语义相近的片段。我们会沿着文件处理链走一遍，再解释向量数学、模型选择、批处理、向量库、索引和召回评估。
 
@@ -50,7 +63,7 @@ flowchart LR
   E --> F --> G --> H --> I --> J
 ```
 
-输入是不同格式的原文件。解析阶段负责恢复结构，Embedding 阶段只负责把已经合格的片段映射到向量空间，向量库负责存储和查找，检索阶段还要执行权限和版本过滤。任何一步失败，都应保留失败状态，不能把空文本当作成功结果写入索引。
+输入是不同格式的原文件。解析阶段负责恢复结构，Embedding 阶段只负责把已经合格的片段映射到**向量空间**，向量库负责存储和查找，检索阶段还要执行权限和版本过滤。任何一步失败，都应保留失败状态，不应把空文本当作成功结果写入索引。
 
 ## 第一步：不同文件先转换成统一结构
 
@@ -106,17 +119,17 @@ Code(language="bash", text="curl https://example.invalid/status")
 
 ### Tokenizer 不是按字数切分
 
-Tokenizer 把字符串转换成模型训练时使用的 Token 序列。一个中文汉字、英文单词、标点或子词都可能对应一个或多个 Token。模型的输入上限按 Token 计算，不按 JavaScript 的 `length` 计算。
+**Tokenizer** 把字符串转换成模型训练时使用的 Token 序列。一个中文汉字、英文单词、标点或子词都可能对应一个或多个 Token。模型的输入上限按 Token 计算，不按 JavaScript 的 `length` 计算。
 
 这会影响两件事：切片长度和费用。一个含有大量代码、URL 或中英文混排的片段，字符数相同，Token 数可能差很多。生产导入需要在向量化前测量 Token 数，超过模型上限时按结构拆分或拒绝。
 
 ### 向量是空间中的一个点
 
-Embedding 模型把一段文本编码成固定长度数组，例如 `[0.12, -0.04, ...]`。数组长度就是维度。二维例子容易画图，但真实模型通常有数百到数千维，每个维度不能简单解释为某个单独主题；语义来自整个向量在空间中的相对位置。
+Embedding 模型把一段文本编码成固定长度数组，例如 `[0.12, -0.04, ...]`。数组长度就是**维度**。二维例子容易画图，但真实模型通常有数百到数千维，每个维度不宜简单解释为某个单独主题；语义来自整个向量在空间中的相对位置。
 
 ### 余弦、点积和欧氏距离
 
-余弦相似度比较两个向量的方向：
+**余弦相似度**比较两个向量的方向：
 
 ```text
 cos(a, b) = (a · b) / (||a|| × ||b||)
@@ -124,39 +137,33 @@ cos(a, b) = (a · b) / (||a|| × ||b||)
 
 点积是对应维度相乘后相加，`||a||` 是向量长度。余弦越接近 1，方向越接近；距离越小通常表示越相似，但具体方向取决于数据库算子。
 
-下面的 TypeScript 只用于手算验证。它不是向量库客户端，重点是让读者看到维度检查、点积、长度和零向量判断如何发生。
+下面的代码只用于手算验证。它不是向量库客户端，重点是让读者看到维度检查、点积、长度和零向量判断如何发生。
 
-```ts
-function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
-  if (a.length !== b.length || a.length === 0) {
-    throw new Error('vectors must have the same non-zero dimension')
-  }
+```python
+# 三个函数对同一向量对计算方向、内积和直线距离，归一化前后结果用于解释度量差异。
+import math
 
-  let dot = 0
-  let normA = 0
-  let normB = 0
 
-  for (let index = 0; index < a.length; index += 1) {
-    const left = a[index]!
-    const right = b[index]!
-    dot += left * right
-    normA += left * left
-    normB += right * right
-  }
+def cosine_similarity(left: list[float], right: list[float]) -> float:
+    # 两个向量必须来自兼容模型并具有相同非零维度，否则各维无法一一相乘。
+    if len(left) != len(right) or not left:
+        raise ValueError("vectors must have the same non-zero dimension")
+    dot = sum(a * b for a, b in zip(left, right, strict=True))
+    norm_left = math.sqrt(sum(value * value for value in left))
+    norm_right = math.sqrt(sum(value * value for value in right))
+    # 零向量没有方向，而且会让余弦公式的分母变成零。
+    if norm_left == 0 or norm_right == 0:
+        raise ValueError("zero vector has no direction")
+    # 点积除以两个范数，把结果缩放为只比较方向的相似度。
+    return dot / (norm_left * norm_right)
 
-  if (normA === 0 || normB === 0) {
-    throw new Error('zero vector has no direction')
-  }
 
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB))
-}
-
-console.log(cosineSimilarity([0.8, 0.6], [0.75, 0.66]))
+print(cosine_similarity([0.8, 0.6], [0.75, 0.66]))
 ```
 
-函数先保证两个数组维度一致；循环中，`left` 和 `right` 是同一位置的两个分量，`dot` 累加点积，`normA` 和 `normB` 累加平方和；零向量没有方向，所以直接抛错；最后用点积除以两个长度的乘积。调用处的两个二维向量方向很接近，终端会输出接近 `1` 的数。把数组改成不同长度或全是 `0`，可以观察两个错误分支。
+函数先保证两个列表维度一致；`zip(..., strict=True)` 按位置配对，`dot` 累加点积，两个平方和开根号得到向量长度；零向量没有方向，因此直接抛错；最后用点积除以两个长度的乘积。调用处的两个二维向量方向很接近，终端会输出接近 `1` 的数。把列表改成不同长度或全是 `0`，可以观察两个错误分支。
 
-如果模型输出已经做了 L2 归一化，点积排序与余弦排序等价；如果没有归一化，点积还会受到向量长度影响。数据库列、查询向量和索引算子必须使用同一种约定。
+如果模型输出已经做了 L2 **归一化**，点积排序与余弦排序等价；如果没有归一化，点积还会受到向量长度影响。数据库列、查询向量和索引算子必须使用同一种约定。
 
 ## 第四步：模型怎么选
 
@@ -176,40 +183,64 @@ console.log(cosineSimilarity([0.8, 0.6], [0.75, 0.66]))
 
 文档向量和查询向量必须来自兼容的模型版本、维度和预处理规则。有些模型要求给查询和文档加不同的任务前缀，漏掉前缀会让两个向量不在预期分布中。向量表至少保存 `model_id`、`model_revision`、`dimension`、`normalized`、`distance` 和 `content_hash`，否则升级后很难判断旧数据能否继续比较。
 
+### 主流模型怎样进入候选，而不是直接抄一个榜单
+
+截至本文更新时，常见候选可以按运行方式分组。托管 API 中可以关注 OpenAI `text-embedding-3-small` / `text-embedding-3-large`、Cohere Embed 系列和云平台提供的区域化 Embedding 服务；可下载或自部署模型中，经常进入多语言/中文候选的有 BGE-M3、multilingual-e5 系列、Jina Embeddings 系列与 Qwen Embedding 系列。具体模型名、维度、输入上限、许可和服务状态会更新，接入时必须以锁定版本的官方模型卡或供应商文档复核，不能把这张候选表当长期不变的接口清单。
+
+| 候选类型 | 优先验证 | 容易忽略 |
+| --- | --- | --- |
+| OpenAI 托管 Embedding | 多语言样本、维度选项、批量和配额 | 数据区域、网络、模型版本记录 |
+| Cohere 等托管检索模型 | query/document 输入类型、Rerank 组合 | 任务类型参数与计费边界 |
+| BGE-M3 | 中文/多语言、长文档与检索任务表现 | 模型许可、部署显存、输入前缀 |
+| multilingual-e5 | 多语言召回与成熟工具链 | `query:` / `passage:` 等训练约定 |
+| Jina Embeddings | 多语言、长上下文或特定模态候选 | 模型版本之间的维度和任务差异 |
+| Qwen Embedding | 中文与多语言、不同参数规模候选 | 模型大小带来的显存与延迟差异 |
+
+“主流”只表示值得进入实验，不表示适合你的数据。先准备包含中文、英文、缩写、代码、表格行、精确编号和无关干扰项的小型 Gold Set；对每个候选固定查询/文档模板，测 Recall@K、MRR/nDCG、P95、批处理失败率、单百万 Token 或自部署资源成本。领域文档差异大时，自己的标注集比通用榜单更有决策价值。
+
+### 为什么更换模型必须重新向量化
+
+不同模型输出的向量空间没有共同坐标含义，即使维度恰好相同，也不能把新查询向量与旧文档向量直接比较。升级流程应创建新的 `model_revision` 和候选索引，重新计算全部 required Chunk，完成召回与资源评测后再切换；旧索引保留到回滚窗口结束。
+
+降维选项也属于向量身份。若托管模型允许请求不同输出维度，`model_id` 相同但维度不同仍是两个索引版本。查询端必须从当前 Release 读取模型与预处理配置，不能根据默认值临时选择。
+
 ## 第五步：批量向量化和幂等写入
 
 文档导入一般一次产生很多片段。逐条调用会浪费连接和配额，一次发送全部片段又可能超过供应商的条数、Token 或请求大小限制。批处理器需要同时限制批大小、总 Token、并发数和速率。
 
-批处理不能按返回数组下标盲写。假设输入有 32 个片段，服务只返回 31 个向量，如果程序仍按位置写入，后面的向量会错配到别的内容。可靠的接口应让每个输入带稳定 ID，返回结果也带同一个 ID；缺失、重复、维度错误或 NaN 都使批次进入失败状态。
+批处理不应按返回数组下标盲写。假设输入有 32 个片段，服务只返回 31 个向量，如果程序仍按位置写入，后面的向量会错配到别的内容。可靠的接口应让每个输入带稳定 ID，返回结果也带同一个 ID；缺失、重复、维度错误或 NaN 都使批次进入失败状态。
 
 下面是一个最小的批处理伪代码。它展示输入如何分批、如何按 ID 对齐，以及为什么失败时不能静默跳过。
 
-```ts
-type Chunk = { id: string; text: string }
-type VectorResult = { id: string; vector: number[] }
+```python
+# 写入键同时包含片段 ID、模型与版本；同内容重试覆盖同一投影，更换模型则生成新向量版本。
+from dataclasses import dataclass
 
-async function embedInBatches(chunks: Chunk[], batchSize: number): Promise<VectorResult[]> {
-  const results: VectorResult[] = []
 
-  for (let start = 0; start < chunks.length; start += batchSize) {
-    const batch = chunks.slice(start, start + batchSize)
-    const response = await embeddingClient.embed(batch.map((chunk) => ({ id: chunk.id, text: chunk.text })))
+@dataclass(frozen=True)
+class Chunk:
+    chunk_id: str
+    text: str
 
-    if (response.length !== batch.length) {
-      throw new Error(`embedding result count mismatch at offset ${start}`)
-    }
 
-    for (const item of response) {
-      const source = batch.find((chunk) => chunk.id === item.id)
-      if (!source || item.vector.length !== EXPECTED_DIMENSION) {
-        throw new Error(`invalid embedding result: ${item.id}`)
-      }
-      results.push(item)
-    }
-  }
-
-  return results
-}
+async def embed_in_batches(chunks: list[Chunk], batch_size: int, client: EmbeddingClient, dimension: int) -> list[tuple[str, list[float]]]:
+    results: list[tuple[str, list[float]]] = []
+    # 逐批处理输入，单批数量受上游限制；批次校验通过后才合并到总结果。
+    for start in range(0, len(chunks), batch_size):
+        batch = chunks[start : start + batch_size]
+        # 请求携带稳定 chunk_id，不能只靠 Provider 返回顺序与输入位置对齐。
+        response = await client.embed([{"id": item.chunk_id, "text": item.text} for item in batch])
+        # 数量不一致表示 Provider 截断或遗漏了输入，整批不能直接写入。
+        if len(response) != len(batch):
+            raise ValueError(f"embedding result count mismatch at offset {start}")
+        # 建立本批允许的 ID 集合，防止混入其他并发批次的返回值。
+        expected_ids = {item.chunk_id for item in batch}
+        for item in response:
+            # 同时验证返回 ID 属于本批次，并且向量维度与索引定义一致。
+            if item["id"] not in expected_ids or len(item["vector"]) != dimension:
+                raise ValueError(f"invalid embedding result: {item['id']}")
+            results.append((item["id"], item["vector"]))
+    return results
 ```
 
 外层循环用 `start` 和 `batchSize` 切出当前批次；请求只发送片段 ID 和正文；数量检查防止服务少返回一条；内层按 ID 查找原始片段并检查维度，避免错误向量继续写入。真实实现还要增加限速、有限重试、指数退避、请求超时和批次幂等键。写入数据库时使用 `(chunk_id, embedding_model, model_revision)` 唯一约束，重试同一批不会生成重复行。
@@ -244,9 +275,11 @@ CREATE TABLE knowledge_chunk_embedding (
   embedding VECTOR(768) NOT NULL,
   source_version TEXT NOT NULL,
   visibility_scope TEXT NOT NULL,
+  -- 联合主键允许同一片段保留多个模型版本，同时阻止同版本重复写入。
   PRIMARY KEY (chunk_id, model_id, model_revision)
 );
 
+-- 索引的距离算子必须与查询算子一致，否则可能无法使用索引或排序语义改变。
 CREATE INDEX knowledge_embedding_hnsw_cosine
 ON knowledge_chunk_embedding
 USING hnsw (embedding vector_cosine_ops);
@@ -262,10 +295,12 @@ HNSW 适合在数据持续更新、希望较好召回和低查询延迟的场景
 SELECT chunk_id, content_hash, source_version,
        embedding <=> $1::vector AS distance
 FROM knowledge_chunk_embedding
+-- 先按权限、知识版本和模型版本过滤，避免在不可见或不兼容向量中近邻搜索。
 WHERE visibility_scope = $2
   AND source_version = $3
   AND model_id = $4
   AND model_revision = $5
+-- 按与索引一致的距离算子升序排列，数值越小表示越相近。
 ORDER BY embedding <=> $1::vector
 LIMIT $6;
 ```
@@ -335,4 +370,34 @@ P95 延迟与资源占用：
 重建和回滚方式：
 ```
 
-Embedding 只负责把片段映射到语义空间。它不能修复错误解析、越权过滤或不完整引用。下一篇会把精确检索、全文检索、向量检索和结构化查询放进同一条混合召回链，说明不同问题为什么需要不同通道。
+Embedding 只负责把片段映射到语义空间。它不能修复错误解析、越权过滤或不完整引用；精确标识、关键词、结构化字段和语义相近问题仍需要不同检索通道协作。
+
+## 常见问题
+
+### Embedding 到底解决了什么问题？
+
+它把文本映射为固定维度向量，使系统能用空间距离寻找表达不同但语义接近的片段，例如“怎样重置密码”和“忘记登录凭证怎么办”。输入是经过解析与切片的文本，输出是模型版本绑定的数值数组；它不生成答案，也不证明事实正确。检索时查询必须使用兼容模型映射到同一空间，再与文档向量比较，最后仍需权限过滤、证据选择和答案验证。
+
+### 余弦相似度、点积和欧氏距离应该怎样选？
+
+先遵循 Embedding 模型的训练与官方建议。余弦比较方向，适合向量模长不应影响语义时；归一化向量的点积与余弦排序等价，计算通常更直接；欧氏距离同时受方向和模长影响。索引算子、SQL 查询和离线评测必须使用同一度量。不要在入库用归一化向量、查询时又换原始向量，也不要只因某个数值更大就认为检索更好，最终用 Recall 与排序指标验证。
+
+### 中文或多语言 Embedding 模型应该怎样选择？
+
+先建立代表真实问题和文档的评测集，覆盖中文口语、英文术语、数字编号、领域缩写和跨语言查询。候选模型比较许可、部署方式、最大输入、维度、归一化要求、批处理限制、延迟与成本，再在同一切片和索引上测 Recall@K、MRR 和资源。主流候选可以来自托管 API 或公开多语言模型，但榜单不能替代领域数据；若主要是中文业务术语，通用英文优势没有直接意义。
+
+### 更换 Embedding 模型后可以继续使用旧向量吗？
+
+通常不可以。不同模型、revision、维度和归一化方式定义了不同向量空间，即使维度碰巧相同，数值也不可直接比较。正确做法是为新模型建立独立向量版本，从稳定 Chunk 重放，完成数量、有限值、召回和性能验证后切换 Retriever 配置；旧索引保留回滚窗口。缓存键也要包含模型版本。直接把新查询向量与旧文档向量比较，会得到看似有结果但没有语义依据的排序。
+
+### PDF、Word、PPT 和 Excel 是直接送进 Embedding 模型吗？
+
+不是。模型通常接收文本或多模态输入，而 RAG 需要先将文档解析为统一 Block：PDF 保留页与坐标，Word 保留标题和表格，PPT 保留页与版面，Excel 保留 sheet、表头和行列。随后按语义切成 Chunk，把必要结构序列化为文本，再计算向量。源位置、ACL、Release 和内容 hash 作为元数据保存，不应全部塞入嵌入文本。错误解析会直接污染向量，模型无法自动恢复丢失结构。
+
+### 向量维度越高，效果一定越好吗？
+
+维度提高可能承载更多表达能力，也会增加存储、内存、网络和距离计算成本，但质量由模型训练与任务匹配共同决定。某些模型支持缩短维度或提供不同尺寸，必须按官方规则处理并重新评测。比较候选时在同一语料上记录 Recall、MRR、P95 延迟、索引大小和构建时间。不能把维度本身当质量分数，也不能为了省空间随意截断不支持降维的向量。
+
+### 如何知道 Embedding 检索真的有效，而不是看几个例子？
+
+建立带问题、相关片段 ID 与相关等级的固定数据集，先用精确向量扫描得到基线，再测试索引和参数。Recall@K 检查正确片段是否进入候选，MRR 观察第一个相关结果位置，nDCG 处理多级相关；同时记录延迟和资源。还要包含精确 ID、否定条件、无资料和无权限样本，证明向量通道不会替代其他检索和权限边界。每次模型、切片或索引变化只改一个变量。

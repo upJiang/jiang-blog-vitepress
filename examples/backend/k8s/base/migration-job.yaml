@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backend-schema-migration
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: backend-learning-migrator:dev
+          command: ['/bin/sh', '-c', 'sh /migrations/migrate.sh']
+          envFrom:
+            - secretRef: { name: backend-api-secret }

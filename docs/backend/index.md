@@ -1,7 +1,7 @@
 ---
 layout: page
 title: 后端
-description: 先补齐协议、数据库、缓存和消息队列，再完成 Node.js、Python 与 Go 三条服务实践。
+description: 系统学习网络、Linux、API、MySQL、事务、安全、缓存、消息、测试、性能、部署与企业项目。
 sidebar: false
 aside: false
 footer: false

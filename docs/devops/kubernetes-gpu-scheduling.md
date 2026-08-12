@@ -1,165 +1,76 @@
 ---
-title: Kubernetes GPU 调度、模型卷与自动扩缩容
-description: 从 Pod 请求 GPU 进入 Device Plugin、节点标签、污点、拓扑、模型卷和队列驱动扩缩容。
+title: Kubernetes GPU 调度、共享、MIG 与自动扩缩容
+description: 从资源请求进入设备发现、标签、污点、亲和性、拓扑、共享、MIG、队列和扩缩容信号。
 category: devops
-part: 第五部分：推理服务
-chapter: 17
+part: 第五部分：Kubernetes AI Infra
+chapter: 24
 tags:
   - Kubernetes
-  - GPU
+  - GPU Scheduling
+  - MIG
 prerequisites:
-  - 容器与 GPU 基础
+  - 理解 Kubernetes 核心对象和 GPU 显存
 outcomes:
-  - 设计 GPU Workload
-  - 选择扩缩容信号
+  - 设计 GPU Workload 放置策略
+  - 选择能反映推理压力的扩缩容信号
 practice:
-  type: implementation
-  result: 编写并静态校验一份 GPU Deployment
+  type: decision
+  result: 完成一张 GPU 调度决策表
   verify:
-    - 资源请求明确
-    - 未在真实集群验证的部分被标记
-evidence: official-guided-operation
-updated: 2026-08-06T00:00:00.000Z
+    - 设备数量和显存边界不混淆
+    - 未在真实集群验证的结论被标记
+evidence: official
+updated: 2026-08-11
 ---
-# Kubernetes GPU 调度、模型卷与自动扩缩容
 
-Pod YAML 写了 `nvidia.com/gpu: 1`，却一直 Pending；换到另一节点后 Pod 能启动，模型又因为卷没挂载而重复下载。GPU 工作负载需要同时满足设备发现、节点能力、资源请求、模型制品、网络和扩缩容信号。
+# Kubernetes GPU 调度：请求一张卡之后还缺哪些决策
 
-本文是基于 Kubernetes 与 NVIDIA 官方资料的操作指南。没有真实 GPU 集群时，读者可以静态校验清单、检查调度条件和画拓扑，但不能宣称 YAML 已在线运行。
+两个模型 Pod 都请求一张 GPU，其中一个需要 70GB 显存，另一个只需要 8GB。若节点都只暴露相同资源名，Scheduler 看到的是设备数量，不知道模型权重、KV Cache 和上下文是否能放入目标卡。平台必须把设备能力与工作负载需求转成可调度标签、资源或准入规则。
 
-## 先看一个 GPU Pod 的调度链
+GPU 调度包含发现、分配、隔离、拓扑、共享和扩缩容。Kubernetes 提供通用机制，具体设备语义来自插件、节点标签和平台控制器。
 
-```mermaid
-flowchart LR
-  A[Deployment] --> B[Pod resource request]
-  B --> C[Scheduler 选节点]
-  C --> D[Node label/taint]
-  D --> E[GPU Device Plugin]
-  E --> F[Container Runtime 挂载设备]
-  F --> G[模型卷与 Secret]
-  G --> H[Readiness/服务]
-  H --> I[队列/延迟驱动扩缩]
-```
+## 基本分配路径
 
-Scheduler 只根据 Kubernetes 资源与调度约束选择节点。模型是否放得下显存、引擎是否支持该 GPU、权重是否完整，是后续容器启动和应用健康检查要回答的问题。
+Device Plugin 向 Kubelet 报告健康设备和扩展资源。Pod 在 `limits` 中请求资源后，Scheduler 只选择有足够可分配数量的节点；Kubelet 再让插件为容器分配具体设备。普通扩展资源通常不能超卖，也不会按显存自动分数。
 
-## 第一步：确认集群能发现 GPU
+节点标签可表达 GPU 型号、显存档位、架构、互联和驱动池。Node Affinity 选择能力，Taint/Toleration 把专用 GPU 节点留给授权工作负载。标签必须由可信节点组件维护，不能允许普通租户伪造。
 
-在已授权集群执行只读检查：
+## 隔离、共享与切分
 
-```bash
-kubectl get nodes -o wide
-kubectl describe node <node-name>
-kubectl get pods -A | grep -i device-plugin
-```
+整卡分配提供清晰故障与性能边界，但小模型可能浪费容量。Time-slicing 让多个工作负载轮流使用 GPU，提升共享率，却不自动提供显存与性能隔离。MPS 等机制改变进程共享执行方式，也需要匹配安全与支持边界。
 
-`describe node` 的 `Capacity`/`Allocatable` 是否出现 `nvidia.com/gpu`，决定 Scheduler 是否知道设备；Device Plugin Pod 是否在目标节点运行，决定 kubelet 能否分配设备。真实命令中的 `<node-name>` 需要替换为当前集群节点，不要把示例值直接执行。
+MIG 在支持的 GPU 上把硬件划成具有计算和显存资源的实例，隔离比简单时间共享更明确。可用 Profile、实例数量和重新配置过程依赖具体硬件。MIG 不是任意大小显存切片，工作负载必须请求平台暴露的具体资源类型。
 
-还要检查节点标签和污点：
+## 多 GPU 拓扑
 
-```bash
-kubectl get nodes --show-labels
-kubectl describe node <node-name> | sed -n '/Taints:/,/Unschedulable:/p'
-```
+Tensor Parallel 与分布式训练对 GPU 之间带宽和延迟敏感。同一节点的 GPU 可能通过 NVLink、NVSwitch 或 PCIe 连接，跨节点还依赖网络与 RDMA。只满足“有 N 张 GPU”可能得到性能很差或不支持的组合。
 
-前一组命令输入是节点名和集群权限，输出是节点标签、污点和 Device Plugin 状态；GPU 节点常用标签表达型号、区域或驱动族，污点防止普通 CPU 工作负载占用。Pod 需要匹配 `nodeSelector`/affinity，并配置对应 `tolerations`。若节点有 GPU 但 Pod 仍 Pending，先看 Events 中是资源不足、污点不匹配还是插件没有发布资源，不要先改模型参数。
+平台可以使用节点池、拓扑标签、Pod Affinity 和调度扩展把相关 Rank 放在合适故障域。还要考虑 CPU NUMA、网卡、存储和 Host Memory，GPU 并非孤立资源。
 
-## 第二步：写清 GPU 请求与容器前提
+## 自动扩缩容看什么信号
 
-最小 Deployment 形状：
+CPU 利用率通常不能直接代表 LLM Serving 压力。更合适信号包括等待队列、最老请求年龄、准入拒绝、活动序列、Batch Token、TTFT、KV Cache 压力和目标模型路由流量。
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: inference
-spec:
-  replicas: 1
-  selector:
-    matchLabels: { app: inference }
-  template:
-    metadata:
-      labels: { app: inference }
-    spec:
-      containers:
-        - name: server
-          image: registry.example/inference@sha256:REPLACE_ME
-          resources:
-            limits:
-              nvidia.com/gpu: "1"
-          ports:
-            - name: http
-              containerPort: 8000
-```
+扩容存在模型下载、加载和预热延迟。若从零副本启动需要数分钟，HPA 在流量到来后才扩容无法满足短时 SLO。可以保留最小热容量、预测扩容或使用排队吸收受控突发。
 
-代码块是根据真实 Kubernetes 资源形状重写的最小示例：镜像用 Digest 占位，不能复制到生产；GPU limit 让 Device Plugin 分配一张卡；端口只描述容器监听，不自动对外发布。通常 GPU limit 同时作为 request，仍要查当前 Kubernetes 与插件行为。
+缩容先 Drain：停止新请求，等待或取消在途序列，释放 Gateway 路由，再删除 Pod。只看指标下降立即结束实例，会中断长生成。模型 Cache 和本地制品清理也要有独立生命周期。
 
-不要把模型下载 Secret 写入 YAML。用 Secret 引用、Workload Identity 或节点级只读制品缓存。容器启动后检查模型 manifest、校验和、Tokenizer 和显存，而不是只看 Pod Running。
+## 调度决策表
 
-## 第三步：模型卷和启动顺序
-
-模型有三种常见分发方式：镜像内置、节点本地缓存、对象存储启动下载或共享文件系统。
-
-| 方式 | 优点 | 风险 |
+| 需求 | 可用机制 | 仍需平台验证 |
 | --- | --- | --- |
-| 镜像内置 | 启动可重复 | 镜像巨大，发布慢 |
-| 节点缓存 | 启动快 | 调度到新节点不一定有制品 |
-| 启动下载 | 制品独立版本 | 冷启动长、网络/凭证失败 |
-| 共享模型卷 | 多 Pod 复用 | 存储吞吐、并发读取与故障域 |
+| 独占设备 | 扩展资源 Request | 模型与 KV 是否放得下 |
+| 指定架构/显存档 | Label + Affinity | 标签真实性、Kernel 兼容 |
+| 专用节点 | Taint + Toleration | 租户权限与容量保留 |
+| 小任务共享 | Time-slicing/MPS | 显存、延迟与故障隔离 |
+| 硬件切分 | MIG Profile | Profile 支持与重配影响 |
+| 多卡通信 | 节点池/拓扑约束 | NVLink/RDMA 与 Rank 配置 |
+| 自动扩缩 | 自定义指标 + HPA/KEDA 等 | 冷启动、Drain 与队列上限 |
 
-Deployment 的 readiness 必须在模型加载与健康推理检查完成后才通过，否则服务会接收请求却返回加载错误。长启动要配置 Startup Probe，避免 kubelet 在模型加载时误重启。
+## 过载先准入，不能只等扩容
 
-模型版本作为不可变目录或对象版本引用；不要让多个 Pod 同时写同一路径。缓存下载使用临时目录 + 校验成功后的原子 rename，失败清理临时文件。
+扩容速度总有上限，GPU 资源也可能暂时不可获得。Gateway 和 Serving 应按模型、租户、Token 预算与资源槽限制进入量，给排队设置最大长度和 Deadline，必要时快速拒绝或路由到受控降级模型。
 
-## 第四步：调度与拓扑
+扩容是恢复容量的手段，准入是保护当前请求的边界。没有准入时，新副本尚未 Ready，所有请求已经进入旧实例，排队超时又触发客户端重试，最终形成放大。
 
-单 GPU Pod 最简单，多 GPU 或多节点需要考虑：
-
-- GPU 型号与显存是否满足模型制品。
-- Pod 是否需要同一节点的多张 GPU。
-- NUMA、PCIe、NVLink 或网络拓扑。
-- 模型卷是否可在目标区域读取。
-- 节点升级、驱动变更和 Pod 驱逐时是否有容量。
-
-`topologySpreadConstraints`、pod anti-affinity 和优先级可以帮助分布副本，但也可能让调度在小集群中变成 Pending。排障时先看 `kubectl describe pod` 的 Events，区分没有 GPU、taint 不匹配、卷不可挂载还是镜像拉取失败。
-
-## 第五步：Service 与流式请求
-
-GPU 服务通常通过 ClusterIP Service 接入网关。SSE/流式响应要检查 Service、Ingress、代理的超时与缓冲；Kubernetes 只负责连接路由，不自动关闭上游缓冲。
-
-readiness 失败时，Service Endpoint 应移除；应用收到 SIGTERM 后先让 readiness 失败，再停止接收新请求和模型生成，最后退出。`terminationGracePeriodSeconds` 需要覆盖排空预算，长生成请求可以被 Deadline 保护。
-
-滚动更新 GPU Deployment 要考虑：新 Pod 冷启动下载模型期间，旧 Pod 是否保留；GPU 节点是否有同时容纳新旧版本的余量；如果没有，更新策略可能把服务降到零副本。候选验证和切流比盲目滚动更可控。
-
-## 第六步：选择扩缩容信号
-
-CPU 利用率不一定反映推理压力。更有意义的信号包括：在线请求数、最老队列年龄、TTFT、活动序列数、GPU 显存、GPU 利用率、错误/拒绝率和成本预算。
-
-| 信号 | 适合回答 | 盲点 |
-| --- | --- | --- |
-| Queue age | 用户等待是否超标 | 空队列时无法预热 |
-| Active sequences | 当前推理槽位压力 | 不表示每条长度 |
-| TTFT P95 | 首响应体验 | 受输入长度分布影响 |
-| GPU memory | 是否接近 OOM | 高显存不一定高计算 |
-| GPU utilization | 计算是否忙 | 可能忽略排队与网络 |
-
-HPA 原生更适合 CPU/内存或可暴露的自定义指标；KEDA 等组件可以消费队列指标。扩缩容必须设置冷却、最大副本和预算，避免模型冷启动引发抖动和成本失控。
-
-## 第七步：静态校验与只读排障
-
-```bash
-kubectl apply --dry-run=server -f deployment.yaml
-kubectl diff -f deployment.yaml
-kubectl describe pod <pod-name>
-kubectl logs <pod-name> -c server --since=10m
-```
-
-`--dry-run=server` 让 API Server 验证资源结构和准入，`diff` 展示将要变化的字段；两者都不代表 Pod 已成功调度。`describe` 的 Events 解释 Pending 原因，日志解释容器启动和模型加载。
-
-GPU Pod 正常后，还要在容器内运行 `nvidia-smi` 或服务健康接口，确认进程真的使用了目标设备。不要把 `Running` 当成“模型可服务”。
-
-## 实践任务与边界
-
-没有 GPU 集群时，完成一份 Deployment、Service、Startup/Readiness Probe、节点标签/taint、模型卷和扩缩容指标清单，执行 server-side dry-run，逐条写出缺少的真实证据。
-
-有隔离 GPU 集群时，再按官方 Device Plugin 与推理引擎文档启动固定 revision，记录节点、驱动、镜像、模型、启动时间、显存与健康检查。吞吐、TTFT 和成本必须来自该硬件实测。
+当前环境没有 Kubernetes 集群和 NVIDIA GPU，本篇没有运行调度实验。实际验证应覆盖整卡、共享或 MIG 的资源可见性，模型显存上限，多卡拓扑，扩容到 Ready 的时间，缩容 Drain，以及设备或节点故障后的请求终态。

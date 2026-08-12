@@ -1,101 +1,96 @@
 ---
-title: OpenTelemetry、Prometheus、Grafana 与 AI SLO
-description: 把请求、检索、模型、首 Token、队列、GPU、引用和终态关联到可用性、延迟、质量和成本。
+title: OpenTelemetry、Prometheus、Grafana、Langfuse 与 AI SLO
+description: 把入口、检索、模型、首 Token、队列、GPU、引用和终态连接成 Trace、Metric、Log 与质量信号。
 category: devops
-part: 第六部分：可靠性、容量与交付
-chapter: 18
+part: 第六部分：企业级 AI Platform
+chapter: 29
 tags:
   - OpenTelemetry
   - Prometheus
   - SLO
 prerequisites:
-  - 服务观测基础
+  - 理解完整 AI 请求链
 outcomes:
-  - 设计 AI 指标
-  - 避免高基数标签
+  - 定义 AI 服务 SLI 与 SLO
+  - 控制高基数、敏感数据和采样成本
 practice:
   type: implementation
   result: 制作一张 AI 服务观测表
   verify:
-    - Trace 与 Metric 可通过稳定标识关联
-    - 敏感内容不进入标签
-evidence: anonymized-practice
-updated: 2026-08-06T00:00:00.000Z
+    - Trace 与 Metric 可用稳定 ID 关联
+    - Prompt 和原始文档不进入指标标签
+evidence: official
+updated: 2026-08-11
 ---
 
-# 日志、指标与链路追踪
+# AI 可观测性：请求成功不代表答案可用
 
-用户说“页面偶尔很慢”。只看一条 Nginx 日志，可能知道请求用了三秒，却不知道时间花在连接池、SQL、外部模型还是浏览器传输。可观测性就是让系统从外部信号推断内部状态。
+接口返回 200，用户仍认为系统失败：首 Token 等了二十秒，引用指向过期文档，答案还因为长度上限被截断。传统 HTTP 成功率只能覆盖传输终态，AI 服务还要观察推理阶段、证据质量、资源和成本。
 
-本篇用一次慢请求串起日志、指标和 Trace。三种信号分工不同：日志解释离散事件，指标显示整体趋势，Trace 还原单次调用路径。
+可观测性不是收集所有数据。它要让工程师从一个症状定位到请求阶段、模型版本、知识 Release、资源瓶颈和终态，同时控制标签基数与敏感内容。
 
-## 三种信号怎样配合
+## Trace、Metric、Log 与事件的分工
+
+| 信号 | 适合回答 | 不适合承担 |
+| --- | --- | --- |
+| Trace | 单次请求经过哪些阶段、父子关系和耗时 | 长期聚合趋势 |
+| Metric | 错误率、分位延迟、队列和资源趋势 | 任意 request ID 或 Prompt |
+| Log | 详细错误、状态转换和诊断上下文 | 无结构全文堆积 |
+| Business Event | Turn、知识发布、计费和审计事实 | 高频硬件采样 |
+
+OpenTelemetry 提供 Trace、Metric、Log 的语义与传播基础；Prometheus 抓取数值时序；Grafana 展示与告警；Langfuse 等 LLM Observability 工具关注模型调用、Prompt、Trace 与评测。工具可以组合，字段所有权和隐私策略必须统一。
+
+## 一条端到端 Trace
 
 ```mermaid
 flowchart LR
-  R[一次请求] --> L[结构化日志]
-  R --> M[延迟与错误指标]
-  R --> T[分布式 Trace]
-  L --> C[requestId / traceId]
-  M --> A[告警与趋势]
-  T --> C
-  C --> D[定位组件与原因]
+  A[HTTP Accept] --> G[Gateway Route]
+  G --> R[Agent Runtime]
+  R --> Q[RAG Retrieve]
+  R --> T[Tool Call]
+  R --> M[Model Attempt]
+  M --> F[First Token]
+  F --> D[Decode / Stream]
+  D --> V[Validate / Finish]
+  V --> U[Usage Commit]
 ```
 
-业务任务状态和审计事件属于可靠业务事实，不应只存在于可能采样的 Trace 中。遥测用于诊断，它的后端故障也不应阻塞主业务。
+根 Span 使用稳定 request/turn 关联，子 Span 记录路由、检索、工具、模型 Attempt、首 Token 和验证。Span 属性包含低基数模型标识、Deployment、Release、终态和错误类别；Prompt 与文档正文默认不作为属性，应脱敏、采样或只保存受控引用。
 
-## 步骤一：先定义一次请求的关联标识
+异步任务通过 Trace Context 或显式 Link 关联，但业务恢复不能依赖 Trace 系统。Turn、Task 与 Event 仍写业务数据库，观测丢失不能改变执行正确性。
 
-网关生成或验证 requestId，OpenTelemetry 使用 W3C Trace Context 传播 traceId。进入异步队列时，把受控追踪上下文放在消息头，消费者创建新的 Span 或 Link。taskId 与 eventId 继续关联业务状态。
+## AI 延迟拆解
 
-结构化日志记录时间、服务、版本、操作、公共错误码、requestId 和 traceId。身份只记录受控摘要；Token、Cookie、请求正文、SQL 参数和模型完整输入不进入普通日志。
+总延迟至少拆为入口、准入、排队、检索/工具、Tokenize、Prefill、TTFT、Decode/TPOT、验证和传输。TTFT 是到首个可见 Token，TPOT 描述后续 Token 间隔；两者不能相加成简单总时间而忽略输出数量。
 
-## 步骤二：用指标发现范围
+按输入/输出 Token 档位、模型、终态和流式模式看分位数。长上下文请求自然更慢，若不分桶，业务结构变化会被误判为版本回归。Bucket 也要控制数量，防止指标爆炸。
 
-RED 方法观察请求 Rate、Errors、Duration；资源层再看 CPU、内存、连接池等待、队列年龄和磁盘。直方图用于延迟分布，计数器用于累计事件，Gauge 用于当前状态。Prometheus 标签只放有限枚举，避免 userId、URL 原始参数等高基数字段。
+## 资源和队列信号
 
-告警对应用户影响与可行动原因。例如错误预算快速燃烧、在线队列最老任务超过目标、磁盘接近水位。单次 CPU 抖动或没有动作说明的图表不适合直接呼叫值班人员。
+Serving 观察等待请求、最老年龄、活动序列、Batch Token、KV Cache、抢占、GPU 利用、显存和 OOM；Backend 观察连接池、Redis 内存、队列深度、Worker Lease、对象上传和数据库锁；Gateway 观察限流、配额、路由、供应商错误和用量差异。
 
-## 步骤三：用 Trace 分解一次慢请求
+资源指标只有与请求阶段关联才可行动。GPU 利用率低可能是没有流量、CPU Tokenize 慢、数据搬运或 Batch 太小；高利用率也可能伴随严重排队，不能单独代表健康。
 
-HTTP Span 下可以看到鉴权、连接池 checkout、SQL、Redis、外部 HTTP 与序列化子 Span。自动 Instrumentation 要审查是否重复建 Span、记录敏感参数或遗漏连接等待。Span 属性使用操作名、结果和稳定错误码，不保存正文。
+## 质量 SLI
 
-当 P95 上升时，先从指标确定影响范围和开始时间，再抽取同版本慢 Trace，最后查看关联日志中的具体 cause。不要从单条 Trace 推断全站，也不要从全站平均值猜单请求路径。
+质量无法完全由在线单一指标表示。可使用结构化输出通过率、工具参数拒绝、检索 Recall、Evidence 覆盖、引用有效、拒答正确、人工反馈和离线 Eval。在线反馈有偏差，离线 Eval 有代表性边界，两者应共同解释。
 
-## 步骤四：考虑采样与遥测故障
+RAG 回答至少记录知识 Release、候选数、Rerank、采用 Evidence 和 Claim 验证结果。模型版本升级后，质量与运行指标使用同一 Release 标记，才能把变化归因到候选版本。
 
-Head sampling 在请求开始决定，可能漏掉后来变慢的调用；Tail sampling 可以按错误或延迟保留，却需要 Collector 缓冲。策略应包含基础样本和错误/高延迟优先保留，并设导出队列与重试上限。
+## SLO 怎样写得可计算
 
-安全审计与计费事件走独立可靠通道，不因 Trace 未采样而消失。遥测后端不可用时，主服务继续运行并丢弃或有界缓冲诊断数据，同时产生可观察的 exporter 错误指标。
+SLO 由服务对象、SLI、阈值、窗口和排除规则组成。例如“在滚动 28 天内，符合输入上限且被准入的流式请求，99% 在目标时间内产生首 Token”。这比“系统要快”可计算，也明确了拒绝与异常流量怎样处理。
 
-## 正常结果和失败结果
+可用性 SLO 要定义哪些终态算成功；延迟 SLO 分 TTFT 与完成；质量 SLO 依赖受控 Eval；成本是预算而非可用性。错误预算用于决定是否继续发布，不能通过扩大排除项制造达标。
 
-| 观察 | 能得到的结论 |
-| --- | --- |
-| P95 上升且连接池等待增加 | 容量或长事务值得排查 |
-| SQL Span 慢且扫描行数增加 | 查询计划或数据分布变化 |
-| Redis miss 上升 | 回源放大，继续查失效与 TTL |
-| Trace 没采样 | 业务事件和错误日志仍可用 |
-| Collector 故障 | 主请求不被无限阻塞 |
-| 日志出现敏感测试值 | 隐私门禁失败，停止发布 |
+## 标签与隐私
 
-验证包括故障注入：慢数据库、Redis 超时、队列积压、外部服务 503 和 Collector 不可用。检查 Dashboard 能区分版本、操作和错误原因，同时确认日志与 Span 中没有凭证和正文。
+Prometheus 标签适合模型档位、区域、状态、错误类别等有限集合。用户 ID、请求 ID、文件名、URL、Prompt 和任意错误文本会造成高基数或泄露，应放 Trace/Log 的受控字段或只存哈希与引用。
 
-## 下一步
+采样策略保留错误、长尾和关键发布样本，同时对普通成功请求做比例采样。即使不采样完整 Trace，核心计量和终态指标仍需完整。敏感数据要有保留期限、访问审计和删除路径。
 
-信号已经能说明候选版本是否健康。下一篇将旧版保持在线，启动候选并收集这些证据，验证通过后才切换 Nginx upstream。
+## 从告警到行动
 
-## 用一次慢请求完成定位
+告警应映射 Runbook：TTFT 升高先看队列和 Prefill，TPOT 升高看 Decode、Batch 和设备，引用覆盖下降看知识 Release 与检索，成本突增看 Token 分布、路由和重试。只有能指向下一条证据的告警才有价值。
 
-准备一个会依次经过 Nginx、API、数据库和外部服务的隔离请求。入口生成 request ID 和 trace ID，日志记录结构化阶段与错误码，指标记录请求量、错误率和延迟分布，Trace 记录每个依赖 Span。
-
-| 观察信号 | 回答的问题 |
-| --- | --- |
-| 指标 | 问题多大、从何时开始、影响哪些路由或版本 |
-| Trace | 这一次请求的时间花在哪个节点 |
-| 日志 | 节点为何失败、使用了哪个受控错误码 |
-| 发布记录 | 异常是否与版本、配置或迁移同时发生 |
-
-先从指标发现 `/reports` 的 P95 增长，再在相同时间窗口抽取慢 Trace。若数据库 Span 占大部分时间，继续看查询类型、连接池和锁，而不是先扩容 Web 实例；若 Trace 没有进入应用，检查代理和网络。日志中通过 trace ID关联，不记录认证头和完整业务正文。
-
-把过程写成 Runbook：告警含影响、入口、第一张看板、查询条件、可能处置和恢复标准。再关闭遥测导出端点，确认应用主要请求仍能服务，同时独立指标报告遥测积压。可观测性是帮助理解系统的旁路能力，不能因采集器故障拖垮业务。
+最终观测表要为每个 SLI 写明数据源、单位、标签、采样、负责人、告警阈值和 Runbook。这样仪表盘不只是展示系统很忙，而是支持发布判断、故障定位和容量决策。

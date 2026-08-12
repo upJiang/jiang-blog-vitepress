@@ -1,0 +1,24 @@
+import { IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator'
+
+export class CreateProjectDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  name!: string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string | null
+}
+
+export class UpdateProjectDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  name!: string
+
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number
+}

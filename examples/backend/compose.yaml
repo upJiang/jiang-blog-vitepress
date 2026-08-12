@@ -1,0 +1,107 @@
+name: backend-learning
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root-local-only
+      MYSQL_DATABASE: backend_learning
+      MYSQL_USER: backend
+      MYSQL_PASSWORD: backend-local-only
+    ports:
+      - '3307:3306'
+    volumes:
+      - backend-mysql:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -u backend -pbackend-local-only --silent']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  node-api:
+    build: ./node
+    environment:
+      JWT_SECRET: replace-with-at-least-32-characters
+      DATABASE_URL: mysql://backend:backend-local-only@mysql:3306/backend_learning
+      WEB_ORIGIN: http://localhost:5173
+      PORT: 3001
+    ports:
+      - '3001:3001'
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - '6380:6379'
+    volumes:
+      - backend-redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: backend
+      RABBITMQ_DEFAULT_PASS: backend-local-only
+    ports:
+      - '5673:5672'
+      - '15673:15672'
+    volumes:
+      - backend-rabbitmq:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: backend
+      MINIO_ROOT_PASSWORD: backend-local-only
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - backend-minio:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  python-api:
+    profiles: ['apis']
+    build: ./python
+    environment:
+      BACKEND_DATABASE_URL: mysql+asyncmy://backend:backend-local-only@mysql:3306/backend_learning
+      BACKEND_JWT_SECRET: replace-with-at-least-32-characters
+    ports:
+      - '3002:3002'
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  go-api:
+    profiles: ['apis']
+    build: ./go
+    environment:
+      DATABASE_DSN: backend:backend-local-only@tcp(mysql:3306)/backend_learning?parseTime=true&loc=UTC
+    ports:
+      - '3003:3003'
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  backend-mysql:
+  backend-redis:
+  backend-rabbitmq:
+  backend-minio:

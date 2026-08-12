@@ -1,0 +1,91 @@
+---
+title: 前端请求客户端：契约、取消、重试与一致性
+description: 从重复提交和旧响应覆盖进入请求分层、类型校验、AbortSignal、超时、幂等键、退避、认证刷新和错误模型。
+category: frontend
+part: 工程专题
+chapter: 63
+tags:
+  - HTTP Client
+  - Resilience
+  - TypeScript
+prerequisites:
+  - Fetch、Promise 与 HTTP 语义
+outcomes:
+  - 设计稳定请求契约
+  - 判断何时能重试和去重
+practice:
+  type: implementation
+  result: 实现类型安全且可取消的请求客户端
+  verify:
+    - 未知结果不会盲目重试
+    - 刷新凭证并发被单飞控制
+evidence: anonymized-practice
+updated: 2026-08-11
+---
+
+# 前端请求客户端：契约、取消、重试与一致性
+
+用户切换查询后旧响应覆盖新结果，支付请求超时后自动重试又创建两单。请求封装不能只统一 baseURL 和 Header，它要把解析、错误、取消、幂等和认证生命周期写成可判断契约。
+
+## 分层数据流
+
+传输层负责 URL、method、headers、body、AbortSignal 和原始 Response；协议层判断 HTTP、Content-Type 和错误结构；解析层把 unknown 校验成领域数据；业务层决定 loading、重试和用户提示。把 Toast 写进底层 fetch 会让批处理和 SSR 难以复用。
+
+```ts
+type RequestError =
+  | { kind: 'network'; cause: unknown }
+  | { kind: 'timeout' }
+  | { kind: 'http'; status: number; body: unknown }
+  | { kind: 'invalid-response'; issues: string[] }
+  | { kind: 'cancelled' }
+```
+
+调用方根据 kind 处理输出：network 没有状态码，timeout 表示等待期限到达，http 保留响应状态，invalid-response 表示协议数据未通过解析，cancelled 是所有者主动终止。这个联合避免 catch 中猜字符串；新增错误类型时，穷尽分支会要求页面补充反馈和恢复策略。
+
+稳定错误联合让调用方按终态处理。网络错误没有 HTTP status，取消不应弹成系统故障，非法响应要进入观测而不是断言成成功。
+
+## 取消与超时
+
+AbortSignal 从页面/任务所有者传到 fetch 和解析步骤。超时通过组合 Signal 触发，并在 finally 清理 timer。取消旧请求防止浪费，但仍用 request sequence 或状态所有者检查，防止不支持取消的下游晚返回。
+
+## 重试判断
+
+GET 等幂等请求可对临时网络/特定 5xx 做有限指数退避加抖动；Retry-After 优先遵守。创建订单等非幂等命令只有服务端支持幂等键和结果查询时才可安全重试。超时代表结果未知，不等于失败。
+
+## Token 刷新单飞
+
+多个请求同时 401 时共享一个 refresh Promise，成功后各自重放一次；refresh 也失败则统一退出，不能拦截自身形成循环。重放前检查 body 是否可再次发送、请求是否仍被页面需要。
+
+## 缓存与去重
+
+相同查询可共享 in-flight Promise，但 key 必须包含影响响应的参数与权限范围。调用方取消不能无条件取消其他消费者。客户端缓存要有 stale/expiry/invalidation，不与 HTTP 缓存混为一层。
+
+## 验证
+
+用可控假服务器测试乱序、断网、超时、429、503、非法 JSON、并发 401、刷新失败、幂等重试和取消。断言请求次数、Signal、错误类型和最终 UI，不只断言 Promise reject。
+
+面试追问 axios/fetch 封装时，应从协议状态机、未知结果和资源所有权回答，而不是展示一串拦截器。
+
+## 请求客户端是状态机
+
+每次调用至少经历 created、queued、sent、headers、body、decoded、validated、committed 或 aborted/failed。`fetch` 只在网络响应到达时 resolve，HTTP 4xx/5xx 不自动 reject；JSON 解析、Schema 校验、业务错误和取消必须映射成稳定的错误联合，UI 才能区分重试、登录和不可恢复。
+
+```text
+request key + auth snapshot
+ -> timeout/AbortSignal
+ -> fetch response
+ -> status/content-type/size check
+ -> decode -> runtime schema
+ -> requestId/version guard
+ -> commit cache/store
+```
+
+并发刷新 token 时只允许一个 refresh owner，其余请求等待同一 Promise；刷新失败应清空等待者并进入匿名终态，避免每个 401 再开一个 refresh。重试只对可判断的网络/429/503 和幂等方法启用，指数退避带随机抖动；未知提交结果不能盲目重试，优先查询幂等键状态。
+
+客户端缓存键必须包含 URL、方法、序列化参数、身份/权限范围和协议版本。共享 in-flight 请求时，单个调用取消不能取消其他消费者；引用计数或每消费者 signal 决定何时真正 abort。缓存失效要由 mutation、TTL、ETag 和服务端版本共同定义，不能把内存 cache 当授权缓存。
+
+## 官方依据
+
+- [Fetch Standard](https://fetch.spec.whatwg.org/)
+- [MDN: AbortSignal](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal)
+- [RFC 9110: HTTP Semantics](https://www.rfc-editor.org/rfc/rfc9110)

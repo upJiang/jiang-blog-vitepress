@@ -11,6 +11,7 @@ health_page="$(mktemp)"
 old_rule='try_files $uri $uri/ =404;'
 new_rule='try_files $uri $uri.html $uri/ =404;'
 slash_rule='if ($uri ~ ^(.+)/$) { return 308 $1; }'
+algorithm_redirect_rule='rewrite ^/docs/frontend/algorithms/([^/.]+)(?:\.html)?/?$ /docs/algorithms/$1 permanent;'
 
 cleanup() {
   rm -f "$candidate_file" "$health_page"
@@ -71,6 +72,11 @@ check_clean_urls() {
       && check_status "$health_path" '200' \
       && check_status "${health_path}/" '200' 'true' \
       && check_status "${health_path}.html" '200' \
+      && check_status '/docs/frontend/algorithms/array' '301' \
+      && check_status '/docs/frontend/algorithms/array/' '301' \
+      && check_status '/docs/frontend/algorithms/array.html' '301' \
+      && check_status '/docs/frontend/algorithms/array?source=legacy' '301' \
+      && check_status '/docs/algorithms/array' '200' \
       && check_status '/__jiang_blog_missing_route__' '404'; then
       curl --fail --silent --show-error --max-time 10 \
         --noproxy '*' \
@@ -100,15 +106,16 @@ test -f "$nginx_config"
 old_count="$(count_rule "$old_rule")"
 new_count="$(count_rule "$new_rule")"
 slash_count="$(count_rule "$slash_rule")"
+algorithm_redirect_count="$(count_rule "$algorithm_redirect_rule")"
 
-if [[ "$old_count" == "0" && "$new_count" == "1" && "$slash_count" == "1" ]]; then
+if [[ "$old_count" == "0" && "$new_count" == "1" && "$slash_count" == "1" && "$algorithm_redirect_count" == "1" ]]; then
   nginx -t
   check_clean_urls
   exit 0
 fi
 
-if [[ "$slash_count" != "0" ]] || ! { [[ "$old_count" == "1" && "$new_count" == "0" ]] || [[ "$old_count" == "0" && "$new_count" == "1" ]]; }; then
-  echo "Refusing to edit $nginx_config: found old=$old_count new=$new_count slash=$slash_count." >&2
+if [[ "$slash_count" != "0" ]] || [[ "$algorithm_redirect_count" != "0" ]] || ! { [[ "$old_count" == "1" && "$new_count" == "0" ]] || [[ "$old_count" == "0" && "$new_count" == "1" ]]; }; then
+  echo "Refusing to edit $nginx_config: found old=$old_count new=$new_count slash=$slash_count algorithm_redirect=$algorithm_redirect_count." >&2
   exit 1
 fi
 
@@ -124,6 +131,7 @@ awk '
     if (code == "try_files $uri $uri/ =404;" || code == "try_files $uri $uri.html $uri/ =404;") {
       match(line, /^[[:space:]]*/)
       indent = substr(line, RSTART, RLENGTH)
+      print indent "rewrite ^/docs/frontend/algorithms/([^/.]+)(?:\\.html)?/?$ /docs/algorithms/$1 permanent;"
       print indent "if ($uri ~ ^(.+)/$) { return 308 $1; }"
     }
     if (code == "try_files $uri $uri/ =404;") {

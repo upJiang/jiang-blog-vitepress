@@ -19,7 +19,7 @@ practice:
     - 副作用声明正确
     - 公共依赖不会被意外重复
 evidence: official-guided-operation
-updated: 2026-08-06T00:00:00.000Z
+updated: 2026-08-11
 ---
 
 # Rollup、esbuild 与代码分割
@@ -74,6 +74,16 @@ esbuild 使用 Go 实现，擅长高速解析、转换和打包；Rollup 以插�
 
 工具速度、兼容性、插件语义、Source Map 和输出质量需要在同一项目测量。不能从简单基准推断所有大型应用。
 
+Rollup 插件的 `resolveId、load、transform` 先共同建立模块内容和依赖，`moduleParsed` 之后才有完整 AST 信息；输出阶段的 `renderChunk、generateBundle、writeBundle` 面向 Chunk 和 Asset。把需要模块上下文的转换放到输出阶段，或在 transform 阶段猜最终文件名，都会破坏多输出配置。
+
+esbuild 的并行架构和插件回调模型不同。它能高速完成解析、转换和常见打包，但复杂代码分割、插件兼容和输出控制要以项目当前版本实测。把 esbuild 称为“只转译不打包”或把 Rollup 称为“只适合库”都不准确。
+
+## Source Map 如何穿过多次转换
+
+TypeScript、JSX、框架编译、用户插件和压缩都可能改变行列。每个阶段需要返回与输入对应的 Source Map，再由工具组合成最终映射。某个插件返回修改后代码却不给 map，后续即使生成 `.map` 文件，错误位置也可能偏移。
+
+验证时在源码放一个可预测异常，使用生产产物和私有 Source Map 还原函数、文件和行列。只检查 map 文件存在，不能证明映射正确。发布还要用同一 release 的产物与 map，避免跨版本符号化。
+
 ## 步骤四：用预算验证分割结果
 
 构建报告检查入口 gzip/Brotli 大小、初始请求数、重复依赖和最大异步 Chunk。浏览器再测实际缓存、网络优先级、解析执行和交互。体积变小不一定让交互更快，若关键代码被拆到串行瀑布，结果可能更慢。
@@ -104,3 +114,25 @@ esbuild 使用 Go 实现，擅长高速解析、转换和打包；Rollup 以插�
 Tree Shaking 实验可以新增一个未使用导出，并在模块顶层加一个可观察副作用，比较 `sideEffects` 声明前后产物。若错误声明导致副作用消失，说明包元数据破坏了语义。优化时以实际 Bundle 分析和用户路径为准，不按 import 行数猜体积。
 
 最后用网络限速访问首页和编辑页，观察请求瀑布、解析执行和失败恢复。代码分割把成本移动到需要它的时刻，不会消灭成本；常用功能过度懒加载也会把延迟推给每位用户。
+
+## 模块图到 Chunk 的决策
+
+Rollup 先解析静态 import 形成同步图，再把动态 import 作为异步入口；tree-shaking 根据 export 使用关系和 side effect 分析删除不可达语句。manualChunks、输出 format、external 和 preserveModules 会改变 Chunk 归属。共享依赖是否抽成公共 Chunk，要同时看入口复用、首屏下载和缓存稳定，而不是只追求文件数少。
+
+esbuild 的 parser/transform/bundler 由 Go 实现，默认并行且速度高；其插件生命周期和 tree-shaking 语义与 Rollup 不完全相同。把 Rollup 插件直接塞进 esbuild 通常会丢失 resolve/load、输出生成和 watch 语义，应使用目标工具的适配层并补产物测试。
+
+```text
+main -> feature (dynamic import) -> shared
+unused export -> removed if pure
+feature load -> feature-[hash].js + shared-[hash].js
+HTML/manifest -> runtime resolves chunk URL
+```
+
+动态 Chunk 的失败是用户可观察状态：网络断开、旧 HTML 引用已删除 hash、CSP/跨域或 Service Worker 缓存都可能导致 import rejection。提供重试但限制次数，必要时刷新前先判断新 manifest；回滚必须保留旧资源窗口，否则 HTML 与 Chunk 版本不兼容。
+
+## 官方依据
+
+- [Rollup Code Splitting](https://rollupjs.org/features/code-splitting/)
+- [Rollup Tree-Shaking](https://rollupjs.org/faqs/#tree-shaking)
+- [esbuild Code Splitting](https://esbuild.github.io/api/#splitting)
+- [MDN: dynamic import](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import)

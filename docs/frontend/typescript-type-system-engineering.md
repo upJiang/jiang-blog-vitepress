@@ -1,6 +1,6 @@
 ---
-title: TypeScript 类型系统与工程配置
-description: 从不可信接口响应开始，理解静态类型、泛型、条件类型、运行时校验与工程配置。
+title: TypeScript 类型系统、配置与运行时边界
+description: 从不可信接口响应进入基础类型、编译擦除、运行时校验与严格工程配置，建立完整类型安全边界。
 category: frontend
 part: 现代前端：语言与运行时
 chapter: 1
@@ -18,59 +18,38 @@ practice:
     - 错误数据在边界被拒绝
     - 类型错误可在构建期发现
 evidence: public-source
-updated: 2026-08-06T00:00:00.000Z
+updated: 2026-08-11
 ---
-# TypeScript 工程实践
 
-接口文档说 `status` 只有 `draft` 和 `published`，线上却返回了 `null`。代码明明通过 TypeScript 编译，页面为什么仍然报错？
+# TypeScript 类型系统、配置与运行时边界
 
-这篇从这个常见问题出发。先弄清 TypeScript 能检查什么，再把外部数据挡在系统边界，最后用类型表示加载、成功和失败状态。读完后，你应该能解释为什么 `as User` 不是校验，也能写出一条从接口响应到页面状态的可信数据流。
+接口声明 `status: 'draft' | 'published'`，线上却返回 `null`。项目通过 TypeScript 编译，页面仍然崩溃，因为编译器只检查代码中的类型关系，无法验证运行时收到的 JSON。成熟的类型工程要同时管理静态模型、外部数据边界和编译配置。
 
-## TypeScript 到底帮我们做了什么
+## 类型在编译后去了哪里
 
-JavaScript 在程序运行时才暴露很多错误。TypeScript 会在开发和构建阶段检查类型之间是否矛盾，例如把字符串传给只接收数字的函数。
+TypeScript 接受 JavaScript 加类型语法，完成检查后通常擦除类型，输出 JavaScript。`type`、`interface`、泛型参数和大多数断言不会成为运行时校验。`as User` 只改变编译器看法，不读取字段，也不会补全数据。
 
-这里有一个重要前提：TypeScript 检查的是**代码中的声明**。接口响应、地址栏参数和本地存储都来自程序之外，编译器没有亲眼看见它们。程序发到浏览器后，绝大多数类型信息也会被移除。
-
-因此要区分两个动作：
-
-- **静态检查**：编译器根据声明发现代码矛盾；
-- **运行时校验**：程序真正读取数据，判断它是否符合规则。
-
-`as User` 只是在告诉编译器“请按 User 看待这个值”，它不会查看值，也不会在运行时补齐字段。
-
-## 先看完整数据流
+因此系统存在两条边界：内部代码通过静态类型防止不一致；网络、本地存储、URL、postMessage 和第三方 SDK 以 `unknown` 接收，经运行时 Schema 或守卫验证后才进入领域类型。
 
 ```mermaid
 flowchart LR
-  A[接口返回 JSON] --> B[以 unknown 接收]
-  B --> C[运行时校验]
-  C -->|通过| D[领域对象]
-  C -->|失败| E[协议错误]
-  D --> F[页面状态]
+  A[外部 unknown] --> B[运行时解析]
+  B -->|通过| C[领域类型]
+  B -->|失败| D[协议错误]
+  C --> E[组件与状态]
 ```
 
-这条链路里，`unknown` 表示“值已经拿到，但还不知道它是什么”。校验通过后，它才成为业务代码可以使用的对象。校验失败时，页面得到明确错误，不继续带着坏数据运行。
+## 基础类型不是 Java 类型翻译表
 
-## 第一步：准备一个最小接口场景
+`string、number、boolean、bigint、symbol、null、undefined` 对应运行时值类别；对象、数组、元组和函数描述结构。字面量类型表达精确值，联合类型表达多个可能状态，交叉类型组合同时满足的结构。
 
-假设页面要显示一篇文章，后端约定返回：
+`any` 关闭检查并向外传播，不应作为“还不知道”；`unknown` 要求先收窄；`never` 表示不可能出现的值或不返回的分支；`void` 表示调用方不使用返回值，不等于函数不能返回任何内容。
 
-```text
-输入 URL：/api/articles/42
+枚举会生成运行时代码，字面量联合常更轻且容易与 JSON 对齐；需要反向映射或稳定运行时对象时再明确选择 enum。元组表达固定位置协议，普通数组表达同类集合。`readonly` 是静态写入限制，不会自动深冻结运行时对象。
 
-正常结果：
-{ "id": "42", "title": "TypeScript 入门", "status": "published" }
+## 从 unknown 建立信任
 
-失败样本：
-{ "id": 42, "title": "TypeScript 入门", "status": null }
-```
-
-失败样本里，`id` 类型错误，`status` 也不是允许值。若直接断言类型，错误会一直传到组件；若在边界校验，问题会停在请求函数附近。
-
-## 第二步：让外部数据从 unknown 开始
-
-下面使用一个很小的类型守卫。类型守卫是返回布尔值的函数；当它返回 `true`，TypeScript 会把参数缩小为指定类型。
+下面的守卫先确认对象，再逐字段检查。输入是未知 JSON，输出要么成为可信 Article，要么得到明确协议错误。
 
 ```ts
 type Article = {
@@ -81,76 +60,93 @@ type Article = {
 
 function isArticle(value: unknown): value is Article {
   if (typeof value !== 'object' || value === null) return false
-  const item = value as Record<string, unknown>
-
-  return typeof item.id === 'string'
-    && typeof item.title === 'string'
-    && (item.status === 'draft' || item.status === 'published')
+  const record = value as Record<string, unknown>
+  return typeof record.id === 'string'
+    && typeof record.title === 'string'
+    && (record.status === 'draft' || record.status === 'published')
 }
 
-async function getArticle(id: string): Promise<Article> {
-  const response = await fetch(`/api/articles/${id}`)
+async function loadArticle(id: string): Promise<Article> {
+  const response = await fetch(`/api/articles/${encodeURIComponent(id)}`)
   if (!response.ok) throw new Error(`http_${response.status}`)
-
-  const data: unknown = await response.json()
-  if (!isArticle(data)) throw new Error('invalid_article_response')
-  return data
+  const body: unknown = await response.json()
+  if (!isArticle(body)) throw new Error('invalid_article_response')
+  return body
 }
 ```
 
-输入是接口返回的未知值。`isArticle` 依次检查对象、字段类型和状态枚举；通过后，返回值在函数余下位置才是 `Article`。失败样本会得到 `invalid_article_response`，不会进入组件。
+loadArticle 的输入是业务 id，执行顺序是编码 URL、检查 HTTP、把响应保持为 unknown、调用守卫，再输出 Article。非成功状态和字段异常分别产生可判断错误；守卫只是这份 Schema 的最小实现，嵌套数组、版本字段和未知属性策略还需继续验证。
 
-真实项目通常使用 Zod、Valibot 或 JSON Schema 等工具，避免手写大量校验。无论选择哪个库，边界原则相同：先把值当作未知数据，再通过一份可执行规则建立信任。
+守卫通过后，控制流把 body 收窄为 Article。大型 Schema 应使用经过验证的库并决定未知字段、默认值、错误路径和版本兼容；静态类型可从 Schema 推导，避免校验规则与 interface 漂移。
 
-## 第三步：用类型写清页面可能处于什么状态
+## 用联合类型表达状态机
 
-接口数据可信后，页面仍会经历加载、成功和失败。若把它们写成三个互不相关的布尔值，可能出现 `loading=true` 且 `error` 有值的矛盾组合。
-
-可辨识联合会给每种状态一个共同的标记字段：
+三个布尔值 `loading、success、error` 能组合出业务不允许的状态。可辨识联合把合法状态写成集合，并让 switch 收窄。
 
 ```ts
 type PageState =
   | { kind: 'loading' }
   | { kind: 'ready'; article: Article }
-  | { kind: 'failed'; message: string }
+  | { kind: 'failed'; message: string; retryable: boolean }
 
-function renderTitle(state: PageState): string {
-  switch (state.kind) {
-    case 'loading': return '正在加载'
-    case 'ready': return state.article.title
-    case 'failed': return `加载失败：${state.message}`
-  }
+function assertNever(value: never): never {
+  throw new Error(`unexpected_state: ${JSON.stringify(value)}`)
 }
 ```
 
-输入是页面当前状态，输出是对应文字。代码先判断 `kind`，编译器随后知道这一分支有哪些字段，所以加载状态无法误读 `article`。新增状态时，配合穷尽检查还能提醒所有使用方一起更新。
+PageState 把 loading、ready 和 failed 限制为互斥输入，assertNever 的参数只在编译器认为分支遗漏时可达；运行时若外部脏值进入则抛出异常。完整渲染函数应在 switch 中返回对应 UI，并让新增状态同时触发类型错误和测试更新。
 
-## 正常结果与失败结果
+每个分支只暴露自己拥有的字段。新增 `empty` 后，穷尽 switch 会让未处理位置报错。类型系统在这里帮助维护状态转换，而不是给变量添加装饰。
 
-| 场景 | 边界结果 | 页面状态 | 用户看到什么 |
-| --- | --- | --- | --- |
-| HTTP 200 且字段正确 | 得到 `Article` | `ready` | 文章标题 |
-| HTTP 404 | `http_404` | `failed` | 资源不存在 |
-| HTTP 200 但字段错误 | `invalid_article_response` | `failed` | 数据暂时不可用 |
-| 请求尚未结束 | 暂无数据 | `loading` | 正在加载 |
+## 严格配置的工程含义
 
-这里故意把“网络失败”和“协议失败”分开。前者说明请求没成功，后者说明请求成功但双方的数据约定不一致，排查责任和修复方式不同。
+`strict` 是多项严格检查的总开关；`noUncheckedIndexedAccess` 让数组/字典读取包含 undefined；`exactOptionalPropertyTypes` 区分缺失属性和显式 undefined；`useUnknownInCatchVariables` 防止直接假设异常形状。它们会暴露真实边界成本，不应只为“过编译”关闭。
 
-## 工程变大后再补哪些能力
+`module/moduleResolution` 必须与实际运行时或 Bundler 对齐。`paths` 主要帮助编译器解析，不会自动改写 Node 或浏览器运行时路径。库项目通常需要 declaration、declarationMap 和稳定 exports；应用可使用 `noEmit` 把输出交给构建工具，但仍要单独执行类型检查。
 
-小页面用类型守卫已经够用。接口增加后，可以继续补四层保护：
+大型仓库用 Project References 和 `tsc --build` 建立包依赖图与增量产物。每个包只导出公开类型，避免跨目录读取源文件形成隐式耦合。
 
-1. 由 OpenAPI 或 Schema 生成客户端类型，减少手工漂移；
-2. 在所有 HTTP、WebSocket、`postMessage` 和 Storage 边界运行校验；
-3. 开启 `strict`，并按项目风险评估 `noUncheckedIndexedAccess`；
-4. 给公共包增加类型测试，避免升级时意外改变导出契约。
+## 类型安全的失效位置
 
-这些能力不能替代业务测试。类型能约束“状态字段只能取哪些值”，却无法证明“当前用户是否应该看到这篇文章”或“金额计算是否符合业务规则”。
+断言、any、不正确声明文件、未校验 JSON、可变别名和不健全的函数赋值都可能越过检查。TypeScript 追求与 JavaScript 生态兼容，不保证形式化完全健全。资深工程实践不是消灭所有断言，而是把断言收敛到可审查适配层，并用运行时证据支撑。
 
-## 容易踩的三个坑
+## 验证链路
 
-- 用 `as` 消除错误，却没有证明数据可信；
-- 为了省事把外部值写成 `any`，导致未知风险扩散到整个调用链；
-- 只生成接口类型，不在运行时处理后端版本不一致和脏数据。
+为正常和错误 JSON 写运行时测试；用 `tsc --noEmit` 验证非法状态和字段访问确实失败；构建后检查输出不存在类型语法；用 package consumer fixture 验证声明和 exports 能被真实调用方解析。
 
-下一步可以把同样方法应用到组件 Props、浏览器扩展消息和公共 SDK。先画出数据从哪里进入，再决定哪一层负责校验，TypeScript 才会从“语法提示”变成工程约束。
+排查“编辑器不报错但构建报错”时比较编辑器 TypeScript 版本、项目 tsconfig、include/exclude、moduleResolution 和构建命令。面试追问时，应能清晰区分类型注解、推断、收窄、断言、Schema 校验与运行时对象。
+
+## 从不可信响应到组件 Props 的完整轨迹
+
+假设 `/orders/:id` 返回 JSON。网络层先得到 `unknown`，Schema 解析器把它转换为 `OrderDTO`；适配层再把时间字符串、金额最小单位和后端枚举转换成领域对象 `Order`；状态层只保存 `Order`，组件 Props 从领域对象派生。任一校验失败都停在边界并返回可展示的错误联合，而不是把半可信对象塞进 Store。
+
+```ts
+type LoadOrder =
+  | { status: 'ok'; order: Order }
+  | { status: 'not-found' }
+  | { status: 'invalid-response'; issues: readonly string[] }
+
+async function loadOrder(id: OrderId): Promise<LoadOrder> {
+  const raw: unknown = await fetch(`/orders/${id}`).then((response) => response.json())
+  const parsed = orderSchema.safeParse(raw)
+  if (!parsed.success) return { status: 'invalid-response', issues: formatIssues(parsed.error) }
+  return { status: 'ok', order: toOrder(parsed.data) }
+}
+```
+
+输入是 `unknown`，状态变化是“未验证值 -> DTO -> 领域对象 -> 判别联合”，输出才允许进入 UI。TypeScript 负责证明分支使用正确，Schema 负责证明运行时形状，适配函数负责业务语义；三者缺一都会留下空洞。测试应分别伪造字段缺失、枚举新增、金额溢出和 `404`，并用 `assertNever` 保证新增终态会迫使所有视图更新。
+
+## tsconfig 不是风格文件
+
+`strict` 只是入口。浏览器应用通常还要明确 `target` 与 `lib` 的运行环境、`module` 与 `moduleResolution` 的打包器契约、`verbatimModuleSyntax` 的导入保留语义，以及 `noUncheckedIndexedAccess`、`exactOptionalPropertyTypes` 对数据边界的影响。`paths` 只改变 TypeScript 查找，不会自动改写浏览器或 Node 的运行时解析；别名必须由 Bundler、测试器和编辑器共同理解。
+
+Monorepo 中 `composite`、`declaration` 和 References 形成有向构建图。叶子包公开 `.d.ts` 与真实 JS 入口，上层包只消费公开出口。验证不是只跑一次 `tsc`：应删除产物做冷构建，再修改叶子声明跑 `tsc -b --verbose`，确认只重建受影响节点，最后用打包后的 consumer fixture 检查 `exports`、类型与运行时代码落在同一路径。
+
+## 官方依据与版本边界
+
+- [TypeScript Handbook: The Basics](https://www.typescriptlang.org/docs/handbook/2/basic-types.html)
+- [TypeScript Handbook: Narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html)
+- [TSConfig Reference](https://www.typescriptlang.org/tsconfig/)
+- [Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
+
+编译选项、标准装饰器和模块解析策略会随 TypeScript 版本演进。文章中的契约以项目锁定版本和官方发布说明为准；库作者还要在最低支持版本上运行 consumer 测试，不能用本机最新版通过代替兼容性证据。

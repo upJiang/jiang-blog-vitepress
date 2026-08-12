@@ -1,7 +1,7 @@
 ---
 layout: page
-title: AI Infra 与运维
-description: 从 Linux、网络和容器走向数据服务、GPU 推理、容量、观测、交付与恢复。
+title: AI Infra 工程
+description: 从运行底座、AI Backend 和模型服务走向 GPU、Kubernetes、企业平台、分布式训练与可靠交付。
 sidebar: false
 aside: false
 footer: false

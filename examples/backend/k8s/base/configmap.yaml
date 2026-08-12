@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-api-config
+data:
+  PORT: '3000'
+  LOG_LEVEL: info
+  ACCESS_TOKEN_SECONDS: '900'
+  REFRESH_TOKEN_SECONDS: '2592000'

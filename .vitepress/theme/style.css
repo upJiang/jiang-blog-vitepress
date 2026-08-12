@@ -326,6 +326,15 @@ a {
   content: "已复制";
 }
 
+.VPDocAsideOutline .outline-link {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.45;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
 .vp-doc div[class*="language-"].line-numbers-mode {
   padding-left: 44px;
 }
@@ -1207,6 +1216,52 @@ a {
   font-size: 14px;
 }
 
+.frontend-track-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 32px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.frontend-track-tabs button {
+  min-height: 44px;
+  border: 1px solid var(--vp-c-border);
+  border-radius: 6px;
+  background: var(--vp-c-bg);
+  padding: 0 16px;
+  color: var(--vp-c-text-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: border-color 180ms ease, background-color 180ms ease,
+    color 180ms ease;
+}
+
+.frontend-track-tabs button:hover {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-text-1);
+}
+
+.frontend-track-tabs button[aria-selected='true'] {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+.frontend-track-tabs button:focus-visible,
+.frontend-track-panel:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 3px;
+}
+
+.frontend-track-panel {
+  min-width: 0;
+}
+
 .article-group {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
@@ -1218,6 +1273,38 @@ a {
   margin: 4px 0 0;
   color: var(--vp-c-text-1);
   font-size: 18px;
+  line-height: 1.5;
+}
+
+.article-group-heading > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--vp-c-text-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.article-group--mainline .article-index-list a {
+  grid-template-columns: 36px minmax(0, 1fr) 24px;
+}
+
+.article-index-sequence {
+  color: var(--vp-c-brand-1);
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.8;
+}
+
+.article-special-cluster + .article-special-cluster {
+  margin-top: 38px;
+}
+
+.article-special-cluster h3 {
+  margin: 0 0 10px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+  font-weight: 650;
   line-height: 1.5;
 }
 
@@ -1294,6 +1381,14 @@ a {
     position: static;
     display: block;
     margin-top: 24px;
+  }
+
+  .frontend-track-tabs {
+    margin-top: 24px;
+  }
+
+  .frontend-track-tabs button {
+    flex: 1 1 calc(50% - 8px);
   }
 
   .home-footer {

@@ -1,15 +1,47 @@
 import { defineConfig } from 'vitepress'
 import { createSidebar, sectionNavigation } from './sidebar'
+import { draftArticleFiles } from './drafts'
+
+const draftRoutes = draftArticleFiles.map((file) => `/${file.replace(/\.md$/, '')}`)
 
 export default defineConfig({
-    srcExclude: ['AGENTS.md', 'CLAUDE.md'],
+    srcExclude: [
+      'AGENTS.md',
+      'CLAUDE.md',
+      'AI_Infra_工程入门学习路线.md',
+      '后端开发入门体系教程.md',
+      'examples/**/*.md',
+      ...draftArticleFiles
+    ],
+    ignoreDeadLinks: draftRoutes,
     vite: {
-      cacheDir: 'node_modules/.vitepress-cache'
+      cacheDir: 'node_modules/.vitepress-cache',
+      plugins: [
+        {
+          name: 'legacy-algorithm-redirect',
+          configureServer(server) {
+            server.middlewares.use((request, response, next) => {
+              const requestUrl = request.url ?? ''
+              const match = requestUrl.match(
+                /^\/docs\/frontend\/algorithms\/([^/?#]+?)(?:\.html)?\/?(?:\?.*)?$/
+              )
+              if (!match) {
+                next()
+                return
+              }
+
+              response.statusCode = 302
+              response.setHeader('Location', `/docs/algorithms/${match[1]}`)
+              response.end()
+            })
+          }
+        }
+      ]
     },
     lang: 'zh-CN',
     title: '小江AI',
     titleTemplate: ':title | 小江AI',
-    description: '小江的个人技术博客，记录 AI、Agent、前端、后端、SEO、AI Infra、架构与工程实践。',
+    description: '小江的个人技术博客，记录 AI、Agent、AI 实践、前端、后端、SEO 与 AI Infra。',
     cleanUrls: true,
     lastUpdated: true,
     sitemap: {

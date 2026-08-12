@@ -16,7 +16,7 @@ const section = computed(() =>
 </script>
 
 <template>
-  <aside v-if="chapter && !chapter.preserved" class="chapter-guide" aria-label="文章阅读信息">
+  <aside v-if="chapter && !chapter.preserved && chapter.category !== 'ai-agent' && chapter.category !== 'ai-practice' && chapter.category !== 'backend'" class="chapter-guide" aria-label="文章阅读信息">
     <div class="chapter-guide__position">
       <span>{{ section?.title }}</span>
     </div>
