@@ -48,7 +48,6 @@ series: "重学前端"
     <div class="auto"></div>
 </div>
 
-
 .fixed {
     display:inline-block;
     vertical-align:top;
@@ -62,10 +61,3 @@ series: "重学前端"
     vertical-align:top;
 }
 ```
-
-## 参考资料
-
-- [CSS Display Module Level 3](https://www.w3.org/TR/css-display-3/)
-- [CSS Flexible Box Layout](https://www.w3.org/TR/css-flexbox-1/)
-- [CSS Grid Layout](https://www.w3.org/TR/css-grid-2/)
-- [CSS Overflow Module Level 3](https://www.w3.org/TR/css-overflow-3/)

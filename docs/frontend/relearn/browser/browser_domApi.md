@@ -318,10 +318,3 @@ DOM API 中还提供了 NodeIterator 和 TreeWalker 来遍历树。比起直接�
 除此之外，还提供了一个快捷方式，你也可以动手尝试一下。
 
 - document.implementation.createHTMLDocument
-
-## 参考资料
-
-- [WHATWG DOM Standard](https://dom.spec.whatwg.org/)
-- [DOM Standard：Ranges](https://dom.spec.whatwg.org/#ranges)
-- [DOM Standard：Mutation observers](https://dom.spec.whatwg.org/#mutation-observers)
-- [MDN：Document Object Model](https://developer.mozilla.org/docs/Web/API/Document_Object_Model)

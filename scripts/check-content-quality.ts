@@ -52,6 +52,95 @@ function checkCodeFences(relative: string, content: string): void {
   }
 }
 
+function checkHumanizedPresentation(relative: string, source: string): void {
+  const parsed = matter(source)
+  const prose = stripCode(parsed.content)
+  const bannedPatterns = [
+    { pattern: /^##\s+参考资料(?:\s|$)/m, reason: "仍包含独立参考资料章节" },
+    { pattern: /^##\s+.*(?:本篇|本文)产物/m, reason: "仍包含产物模板标题" },
+    { pattern: /(?:本篇|本文)产物(?:是|为|：|:)/, reason: "仍使用产物模板句" },
+    { pattern: /希望这对(?:您|你)有帮助/, reason: "仍包含聊天式收尾" },
+    { pattern: /(?:当然！|您说得完全正确|请告诉我)/, reason: "仍包含协作对话痕迹" },
+    { pattern: /(?:综上所述|总而言之)/, reason: "仍包含通用总结填充词" },
+    { pattern: /(?:在当今(?:快速|不断)[^，。]{0,30}(?:时代|格局|环境)中)/, reason: "仍包含模板化开场" },
+    { pattern: /(?:行业报告显示|观察者指出|专家认为|一些批评者认为)/, reason: "仍包含没有具体来源的模糊归因" },
+    { pattern: /(?:至关重要|开创性的|革命性的|令人叹为观止|充满活力的)/, reason: "仍包含宣传性或夸张措辞" }
+  ]
+
+  for (const { pattern, reason } of bannedPatterns) {
+    if (pattern.test(prose)) fail(`${relative} ${reason}：${pattern}`)
+  }
+}
+
+function checkAiCodeTeaching(relative: string, content: string): void {
+  if (!relative.startsWith("docs/ai-agent/") || relative.endsWith("/index.md")) return
+
+  const programLanguages = /^(python|javascript|typescript|bash|sh|sql|yaml|yml|jsonc|toml|nginx|dockerfile)(?:\s|$)/i
+  const blocks = [...content.matchAll(/(?:```|~~~)([^\n]*)\n([\s\S]*?)(?:```|~~~)/g)]
+  for (const block of blocks) {
+    const language = block[1].trim()
+    if (language === "mermaid") continue
+
+    const blockStart = block.index ?? 0
+    const blockEnd = blockStart + block[0].length
+    if (programLanguages.test(language)) {
+      const before = stripCode(content.slice(Math.max(0, blockStart - 420), blockStart))
+      const after = stripCode(content.slice(blockEnd, blockEnd + 520))
+      if (cjkLength(before) < 25) fail(`${relative} 存在缺少相邻中文场景、输入或目标说明的 ${language} 代码块。`)
+      if (cjkLength(after) < 35) fail(`${relative} 存在缺少相邻中文调用顺序、结果或边界解释的 ${language} 代码块。`)
+
+      const hasChineseComment = /(?:#|\/\/|\/\*|<!--|--)\s*[^\n]*[\u3400-\u9fff]/.test(block[2])
+      if (!hasChineseComment) fail(`${relative} 的 ${language} 代码块缺少关键语句对应的中文注释。`)
+
+      const meaningfulLines = block[2]
+        .split("\n")
+        .filter((line) => line.trim() && !/^\s*[}\])]+[,;]?$/.test(line))
+      const chineseCommentCount = meaningfulLines.filter((line) =>
+        /(?:#|\/\/|\/\*|<!--|--)\s*[^\n]*[\u3400-\u9fff]/.test(line)
+      ).length
+      if (meaningfulLines.length >= 10 && chineseCommentCount < 2) {
+        fail(`${relative} 的 ${language} 长代码块只有一处中文注释，无法覆盖输入、关键分支和返回值。`)
+      }
+      if (meaningfulLines.length >= 60 && chineseCommentCount < 4) {
+        fail(`${relative} 的 ${language} 长代码块中文注释过少，应覆盖多个职责或状态变化。`)
+      }
+    }
+  }
+}
+
+function checkAiRuntimeEvidence(relative: string, content: string): void {
+  if (relative === "docs/ai-agent/python-openai-responses-first-call.md") {
+    const required = [
+      /class\s+OpenAIResponsesGateway/,
+      /client\.responses\.create/,
+      /response\.output_text/,
+      /response\.usage/,
+      /stream\s*=\s*True/,
+      /Fake(?:Model)?Gateway/,
+      /测试替身/
+    ]
+    for (const pattern of required) {
+      if (!pattern.test(content)) fail(`${relative} 缺少真实 Responses API 或 Fake 测试边界：${pattern}`)
+    }
+  }
+
+  if (relative === "docs/ai-agent/knowledge-agent-capstone.md") {
+    const required = [
+      /OpenAIResponsesGateway/,
+      /OPENAI_API_KEY/,
+      /ContextSnapshot/,
+      /pgvector/i,
+      /Celery/,
+      /SSE/,
+      /真实模型/,
+      /Fake[^\n]{0,80}测试/
+    ]
+    for (const pattern of required) {
+      if (!pattern.test(content)) fail(`${relative} 的端到端实践缺少真实运行边界：${pattern}`)
+    }
+  }
+}
+
 function checkAiPresentation(relative: string, source: string): void {
   const isAiArticle = relative.startsWith("docs/ai-agent/") || relative.startsWith("docs/ai-practice/")
   if (!isAiArticle || relative.endsWith("/index.md")) return
@@ -81,6 +170,21 @@ function checkAiPresentation(relative: string, source: string): void {
     }
     for (const match of line.matchAll(/\*\*([^*]+)\*\*/g)) {
       if (match[1].length > 120) fail(`${relative}:${lineNumber + 1} 的粗体内容过长，会形成视觉噪声。`)
+    }
+  }
+
+  const faq = parsed.content.split(/^##\s+常见问题\s*$/m)[1]
+  if (!faq) {
+    fail(`${relative} 必须以主题相关的“常见问题”收尾。`)
+  } else {
+    const faqSections = faq.split(/^###\s+/m).slice(1)
+    for (const section of faqSections) {
+      const firstNewline = section.indexOf("\n")
+      const question = section.slice(0, firstNewline).trim()
+      const answer = stripCode(section.slice(firstNewline + 1))
+      if (cjkLength(answer) < 65) {
+        fail(`${relative} 的常见问题“${question}”回答过短，需补充原因、机制、示例或排查动作。`)
+      }
     }
   }
 
@@ -156,8 +260,11 @@ for (const article of articles) {
   const source = fs.readFileSync(absolute, "utf8")
   const parsed = matter(source)
   const prose = stripCode(parsed.content)
+  checkHumanizedPresentation(relative, source)
   checkCodeFences(relative, parsed.content)
   checkAiPresentation(relative, source)
+  checkAiCodeTeaching(relative, parsed.content)
+  checkAiRuntimeEvidence(relative, parsed.content)
   checkBackendDepth(relative, source)
 
   for (const paragraph of prose.split(/\n\s*\n/)) {

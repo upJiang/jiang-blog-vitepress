@@ -151,6 +151,7 @@ paths:
           content:
             application/json: { schema: { $ref: '#/components/schemas/PresignedUpload' } }
         '422': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
   /files/{fileId}/download:
     get:
       operationId: downloadFile
@@ -208,9 +209,16 @@ paths:
       security: []
       parameters:
         - { name: X-Signature, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/PaymentCallback' } }
       responses:
         '204': { description: Idempotent callback accepted. }
         '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
   /knowledge-bases:
     get: { $ref: '#/components/pathItems/CursorCollection' }
   /knowledge-bases/{knowledgeBaseId}/documents:
@@ -379,6 +387,15 @@ components:
         status: { type: string, enum: [pending, paid, cancelled, refunded] }
         amount: { type: string, pattern: '^\d+\.\d{2}$' }
         version: { type: integer, minimum: 1 }
+    PaymentCallback:
+      type: object
+      additionalProperties: false
+      required: [provider, providerEventId, orderId, status]
+      properties:
+        provider: { type: string, minLength: 1, maxLength: 80 }
+        providerEventId: { type: string, minLength: 1, maxLength: 190 }
+        orderId: { $ref: '#/components/schemas/Uuid' }
+        status: { type: string, const: paid }
     ChatRunInput:
       type: object
       required: [knowledgeBaseId, question]

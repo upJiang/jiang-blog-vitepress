@@ -41,7 +41,7 @@ const installerRequirements = [
   /nginx -s reload/,
   /restore_config/,
   /--resolve 'junfeng530\.xyz:443:127\.0\.0\.1'/,
-  /\/docs\/ai-agent\/agent-lifecycle/,
+  /\/docs\/ai-agent\/agent-request-lifecycle-runtime/,
   /rewrite \^\/docs\/frontend\/algorithms\/\(\[\^\/\.\]\+\).*\/docs\/algorithms\/\$1 permanent;/,
 ]
 

@@ -91,7 +91,6 @@ flowchart LR
 from dataclasses import dataclass
 from typing import Literal
 
-
 @dataclass(frozen=True)
 class Subtask:
     task_id: str
@@ -103,14 +102,12 @@ class Subtask:
     output: Literal["evidence-package-v1"] = "evidence-package-v1"
 # Fact 表示一个可单独核查的事实单元，后续必须为它找到证据或明确拒绝。
 
-
 @dataclass(frozen=True)
 class Fact:
     statement: str
     location: str
     confidence: Literal["direct", "derived", "missing"]
 # EvidencePackage 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
-
 
 @dataclass(frozen=True)
 class EvidencePackage:
@@ -161,13 +158,11 @@ class EvidencePackage:
 
 下面用 Python `asyncio` 表达调度器，不假设某个产品的 `spawn` API。重点是**并行任务**的结果如何回收和判定。
 
-
 下面把“一个可读的调度伪代码”落成最小实现。代码关注“三个只读子任务共享同一输入但互不依赖；异常会转成失败结果，而不是丢掉其他证据”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
 # 三个只读子任务共享同一输入但互不依赖；异常会转成失败结果，而不是丢掉其他证据。
 import asyncio
-
 
 async def collect_evidence(input_text: str) -> list[EvidencePackage]:
     # 三个只读子任务共享输入，但工具权限和 Token 上限分别写入各自契约。

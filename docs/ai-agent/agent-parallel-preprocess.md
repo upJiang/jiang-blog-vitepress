@@ -98,7 +98,6 @@ from dataclasses import dataclass
 from time import monotonic
 from typing import Literal
 
-
 @dataclass(frozen=True)
 class BranchResult:
     name: str
@@ -107,7 +106,6 @@ class BranchResult:
     value: str = ""
     error_code: str | None = None
     elapsed_ms: int = 0
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 async def run_branch(
@@ -129,7 +127,6 @@ async def run_branch(
         value, status, error = "", "failed", "unexpected"
     elapsed = int((monotonic() - started) * 1000)
     return BranchResult(name, status, value, error, elapsed)
-
 
 async def preprocess(question: str) -> list[BranchResult]:
     async def security() -> str:
@@ -155,7 +152,6 @@ async def preprocess(question: str) -> list[BranchResult]:
         ]
     return [task.result() for task in tasks]
 
-
 print(asyncio.run(preprocess("访问申请怎么办")))
 ```
 
@@ -171,14 +167,12 @@ print(asyncio.run(preprocess("访问申请怎么办")))
 # 合并器按字段类型汇总安全、上下文、记忆和快速检索结果，并保留每个分支状态与错误。
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class PreprocessContext:
     context: str
     memory: str
     exact_match: str
     degraded_features: tuple[str, ...]
-
 
 def merge_preprocess(results: list[BranchResult]) -> PreprocessContext:
     # 建立校验集合或名称索引，用于发现缺失、重复和不属于本批次的结果。
@@ -238,10 +232,8 @@ def merge_preprocess(results: list[BranchResult]) -> PreprocessContext:
 # 测试让一个预处理分支失败，确认必要分支阻断、可选分支降级且其他结果不被丢弃。
 import pytest
 
-
 def result(name: str, value: str, status: str = "ok") -> BranchResult:
     return BranchResult(name=name, status=status, value=value)
-
 
 # 这个用例改变完成顺序或调用方式，确认结果仍遵守同一份确定性契约。
 def test_merge_is_independent_of_completion_order() -> None:
@@ -255,7 +247,6 @@ def test_merge_is_independent_of_completion_order() -> None:
     merged = merge_preprocess(values)
     assert merged.context == "budget_for:220"
     assert merged.degraded_features == ("memory",)
-
 
 # 这个用例输入不可信指令，确认安全门禁在规划和工具执行之前生效。
 def test_security_block_never_reaches_planner() -> None:

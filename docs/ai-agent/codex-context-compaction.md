@@ -30,6 +30,7 @@ lastUpdated: false
 
 Codex 提供 `/compact` 手动压缩，也会**自动压缩**长对话。它是理解上下文压缩的好案例，但本文只讲当前官方 Manual 能确认的外部行为：压缩会用更短的表示替换较早的可见上下文；可配置自动阈值及统计范围；压缩前后有 Hook；App Server 通过事件报告压缩生命周期。官方没有公开内部摘要模型、Prompt 或保留算法，本文不会把推测写成事实。
 
+映射到[上下文装配器](/docs/ai-agent/context-assembly-budget)的 `ContextSnapshot` 时，压缩只替换一组 history Block，并为新摘要保存 `source_ids`、`source_hash` 和 `policy_version`。Scope、Release、当前问题、系统规则和原始 Transcript 不因压缩而改变。这个限制让压缩失败可以回退到旧投影，而不是破坏本轮可信边界。
 
 ## 先区分 transcript、活动上下文和压缩摘要
 
@@ -189,11 +190,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class Trigger(StrEnum):
     MANUAL = "manual"
     AUTO = "auto"
-
 
 @dataclass(frozen=True)
 class CompactionCandidate:
@@ -207,12 +206,10 @@ class CompactionCandidate:
     pending_items: tuple[str, ...]
     policy_version: str
 
-
 @dataclass(frozen=True)
 class ValidationResult:
     accepted: bool
     missing: tuple[str, ...]
-
 
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate_candidate(
@@ -237,7 +234,6 @@ def validate_candidate(
     for constraint in sorted(required_constraints - retained):
         missing.append(f"constraint:{constraint}")
     return ValidationResult(not missing, tuple(missing))
-
 
 candidate = CompactionCandidate(
     thread_id="thread-demo",
@@ -275,14 +271,12 @@ from dataclasses import replace
 
 from compaction import candidate, validate_candidate
 
-
 # 这个用例删除硬约束或检查原记录，确认压缩验证失败不会覆盖原始上下文。
 def test_missing_constraint_blocks_candidate() -> None:
     broken = replace(candidate, retained_constraints=("preserve_locked_articles",))
     result = validate_candidate(broken, {"no_commit", "preserve_locked_articles"})
     assert result.accepted is False
     assert "constraint:no_commit" in result.missing
-
 
 # 这个用例删除硬约束或检查原记录，确认压缩验证失败不会覆盖原始上下文。
 def test_validation_does_not_overwrite_transcript() -> None:
@@ -317,7 +311,7 @@ Token 减少只是资源指标，不能单独证明质量。可把固定长对�
 - 仅有几轮短对话时，压缩带来的额外延迟和摘要风险可能不值得；
 - 任务目标频繁变化时，应先确认当前目标，再生成新摘要。
 
-## 带走一份压缩前后检查表
+## 用检查表比较压缩前后的事实保留
 
 触发前确认：当前 Token 统计可信、Transcript 已持久化、未完成工具调用已处理、硬约束有结构化清单。生成候选后确认：目标、限制、完成证据、失败原因、未完成项和精确引用都能回查。激活时使用版本或事务原子切换。激活后观察后续回答，并保留一键回退旧投影的能力。
 

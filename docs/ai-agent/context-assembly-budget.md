@@ -27,8 +27,7 @@ lastUpdated: false
 
 用户问知识 Agent：“测试环境的发布窗口和回滚负责人是谁？”系统找到了两份制度、一段旧对话和一次工具查询结果。最直接的写法是把这些文本全部拼进 Prompt，但只要继续聊十几轮，模型就可能遇到三类问题：请求超过**上下文**窗口、真正有用的证据被闲聊挤掉、无权或不可信内容混入控制指令。
 
-本篇不把“上下文工程”停留在“少放一点文字”。我们会从模型窗口推导预算，给每段输入建立带来源和信任级别的数据结构，再实现一个确定性装配器。运行后你不仅能得到最终上下文，还能回答：为什么选了这段、为什么丢了那段、还剩多少输出空间、失败发生在哪一层。
-
+本篇接着 [Agent 图和 Runtime 测试](/docs/ai-agent/agent-graph-runtime-testing) 中的 State 快照，把“模型节点到底读取什么”收敛成同一个 `ContextSnapshot`。我们会从模型窗口推导预算，给每段输入建立带来源和信任级别的数据结构，再实现确定性装配器。运行后不仅能得到最终上下文，还能回答：为什么选了这段、为什么丢了那段、还剩多少输出空间、失败发生在哪一层。
 
 ## 先看一次完整装配会产生什么
 
@@ -180,7 +179,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class ContextBlock:
     # Block 使用稳定 ID 和 kind 保存结构单元，正文不再是无法定位的一整段字符串。
@@ -194,14 +192,17 @@ class ContextBlock:
     required: bool = False
     group_id: str | None = None
 
-
 @dataclass(frozen=True)
-class AssemblyResult:
+class ContextSnapshot:
+    # Snapshot 固定本轮的可信边界；压缩、缓存和记忆只能改变 blocks 的投影。
+    turn_id: str
+    scope_hash: str
+    release_id: str
+    policy_version: str
     selected: tuple[ContextBlock, ...]
     dropped: tuple[tuple[str, str], ...]
     used_tokens: int
     remaining_tokens: int
-
 
 def _groups(blocks: list[ContextBlock]) -> list[tuple[ContextBlock, ...]]:
     grouped: dict[str, list[ContextBlock]] = {}
@@ -211,9 +212,16 @@ def _groups(blocks: list[ContextBlock]) -> list[tuple[ContextBlock, ...]]:
         grouped.setdefault(key, []).append(block)
     return [tuple(items) for items in grouped.values()]
 
-
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
-def assemble(blocks: list[ContextBlock], input_budget: int) -> AssemblyResult:
+def assemble(
+    blocks: list[ContextBlock],
+    input_budget: int,
+    *,
+    turn_id: str = "turn-demo",
+    scope_hash: str = "scope-public",
+    release_id: str = "release-1",
+    policy_version: str = "policy-1",
+) -> ContextSnapshot:
     if input_budget <= 0:
         raise ValueError("input budget must be positive")
     if any(block.tokens <= 0 for block in blocks):
@@ -250,8 +258,16 @@ def assemble(blocks: list[ContextBlock], input_budget: int) -> AssemblyResult:
         )
     )
     used = sum(block.tokens for block in selected)
-    return AssemblyResult(selected, tuple(dropped), used, remaining)
-
+    return ContextSnapshot(
+        turn_id=turn_id,
+        scope_hash=scope_hash,
+        release_id=release_id,
+        policy_version=policy_version,
+        selected=selected,
+        dropped=tuple(dropped),
+        used_tokens=used,
+        remaining_tokens=remaining,
+    )
 
 blocks = [
     ContextBlock("system", "system", "policy:v3", "只根据可见证据回答", 80, 100, 0, True),
@@ -270,10 +286,11 @@ print(result.dropped, result.remaining_tokens)
 代码按以下顺序执行：
 
 1. `ContextBlock` 保存预算选择和最终排序需要的字段。`source_id` 用于回查事实，`group_id` 表示协议上不可拆散的块。
-2. `_groups` 把普通块变成单元素组，把相同 `group_id` 的 ToolCall 与 ToolResult 合成一组。
-3. `assemble` 先校验预算和 Token 计数，再锁定包含 `required=True` 的组。只要必需块超限就抛错，不返回一个缺少规则的“尽力结果”。
-4. 可选组按最高优先级降序和稳定 ID 升序排列。整个组放得下才选择，否则每个成员都记录 `group_does_not_fit`。
-5. 最后按 `order` 恢复模型协议顺序，而不是保持预算选择顺序。
+2. `ContextSnapshot` 是从这一篇开始持续复用的模型输入快照。`turn_id` 关联执行，`scope_hash` 和 `release_id` 固定可见范围，`policy_version` 固定装配规则；后面的压缩、Prompt Cache、工具结果和记忆都不能绕过这些可信字段。
+3. `_groups` 把普通块变成单元素组，把相同 `group_id` 的 ToolCall 与 ToolResult 合成一组。
+4. `assemble` 先校验预算和 Token 计数，再锁定包含 `required=True` 的组。只要必需块超限就抛错，不返回一个缺少规则的“尽力结果”。
+5. 可选组按最高优先级降序和稳定 ID 升序排列。整个组放得下才选择，否则每个成员都记录 `group_does_not_fit`。
+6. 最后按 `order` 恢复模型协议顺序，而不是保持预算选择顺序。
 
 示例预算为 250。System 和问题共占 100，工具组共占 130，因此它们全部选中；旧闲聊需要 120，但只剩 20，于是被丢弃。预期输出类似：
 
@@ -282,7 +299,7 @@ print(result.dropped, result.remaining_tokens)
 (('old-chat', 'group_does_not_fit'),) 20
 ```
 
-这段实现故意省略了 tokenizer、ACL 和目标覆盖选择：它们应在装配前产生可信候选，或作为独立选择器注入。若把这些职责都塞进一个 `assemble` 函数，代码会难以测试，也更容易把“无权”误写成“预算不足”。
+这段实现故意省略 tokenizer、ACL 和目标覆盖选择：它们在装配前产生可信候选，或作为独立选择器注入。后续文章不会另造一套模型输入。滑动窗口和摘要改变 history Block；工具压缩改变 tool_result Block；记忆读取增加经过授权的 memory Block；Prompt Cache 根据最终顺序划分稳定前缀和动态后缀。它们最终都返回新的 `ContextSnapshot`，并保留同一个 Turn、Scope、Release 与 Policy。
 
 ## 用 pytest 固定成功和失败语义
 
@@ -294,7 +311,6 @@ import pytest
 
 from context_assembler import ContextBlock, assemble
 
-
 # 这个用例核对上下文装配或压缩结果，关键约束不能在摘要后消失。
 def test_required_context_cannot_be_dropped() -> None:
     blocks = [
@@ -302,7 +318,6 @@ def test_required_context_cannot_be_dropped() -> None:
     ]
     with pytest.raises(ValueError, match="required context exceeds"):
         assemble(blocks, input_budget=100)
-
 
 def test_tool_pair_is_selected_or_dropped_together() -> None:
     blocks = [
@@ -313,7 +328,6 @@ def test_tool_pair_is_selected_or_dropped_together() -> None:
     result = assemble(blocks, input_budget=100)
     assert result.selected == ()
     assert {item[0] for item in result.dropped} == {"call", "result"}
-
 
 # 这个用例改变完成顺序或调用方式，确认结果仍遵守同一份确定性契约。
 def test_priority_tie_uses_stable_id_then_restores_order() -> None:

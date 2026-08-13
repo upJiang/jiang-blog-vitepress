@@ -59,7 +59,6 @@ CREATE TABLE document_chunk (
 
 假设模型约定使用余弦距离，pgvector 的 `<=>` 返回 cosine distance，越小越接近：
 
-
 下面的 SQL 把“精确查询是评测基线”落到数据库操作。执行前确认连接的是隔离环境、筛选条件和事务范围，执行后同时观察结果行与计划；异常时先保留原错误而不是改成空结果。
 ```sql
 SELECT id, content, embedding <=> $1::vector AS distance
@@ -85,7 +84,6 @@ LIMIT 10;
 
 **HNSW** 构建多层邻接图，查询时从稀疏层逐步接近目标。通常有较好的查询性能和召回，不要求训练阶段，但构建慢、占用内存较多。
 
-
 下面的 SQL 把“HNSW”落到数据库操作。执行前确认连接的是隔离环境、筛选条件和事务范围，执行后同时观察结果行与计划；异常时先保留原错误而不是改成空结果。
 ```sql
 -- vector_cosine_ops 必须与查询使用的余弦距离算子 <=> 保持一致。
@@ -94,7 +92,6 @@ ON document_chunk USING hnsw (embedding vector_cosine_ops);
 ```
 
 数据库按 `CREATE` 对应的语句执行“HNSW”。结果不仅要看是否返回行，还要检查过滤范围、受影响行数和事务状态；锁等待、计划退化或零行更新都应作为可诊断结果处理。
-
 
 `vector_cosine_ops` 必须与余弦距离查询匹配。查询探索范围可通过 `hnsw.ef_search` 调整；更高值通常提高召回并增加查询成本。
 

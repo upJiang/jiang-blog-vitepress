@@ -212,10 +212,3 @@ console.log(b1 instanceof Object, b2 instanceof Object); //false true
 ```
 
 可以看到，由于 b1、 b2 由同样的代码“ {} ”在不同的 Realm 中执行，所以表现出了不同的行为。
-
-## 参考资料
-
-- [ECMAScript：Environment Records](https://tc39.es/ecma262/#sec-environment-records)
-- [ECMAScript：The Global Environment Record](https://tc39.es/ecma262/#sec-global-environment-records)
-- [MDN：Closures](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Closures)
-- [MDN：Memory management](https://developer.mozilla.org/docs/Web/JavaScript/Memory_management)

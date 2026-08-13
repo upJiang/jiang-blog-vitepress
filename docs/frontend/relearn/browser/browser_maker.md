@@ -123,10 +123,3 @@ float 元素非常特别，浏览器对 float 的处理是先排入正常流，�
 ## 其它的排版
 
 CSS 的每一种排版都有一个很复杂的规定，实际实现形式也各不相同。比如如 Flex 排版，支持了 flex 属性，flex 属性将每一行排版后的剩余空间平均分配给主轴方向的 width/height 属性。浏览器支持的每一种排版方式，都是按照对应的标准来实现的。
-
-## 参考资料
-
-- [CSS Display Module Level 3](https://www.w3.org/TR/css-display-3/)
-- [CSS 2.1 Visual Formatting Model](https://www.w3.org/TR/CSS21/visuren.html)
-- [CSS Flexible Box Layout](https://www.w3.org/TR/css-flexbox-1/)
-- [CSS Grid Layout](https://www.w3.org/TR/css-grid-2/)

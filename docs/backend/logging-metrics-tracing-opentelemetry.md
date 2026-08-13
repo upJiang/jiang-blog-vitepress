@@ -26,72 +26,98 @@ updated: 2026-08-12
 
 # 日志、指标、Trace 与 OpenTelemetry
 
-用户只给出“刚才保存失败”，日志里没有 requestId，数据库慢查询也无法关联到 API。结构化日志、指标和 Trace 分别回答单次事件、总体趋势和跨服务路径。
+用户只说“刚才保存失败”。日志没有 requestId，指标只看到 5xx 上升，数据库慢查询也无法关联到 API。日志回答具体事件，指标回答一段时间的总体变化，Trace 连接跨进程路径；OpenTelemetry 提供共同的采集模型与上下文传播。
 
-## 日志记录可检索事件
+## 结构化日志记录可检索事件
 
-日志记录可检索事件不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+日志字段包含 timestamp、level、service、version、event、requestId、traceId、tenantId、resourceId、code 和 duration。字段名稳定，正文不依赖全文搜索解析。
+
+密码、Token、Cookie、Secret、文件正文和不必要个人信息不记录。tenant/user ID 可保留内部随机标识并受访问控制；请求 Body 默认不全量记录。错误保留 cause chain 与堆栈在受控日志，响应只给 requestId。
+
+下面是一条项目版本冲突日志。它能关联请求和 Trace，同时没有 SQL 参数或凭证。
+
+```json
+{
+  "timestamp": "2026-08-12T08:30:00.123Z",
+  "level": "warn",
+  "service": "node-api",
+  "version": "sha256:...",
+  "event": "project.update.conflict",
+  "requestId": "req_01J...",
+  "traceId": "4bf92f...",
+  "tenantId": "ten_01J...",
+  "projectId": "prj_01J...",
+  "expectedVersion": 2,
+  "actualVersion": 3,
+  "durationMs": 34
+}
+```
+
+version 使用实际 commit/digest。高基数字段适合日志和 Trace，不应随意做 Prometheus label。
+
+## 指标用有限标签描述趋势
+
+在线 API 常看 RED：Rate、Errors、Duration；资源看 USE：Utilization、Saturation、Errors。直方图聚合延迟分布，Counter 只增，Gauge 表示当前值。
+
+route、method、status_class、service/version 是可控标签；userId、requestId、URL 原始路径会产生无限时间序列，拖垮指标系统。动态资源 ID 留给日志/Trace。
+
+| 信号 | 示例 | 适合回答 |
+| --- | --- | --- |
+| Counter | http_requests_total | 请求/错误速率 |
+| Histogram | http_server_duration | P95/P99 与 SLO |
+| Gauge | db_pool_waiters | 当前饱和 |
+| Queue age | oldest_task_seconds | 任务新鲜度 |
+| Business | orders_paid_total | 技术成功是否产生业务结果 |
+
+## Trace 用 Span 连接一次跨服务执行
+
+入口创建 server Span，通过 W3C `traceparent` 向下游传播；数据库、Redis、Broker publish/consume 和对象存储创建子 Span。异步消息把 trace context 放 Header，Consumer 可建立链接或子关系。
+
+Span 记录低敏属性和状态，异常事件包含错误类型。不要把完整 SQL 参数、消息正文和文件名当属性。采样应保证错误和慢请求有足够证据，同时控制成本。
 
 ```mermaid
-flowchart LR
-  A[输入与上下文] --> B[日志记录可检索事件]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
+sequenceDiagram
+  participant B as Browser
+  participant API
+  participant DB as MySQL
+  participant MQ as RabbitMQ
+  participant W as Worker
+  B->>API: traceparent + request
+  API->>DB: db span
+  API->>MQ: publish span + context
+  MQ->>W: consume context
+  W->>DB: task db span
+  Note over API,W: 同一 trace / message link
 ```
 
-图中失败分支不会假装成空成功。观测的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+请求结束后异步任务可能持续更久。Trace 链接和 event_id 一起使用，避免把超长后台链误当一个永不结束的 HTTP Span。
 
-## 指标描述时间序列
+## OpenTelemetry Collector 解耦采集与后端
 
-指标描述时间序列要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+SDK 产生 OTLP 信号，Collector 接收、批处理、过滤、采样并导出到 Loki/ELK、Prometheus 兼容指标后端和 Tempo/Jaeger。应用不需要为每个厂商写一套埋点。
 
-下面的片段抓住 观测 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+Collector 自身也要监控队列、丢弃、导出错误和内存。观测系统故障不能阻塞业务请求；批量异步导出并设上限，进程停机在有限时间 flush。
 
-```text
-{ "level":"error", "event":"project.update.failed", "requestId":"req_42", "traceId":"abc", "tenantId":"ten_7", "code":"version_conflict", "durationMs":34 }
-```
+Resource 属性稳定标识 service.name、service.version、deployment.environment 和实例。若不同语言使用不同 service 命名，跨服务查询会分裂；若把 Pod UID 当全局聚合标签，又会产生大量短命序列。先定义一份观测字段契约，再在 Node、Python、Go 的 SDK 初始化中对齐。
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+日志丢失时先查应用写出、Agent/Collector 接收、队列和后端导出四段；指标基数暴涨先找新增 label 及 series 数；Trace 断链则检查入口是否提取 traceparent、消息 Header 是否传播、下游是否创建同一 Context 的 Span。不要因为某个 Dashboard 空白就同时重启整条观测链。
 
-## Trace 连接跨进程 Span
+跨进程传播使用标准 Trace Context，消息把 traceparent 放在受控 Header。Baggage 会沿链路传播，不能塞 Token、邮箱等敏感或高基数数据。Consumer 为每次处理创建 Span，并记录 event_id 与 attempt，重投时才能区分一次业务事件的多次执行。
 
-Trace 连接跨进程 Span最终要落实到可观察证据。观测的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+## 三类信号继续追问
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
-| --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+### 有 Trace 后还需要 requestId 吗？
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+需要。外部客户端容易携带/报告 requestId，内部 Trace 有自己的采样和权限；二者互相映射。不要盲信客户端传入 ID，可规范化或重新生成。
 
-## Trace 连接跨进程 Span出现异常时怎样定位
+### 为什么不能把 tenantId 做 Prometheus 标签？
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+租户数量可能很大且变化，产生高基数时间序列。按服务/路由聚合指标，租户级调查用日志、Trace 或受控分析系统。
 
-先固定版本、输入、时间窗口和资源状态，再沿 观测 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+### 采样会不会漏掉故障？
 
-## 指标描述时间序列之后还要追问
+会，因此错误/慢请求可使用 tail sampling，提高保留率；关键计数由不采样的指标承担。采样策略和预算要可观察，不能假设每次 Trace 都存在。
 
-### 日志记录可检索事件为什么不能只放在调用方处理？
+### 日志中的时间为什么仍可能对不上？
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
-
-### 指标描述时间序列遇到超时后，什么时候可以重试？
-
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
-
-### 怎样用失败路径证明 观测 真的被理解了？
-
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
-
-### Trace 连接跨进程 Span与前一层的责任怎样交接？
-
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。Trace 连接跨进程 Span只处理自己拥有的状态。
+主机时钟、时区、缓冲和异步写入会影响。统一 UTC、同步时钟，同时依赖 trace/span 顺序和单调 duration，不只按显示时间猜因果。

@@ -52,7 +52,6 @@ lastUpdated: false
 
 本篇会实现一个离线可运行的 `search_notes`。模型只填写 `query` 和 `limit`；已认证用户、可见范围、Deadline 和数据访问对象放进 `ToolRuntime`，不会出现在模型看到的 Schema 中。最终用七个测试证明“格式合法”和“有权执行”是两道不同的门。
 
-
 ## Tool 解决的是模型不能直接执行程序
 
 语言模型的直接输出是消息。即使它写出 `search_notes("访问申请")`，那也只是一串文本，不会自动运行 Python 函数，更不应该因此获得数据库连接。
@@ -186,7 +185,6 @@ LangChain 当前的 `ToolRuntime` 是 Runtime 自动注入的工具执行上下�
 
 创建隔离环境，安装当前 LangChain 1.x、Pydantic 2 和 pytest。示例不访问网络，也不需要 API Key：
 
-
 下面的命令接收本节“环境、输入和观察目标”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装 LangChain Tool、Pydantic 与测试依赖，示例使用内存 Repository 保持调用可复现。
@@ -213,14 +211,12 @@ from langchain.tools import ToolRuntime, tool
 from langchain_core.messages import ToolCall, ToolMessage
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-
 @dataclass(frozen=True)
 class Note:
     note_id: str
     scope_id: str
     title: str
     content: str
-
 
 class NoteRepository:
     def __init__(self, notes: list[Note], *, fail: bool = False) -> None:
@@ -245,7 +241,6 @@ class NoteRepository:
             and (normalized in note.title.casefold() or normalized in note.content.casefold())
         ][:limit]
 
-
 @dataclass(frozen=True)
 class RequestContext:
     actor_id: str
@@ -254,13 +249,11 @@ class RequestContext:
     deadline_at: float
     repository: NoteRepository
 
-
 class SearchNotesArgs(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     query: str = Field(min_length=1, max_length=120)
     limit: int = Field(default=3, ge=1, le=5)
-
 
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 @tool(args_schema=SearchNotesArgs, response_format="content_and_artifact")
@@ -294,7 +287,6 @@ def search_notes(
     )
     return content, artifact
 
-
 def make_runtime(context: RequestContext, tool_call_id: str) -> ToolRuntime[RequestContext]:
     return ToolRuntime(
         state={"messages": []},
@@ -306,7 +298,6 @@ def make_runtime(context: RequestContext, tool_call_id: str) -> ToolRuntime[Requ
         store=None,
     )
 
-
 def error_message(call: ToolCall, code: str) -> ToolMessage:
     return ToolMessage(
         content=json.dumps({"status": "error", "code": code}),
@@ -314,7 +305,6 @@ def error_message(call: ToolCall, code: str) -> ToolMessage:
         name=call["name"],
         status="error",
     )
-
 
 def execute_tool_call(call: ToolCall, context: RequestContext) -> ToolMessage:
     if call["name"] != search_notes.name:
@@ -344,7 +334,6 @@ def execute_tool_call(call: ToolCall, context: RequestContext) -> ToolMessage:
         name=call["name"],
         status="success",
     )
-
 
 def demo() -> None:
     notes = [
@@ -381,13 +370,11 @@ def demo() -> None:
     unknown = execute_tool_call(unknown_call, context)
     print("unknown", unknown.status, unknown.content)
 
-
 if __name__ == "__main__":
     demo()
 ```
 
 代码从 `Note`、`NoteRepository`、`RequestContext` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
-
 
 ### 沿调用顺序读代码
 
@@ -409,7 +396,6 @@ if __name__ == "__main__":
 
 ### 运行并核对输出
 
-
 下面的命令接收本节“运行并核对输出”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 运行正常、空结果和参数错误，检查 ToolMessage 的 call_id、状态与结构化数据是否对应。
@@ -417,7 +403,6 @@ python controlled_tool.py
 ```
 
 这些命令从 `python` 开始按顺序运行，输出用于确认“运行并核对输出”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 预期输出：
 
@@ -450,7 +435,6 @@ from controlled_tool import (
     search_notes,
 )
 
-
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def make_context(*, fail: bool = False, expired: bool = False) -> RequestContext:
     notes = [
@@ -465,7 +449,6 @@ def make_context(*, fail: bool = False, expired: bool = False) -> RequestContext
         repository=NoteRepository(notes, fail=fail),
     )
 
-
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def make_call(**args: object) -> ToolCall:
     return {
@@ -475,18 +458,15 @@ def make_call(**args: object) -> ToolCall:
         "type": "tool_call",
     }
 
-
 # 这个用例提交不受支持的工具或参数，确认请求在真正执行前被契约校验拒绝。
 def test_model_schema_hides_trusted_context() -> None:
     schema = search_notes.tool_call_schema.model_json_schema()
     assert set(schema["properties"]) == {"query", "limit"}
 
-
 def test_query_only_returns_visible_notes() -> None:
     result = execute_tool_call(make_call(query="访问申请", limit=3), make_context())
     assert result.status == "success"
     assert [item["note_id"] for item in result.artifact] == ["N1"]
-
 
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_model_cannot_submit_scope() -> None:
@@ -496,7 +476,6 @@ def test_model_cannot_submit_scope() -> None:
     )
     assert result.status == "error"
     assert "invalid_arguments" in result.content
-
 
 # 这个用例提交不受支持的工具或参数，确认请求在真正执行前被契约校验拒绝。
 def test_unknown_tool_is_not_executed() -> None:
@@ -510,14 +489,12 @@ def test_unknown_tool_is_not_executed() -> None:
     assert result.status == "error"
     assert "unknown_tool" in result.content
 
-
 def test_empty_result_is_success_not_failure() -> None:
     # 让候选 ToolCall 经过白名单、参数 Schema 和异常映射，下面检查公开 ToolMessage。
     result = execute_tool_call(make_call(query="不存在", limit=3), make_context())
     assert result.status == "success"
     assert result.artifact == []
     assert '"count": 0' in result.content
-
 
 def test_repository_timeout_has_stable_error() -> None:
     result = execute_tool_call(
@@ -526,7 +503,6 @@ def test_repository_timeout_has_stable_error() -> None:
     )
     assert result.status == "error"
     assert "tool_timeout" in result.content
-
 
 # 这个用例把时间推进到截止边界，确认超时保持独立错误语义并释放资源。
 def test_expired_turn_does_not_query_repository() -> None:
@@ -607,7 +583,7 @@ ToolMessage 是模型的观察，不等于最终对用户的错误响应。Runti
 
 这些不是在 docstring 里加一句“谨慎调用”就能解决的。写工具应使用独立权限、审批状态和审计记录。Agent 只能提出候选写动作，确定性程序掌握提交权。
 
-## 带到工作中的工具契约检查表
+## 注册 Tool 前逐项检查契约
 
 注册一个工具前，逐项确认：
 
@@ -623,7 +599,7 @@ ToolMessage 是模型的观察，不等于最终对用户的错误响应。Runti
 - 日志只保存安全摘要，不泄露原始敏感内容；
 - 写操作另有审批、幂等和补偿设计。
 
-## 把这个机制用于相似问题
+## 增加 get_note 时怎样限制可读 ID
 
 为本例增加第二个只读工具 `get_note`，输入只能是检索结果中的 `note_id`。要求：
 

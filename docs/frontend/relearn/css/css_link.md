@@ -213,10 +213,3 @@ area 必须跟 img 和 map 标签配合使用。使用示例如下（例子来�
 ```
 
 这个例子展示了在一张图片上画热区并且产生链接，分别使用了矩形、圆形和多边形三种 area。
-
-## 参考资料
-
-- [WHATWG HTML：Link types](https://html.spec.whatwg.org/multipage/links.html)
-- [WHATWG HTML：The link element](https://html.spec.whatwg.org/multipage/semantics.html#the-link-element)
-- [MDN：Preloading content](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload)
-- [Google Search Central：Pagination](https://developers.google.com/search/docs/specialty/ecommerce/pagination-and-incremental-page-loading)

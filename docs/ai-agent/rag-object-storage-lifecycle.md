@@ -138,7 +138,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class UploadStatus(StrEnum):
     CREATED = "created"
     UPLOADING = "uploading"
@@ -148,14 +147,12 @@ class UploadStatus(StrEnum):
     EXPIRED = "expired"
 # ObjectFacts 表示一个可单独核查的事实单元，后续必须为它找到证据或明确拒绝。
 
-
 @dataclass(frozen=True)
 class ObjectFacts:
     key: str
     size_bytes: int
     sha256: str
     object_version: str
-
 
 @dataclass
 class UploadRecord:
@@ -245,7 +242,6 @@ class UploadRecord:
 
 下面的 pytest 直接调用上传生命周期实现，覆盖以下用例：
 
-
 为了验证“本地怎样验证这一层”，下面的测试把“本地替身验证预签名上传、校验和对账和孤立对象识别，不把模拟存储当作云端权限测试”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -258,7 +254,6 @@ def test_complete_is_idempotent() -> None:
     assert record.complete(facts) is True
     assert record.complete(facts) is False
     assert record.status is UploadStatus.VERIFIED
-
 
 # 这个用例核对校验和与完成状态，重复完成或校验失败都不能重复派发导入。
 def test_checksum_mismatch_never_dispatches_import() -> None:

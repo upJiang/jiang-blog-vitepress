@@ -46,7 +46,7 @@ question
 
 本篇不会用一个向量库类名替代 RAG 全流程。我们会实现 LangChain `BaseRetriever`，明确它的查询输入和 **Document** 输出；再把 Document 转成带稳定 ID、位置、版本和内容哈希的 Evidence；最后用 LCEL 串成离线可运行的固定链。Embedding 与向量索引会在后续专门展开，这里先把应用接口和信任边界固定下来。
 
-前一篇得到 Streaming 和 Middleware；本篇的检索开始、候选数量和无证据终态可以沿用那些事件。下一组进入 LangGraph，把固定链扩展为条件路由、并行研究、Checkpoint 和可恢复 Runtime。
+[Streaming、Callback 与 Middleware](/docs/ai-agent/langchain-streaming-middleware-retry) 已经定义检索开始、候选数量和无证据终态怎样成为公开事件。本篇沿用这套事件，不为 Retriever 另造一套进度协议。固定链出现条件路由、并行研究和恢复需求后，再把相同 Retriever 放进 LangGraph 节点。
 
 ## RAG 解决的不是“模型不会背资料”这么简单
 
@@ -194,7 +194,6 @@ flowchart LR
 
 安装 LangChain Core、Pydantic 和 pytest。程序不调用远程模型或数据库：
 
-
 下面的命令接收本节“环境、输入与预期产物”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装 Retriever、向量与测试依赖，示例使用固定匿名文档和当前 Scope 作为输入。
@@ -204,7 +203,6 @@ python -m pip install "langchain-core>=1,<2" "pydantic>=2.11,<3" "pytest>=8,<9"
 ```
 
 这些命令从 `python3`、`source`、`python` 开始按顺序运行，输出用于确认“环境、输入与预期产物”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 输入是问题 `访问 申请`，可信状态是 Scope=`public`、Release=`release-1`。索引还包含 private 片段和旧版本片段；预期只有当前 public 片段变成 Evidence，答案引用 `[E1]`。下面直接运行这段实现：
 
@@ -223,13 +221,11 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from pydantic import ConfigDict, Field
 
-
 @dataclass(frozen=True)
 class ScopeSnapshot:
     scope_ids: tuple[str, ...]
     release_id: str
 # Evidence 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
-
 
 @dataclass(frozen=True)
 class Evidence:
@@ -243,14 +239,12 @@ class Evidence:
     release_id: str
     retrieval_score: float
 
-
 @dataclass(frozen=True)
 class RagResult:
     status: Literal["completed", "no_evidence"]
     answer: str
     citations: tuple[str, ...]
     context: str
-
 
 class ScopedMemoryRetriever(BaseRetriever):
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -295,7 +289,6 @@ class ScopedMemoryRetriever(BaseRetriever):
             for score, _evidence_id, document in ranked[: self.k]
         ]
 
-
 REQUIRED_METADATA = {
     "evidence_id",
     "document_id",
@@ -307,7 +300,6 @@ REQUIRED_METADATA = {
     "release_id",
     "retrieval_score",
 }
-
 
 def documents_to_evidence(
     documents: list[Document],
@@ -345,13 +337,11 @@ def documents_to_evidence(
         )
     return evidence
 
-
 def build_context(evidence: list[Evidence]) -> str:
     return "\n\n".join(
         f"[{item.evidence_id}] {item.title} · {item.location}\n{item.content}"
         for item in evidence
     )
-
 
 def assemble_answer(payload: dict[str, object], scope: ScopeSnapshot) -> RagResult:
     documents = payload["documents"]
@@ -377,7 +367,6 @@ def assemble_answer(payload: dict[str, object], scope: ScopeSnapshot) -> RagResu
         context=context,
     )
 
-
 def build_rag_chain(retriever: ScopedMemoryRetriever):
     return (
         {
@@ -386,7 +375,6 @@ def build_rag_chain(retriever: ScopedMemoryRetriever):
         }
         | RunnableLambda(lambda payload: assemble_answer(payload, retriever.scope))
     )
-
 
 def retrieval_cache_key(query: str, scope: ScopeSnapshot) -> str:
     raw = "|".join(
@@ -397,7 +385,6 @@ def retrieval_cache_key(query: str, scope: ScopeSnapshot) -> str:
         ]
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
-
 
 def make_document(
     *,
@@ -419,7 +406,6 @@ def make_document(
             "release_id": release_id,
         },
     )
-
 
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_retriever() -> ScopedMemoryRetriever:
@@ -449,7 +435,6 @@ def build_retriever() -> ScopedMemoryRetriever:
         ),
     )
 
-
 def demo() -> None:
     retriever = build_retriever()
     documents = retriever.invoke("访问 申请")
@@ -461,13 +446,11 @@ def demo() -> None:
     print("citations", result.citations)
     print("cache_key_prefix", retrieval_cache_key("访问 申请", retriever.scope)[:12])
 
-
 if __name__ == "__main__":
     demo()
 ```
 
 代码从 `ScopeSnapshot`、`Evidence`、`RagResult` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
-
 
 ### Retriever 怎样绑定可信 Scope
 
@@ -501,7 +484,6 @@ if __name__ == "__main__":
 
 ### 运行并观察结果
 
-
 下面的命令接收本节“运行并观察结果”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 运行命中、无结果和受限范围查询，观察候选、Evidence 与最终终态，而不是只看答案文本。
@@ -509,7 +491,6 @@ python scoped_rag.py
 ```
 
 这些命令从 `python` 开始按顺序运行，输出用于确认“运行并观察结果”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 预期结果只有 E1：
 
@@ -529,7 +510,6 @@ E2 与问题相关但不在 public Scope，E3 是旧 Release，因此都不参�
 
 下面直接运行这段实现：
 
-
 为了验证“九个测试固定检索和证据契约”，下面的测试把“九条测试覆盖检索输入、过滤、稳定 ID、空结果、引用、超时和无证据拒答等契约”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -548,12 +528,10 @@ from scoped_rag import (
     retrieval_cache_key,
 )
 
-
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_retriever_filters_scope_and_release_before_ranking() -> None:
     documents = build_retriever().invoke("访问 申请")
     assert [document.metadata["evidence_id"] for document in documents] == ["E1"]
-
 
 # 这个用例核对证据与引用关系，防止无来源 Claim 被当成已经验证的答案。
 def test_equal_scores_use_stable_evidence_id_order() -> None:
@@ -567,18 +545,15 @@ def test_equal_scores_use_stable_evidence_id_order() -> None:
     ranked = retriever.model_copy(update={"documents": (*retriever.documents, extra)})
     assert [doc.metadata["evidence_id"] for doc in ranked.invoke("访问 申请")] == ["E0", "E1"]
 
-
 def test_base_retriever_batch_keeps_each_query_result() -> None:
     # 用当前查询和可信范围执行检索；返回候选会继续接受去重、排序或证据校验。
     results = build_retriever().batch(["访问 申请", "报销"])
     assert [doc.metadata["evidence_id"] for doc in results[0]] == ["E1"]
     assert results[1] == []
 
-
 def test_empty_query_is_rejected_before_search() -> None:
     with pytest.raises(ValueError, match="must not be empty"):
         build_retriever().invoke("   ")
-
 
 # 这个用例核对证据与引用关系，防止无来源 Claim 被当成已经验证的答案。
 def test_rag_chain_returns_citation_and_context() -> None:
@@ -588,14 +563,12 @@ def test_rag_chain_returns_citation_and_context() -> None:
     assert "[E1]" in result.answer
     assert "[E1]" in result.context
 
-
 # 空输入或空命中属于独立业务路径；这个用例确认它不会越过校验边界触发多余调用。
 def test_empty_retrieval_has_explicit_no_evidence_result() -> None:
     result = build_rag_chain(build_retriever()).invoke("报销")
     assert result.status == "no_evidence"
     assert result.citations == ()
     assert result.context == ""
-
 
 def test_missing_metadata_is_a_contract_error() -> None:
     broken = Document(page_content="访问申请", metadata={"evidence_id": "E-broken"})
@@ -605,14 +578,12 @@ def test_missing_metadata_is_a_contract_error() -> None:
             ScopeSnapshot(("public",), "release-1"),
         )
 
-
 # 这个用例重复提交或恢复同一运行，确认 Checkpoint、幂等键或事件序号阻止重复副作用。
 def test_duplicate_evidence_id_is_rejected() -> None:
     retriever = build_retriever()
     document = retriever.invoke("访问 申请")[0]
     with pytest.raises(ValueError, match="duplicate evidence id"):
         documents_to_evidence([document, document], retriever.scope)
-
 
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_cache_key_isolated_by_scope_and_release() -> None:
@@ -702,7 +673,7 @@ Retriever 作为 Tool，模型决定何时查、查哪个来源和是否继续�
 
 向量库和混合检索的选型会在后续 RAG 专题详细展开。此处的目标是让应用链先有稳定边界，避免存储实现反向控制业务协议。
 
-## 带到工作中的 Retriever 检查表
+## 接入 Retriever 前逐项检查契约
 
 - Retriever 与向量库责任分开，调用方只依赖 Document 契约；
 - Scope、Release、K 和过滤由服务端绑定；
@@ -715,7 +686,7 @@ Retriever 作为 Tool，模型决定何时查、查哪个来源和是否继续�
 - 缓存键包含权限、版本和检索配置；
 - 固定流程先用 2-Step，出现动态分支和恢复需求再升级图。
 
-## 把这个机制用于相似问题
+## 从单路 Retriever 演进到两路固定召回
 
 把 `ScopedMemoryRetriever` 替换成“两路召回但仍是固定链”的实现：
 
@@ -742,7 +713,7 @@ VectorStore 负责向量保存、过滤和相似度查询，Retriever 是面向�
 
 ### 固定 2-Step RAG 什么时候比 Agentic RAG 更合适？
 
-问题能用一次查询或确定的查询改写召回，生成前不需要根据观察选择不同工具时，固定“检索—生成—验证”路径更便宜、稳定且易评测。Agentic RAG 适合多跳、动态通道和有限补搜，但增加循环与停止条件。应先用固定 RAG 测出 Recall 与答案基线，证明失败来自动态研究，再引入 Planner，而不是用 Agent 掩盖切片或索引问题。
+问题能用一次查询或确定的查询改写召回，生成前不需要根据观察选择不同工具时，固定的检索、生成、验证路径更便宜，也更容易稳定评测。Agentic RAG 适合多跳、动态通道和有限补搜，但会增加循环与停止条件。应先用固定 RAG 测出 Recall 与答案基线，确认失败来自动态研究后再引入 Planner，不要用 Agent 掩盖切片或索引问题。
 
 ### Scope 与 Release 应该在哪个阶段过滤？
 

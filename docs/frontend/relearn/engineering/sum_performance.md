@@ -117,9 +117,3 @@ series: "重学前端"
 接下来我们分成四个步骤介绍了性能工程体系，首先介绍了现状评估和建立指标，建立指标应当从业务的角度考虑，接下来讲了技术方案设计，技术方案应当从整体角度，基于 Profiling 的结果分析来设计。
 
 之后我们讲了实施，我们讲了工程实施的三个层次：纯管理、制度化、工程化，最后，我们讲了结果评估和线上监控，线上监控需要从数据采集和数据展现两个部分分别实现。
-
-## 参考资料
-
-- [web.dev: Web Vitals](https://web.dev/articles/vitals)
-- [Chrome DevTools Performance](https://developer.chrome.com/docs/devtools/performance/)
-- [W3C Performance Timeline](https://www.w3.org/TR/performance-timeline/)

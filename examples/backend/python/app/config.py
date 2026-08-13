@@ -11,6 +11,14 @@ class Settings(BaseSettings):
     access_token_seconds: int = 900
     refresh_token_seconds: int = 2_592_000
     web_origin: str = "http://localhost:5173"
+    cookie_secure: bool = False
+    minio_endpoint: str = "127.0.0.1:9000"
+    minio_access_key: str = "backend"
+    minio_secret_key: str = "backend-local-only"
+    minio_secure: bool = False
+    minio_bucket: str = "backend-files"
+    minio_public_endpoint: str | None = None
+    payment_callback_secret: str = "local-payment-secret"
 
 
 @lru_cache

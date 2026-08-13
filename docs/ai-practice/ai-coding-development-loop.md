@@ -192,10 +192,8 @@ from pathlib import Path
 
 import yaml
 
-
 def is_under(file: str, prefixes: list[str]) -> bool:
     return any(file == prefix.rstrip("/") or file.startswith(prefix) for prefix in prefixes)
-
 
 def check(contract_path: Path, root: Path, changed_files: list[str]) -> list[str]:
     contract = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
@@ -229,7 +227,6 @@ def check(contract_path: Path, root: Path, changed_files: list[str]) -> list[str
 
     return sorted(set(errors))
 
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--contract", type=Path, required=True)
@@ -240,7 +237,6 @@ def main() -> int:
     errors = check(args.contract, args.root, args.files)
     print(json.dumps({"ok": not errors, "errors": errors}, ensure_ascii=False))
     return 1 if errors else 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
@@ -351,3 +347,13 @@ Commit、创建 PR、合并和推送是四个不同动作。技术上可以由�
 不是所有教训都写入根规则。规则无限增长会挤占上下文，Skill 没有触发评测会变成另一个长 Prompt，MCP 没有所有者会成为无人维护的生产接口。沉淀前要问：它是否重复、能否验证、应该由哪一层负责、失效时谁更新。
 
 这条闭环看起来比“Prompt 到代码”慢，却把最昂贵的返工放在最早阶段发现。小而明确的修改可以压缩文档和门禁，但权限、数据、发布和不可逆动作不能因为 AI 写得快就被省略。**AI Coding 的上限，最终取决于组织能否把需求、代码、测试、权限和运行证据连成同一条可追溯链。**
+
+## 常见问题
+
+### 小改动也需要完整 Feature Brief、Spec 和测试矩阵吗？
+
+不需要照搬全套工件，关键是让行为边界可验证。只改一处文案时，目标、文件范围和构建检查可能已经足够；涉及权限、数据迁移、并发或外部副作用时，才应展开行为契约、失败路径和分层测试。判断标准不是代码行数，而是出错后的影响和恢复难度。可以先写一页轻量说明，若仍无法回答谁能调用、数据怎样变化、失败如何恢复，再逐步补充规格与矩阵。
+
+### 测试已经全部通过，为什么还需要独立 Review？
+
+测试可能与实现共享同一个错误假设，也可能只覆盖开发者预想到的路径。独立 Review 应从需求和风险重新推导反例，检查权限 Scope、迁移兼容性、重复请求、超时和回滚条件，再确认这些行为是否真的进入测试。Reviewer 还要核对测试证据对应当前 Diff 和环境，避免引用修改前的绿色结果。它不是重复运行测试，而是检查测试集合是否足以支撑交付结论。

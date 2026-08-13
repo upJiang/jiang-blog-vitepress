@@ -70,8 +70,3 @@ function reverseList<T>(head: ListNode<T> | null): ListNode<T> | null {
 测试不只比较值数组，还要检查节点数量没有变化、尾节点 next 为 null、没有形成环。故意删除 `const next` 或忘记移动 current，测试应分别出现丢节点或无限循环。
 
 下一篇使用两个保持固定间距的指针，在一次扫描中找到倒数节点。
-
-## 参考资料
-
-- [Open Data Structures: Linked Lists](https://opendatastructures.org/ods-javascript/3_Linked_Lists.html)
-- [ECMAScript Objects](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html)

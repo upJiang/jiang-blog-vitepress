@@ -246,10 +246,3 @@ function Text(value){
 我们主要研究了解析代码和构建 DOM 树两个步骤。在解析代码的环节里，我们一起详细地分析了一个词（token）被拆分的过程，并且给出了实现它所需要的一个简单的状态机。
 
 在构建 DOM 树的环节中，基本思路是使用栈来构建 DOM 树为了方便你动手实践，我用 JavaScript 实现了这一过程。
-
-## 参考资料
-
-- [HTML Standard：Parsing HTML documents](https://html.spec.whatwg.org/multipage/parsing.html)
-- [HTML Standard：The stack of open elements](https://html.spec.whatwg.org/multipage/parsing.html#the-stack-of-open-elements)
-- [HTML Standard：Scripting](https://html.spec.whatwg.org/multipage/scripting.html)
-- [Web Platform Tests：HTML parsing](https://github.com/web-platform-tests/wpt/tree/master/html/syntax/parsing)

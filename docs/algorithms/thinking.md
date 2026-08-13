@@ -81,9 +81,3 @@ Memo 只适合“相同状态的未来结果与到达路径无关”。若答案
 ## 验证
 
 检查每个排列长度、元素多重集合和唯一性；组合下标递增；括号每个前缀合法。故意忘记 pop、忘记复制 path 或错误去重，测试应出现缺失、重复或所有结果相同。每一处剪枝都要能解释“为什么不可能丢解”。
-
-## 参考资料
-
-- [Open Data Structures](https://opendatastructures.org/)
-- [VisuAlgo Recursion](https://visualgo.net/en/recursion)
-- [ECMAScript Array](https://tc39.es/ecma262/multipage/indexed-collections.html)

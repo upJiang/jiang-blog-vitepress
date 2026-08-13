@@ -89,9 +89,3 @@ Angular 是 Google 推出的 Web 框架，它是比较标准的 MVVM 模式。An
 ## 总结
 
 今天我从宏观的角度介绍了前端架构相关的知识，我重点介绍了“组件化”“适配性”“单页应用”三个前端架构需要解决的核心问题，组件化在社区有很多现成的方案，我们需要做的主要工作是框架选型。适配性需要用到 CSS 的几种特性：vw 单位、viewport 规则和 media 规则，单页应用重点是逻辑页面解耦、独立开发和发布和保持前进后退历史。
-
-## 参考资料
-
-- [MDN: History API](https://developer.mozilla.org/en-US/docs/Web/API/History_API)
-- [WAI-ARIA APG](https://www.w3.org/WAI/ARIA/apg/)
-- [web.dev: Responsive design](https://web.dev/learn/design/)

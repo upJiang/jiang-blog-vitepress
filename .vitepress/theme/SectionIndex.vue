@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   articlesByCategory,
   articlePath,
   sections,
   type Category
 } from '../content'
+import SectionTrackTabs from './SectionTrackTabs.vue'
+import { useTrackSelection } from './useTrackSelection'
 
 const props = defineProps<{ category: Category }>()
 
 const section = computed(() =>
   sections.find((item) => item.key === props.category)
 )
+const tabsRef = ref<InstanceType<typeof SectionTrackTabs> | null>(null)
 
 const readingHints: Record<Category, string> = {
   'ai-agent': '先理解模型、工作流、RAG 和 Agent，再按问题进入工具、知识处理、质量与运行实践。',
@@ -36,6 +39,34 @@ const groups = computed(() => {
   }
 
   return [...grouped.entries()]
+})
+
+const trackTabs = computed(() => {
+  if (props.category === 'ai-agent') {
+    return [
+      { key: 'all', label: '全部' },
+      { key: 'mainline', label: '推荐阅读顺序' },
+      { key: 'special', label: '专题阅读' }
+    ]
+  }
+
+  return [
+    { key: 'all', label: '全部' },
+    ...groups.value.map(([group], index) => ({
+      key: `part-${index + 1}`,
+      label: displayGroup(group)
+    }))
+  ]
+})
+
+const { activeTrack, selectTrack } = useTrackSelection(() =>
+  trackTabs.value.map((track) => track.key)
+)
+
+const visibleGroups = computed(() => {
+  if (activeTrack.value === 'all') return groups.value
+  const index = Number(activeTrack.value.replace(/^part-/, '')) - 1
+  return groups.value[index] ? [groups.value[index]] : groups.value
 })
 
 const aiMainline = computed(() =>
@@ -69,15 +100,32 @@ function displayGroup(group: string): string {
       <span class="section-count">{{ articlesByCategory(category).length }} 篇文章</span>
     </header>
 
+    <SectionTrackTabs
+      ref="tabsRef"
+      :tabs="trackTabs"
+      :active-key="activeTrack"
+      id-prefix="category"
+      :label="`${section.title}文章分组`"
+      @select="selectTrack"
+    />
+
+    <div
+      id="category-panel"
+      class="frontend-track-panel"
+      role="tabpanel"
+      :aria-labelledby="`category-tab-${activeTrack}`"
+      tabindex="0"
+      @keydown.esc="tabsRef?.focusActiveTab()"
+    >
+
     <template v-if="category === 'ai-agent'">
-      <section class="article-group article-group--mainline">
+      <section v-if="activeTrack === 'all' || activeTrack === 'mainline'" class="article-group article-group--mainline">
         <div class="article-group-heading">
           <span>从第一次模型请求到可恢复 Runtime</span>
           <h2>推荐阅读顺序</h2>
         </div>
         <div class="article-index-list">
           <a v-for="item in aiMainline" :key="item.slug" :href="articlePath(item)">
-            <span class="article-index-sequence" aria-hidden="true">{{ String(item.sequence).padStart(2, '0') }}</span>
             <span class="article-index-copy">
               <span class="article-index-title">{{ item.title }}</span>
               <span class="article-index-description">{{ item.description }}</span>
@@ -87,7 +135,7 @@ function displayGroup(group: string): string {
         </div>
       </section>
 
-      <section class="article-group article-group--special">
+      <section v-if="activeTrack === 'all' || activeTrack === 'special'" class="article-group article-group--special">
         <div class="article-group-heading">
           <span>主线完成后可按需要进入</span>
           <h2>专题阅读</h2>
@@ -107,7 +155,7 @@ function displayGroup(group: string): string {
       </section>
     </template>
 
-    <section v-for="[group, items] in category === 'ai-agent' ? [] : groups" :key="group" class="article-group">
+    <section v-for="[group, items] in category === 'ai-agent' ? [] : visibleGroups" :key="group" class="article-group">
       <h2>{{ displayGroup(group) }}</h2>
       <div class="article-index-list">
         <a v-for="item in items" :key="item.slug" :href="articlePath(item)">
@@ -119,5 +167,6 @@ function displayGroup(group: string): string {
         </a>
       </div>
     </section>
+    </div>
   </main>
 </template>

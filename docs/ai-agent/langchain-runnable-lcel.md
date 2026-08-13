@@ -153,7 +153,6 @@ Branch 要求各分支最终输出能被下游统一消费。direct 返回字符
 
 ### 环境准备
 
-
 下面的命令接收本节“环境准备”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装 Runnable、Fake 模型与测试依赖，后续 LCEL 组合可以在本地稳定重放。
@@ -163,7 +162,6 @@ python -m pip install "langchain-core>=1,<2" "pytest>=8,<9" "pytest-asyncio>=0.2
 ```
 
 这些命令从 `python3`、`source`、`python` 开始按顺序运行，输出用于确认“环境准备”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 这篇只使用 LangChain Core，不调用模型和数据库。搜索数据是内存中的匿名演示内容。
 
@@ -187,15 +185,12 @@ from langchain_core.runnables import (
     RunnablePassthrough,
 )
 
-
 Route = Literal["direct", "reject", "search"]
-
 
 class PipelineInput(TypedDict):
     # question 保存原始用户输入，后续改写查询不能覆盖它。
     question: str
     request_id: str
-
 
 class PipelineResult(TypedDict):
     route: Route
@@ -203,7 +198,6 @@ class PipelineResult(TypedDict):
     status: Literal["completed", "rejected", "insufficient"]
     answer: str
     events: list[str]
-
 
 def normalize_input(payload: PipelineInput) -> PipelineInput:
     # 入口只保留去除首尾空白后的可信形状；缺少问题或请求 ID 时，不让脏数据进入链。
@@ -215,7 +209,6 @@ def normalize_input(payload: PipelineInput) -> PipelineInput:
         raise ValueError("request_id must not be empty")
     return {"question": question, "request_id": request_id}
 
-
 def classify_route(payload: PipelineInput) -> Route:
     question = payload["question"]
     # 寒暄不需要检索，直接返回固定答复，节省一次无意义的外部调用。
@@ -226,7 +219,6 @@ def classify_route(payload: PipelineInput) -> Route:
         return "reject"
     return "search"
 
-
 def rewrite_query(payload: PipelineInput) -> str:
     question = payload["question"]
     # 这里只移除已知问句后缀，不补写实体或权限，避免改写改变用户原意。
@@ -235,7 +227,6 @@ def rewrite_query(payload: PipelineInput) -> str:
             question = question[: -len(suffix)]
             break
     return question.strip(" ？?")
-
 
 def direct_answer(payload: dict[str, object]) -> PipelineResult:
     del payload
@@ -246,7 +237,6 @@ def direct_answer(payload: dict[str, object]) -> PipelineResult:
         "events": ["route:direct", "completed"],
     }
 
-
 def reject_write_action(payload: dict[str, object]) -> PipelineResult:
     del payload
     return {
@@ -255,7 +245,6 @@ def reject_write_action(payload: dict[str, object]) -> PipelineResult:
         "answer": "这个只读助手不会执行写操作。",
         "events": ["route:reject", "rejected"],
     }
-
 
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 def search_notes(payload: dict[str, object]) -> PipelineResult:
@@ -276,7 +265,6 @@ def search_notes(payload: dict[str, object]) -> PipelineResult:
         "events": ["route:search", "search:hit", "completed"],
     }
 
-
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def make_pipeline() -> Runnable[PipelineInput, PipelineResult]:
     derive_fields = RunnablePassthrough.assign(
@@ -296,7 +284,6 @@ def make_pipeline() -> Runnable[PipelineInput, PipelineResult]:
     )
     return RunnableLambda(normalize_input) | derive_fields | choose_path
 
-
 async def demo() -> None:
     pipeline = make_pipeline()
     inputs: list[PipelineInput] = [
@@ -310,7 +297,6 @@ async def demo() -> None:
     results = await pipeline.abatch(inputs, config={"max_concurrency": 2})
     for result in results:
         print(result["route"], result["status"], result["answer"])
-
 
 if __name__ == "__main__":
     asyncio.run(demo())
@@ -332,7 +318,6 @@ python lcel_pipeline.py
 ```
 
 这些命令从 `python` 开始按顺序运行，输出用于确认“完整实现”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 预期输出：
 
@@ -360,7 +345,6 @@ from langchain_core.runnables import RunnableLambda, RunnableParallel
 
 from lcel_pipeline import make_pipeline
 
-
 # 参数表覆盖证据已齐、仍有缺口、轮次耗尽和 Deadline 到期四种停止条件。
 @pytest.mark.parametrize(
     ("question", "expected_route", "expected_status"),
@@ -383,12 +367,10 @@ def test_each_input_enters_one_terminal_branch(
     assert result["status"] == expected_status
     assert result["events"][0] == f"route:{expected_route}"
 
-
 # 这个用例固定“成功但无结果”的语义，不能把它误报为依赖异常或编造答案。
 def test_empty_question_stops_before_parallel_derivation() -> None:
     with pytest.raises(ValueError, match="question must not be empty"):
         make_pipeline().invoke({"question": "  ", "request_id": "test-empty"})
-
 
 @pytest.mark.asyncio
 async def test_parallel_starts_both_children() -> None:
@@ -413,7 +395,6 @@ async def test_parallel_starts_both_children() -> None:
     result = await parallel.ainvoke("ok")
 
     assert result == {"first": "OK", "second": "OK"}
-
 
 # 这个用例走失败或拒绝分支，确认错误码、终态和副作用都符合契约。
 def test_critical_parallel_failure_propagates() -> None:
@@ -498,7 +479,7 @@ Branch 一次选择路径，Sequence 向前执行。即使组合多个 Branch，
 
 日志只记录键名、长度、状态和匿名 ID，不要为了调试把完整证据与用户原文写出。
 
-## 带到工作中的 LCEL 节点表
+## 用 LCEL 节点表观察数据形状
 
 | 节点 | 输入键 | 输出键/类型 | 并发 | 失败语义 | 副作用 |
 | --- | --- | --- | ---: | --- | --- |
@@ -511,7 +492,7 @@ Branch 一次选择路径，Sequence 向前执行。即使组合多个 Branch，
 
 表里任何一个写操作都要补充幂等键、事务和重放边界。LCEL 只描述调用组合，不自动提供这些业务语义。
 
-## 把这个机制用于相似问题
+## 两路检索怎样接入现有 search 分支
 
 为 search 路径并行增加 exact 与 semantic 两个检索器：
 

@@ -1,10 +1,33 @@
 import { defineConfig } from 'vitepress'
+import { articlePath, articles } from './content'
 import { createSidebar, sectionNavigation } from './sidebar'
 import { draftArticleFiles } from './drafts'
 
 const draftRoutes = draftArticleFiles.map((file) => `/${file.replace(/\.md$/, '')}`)
 
 export default defineConfig({
+    transformPageData(pageData) {
+      if (!pageData.relativePath.startsWith('docs/ai-agent/') || pageData.relativePath.endsWith('/index.md')) return
+
+      const slug = pageData.relativePath.replace(/^docs\/ai-agent\//, '').replace(/\.md$/, '')
+      const current = articles.find((article) => article.category === 'ai-agent' && article.slug === slug)
+      if (!current?.track) return
+
+      const trackArticles = articles
+        .filter((article) => article.category === 'ai-agent' && article.track === current.track)
+        .sort((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0))
+      const index = trackArticles.findIndex((article) => article.slug === current.slug)
+      const previous = trackArticles[index - 1]
+      const next = trackArticles[index + 1]
+
+      return {
+        frontmatter: {
+          ...pageData.frontmatter,
+          prev: previous ? { text: previous.title, link: articlePath(previous) } : false,
+          next: next ? { text: next.title, link: articlePath(next) } : false
+        }
+      }
+    },
     srcExclude: [
       'AGENTS.md',
       'CLAUDE.md',
@@ -43,7 +66,7 @@ export default defineConfig({
     titleTemplate: ':title | 小江AI',
     description: '小江的个人技术博客，记录 AI、Agent、AI 实践、前端、后端、SEO 与 AI Infra。',
     cleanUrls: true,
-    lastUpdated: true,
+    lastUpdated: false,
     sitemap: {
       hostname: 'https://junfeng530.xyz'
     },
@@ -103,12 +126,6 @@ export default defineConfig({
               }
             }
           }
-        }
-      },
-      lastUpdated: {
-        text: '更新于',
-        formatOptions: {
-          dateStyle: 'medium'
         }
       },
       docFooter: {

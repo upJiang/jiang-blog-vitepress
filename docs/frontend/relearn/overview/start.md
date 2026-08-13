@@ -29,11 +29,3 @@ series: "重学前端"
 <a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/cb/cb/cbb6d198ccfb95af4906eeb0581333cb.png">![img](https://static001.geekbang.org/resource/image/cb/cb/cbb6d198ccfb95af4906eeb0581333cb.png)</a>
 
 <a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/d1/a8/d1cb4040d91207075e0591abffe1b9a8.jpg">![img](https://static001.geekbang.org/resource/image/d1/a8/d1cb4040d91207075e0591abffe1b9a8.jpg)</a>
-
-## 参考资料
-
-- [WHATWG HTML Living Standard](https://html.spec.whatwg.org/)：HTML 解析、事件循环和 Web 平台集成的规范入口。
-- [ECMAScript Language Specification](https://tc39.es/ecma262/)：JavaScript 语言类型、执行语义与抽象操作的权威定义。
-- [CSS Snapshot 2024](https://www.w3.org/TR/css-2024/)：CSS 各模块成熟度与现行规范入口。
-- [Web Platform Tests](https://github.com/web-platform-tests/wpt)：跨浏览器验证 Web 标准行为的公开测试库。
-- [个人掘金：改变你对事件循环错误的认知](https://juejin.cn/post/7213310111623954493)：本系列重新校订事件循环知识的个人实践来源。

@@ -64,13 +64,11 @@ uv add "mcp[cli]==2.0.0" "pydantic>=2.13,<3"
 
 创建对应测试文件。`Note` 表示内部数据，`NoteResult` 表示工具允许返回的数据。将两者分开，能防止未来给内部模型增加敏感字段时被自动序列化出去。
 
-
 下面把“用类型定义公开数据”落成最小实现。代码关注“Note 表示内部记录，NoteResult 只保留允许通过工具返回的公开字段”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
 # Note 表示内部记录，NoteResult 只保留允许通过工具返回的公开字段。
 from typing import TypedDict
-
 
 class Note(TypedDict):
     id: str
@@ -78,19 +76,16 @@ class Note(TypedDict):
     body: str
     source_location: str
 
-
 class NoteResult(TypedDict):
     id: str
     title: str
     snippet: str
     location: str
 
-
 NOTES: list[Note] = [
     {"id": "note-1", "title": "访问申请", "body": "在账号中心提交申请。", "source_location": "guide/2"},
     {"id": "note-2", "title": "密码重置", "body": "验证邮箱后设置新密码。", "source_location": "guide/5"},
 ]
-
 
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 def search_visible_notes(query: str, limit: int) -> list[NoteResult]:
@@ -141,14 +136,11 @@ Query = Annotated[
 ]
 Limit = Annotated[int, Field(ge=1, le=10)]
 
-
 class SearchResult(TypedDict):
     items: list[NoteResult]
 
-
 # Server 名称会出现在初始化信息中，Host 可以据此识别当前实现。
 mcp = MCPServer("notes-readonly")
-
 
 # 装饰器把普通函数注册为 MCP Tool，并从 Annotated 类型生成参数 Schema。
 @mcp.tool(structured_output=True)
@@ -157,7 +149,6 @@ def search_notes(query: Query, limit: Limit = 5) -> SearchResult:
     # 只读查询返回公开结果列表，结构化输出不会包含内部记录对象。
     items = search_visible_notes(query, limit)
     return {"items": items}
-
 
 if __name__ == "__main__":
     # stdio 模式从标准输入读取 JSON-RPC，并把协议响应写回标准输出。
@@ -176,7 +167,6 @@ Client 调用时，SDK 先验证并清理参数。`query` 的首尾空格会被�
 
 官方 CLI 可以加载 `server.py` 中的 MCPServer，并启动 Inspector：
 
-
 下面的命令接收本节“用 Inspector 启动和调用”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 开发命令加载 server.py，并启动 Inspector 观察工具 Schema 与结构化返回值。
@@ -184,7 +174,6 @@ uv run mcp dev server.py
 ```
 
 这些命令从 `uv` 开始按顺序运行，输出用于确认“用 Inspector 启动和调用”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 CLI 会启动开发连接和 Inspector。进入 Tools 后，应看到 `search_notes`，以及从类型约束生成的 `query`、`limit` Schema。调用：
 
@@ -232,7 +221,6 @@ from mcp.client.client import Client
 
 from server import mcp
 
-
 # 进程内 Client 先发现工具再调用同一 Server，用于验证注册、Schema 和结构化结果。
 async def main() -> None:
     async with Client(mcp) as client:
@@ -246,7 +234,6 @@ async def main() -> None:
             {"query": "访问", "limit": 3},
         )
         print(result.structured_content)
-
 
 asyncio.run(main())
 ```

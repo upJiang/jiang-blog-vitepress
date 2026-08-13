@@ -145,7 +145,6 @@ a#b {
 
 }
 
-
 .cls {
 
 }
@@ -187,10 +186,3 @@ css 的渲染过程：
 2. dom 节点的生成顺序是 从父-> 子。 css 的渲染顺序也是 从 父节点-》子节点
 
 3. 混合选择器 在激活的时候父元素已经确定好了 。 后代选择器，所有元素都是父元素，并 选中自己的子元素。 子元素 选择器，只有父元素为当前节点的 dom 元素会被选中。 在父元素 结束标签时，关闭 选择器。
-
-## 参考资料
-
-- [CSS Cascading and Inheritance](https://www.w3.org/TR/css-cascade-5/)
-- [CSS Display Module](https://www.w3.org/TR/css-display-3/)
-- [Chrome DevTools：Performance](https://developer.chrome.com/docs/devtools/performance/)
-- [web.dev：Rendering performance](https://web.dev/articles/rendering-performance)

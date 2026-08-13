@@ -124,7 +124,6 @@ dataset_version
 # 运行器为每个固定样本调用同一 Runtime，并保存终态、Evidence、评分与阶段轨迹。
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class EvalCase:
     case_id: str
@@ -135,7 +134,6 @@ class EvalCase:
     expected_status: str
     required_evidence_ids: tuple[str, ...]
     forbidden_evidence_ids: tuple[str, ...]
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 async def run_case(runtime: Runtime, case: EvalCase) -> dict[str, object]:
@@ -170,12 +168,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class GateStatus(StrEnum):
     PASSED = "passed"
     BLOCKED = "blocked"
     NEEDS_REVIEW = "needs_review"
-
 
 @dataclass(frozen=True)
 class CaseScore:
@@ -185,13 +181,11 @@ class CaseScore:
     infrastructure_error: str | None = None
     quality_failures: tuple[str, ...] = ()
 
-
 @dataclass(frozen=True)
 class GateResult:
     status: GateStatus
     hard_failures: tuple[str, ...]
     review_items: tuple[str, ...]
-
 
 # 评估函数把安全与基础设施问题作为硬失败，把质量问题保留为人工复核项。
 def evaluate_gate(scores: tuple[CaseScore, ...]) -> GateResult:
@@ -233,7 +227,6 @@ def evaluate_gate(scores: tuple[CaseScore, ...]) -> GateResult:
 # 测试放入一个高分正常样本和一个越权样本，证明平均分再高也必须阻断发布。
 from eval_gate import CaseScore, GateStatus, evaluate_gate
 
-
 # 这个用例输入不可信指令，确认安全门禁在规划和工具执行之前生效。
 def test_one_security_failure_blocks_many_passes() -> None:
     normal = tuple(CaseScore(f"normal-{index}", passed=True) for index in range(10))
@@ -248,7 +241,6 @@ def test_one_security_failure_blocks_many_passes() -> None:
     assert result.hard_failures == (
         "acl-1:security:forbidden_evidence_visible",
     )
-
 
 def test_quality_failure_requires_review() -> None:
     # 执行当前算法或装配函数，下面用确定性字段核对结果而不是比较自然语言。
@@ -314,7 +306,7 @@ def test_quality_failure_requires_review() -> None:
 
 它可以阻止候选继续提升，却不能独自证明线上一定成功。上线前仍需要旁路或小范围验证，上线后用 Trace、指标和用户反馈观察分布外问题。
 
-## 带到工作的 Eval 设计表
+## Eval 设计表要记录哪些版本和红线
 
 ```text
 要评估的变更：

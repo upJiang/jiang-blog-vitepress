@@ -119,7 +119,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-
 class Terminal(StrEnum):
     ANSWERED = "answered"
     INSUFFICIENT_EVIDENCE = "insufficient_evidence"
@@ -127,14 +126,12 @@ class Terminal(StrEnum):
     LOOP_DETECTED = "loop_detected"
 # RelationEvidence 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
 
-
 @dataclass(frozen=True)
 class RelationEvidence:
     subject: str
     predicate: str
     object_id: str
     evidence_id: str
-
 
 @dataclass
 class ResearchState:
@@ -146,7 +143,6 @@ class ResearchState:
     remaining_actions: int = 3
     terminal: Terminal | None = None
 
-
 RELATIONS = {
     ("service-a", "owned_by"): RelationEvidence(
         "service-a", "owned_by", "team-blue", "e-owner"
@@ -156,11 +152,9 @@ RELATIONS = {
     ),
 }
 
-
 def lookup_relation(entity_id: str, predicate: str) -> RelationEvidence | None:
     """模拟只读结构化检索；生产实现必须在查询内应用 ACL 与 Release。"""
     return RELATIONS.get((entity_id, predicate))
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 def run_research(state: ResearchState) -> ResearchState:
@@ -189,7 +183,6 @@ def run_research(state: ResearchState) -> ResearchState:
     state.terminal = Terminal.ANSWERED
     return state
 
-
 # 运行一次完整流程并保存显式结果，下面检查终态以及是否留下多余副作用。
 result = run_research(
     ResearchState(
@@ -212,13 +205,11 @@ print([(item.predicate, item.object_id, item.evidence_id) for item in result.evi
 
 下面的测试直接复用研究 Runtime，覆盖正常链、缺证据和预算耗尽。重点是验证终态与状态变化，而不是只看最后生成的字符串。
 
-
 为了验证“用 pytest 验证停止条件”，下面的测试把“测试覆盖证据足够、连续低质量和多跳耗尽，确认研究循环不会重置预算或无限改写查询”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
 # 测试覆盖证据足够、连续低质量和多跳耗尽，确认研究循环不会重置预算或无限改写查询。
 from research_runtime import ResearchState, Terminal, run_research
-
 
 def test_two_hops_keep_both_evidence_items() -> None:
     # 运行一次完整流程并保存显式结果，下面检查终态以及是否留下多余副作用。
@@ -228,7 +219,6 @@ def test_two_hops_keep_both_evidence_items() -> None:
     assert result.terminal is Terminal.ANSWERED
     assert [item.evidence_id for item in result.evidence] == ["e-owner", "e-process"]
 
-
 def test_missing_relation_stops_without_guessing() -> None:
     # 运行一次完整流程并保存显式结果，下面检查终态以及是否留下多余副作用。
     result = run_research(
@@ -236,7 +226,6 @@ def test_missing_relation_stops_without_guessing() -> None:
     )
     assert result.terminal is Terminal.INSUFFICIENT_EVIDENCE
     assert result.evidence == []
-
 
 def test_action_budget_is_shared_by_all_hops() -> None:
     # 运行一次完整流程并保存显式结果，下面检查终态以及是否留下多余副作用。

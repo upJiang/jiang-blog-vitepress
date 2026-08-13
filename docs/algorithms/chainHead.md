@@ -67,8 +67,3 @@ function removeNthFromEnd<T>(
 找中点时 fast 每次两步、slow 一步；长度为偶数时返回前中点还是后中点，需要由循环条件决定。判断回文链表可以找中点、反转后半段并比较，若调用方仍需要原链表，应在结束前恢复结构。
 
 快慢指针的正确性来自速度或间距关系，不是变量名。空链、单节点、删除头、删除尾和 n 越界都要覆盖。下一篇让 fast 每次两步，在环中分析相遇与入口。
-
-## 参考资料
-
-- [Open Data Structures: Linked Lists](https://opendatastructures.org/ods-javascript/3_Linked_Lists.html)
-- [Floyd's cycle-finding algorithm](https://en.wikipedia.org/wiki/Cycle_detection)

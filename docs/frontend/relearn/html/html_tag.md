@@ -83,10 +83,3 @@ aside 很容易被理解为侧边栏，实际上二者是包含关系，侧边�
 aside 和 header 中都可能出现导航（nav 标签），二者的区别是，header 中的导航多数是到文章自己的目录，而 aside 中的导航多数是到关联页面或者是整站地图。
 
 最后 footer 中包含 address，这是个非常容易被误用的标签。address 并非像 date 一样，表示一个给机器阅读的地址，而是表示“文章（作者）的联系方式”，address 明确地只关联到 article 和 body。
-
-## 参考资料
-
-- [WHATWG HTML：Semantics](https://html.spec.whatwg.org/multipage/dom.html#semantics-2)：内容模型与元素语义。
-- [WHATWG HTML：Sections](https://html.spec.whatwg.org/multipage/sections.html)：区域与标题规范。
-- [HTML Accessibility API Mappings](https://www.w3.org/TR/html-aam-1.0/)：HTML 到平台无障碍 API 的映射。
-- [Web Platform Tests：HTML semantics](https://github.com/web-platform-tests/wpt/tree/master/html/semantics)：公开测试用例。

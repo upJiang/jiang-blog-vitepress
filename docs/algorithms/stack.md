@@ -69,8 +69,3 @@ function hasValidBrackets(input: string): boolean {
 ## 常见错误
 
 只统计左右括号数量会把 `)(` 误判为合法；从栈底查找匹配会破坏嵌套；结束时不检查空栈会接受 `((`。属性测试可以生成合法括号，再随机删除、交换或替换一个字符，确认相应反例被拒绝。
-
-## 参考资料
-
-- [Open Data Structures: Stacks](https://opendatastructures.org/ods-javascript/2_Stacks_Queues_and_Deques.html)
-- [ECMAScript Array](https://tc39.es/ecma262/multipage/indexed-collections.html)

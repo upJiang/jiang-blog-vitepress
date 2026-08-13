@@ -85,9 +85,3 @@ class TaskQueue {
 除了示例输出，还要验证结构属性：Stack 的弹出顺序是输入反向；Queue 保持到达顺序；Heap 每个父节点满足优先级；BST 中序结果满足重复值策略；图遍历让每个可达节点恰好访问一次。
 
 边界包括空结构、单元素、重复 Key、非法索引、环、退化深度和大规模。复杂度不是 API 名称自带的标签，要把查找位置、摊还扩容和隐藏复制都算入完整操作。
-
-## 参考资料
-
-- [ECMAScript 规范](https://tc39.es/ecma262/)
-- [Open Data Structures](https://opendatastructures.org/)
-- [VisuAlgo](https://visualgo.net/en)

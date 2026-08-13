@@ -67,7 +67,6 @@ API Key 数据库只保存不可逆哈希或受控凭证材料，明文只在创
 ```python
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class RouteRequest:
     tenant_id: str
@@ -75,7 +74,6 @@ class RouteRequest:
     required_capabilities: frozenset[str]
     allowed_regions: frozenset[str]
     max_unit_cost: float
-
 
 @dataclass(frozen=True)
 class Deployment:
@@ -86,7 +84,6 @@ class Deployment:
     unit_cost: float
     priority: int
     healthy: bool
-
 
 def select_deployment(
     request: RouteRequest,

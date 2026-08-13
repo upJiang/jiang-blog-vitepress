@@ -19,7 +19,7 @@ practice:
   type: implementation
   result: "运行 React 与 NestJS 企业后台垂直切片"
   verify:
-    - "登录、列表、创建和更新形成完整闭环"
+    - "登录、列表、创建和更新均有可观察结果"
     - "跨租户查询和版本冲突有稳定结果"
 evidence: anonymized-practice
 updated: 2026-08-12

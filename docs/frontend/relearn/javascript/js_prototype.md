@@ -142,10 +142,3 @@ d.speak(); // Mitzie barks.
 在新的 ES 版本中，我们不再需要模拟类了：我们有了光明正大的新语法。而原型体系同时作为一种编程范式和运行时机制存在。
 
 我们可以自由选择原型或者类作为代码的抽象风格，但是无论我们选择哪种，理解运行时的原型系统都是很有必要的一件事。
-
-## 参考资料
-
-- [ECMAScript：Ordinary Object Internal Methods](https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots)
-- [ECMAScript：Class Definitions](https://tc39.es/ecma262/#sec-class-definitions)
-- [MDN：Inheritance and the prototype chain](https://developer.mozilla.org/docs/Web/JavaScript/Inheritance_and_the_prototype_chain)
-- [MDN：Object.hasOwn](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn)

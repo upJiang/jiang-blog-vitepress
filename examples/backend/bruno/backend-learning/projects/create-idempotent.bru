@@ -1,0 +1,34 @@
+meta {
+  name: create project idempotent
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/projects
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: {{idemKey}}
+}
+
+vars:secret {
+  idemKey: "backend-learning-demo-key"
+}
+
+body:json {
+  {
+    "name": "Bruno project",
+    "description": "The same request can be safely retried."
+  }
+}
+
+tests {
+  test("creates once", function() {
+    expect(res.status).to.be.oneOf([201, 200])
+    expect(res.body.id).to.be.a("string")
+  })
+}

@@ -23,7 +23,6 @@ script 标签的两种用法：
 console.log("Hello world!");
 </script>
 
-
 <script type="text/javascript" src="my.js"></script>
 ```
 
@@ -151,10 +150,3 @@ iframe 标签也是各种安全问题的重灾区。opener、window.name、甚�
 ```
 
 这个例子中，使用 srcdoc 属性创建了一个新的文档，嵌入在 iframe 中展示，并且使用了 sandbox 来隔离。这样，这个 iframe 就不涉及任何跨域问题了。
-
-## 参考资料
-
-- [WHATWG HTML：Links](https://html.spec.whatwg.org/multipage/links.html)：链接和抓取语义。
-- [WHATWG HTML：Embedded content](https://html.spec.whatwg.org/multipage/embedded-content.html)：图片、音视频与 iframe。
-- [WHATWG HTML：The script element](https://html.spec.whatwg.org/multipage/scripting.html#the-script-element)：脚本准备和执行。
-- [W3C CSP Level 3](https://www.w3.org/TR/CSP3/)：脚本与嵌入内容的策略边界。

@@ -29,6 +29,7 @@ lastUpdated: false
 
 若系统把所有历史都向量化成所谓“长期记忆”，下一次生产排障可能仍套用测试环境，甚至召回敏感值。可靠的 Memory 不是“让模型记得更多”，而是决定什么能保存、保存多久、谁能读取、**冲突**时怎样处理、用户撤回后如何保证不再出现。
 
+长期记忆通过授权与 TTL 检查后，会变成 `ContextSnapshot` 的 memory Block；它不直接拼接 Prompt，也不会覆盖当前问题或服务端 Scope。记忆被撤回后，下一次装配不再生成对应 Block；已经存在的旧 Snapshot 仍保留原始审计信息，但不能被复用为新 Turn 的输入。
 
 ## 先拆开四个经常被统称为 Memory 的对象
 
@@ -147,7 +148,6 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
 
-
 class MemoryStatus(StrEnum):
     PROPOSED = "proposed"
     NEEDS_CONFIRMATION = "needs_confirmation"
@@ -156,7 +156,6 @@ class MemoryStatus(StrEnum):
     EXPIRED = "expired"
     REVOKED = "revoked"
     REJECTED = "rejected"
-
 
 @dataclass(frozen=True)
 class Memory:
@@ -170,7 +169,6 @@ class Memory:
     expires_at: datetime | None
     status: MemoryStatus = MemoryStatus.PROPOSED
 
-
 def activate(memory: Memory, user_confirmed: bool) -> Memory:
     # 先检查当前状态是否允许继续推进，避免终态被重复任务或迟到结果覆盖。
     if memory.status is not MemoryStatus.PROPOSED:
@@ -180,7 +178,6 @@ def activate(memory: Memory, user_confirmed: bool) -> Memory:
     if memory.sensitive and not user_confirmed:
         return replace(memory, status=MemoryStatus.NEEDS_CONFIRMATION)
     return replace(memory, status=MemoryStatus.ACTIVE)
-
 
 def readable(memory: Memory, user_id: str, scope: str, now: datetime) -> bool:
     # 在数据进入下游前应用可信权限范围，用户文本和模型参数都不能扩大可见集合。
@@ -192,7 +189,6 @@ def readable(memory: Memory, user_id: str, scope: str, now: datetime) -> bool:
     if memory.expires_at is not None and memory.expires_at <= now:
         return False
     return True
-
 
 preference = Memory(
     memory_id="memory-1",
@@ -239,9 +235,7 @@ from datetime import UTC, datetime, timedelta
 
 from memory_store import Memory, MemoryStatus, activate, readable
 
-
 NOW = datetime(2026, 8, 11, tzinfo=UTC)
-
 
 # 这个用例推进记忆的过期、确认或撤回状态，未来装配只能读取仍被授权的内容。
 def test_temporary_environment_expires() -> None:
@@ -253,14 +247,12 @@ def test_temporary_environment_expires() -> None:
     assert readable(active, "u", "conversation", NOW) is True
     assert readable(active, "u", "conversation", NOW + timedelta(hours=1)) is False
 
-
 # 这个用例推进记忆的过期、确认或撤回状态，未来装配只能读取仍被授权的内容。
 def test_sensitive_value_requires_confirmation() -> None:
     secret = Memory("m-secret", "u", "access_code", "123456", "msg-2", "personal", True, None)
     candidate = activate(secret, user_confirmed=False)
     assert candidate.status is MemoryStatus.NEEDS_CONFIRMATION
     assert readable(candidate, "u", "personal", NOW) is False
-
 
 # 这个用例核对上下文装配或压缩结果，关键约束不能在摘要后消失。
 def test_revoked_memory_is_not_readable() -> None:

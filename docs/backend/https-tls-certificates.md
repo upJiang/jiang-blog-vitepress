@@ -46,7 +46,7 @@ sequenceDiagram
 
 同一 IP 可以承载多个 HTTPS 站点。浏览器在 ClientHello 中带 SNI，代理据此选择证书；ALPN 协商 `h2` 或 `http/1.1`。如果证书正确但 ALPN 或代理路由错误，握手可能成功，后续 HTTP 仍会得到 421、502 或协议错误。
 
-命令先读取现场，再改变状态。先保存输出，再决定下一步。
+用同一个域名和 SNI 读取线上握手，避免只检查磁盘上的证书文件。磁盘文件正确，不代表代理已经 reload，也不代表 CDN 或另一台入口加载了它。
 
 ```bash
 curl -vk --http2 https://example.com/health
@@ -66,7 +66,7 @@ openssl s_client -connect example.com:443 -servername example.com -alpn h2 </dev
 | 未知 CA | 客户端不信任链 | 补齐中间证书，不能随意关闭校验 |
 | 握手后 502 | TLS 已成功 | 转查代理到应用的连接 |
 
-## 故障从哪里开始看
+## 握手失败要停在 TLS 层取证
 
 | 现象 | 先确认 | 处理顺序 |
 | --- | --- | --- |
@@ -74,9 +74,9 @@ openssl s_client -connect example.com:443 -servername example.com -alpn h2 </dev
 | 只更新 Nginx 配置就够了吗 | 不够。新证书必须与私钥匹配，所有入口和 CDN 也要轮换。 | 用公钥指纹和外部握手逐入口核对 |
 | TLS 1.3 握手失败 | 先区分客户端不支持、代理策略、证书链和时间问题。 | 保留 `openssl s_client` 输出后再收窄协议版本 |
 
-处理顺序不是“先重启看看”。先保留 requestId、时间窗口和原始输出，再确认请求是否到达进程、是否进入业务、是否写入数据，最后才处理缓存、消息和部署层。这样做的原因是每一层都可能把上游错误重新包装，过早重启会丢掉最有价值的现场。
+握手失败时通常还没有 HTTP requestId，应用 access log 为空是正常证据。应记录访问主机、解析到的 IP、ClientHello 的 SNI/ALPN、服务端返回的完整证书链和校验时间。握手成功并出现 HTTP 状态后，排查才进入代理 upstream 与应用层。这个分界能避免为了证书错误重启业务进程。
 
-## 继续追问
+## 证书链之后的问题
 
 ### TLS 加密后为什么还能按域名路由？
 

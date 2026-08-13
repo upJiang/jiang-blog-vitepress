@@ -34,6 +34,7 @@
     "typecheck": "vue-tsc --noEmit",
     "content:check": "tsx scripts/check-content.ts",
     "content:quality": "tsx scripts/check-content-quality.ts",
+    "backend:check": "tsx scripts/check-backend-content.ts",
     "content:reviews": "tsx scripts/generate-content-reviews.ts",
     "build:check": "node scripts/check-build.mjs",
     "privacy:check": "node scripts/check-privacy.mjs",

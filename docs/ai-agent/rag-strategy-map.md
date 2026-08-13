@@ -35,7 +35,7 @@ lastUpdated: false
 
 RAG 策略解决的正是这个选择问题：**面对不同问题，检索链应该固定执行、增强召回、按信号路由、纠正失败，还是让 Agent 有界地规划下一步？**
 
-RAG 不是“接一个向量库”就完成了。它从资料导入、解析、切片开始，经过 Embedding、索引、查询变换和混合检索，最后还要做证据选择、答案验证与评测。本文先建立策略地图，避免在不知道失败发生在哪一层时盲目堆组件。
+RAG 不是“接一个向量库”就完成了。[上下文装配器](/docs/ai-agent/context-assembly-budget) 已经为 Evidence 留出带来源和预算的区域；这一组文章继续追溯 Evidence 怎样从资料导入、解析、切片、Embedding、索引、查询变换和混合检索产生，最后再回到同一份 `ContextSnapshot`。本文先建立策略地图，避免在不知道失败发生在哪一层时盲目堆组件。
 
 ## 先把 RAG 的基本链路说完整
 
@@ -199,20 +199,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class Strategy(StrEnum):
     NAIVE = "naive"
     ADVANCED = "advanced"
     CORRECTIVE = "corrective"
     AGENTIC = "agentic"
 
-
 @dataclass(frozen=True)
 class QuerySignals:
     exact_identifier: bool
     independent_goals: int
     dependent_hops: int
-
 
 @dataclass(frozen=True)
 class RetrievalSignals:
@@ -227,19 +224,16 @@ class RetrievalSignals:
             return 1.0
         return self.covered_slots / self.required_slots
 
-
 @dataclass(frozen=True)
 class Budget:
     remaining_rounds: int
     remaining_ms: int
-
 
 @dataclass(frozen=True)
 class StrategyDecision:
     strategy: Strategy
     reason_code: str
     max_rounds: int
-
 
 # 路由器只根据查询特征、检索进展和剩余预算选择有限策略。
 def choose_strategy(
@@ -279,7 +273,6 @@ def choose_strategy(
 
 测试输入覆盖直接查询、缺证据、多跳和无进展。目标是验证路径与停止条件，而不是比较模型文风。
 
-
 为了验证“用测试证明简单问题不会被升级”，下面的测试把“测试固定三类路由边界，并证明简单查询不会因为关键词巧合进入高成本研究链”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -293,7 +286,6 @@ def test_direct_identifier_uses_naive() -> None:
     )
     assert decision == StrategyDecision(Strategy.NAIVE, "direct_exact_lookup", 1)
 
-
 # 这个用例检查资源所有权和释放路径，失败或取消后不能遗留永久占用。
 def test_missing_slot_gets_only_one_corrective_round() -> None:
     decision = choose_strategy(
@@ -304,7 +296,6 @@ def test_missing_slot_gets_only_one_corrective_round() -> None:
     assert decision.strategy is Strategy.CORRECTIVE
     assert decision.max_rounds == 1
 
-
 def test_dependent_hops_are_bounded() -> None:
     # 模型或路由器给出候选动作后，Runtime 仍要校验类型、参数和剩余预算。
     decision = choose_strategy(
@@ -314,7 +305,6 @@ def test_dependent_hops_are_bounded() -> None:
     )
     assert decision.strategy is Strategy.AGENTIC
     assert decision.max_rounds == 3
-
 
 def test_no_progress_does_not_repeat_correction() -> None:
     # 模型或路由器给出候选动作后，Runtime 仍要校验类型、参数和剩余预算。
@@ -345,7 +335,7 @@ def test_no_progress_does_not_repeat_correction() -> None:
 
 只有前一列有稳定样本和指标时，才做下一列实验。每次只修改一个主要变量，并保留旧策略版本。候选策略必须同时比较质量、延迟、Token、拒答和安全用例；不能只挑一条更漂亮的答案。
 
-## 本篇实践：完成一张 RAG 决策卡
+## 用 RAG 决策卡记录升级依据
 
 选十个真实但匿名的问题，为每个问题填写：
 

@@ -1,0 +1,31 @@
+meta {
+  name: presign file
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/files/presign
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "filename": "readme.txt",
+    "contentType": "text/plain",
+    "size": 13,
+    "sha256": "315f5bdb76d078c43b8ac0064e4a0164612b1fce6b5b7d4d0edc2d5b9e4f4a10"
+  }
+}
+
+tests {
+  test("returns a short lived upload URL", function() {
+    expect(res.status).to.be.oneOf([201, 503])
+    if (res.status === 201) expect(res.body.uploadUrl).to.be.a("string")
+  })
+}

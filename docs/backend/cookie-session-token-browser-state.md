@@ -26,73 +26,89 @@ updated: 2026-08-12
 
 # Cookie、Session、Token 与浏览器状态
 
-登录响应写入 Cookie，刷新页面后身份仍在；换到另一个站点发起请求时，Cookie 是否发送却由 Domain、Path、Secure 和 SameSite 决定。浏览器状态必须从“保存在哪里”和“什么时候自动发送”两条线理解。
+登录响应带了 `Set-Cookie`，下一次请求却没有 `Cookie`。这通常不是后端“忘记登录”，而是浏览器根据 Domain、Path、Secure、SameSite、过期时间和请求凭证模式判断该不该发送。Cookie 是浏览器管理的一条发送规则，不是 Session 或 Token 的同义词。
 
-## Cookie 的发送规则
+## Cookie 保存名称、值和发送条件
 
-Cookie 的发送规则不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+服务器通过 `Set-Cookie` 写入 Cookie。浏览器按目标主机、路径、协议、站点关系和有效期匹配，并在符合条件的请求中自动生成 `Cookie` 头。JavaScript 能否读取由 HttpOnly 决定；能否通过明文 HTTP 发送由 Secure 决定。
+
+Domain 缺省时是 host-only，只发回设置它的主机；指定 Domain 后可覆盖相应子域。Path 只是发送范围，不是安全边界。两个同名 Cookie 可以因 Domain 或 Path 不同同时存在，排查时要查看完整属性。
+
+| 属性 | 控制什么 | 容易误解 |
+| --- | --- | --- |
+| HttpOnly | 禁止脚本读取 Cookie | 不能阻止浏览器自动携带 |
+| Secure | 只通过安全连接发送 | 不负责加密 Cookie 值 |
+| SameSite | 限制跨站请求携带 | 同站不等于同源 |
+| Domain/Path | 匹配发送目标 | Path 不能阻止其他路径覆盖同名值 |
+| Max-Age/Expires | 持久化期限 | 服务端会话可能更早失效 |
+
+## 同源、同站和 CORS 是三套判断
+
+源由 scheme、host、port 组成；站点判断以可注册域和 scheme 为核心。`app.example.test` 与 `api.example.test` 跨源但通常同站，因此会触发 CORS，却不一定被 SameSite 当成跨站。
+
+跨源 `fetch` 要携带 Cookie，客户端设置 `credentials: "include"`，服务器返回明确的 `Access-Control-Allow-Origin` 与 `Access-Control-Allow-Credentials: true`。允许凭证时不能把 Origin 写成 `*`。预检通过也不代表业务鉴权通过。
+
+下面从前端发起刷新请求。观察目标是浏览器是否携带 HttpOnly Refresh Cookie，而不是尝试从 JavaScript 读取它。
+
+```ts
+const response = await fetch(
+  "https://api.example.test/auth/refresh",
+  {
+    method: "POST",
+    credentials: "include",
+    headers: { "x-csrf-token": csrfToken }
+  }
+)
+
+if (!response.ok) clearInMemoryAccessToken()
+```
+
+`credentials` 只允许浏览器按 Cookie 规则发送，不能绕过 SameSite、Secure 或 CORS。刷新失败后清理内存 Access Token，避免页面继续假装已登录。
+
+## Session 与 Token 的状态所有者不同
+
+Cookie 可以装随机 Session ID，服务端用它查询 Session；也可以装 Refresh Token。Bearer Access Token 常放在 Authorization 头，由应用显式设置。区别不在字符串长相，而在服务端保存什么状态、怎样撤销、谁负责发送。
+
+Session ID 与 Refresh Token 都应是不可预测的随机值。数据库只保存哈希，日志不记录原值。退出时删除浏览器 Cookie，并在服务端撤销对应会话；只清 Cookie 会留下被窃取凭证仍可使用的窗口。
 
 ```mermaid
-flowchart LR
-  A[输入与上下文] --> B[Cookie 的发送规则]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
+sequenceDiagram
+  participant B as 浏览器
+  participant A as API
+  participant S as Session Store
+  B->>A: Cookie: sid=随机值
+  A->>S: hash(sid) 查询会话
+  S-->>A: user_id / expires / revoked
+  A-->>B: 业务响应
+  B->>A: POST /logout + Cookie
+  A->>S: 撤销会话
+  A-->>B: Set-Cookie sid=deleted, Max-Age=0
 ```
 
-图中失败分支不会假装成空成功。浏览器状态的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+浏览器 Cookie 到期和服务端会话到期是两道门，任意一边失效都不能继续认证。
 
-## Session 和 Token 保存的是不同状态
+## CSRF 利用了“自动携带”
 
-Session 和 Token 保存的是不同状态要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+攻击页面不能读取 HttpOnly Cookie，却可能诱导浏览器向目标站发送带 Cookie 的写请求。SameSite 降低风险，但涉及跨站登录、旧浏览器或复杂域名时，还要使用 CSRF Token、Origin/Referer 校验和只允许 JSON 的接口。
 
-下面的片段抓住 浏览器状态 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+XSS 与 CSRF 不应混为一谈。HttpOnly 减少 XSS 直接窃取 Cookie，无法阻止恶意脚本以当前用户身份调用同源 API；内容转义、CSP 和依赖治理仍然需要。
 
-```text
-Set-Cookie: refresh_token=<opaque>; Path=/auth; HttpOnly; Secure; SameSite=Lax
-Authorization: Bearer <short-lived-access-token>
-```
+同名 Cookie 还可能因 Domain、Path 不同同时存在，服务器收到的 Cookie Header 却不携带这些属性。认证 Cookie 应固定 Host、Path 与名称，退出时用相同属性删除；否则开发者看到一个 Cookie 已清除，旧路径下的值仍可能继续发送。
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+## 浏览器状态继续推演
 
-## 跨站请求与退出清理
+### 为什么 Cookie 已存在，开发环境请求仍不携带？
 
-跨站请求与退出清理最终要落实到可观察证据。浏览器状态的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+依次检查请求主机和 Path、Secure 与实际协议、SameSite 的站点关系、是否过期、fetch credentials 和 CORS 响应。还要检查是否存在同名但作用域不同的 Cookie。
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
-| --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+### Access Token 为什么适合放内存而不是 localStorage？
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+localStorage 中的值可被同源脚本读取，XSS 能直接带走长期使用。内存 Token 刷新页面会丢失，因此应用启动时用 HttpOnly Refresh Cookie 换取短时 Access Token，并对并发 401 做单飞刷新。
 
-## 跨站请求与退出清理出现异常时怎样定位
+### SameSite=Lax 能保护所有写接口吗？
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+它能限制部分跨站请求携带，但不是完整 CSRF 方案。顶级导航、站点边界、兼容需求和错误使用 GET 修改状态都会留下风险。关键写操作仍应校验请求来源或 CSRF Token。
 
-先固定版本、输入、时间窗口和资源状态，再沿 浏览器状态 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+### 跨标签页怎样同步退出？
 
-## Session 和 Token 保存的是不同状态之后还要追问
-
-### Cookie 的发送规则为什么不能只放在调用方处理？
-
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
-
-### Session 和 Token 保存的是不同状态遇到超时后，什么时候可以重试？
-
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
-
-### 怎样用失败路径证明 浏览器状态 真的被理解了？
-
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
-
-### 跨站请求与退出清理与前一层的责任怎样交接？
-
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。跨站请求与退出清理只处理自己拥有的状态。
+服务端撤销会话是最终保障。前端可用 BroadcastChannel 通知其他标签清理内存 Token 和查询缓存；标签错过通知后，下一次刷新或 API 401 也会回到未登录状态。

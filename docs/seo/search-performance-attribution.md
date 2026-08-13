@@ -165,7 +165,7 @@ search_click -> landing_session -> primary_conversion -> valid_lead/order
 
 先排除数据和技术故障，再改内容。仅看到点击下降 20% 不足以直接重写全站 Title。
 
-## 本篇产物：查询页面分析表与数据字典
+## 查询页面分析表与数据字典
 
 分析表至少包含：
 

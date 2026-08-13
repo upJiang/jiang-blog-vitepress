@@ -112,15 +112,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-
 Strategy = Literal["direct", "multi_query", "hyde", "step_back"]
-
 
 @dataclass(frozen=True)
 class Chunk:
     chunk_id: str
     text: str
-
 
 @dataclass(frozen=True)
 class Expansion:
@@ -128,18 +125,15 @@ class Expansion:
     queries: tuple[str, ...]
     synthetic_texts: tuple[str, ...] = ()
 
-
 CORPUS = (
     Chunk("c-health", "健康检查只证明候选进程可以响应探针。"),
     Chunk("c-reload", "修改代理上游后需要校验配置并热加载。"),
     Chunk("c-drain", "旧进程应停止接收新请求，并等待已有长连接排空。"),
 )
 
-
 def tokenize(text: str) -> set[str]:
     """用空格切词模拟检索；真实系统会替换为全文或向量检索。"""
     return {token.strip("，。？：") for token in text.split() if token.strip()}
-
 
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 def retrieve(query: str, *, limit: int = 2) -> list[str]:
@@ -151,7 +145,6 @@ def retrieve(query: str, *, limit: int = 2) -> list[str]:
     # 排序键先按相关度降序，再用稳定 ID 打破同分，重复运行才能得到相同顺序。
     ranked = sorted(scored, key=lambda item: (-item[0], item[1]))
     return [chunk_id for score, chunk_id in ranked if score > 0][:limit]
-
 
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_expansion(strategy: Strategy) -> Expansion:
@@ -174,7 +167,6 @@ def build_expansion(strategy: Strategy) -> Expansion:
         ("健康检查 旧版本 请求", "代理 切流 连接 生命周期"),
     )
 
-
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 def run_expansion(expansion: Expansion) -> list[str]:
     ranked_ids: list[str] = []
@@ -185,12 +177,10 @@ def run_expansion(expansion: Expansion) -> list[str]:
                 ranked_ids.append(chunk_id)
     return ranked_ids
 
-
 # 这个指标函数只处理已标注的排序或布尔结果，不把生成文本质量混入检索指标。
 def recall_at_k(ranked: list[str], relevant: set[str], k: int) -> float:
     found = relevant & set(ranked[:k])
     return len(found) / len(relevant)
-
 
 RELEVANT = {"c-reload", "c-drain"}
 for name in ("direct", "multi_query", "hyde", "step_back"):
@@ -214,11 +204,9 @@ for name in ("direct", "multi_query", "hyde", "step_back"):
 # 测试锁定最大查询数、空扩展和实体守恒，防止扩展策略在低收益时继续消耗预算。
 from query_expansion import build_expansion, run_expansion
 
-
 def test_multi_query_has_a_fixed_budget() -> None:
     expansion = build_expansion("multi_query")
     assert len(expansion.queries) <= 3
-
 
 # 这个用例核对证据与引用关系，防止无来源 Claim 被当成已经验证的答案。
 def test_hyde_text_is_not_returned_as_evidence() -> None:
@@ -226,7 +214,6 @@ def test_hyde_text_is_not_returned_as_evidence() -> None:
     # 运行一次完整流程并保存显式结果，下面检查终态以及是否留下多余副作用。
     result = run_expansion(expansion)
     assert all(text not in result for text in expansion.synthetic_texts)
-
 
 def test_results_are_deduplicated() -> None:
     result = run_expansion(build_expansion("multi_query"))

@@ -109,13 +109,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class Decision(StrEnum):
     APPROVED = "approved"
     REPAIRABLE = "repairable"
     REFUSED = "refused"
 # Claim 表示一个可单独核查的事实单元，后续必须为它找到证据或明确拒绝。
-
 
 @dataclass(frozen=True)
 class Claim:
@@ -124,7 +122,6 @@ class Claim:
     evidence_ids: tuple[str, ...]
 # Evidence 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
 
-
 @dataclass(frozen=True)
 class Evidence:
     evidence_id: str
@@ -132,13 +129,11 @@ class Evidence:
     visible: bool
     trusted: bool
 
-
 @dataclass(frozen=True)
 class Validation:
     decision: Decision
     reasons: tuple[str, ...]
     repair_count: int
-
 
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate_answer(
@@ -173,7 +168,6 @@ def validate_answer(
         return Validation(Decision.REFUSED, tuple(reasons), repair_count)
     return Validation(Decision.REPAIRABLE, tuple(reasons), repair_count)
 
-
 if __name__ == "__main__":
     claims = (Claim("c1", "七天内可退款", ("e1",)), Claim("c2", "企业版需要审批", ()))
     evidence = {"e1": Evidence("e1", release_id=3, visible=True, trusted=True)}
@@ -197,7 +191,6 @@ if __name__ == "__main__":
 # 测试证明引用缺失只能有限修复，ACL 与隐私硬失败永远不会被模型重写绕过。
 from answer_validation import Claim, Decision, Evidence, validate_answer
 
-
 # 这个用例核对证据与引用关系，防止无来源 Claim 被当成已经验证的答案。
 def test_missing_evidence_gets_one_repair() -> None:
     result = validate_answer(
@@ -210,7 +203,6 @@ def test_missing_evidence_gets_one_repair() -> None:
     assert result.decision is Decision.REPAIRABLE
     assert result.reasons == ("c1:missing_evidence",)
 
-
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_acl_failure_is_not_repaired() -> None:
     result = validate_answer(
@@ -221,7 +213,6 @@ def test_acl_failure_is_not_repaired() -> None:
     )
     assert result.decision is Decision.REFUSED
     assert result.reasons == ("c1:acl_denied",)
-
 
 def test_valid_answer_is_approved() -> None:
     result = validate_answer(
@@ -248,7 +239,7 @@ def test_valid_answer_is_approved() -> None:
 
 验证器还应记录“哪一个 Claim 失败、哪一个证据导致失败、下一动作是什么”。前端收到拒答时展示可理解的原因，后台保留结构化事件；这样评测可以统计引用覆盖率、越权拦截率和修复成功率。
 
-## 带走的实践
+## 用失败样本固定修复和拒答边界
 
 1. 为答案定义稳定的 Claim ID，并让引用关系使用 ID 而不是文本匹配。
 2. 把 ACL、发布版本和可信标记放在 Evidence 元数据中，验证器只读这些字段。

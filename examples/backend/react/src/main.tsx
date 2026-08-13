@@ -6,6 +6,7 @@ import { ConfigProvider } from 'antd'
 import { AuthProvider } from './auth/AuthProvider'
 import { LoginPage } from './auth/LoginPage'
 import { ProjectsPage } from './projects/ProjectsPage'
+import { TasksPage } from './tasks/TasksPage'
 import './styles.css'
 
 const queryClient = new QueryClient({
@@ -21,6 +22,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/tasks/:taskId" element={<TasksPage />} />
               <Route path="*" element={<Navigate to="/projects" replace />} />
             </Routes>
           </BrowserRouter>

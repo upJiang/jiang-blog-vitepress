@@ -67,9 +67,3 @@ function countIncreasingPairs(values: readonly number[]): number {
 基准固定输入，分别测冷启动与预热，运行多次看分布，并验证输出没有被优化掉。改变多个 n，观察增长斜率而不是一个时间点。性能测试同时记录内存和 GC，防止用空间换时间后只报告更快的平均值。
 
 完整复杂度结论包括：规模定义、产生该阶的原因、最坏或摊还口径、额外空间以及语言实现假设。做到这些，复杂度才是论证，而不是背诵。
-
-## 参考资料
-
-- [Open Data Structures](https://opendatastructures.org/)
-- [Introduction to Algorithms](https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/)
-- [ECMAScript 规范](https://tc39.es/ecma262/)

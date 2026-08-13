@@ -118,13 +118,11 @@ from openai import (
     RateLimitError,
 )
 
-
 @dataclass(frozen=True, slots=True)
 class TokenUsage:
     input_tokens: int
     output_tokens: int
     total_tokens: int
-
 
 @dataclass(frozen=True, slots=True)
 class ModelReply:
@@ -132,11 +130,9 @@ class ModelReply:
     usage: TokenUsage
     response_id: str
 
-
 class ModelGateway(Protocol):
     # 后续 Agent 只依赖这个协议，不直接依赖某一家 SDK。
     def answer(self, question: str) -> ModelReply: ...
-
 
 class ModelGatewayError(RuntimeError):
     """向业务层暴露稳定错误码，同时保留原异常作为 cause。"""
@@ -144,7 +140,6 @@ class ModelGatewayError(RuntimeError):
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
         self.code = code
-
 
 class OpenAIResponsesGateway:
     def __init__(self, model: str | None = None, timeout_seconds: float = 20.0) -> None:
@@ -207,8 +202,8 @@ class OpenAIResponsesGateway:
 # run_model.py
 from app.model_gateway import ModelGatewayError, OpenAIResponsesGateway
 
-
 def main() -> None:
+    # 网关隐藏供应商 SDK，入口只提交问题并接收统一的 ModelReply。
     gateway = OpenAIResponsesGateway()
     try:
         reply = gateway.answer("发布后怎样确认服务已经切换成功？")
@@ -216,11 +211,11 @@ def main() -> None:
         # 命令行显示稳定错误；生产日志还应关联请求 ID，不能记录 API Key。
         raise SystemExit(f"模型调用失败 [{exc.code}]：{exc}") from exc
 
+    # 只展示回答、计量和响应 ID，不把可能包含输入明细的完整 Response 写到终端。
     print(f"回答：{reply.text}")
     print(f"输入 Token：{reply.usage.input_tokens}")
     print(f"输出 Token：{reply.usage.output_tokens}")
     print(f"Response ID：{reply.response_id}")
-
 
 if __name__ == "__main__":
     main()
@@ -236,7 +231,6 @@ if __name__ == "__main__":
 
 ```python
 from openai import OpenAI
-
 
 def stream_answer(question: str) -> None:
     client = OpenAI(timeout=20.0, max_retries=0)
@@ -264,7 +258,6 @@ def stream_answer(question: str) -> None:
     if not completed:
         raise RuntimeError("流已关闭，但没有收到 response.completed")
 
-
 stream_answer("用两句话说明健康检查与真实切流验证的区别。")
 ```
 
@@ -278,7 +271,6 @@ stream_answer("用两句话说明健康检查与真实切流验证的区别。")
 from dataclasses import dataclass
 
 from app.model_gateway import ModelGateway, ModelReply, TokenUsage
-
 
 @dataclass
 class FakeModelGateway:
@@ -297,10 +289,8 @@ class FakeModelGateway:
             response_id="fake-response-1",
         )
 
-
 def ask(gateway: ModelGateway, question: str) -> str:
     return gateway.answer(question).text
-
 
 def test_ask_uses_gateway_once() -> None:
     gateway = FakeModelGateway()

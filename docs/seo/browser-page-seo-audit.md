@@ -1,25 +1,25 @@
 ---
-title: 用浏览器完成一次单页 SEO 审计
-description: 从页面快照、原始 HTML 和外部证据建立可解释、可复查的页面诊断报告。
+title: 使用页面快照和原始 HTML 完成 SEO 审计
+description: 从单页快照扩展到多页抽样，比较原始 HTML、渲染 DOM、模板差异和规则证据。
 category: seo
-part: 第五部分：审计与排障
-chapter: 14
+part: 第四部分：技术审计与排障
+chapter: 9
 tags:
-  - Browser Audit
-  - SEO Evidence
+  - Browser Extension
+  - SEO Audit
 prerequisites:
-  - 读过第 7、10-13 章
+  - 读过第 6、8 章
 outcomes:
   - 设计页面审计快照
-  - 按根因和优先级组织问题
+  - 区分评分、证据和修复优先级
 practice:
-  type: diagnosis
+  type: implementation
   result: 对匿名页面执行一次浏览器侧审计
   verify:
     - 每条发现包含证据和复查方法
     - 不把工具分数等同于排名
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
 # 使用页面快照和原始 HTML 完成 SEO 审计
 
@@ -176,8 +176,7 @@ P0-P3 动作与负责人：
 
 这份模板的输入是同一轮审计保存的网络、HTML、DOM 与规则证据，输出是能够分配负责人并复查的行动项。没有证据的判断放入“假设或数据缺口”，不要直接提升为 P0/P1 结论。
 
-## 本篇产物与角色
-
+## 页面审计的验收与职责
 SEO 负责人设置页面任务与索引目标、解释规则范围；开发/运维提供 HTTP、渲染和性能证据；内容/设计核对正文、链接与媒体语义；数据负责人补搜索和 RUM 缺口；创业者只按业务影响排序，不要求所有页面满分。
 
 选择一个无需登录的代表页面，完成扫描、修复、复验三份记录。验收要求另一位读者能从证据定位到具体元素或响应，知道工具不能证明什么，并能复现修改前后的差异。

@@ -20,22 +20,19 @@ const reviews: Record<string, unknown> = {}
 for (const article of articles) {
   if (article.preserved) continue
   const relative = articleFile(article)
-  if (existingReviews[relative]) {
-    reviews[relative] = existingReviews[relative]
-    continue
-  }
-
   const source = fs.readFileSync(path.join(root, relative), 'utf8')
   const body = matter(source).content
+  const existing = existingReviews[relative] ?? {}
   reviews[relative] = {
+    ...existing,
     bodyHash: hash(body),
-    beginnerReviewed: false,
-    technicalReviewed: false,
-    factsVerified: false,
-    examplesVerified: false,
-    privacyVerified: false,
-    continuityReviewed: false,
-    voiceReviewed: false,
+    beginnerReviewed: existing.beginnerReviewed ?? false,
+    technicalReviewed: existing.technicalReviewed ?? false,
+    factsVerified: existing.factsVerified ?? false,
+    examplesVerified: existing.examplesVerified ?? false,
+    privacyVerified: existing.privacyVerified ?? false,
+    continuityReviewed: existing.continuityReviewed ?? false,
+    voiceReviewed: existing.voiceReviewed ?? false,
     reviewedAt: new Date().toISOString().slice(0, 10)
   }
 }

@@ -29,6 +29,7 @@ lastUpdated: false
 
 工具结果压缩不是通用的 `text[:1000]`。日志需要聚合错误级别和时间窗口，表格需要保留列名、类型、排序条件和行号，搜索结果需要保留总数与游标，长文档需要保留标题路径和来源定位。共同原则是把**原始结果**与**模型视图**分开：原始结果用于审计和继续读取，模型视图只携带本轮判断所需信息。
 
+模型视图最终替换 `ContextSnapshot` 里的 tool_result Block，保留原 Block ID、`source_result_id`、Scope 与 Release；System、history、Evidence 和当前问题不变。这样工具压缩可以单独回归，也不会在生成一个短摘要时顺手改变权限或知识版本。
 
 ## 原始结果与模型视图为什么必须分层
 
@@ -126,7 +127,6 @@ flowchart LR
 
 下面三种状态语义完全不同：
 
-
 三个结果分别表示“成功但没有命中”“只返回了部分数据”和“工具执行失败”。它们必须使用不同状态，否则 Agent 无法判断该回答没有数据、继续翻页还是停止并报告依赖故障。
 ```jsonc
 // ok + matched_count=0 表示工具成功完成，业务上确实没有匹配项。
@@ -159,7 +159,6 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Literal
 
-
 @dataclass(frozen=True)
 class LogRecord:
     timestamp: str
@@ -168,14 +167,12 @@ class LogRecord:
     error_code: str | None
     message: str
 
-
 @dataclass(frozen=True)
 class LogSample:
     timestamp: str
     service: str
     error_code: str
     message: str
-
 
 @dataclass(frozen=True)
 class LogModelView:
@@ -188,7 +185,6 @@ class LogModelView:
     # 每个错误组只保留一个代表样本，并对消息长度设置硬上限。
     samples: tuple[LogSample, ...]
     truncated: bool
-
 
 def compress_logs(
     source_result_id: str,
@@ -230,7 +226,6 @@ def compress_logs(
         truncated=len(counts) > max_groups,
     )
 
-
 records = [
     LogRecord("20:01:00", "ERROR", "worker", "DB_TIMEOUT", "连接池等待超过 3 秒"),
     LogRecord("20:01:02", "INFO", "worker", None, "准备有限重试"),
@@ -261,7 +256,6 @@ print(compress_logs("result-42", records, max_groups=2))
 # 测试区分成功零结果、超限截断和工具失败，并保证相同输入产生稳定摘要顺序。
 from tool_compression import LogRecord, compress_logs
 
-
 def test_successful_empty_result_is_explicit() -> None:
     # 压缩后检查显式计数、截断标记与稳定分组顺序，而不是比较整段文本。
     view = compress_logs("result-empty", [])
@@ -269,7 +263,6 @@ def test_successful_empty_result_is_explicit() -> None:
     assert view.matched_count == 0
     assert view.error_count == 0
     assert view.source_result_id == "result-empty"
-
 
 def test_more_groups_than_budget_marks_truncated() -> None:
     records = [
@@ -298,7 +291,7 @@ python3 -m pytest -q
 
 不要让模型构造任意游标。游标应是工具返回的不透明值，执行器验证它属于当前 `source_result_id`、用户范围和查询版本。过期游标返回稳定错误，不能悄悄从第一页重新开始并制造重复。
 
-## 带走一张结果 Schema 检查表
+## 用结果 Schema 检查压缩后的可追溯性
 
 为每个工具回答：原始结果存在哪里、模型真正需要哪些字段、怎样表示零结果/部分结果/失败、是否有总数和范围、怎样继续分页、怎样回查来源、在哪一步脱敏、怎样限制单字段和总预算、哪些数值必须由程序聚合。
 

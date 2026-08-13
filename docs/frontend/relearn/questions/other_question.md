@@ -96,7 +96,6 @@ var promise = new Promise(function (resolve, reject) {
     resolve();
 });
 
-
 promise.then(() => {
     console.log('pro_then');
     setTimeout(() => {
@@ -235,10 +234,3 @@ null = 1;
 至于后续怎么去展示，展示了以后又怎么去推动执行，这块就需要你自己根据公司实际情况去找到解决方案了。
 
 ####
-
-## 参考资料
-
-- [ECMAScript Language Specification](https://tc39.es/ecma262/)
-- [WHATWG HTML：Web application APIs](https://html.spec.whatwg.org/multipage/webappapis.html)
-- [WHATWG DOM](https://dom.spec.whatwg.org/)
-- [WAI-ARIA Authoring Practices](https://www.w3.org/WAI/ARIA/apg/)

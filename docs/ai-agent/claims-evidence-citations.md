@@ -28,7 +28,7 @@ lastUpdated: false
 
 一段回答末尾列出三个链接，仍不足以证明每句话都有来源。模型可能引用了相关页面，却把页面没有写的结论补了进去。
 
-证据驱动回答把内容拆成 Claim。Claim 是需要外部事实支持的最小结论；**Evidence** 是用户有权查看、能回到原文位置的证据对象。两者在生成前后都建立映射。
+[RAG 评测](/docs/ai-agent/rag-evaluation-recall-mrr-ndcg) 已经证明 Retriever 能否找回相关片段，但“相关片段进入候选”仍不等于答案里的每个事实都被支持。证据驱动回答把内容拆成 Claim。Claim 是需要外部事实支持的最小结论；**Evidence** 是用户有权查看、能回到原文位置的证据对象。两者在生成前后都建立映射。
 
 ## 哪些句子是 Claim
 
@@ -99,14 +99,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class Support(StrEnum):
     FULL = "full"
     PARTIAL = "partial"
     CONTRADICTED = "contradicted"
     UNVERIFIED = "unverified"
 # Claim 表示一个可单独核查的事实单元，后续必须为它找到证据或明确拒绝。
-
 
 @dataclass(frozen=True)
 class Claim:
@@ -115,7 +113,6 @@ class Claim:
     answer_start: int
     answer_end: int
 # Evidence 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
-
 
 @dataclass(frozen=True)
 class Evidence:
@@ -127,7 +124,6 @@ class Evidence:
     content_hash: str
 # Reference 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
 
-
 @dataclass(frozen=True)
 class Reference:
     claim_id: str
@@ -135,14 +131,12 @@ class Reference:
     support: Support
 # Citation 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
 
-
 @dataclass(frozen=True)
 class Citation:
     claim_id: str
     evidence_id: str
     label: str
     source_locator: str
-
 
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_citations(
@@ -204,13 +198,11 @@ import pytest
 
 from citations import Claim, Evidence, Reference, Support, build_citations
 
-
 CLAIMS = {"c1": Claim("c1", "申请由负责人审批", 0, 9)}
 # EVIDENCE 按稳定顺序保存可追溯数据，避免重试或并发导致覆盖。
 EVIDENCE = {
     "e1": Evidence("e1", "提交后由直属负责人审批", "page:3", "r8", "public", "hash-1")
 }
-
 
 # 这个用例核对证据与引用关系，防止无来源 Claim 被当成已经验证的答案。
 def test_full_support_becomes_a_citation() -> None:
@@ -224,7 +216,6 @@ def test_full_support_becomes_a_citation() -> None:
     assert result[0].label == "[1]"
     assert result[0].source_locator == "page:3"
 
-
 def test_partial_support_cannot_be_published() -> None:
     with pytest.raises(ValueError, match="not fully supported"):
         build_citations(
@@ -234,7 +225,6 @@ def test_partial_support_cannot_be_published() -> None:
             expected_release="r8",
             visible_scopes={"public"},
         )
-
 
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_invisible_evidence_is_rejected() -> None:
@@ -338,7 +328,7 @@ E1 原文只写“提交后由直属负责人审批”。审核结果：
 
 发布门禁同时看误放和误拒。只追求“全部拒绝”会损害可用性，只追求“回答更多”会增加无依据结论。
 
-## 带到工作的审核表
+## 用审核表检查 Claim 与 Evidence 绑定
 
 ```text
 Claim ID：

@@ -1,25 +1,26 @@
 ---
-title: Core Web Vitals 与网站性能指标
-description: 理解 LCP、INP、CLS、FCP、TTFB，以及实验室数据与真实用户字段数据的区别。
+title: 渲染、性能、robots、Sitemap 与技术 SEO
+description: 用原始响应、渲染页面、网络瀑布和站点文件检查发现、渲染与体验问题。
 category: seo
-part: 第四部分：索引、渲染与性能
-chapter: 12
+part: 第四部分：技术审计与排障
+chapter: 8
 tags:
-  - Core Web Vitals
-  - RUM
+  - Technical SEO
+  - Performance
 prerequisites:
-  - 读过第 11 章
+  - HTTP 与浏览器基础
+  - 读过第 3 章
 outcomes:
-  - 正确解释性能指标与阈值
-  - 选择匹配问题的数据来源
+  - 执行一轮技术 SEO 检查
+  - 识别脚本渲染和资源问题
 practice:
   type: diagnosis
-  result: 完成一份性能指标诊断表
+  result: 完成 robots、Sitemap、状态码和核心页面抽查
   verify:
-    - 记录 p75、样本范围和数据来源
-    - 不以单次跑分代表全部用户
-evidence: official
-updated: 2026-08-11
+    - 检查使用真实 GET
+    - 规范 URL、内链和 Sitemap 一致
+evidence: anonymized-practice
+updated: 2026-08-11T00:00:00.000Z
 ---
 
 # Lighthouse 100 分，为什么真实用户仍然说页面慢
@@ -176,7 +177,7 @@ PageSpeed Insights 页面上方可能显示过去一段窗口的字段数据，�
 
 单次结果不能进入“真实用户 CWV 已通过”的结论。采集失败也不应当作性能失败，可能是页面加载方式、浏览器生命周期或脚本时机没有形成样本。
 
-## 本篇产物：性能指标诊断表
+## 性能指标诊断表
 
 为首页、列表页、详情页和关键转化页分别建立：
 

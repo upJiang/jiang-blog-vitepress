@@ -106,10 +106,3 @@ document.getElementById("c").style.transform = "translate(100px, 0)";
 当绘制完成时，就完成了浏览器的最终任务，把一个 URL 最后变成了一个可以看的网页图像。当然了，我们对每一个部分的讲解，都省略了大量的细节，比如我们今天讲到的绘制，就有意地无视了滚动区域。
 
 尽管如此，对浏览器工作原理的感性认识，仍然可以帮助我们理解很多前端技术的设计和应用技巧，浏览器的工作原理和性能部分非常强相关，我们在实践部分的性能优化部分，会再次跟你做一些探讨。
-
-## 参考资料
-
-- [CSS 2.1：Painting order](https://www.w3.org/TR/CSS22/zindex.html)
-- [CSS Transforms Level 2](https://www.w3.org/TR/css-transforms-2/)
-- [Chrome DevTools：Layers](https://developer.chrome.com/docs/devtools/layers/)
-- [web.dev：Rendering performance](https://web.dev/articles/rendering-performance)

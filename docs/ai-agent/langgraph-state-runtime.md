@@ -31,7 +31,7 @@ lastUpdated: false
 
 很多人第一次看到 LangGraph，先看到的是一段 `add_edge` 代码，然后被 `State`、`Reducer` 和 `Checkpoint` 一起淹没。阅读顺序应该反过来：先理解一次请求要经过哪些步骤，再用**状态图**表达这些步骤。
 
-本文只构建一张很小的只读问答图。它能处理三种输入：知识问题、寒暄和无法判断的问题。我们先写普通 Python 函数，再逐步加 State、Node、Edge、条件分支、Reducer 和 **Checkpoint**。
+本文把 [LangChain Retriever 与固定 RAG](/docs/ai-agent/langchain-retriever-rag) 中已经存在的只读问答流程改成一张小图。它仍处理知识问题、寒暄和无法判断的问题，Retriever 与 Evidence 契约不变；变化的是控制流从嵌套函数变成显式 State、Node、Edge、条件分支、Reducer 和 **Checkpoint**。
 
 读完后，你不只会照着示例调用 `add_node`。你还应该能回答四个工程问题：一个节点到底能看见哪些数据，两个节点同时更新字段时发生什么，图为什么要先编译，以及 `END` 与“回答成功”为什么不是一回事。
 
@@ -78,7 +78,6 @@ flowchart TD
 
 以下示例使用 LangGraph 0.6 系列。在隔离的实践目录中执行：
 
-
 下面的命令接收本节“环境准备：让示例可以真正运行”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装 LangGraph 与测试依赖，示例从普通函数开始，逐步加入 State、Node、Edge 与 Reducer。
@@ -94,7 +93,6 @@ python -m pip install "langgraph>=0.6,<0.7" "pytest>=8,<9"
 ## 第一步：先写没有框架的函数
 
 先用普通函数验证业务顺序，可以避免把框架语法误认为业务逻辑。
-
 
 为了验证“第一步：先写没有框架的函数”，下面的测试把“纯函数先定义问题分类、检索和回答的输入输出，便于验证业务逻辑不依赖图框架”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
@@ -208,7 +206,6 @@ def unsafe_node(state: AgentState) -> AgentState:
 
 现在才引入图 API。普通边描述固定顺序，条件边根据 State 返回下一节点名称。
 
-
 下面把“第四步：连接普通边和条件边”落成最小实现。代码关注“普通边表达固定顺序，条件边只返回有限路由名；未知路由会在编译或运行时被拒绝”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
@@ -255,7 +252,6 @@ Builder 是图的声明阶段：注册节点、入口、出口和边。`compile(
 ## 第五步：运行三条路径
 
 编译后的 `app` 接收一个初始 State，返回最终 State。下面的输入分别覆盖正常问题、寒暄和不清楚问题。
-
 
 下面把“第五步：运行三条路径”落成最小实现。代码关注“三个输入分别触发普通回答、无结果和拒答，最终 State 用于核对节点轨迹与终态”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
@@ -310,12 +306,10 @@ flowchart LR
 ```python
 from typing import Literal
 
-
 def route_after_retrieve(state: AgentState) -> Literal["compose", "no_evidence"]:
     # 至少有一条非空证据才允许进入生成节点。
     usable = [item for item in state.get("evidence", []) if item.strip()]
     return "compose" if usable else "no_evidence"
-
 
 def no_evidence_node(_state: AgentState) -> AgentState:
     # 不让模型自由补全，直接产生可解释的业务终态。
@@ -371,7 +365,6 @@ flowchart LR
 ```python
 import pytest
 
-
 @pytest.mark.parametrize(
     ("question", "expected_intent", "expected_status"),
     [
@@ -393,7 +386,6 @@ def test_graph_routes_to_expected_terminal_state(
     assert result["status"] == expected_status
     assert result["answer"].strip()
 
-
 # 这个用例核对证据与引用关系，防止无来源 Claim 被当成已经验证的答案。
 def test_search_path_keeps_original_question_and_evidence() -> None:
     result = app.invoke({"question": "如何申请远程访问"})
@@ -408,7 +400,7 @@ def test_search_path_keeps_original_question_and_evidence() -> None:
 
 执行 `pytest -q`，预期看到 `4 passed`。如果把 `route_after_understand` 的 greeting 映射误改为 `retrieve`，结构化断言会直接指出路径错误。真实项目还应注入假的 Retriever 和假的模型适配器，避免单元测试访问网络。
 
-## 初学者复盘：从输入手工推演一次
+## 从输入手工推演一次状态变化
 
 拿输入“如何申请远程访问”逐步写出状态：
 
@@ -421,13 +413,11 @@ def test_search_path_keeps_original_question_and_evidence() -> None:
 
 如果你不能明确写出某一步“读哪些字段、写哪些字段”，说明 State 契约还不够清楚。先补契约和测试，不要继续堆节点。
 
-## 资深工程师和初学者各自要检查什么
+## 从可理解性和运行语义检查这张图
 
 资深检查：State 是否混入不该持久化的敏感数据，条件边是否覆盖所有枚举，Reducer 是否能处理乱序和重复，Checkpoint 恢复是否有 Deadline 和副作用幂等。
 
 初学者检查：能否从一条输入开始，写出节点执行顺序；能否说明每个节点读什么、改什么；能否解释为什么寒暄不需要检索；能否判断并行分支为什么需要 Reducer。
-
-
 
 ## 这套状态图的边界
 

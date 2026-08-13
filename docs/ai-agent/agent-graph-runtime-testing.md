@@ -82,13 +82,11 @@ from dataclasses import dataclass
 
 import pytest
 
-
 @dataclass(frozen=True)
 class RunResult:
     status: str
     tool_calls: int
     events: tuple[str, ...]
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 def run_read_only(question: str) -> RunResult:
@@ -99,7 +97,6 @@ def run_read_only(question: str) -> RunResult:
     if "无结果" in question:
         return RunResult("refused", 1, ("tool.called", "answer.refused"))
     return RunResult("completed", 1, ("tool.called", "answer.validated", "turn.completed"))
-
 
 # 参数表覆盖证据已齐、仍有缺口、轮次耗尽和 Deadline 到期四种停止条件。
 @pytest.mark.parametrize(
@@ -112,7 +109,6 @@ def test_terminal_semantics(question: str, status: str, calls: int) -> None:
     assert result.status == status
     assert result.tool_calls == calls
     assert result.events[-1] in {"turn.completed", "answer.refused", "security.blocked"}
-
 
 # 空输入或空命中属于独立业务路径；这个用例确认它不会越过校验边界触发多余调用。
 def test_empty_input_never_calls_tool() -> None:
@@ -130,10 +126,8 @@ def test_empty_input_never_calls_tool() -> None:
 from dataclasses import dataclass, field
 from typing import Protocol
 
-
 class Retriever(Protocol):
     def search(self, query: str, *, scope: str, release: str) -> list[str]: ...
-
 
 @dataclass
 class FakeRetriever:
@@ -143,7 +137,6 @@ class FakeRetriever:
     def search(self, query: str, *, scope: str, release: str) -> list[str]:
         self.calls.append((query, scope, release))
         return list(self.results)
-
 
 def make_retrieve_node(retriever: Retriever):
     def retrieve(state: dict[str, object]) -> dict[str, object]:
@@ -179,7 +172,6 @@ def test_retrieve_node_passes_scope_and_release() -> None:
     assert update == {"evidence": ["evidence-1"], "status": "evidence_ready"}
     assert fake.calls == [("访问申请", "scope-a", "release-7")]
 
-
 # 这个用例固定“成功但无结果”的语义，不能把它误报为依赖异常或编造答案。
 def test_retrieve_node_marks_empty_as_a_state() -> None:
     fake = FakeRetriever([])
@@ -212,7 +204,7 @@ def test_retrieve_node_marks_empty_as_a_state() -> None:
 
 每个用例保存预期结构而不是固定长文本，例如允许终态、必需/禁止工具、必需 Evidence 来源、最大调用次数和原因码。模型措辞可以变化，权限与状态不变量不能变化。
 
-## 练习与完成标准
+## 为条件边、Reducer、恢复和取消补齐故障用例
 
 为一条条件边写一个“非法状态不可达”测试；为一个 Reducer 写顺序交换测试；为 Checkpoint 写恢复不重复工具调用测试；为取消写终态不可逆测试。完成后把失败结果贴到 Runbook 中，说明先查哪个状态和事件。
 

@@ -154,6 +154,121 @@ Lease 不是普通的 `locked=true`。它至少包含 owner token 和过期时�
 
 SSE 连接断开不等于用户取消。浏览器切换网络时，Worker 仍可完成任务；客户端重连后用最后序号补齐事件。只有显式取消 API 或服务端 Deadline 才改变 Turn 的执行意图。
 
+## Worker 内部不是一次模型调用，而是四段受控执行
+
+前面的时序图把 LangGraph 画成一个节点，是为了先看清 API、队列和所有权。现在把 Worker 内部展开。它不是“检索后生成”四个字，而是预处理、理解与计划、检索与证据、生成与验证四段执行；每一段都有明确输入、状态和停止条件。
+
+### 并行预处理先建立安全上下文
+
+Worker 取得 Lease 并加载 Turn 快照后，可以并行准备彼此不依赖的输入：安全规则、会话摘要、用户明确授权的记忆、别名词典和低成本精确检索。并行只减少等待，不改变合并时的可信优先级。
+
+```mermaid
+flowchart LR
+  A[读取 Turn 快照<br/>Scope、Release、Deadline]:::data --> B1[安全预处理<br/>得到阻断与约束]:::program
+  A --> B2[会话与摘要<br/>得到当前焦点]:::program
+  A --> B3[授权记忆<br/>得到可用偏好]:::program
+  A --> B4[别名与精确查找<br/>得到候选实体]:::tool
+  B1 --> C{是否出现硬阻断}:::program
+  B2 --> D[装配 ContextSnapshot]:::data
+  B3 --> D
+  B4 --> D
+  C -->|是| E[写 rejected 终态]:::bad
+  C -->|否| D
+  classDef data fill:#fef3c7,stroke:#ca8a04,color:#713f12
+  classDef program fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+  classDef tool fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+```
+
+安全分支输出确定性的 `blocked/reasons`，模型不能覆盖。会话分支只读取当前 Conversation 的可见 Message 与已验证摘要；长期记忆还要检查来源、授权、TTL 和 Scope。四个分支写各自 State channel，Reducer 按固定规则生成 `ContextSnapshot`。权限策略加载失败应关闭执行，别名服务不可用则可以记录降级并继续普通检索，这两种失败不能归成同一个空结果。
+
+### 模型理解问题，程序编译 SearchPlan
+
+模型接收当前问题与受控上下文，输出结构化理解：意图、实体、时间条件、是否需要检索、候选查询和需要覆盖的证据目标。它不接收可写的 Scope、Release 或工具权限字段。
+
+程序随后把候选编译成 `SearchPlan`。编译器注入可信 Scope、Release、允许通道、每通道上限、证据目标、最大补搜轮次和绝对 Deadline；未知通道、越界过滤和超预算计划在执行前被拒绝。
+
+| SearchPlan 字段 | 来源 | 为什么这样分配所有权 |
+| --- | --- | --- |
+| `queries`、`entities` | 模型候选经 Schema 校验 | 语言理解有不确定性，但可限制长度和数量 |
+| `scope_ids` | 服务端认证上下文 | 用户文字和模型都不是权限事实源 |
+| `release_id` | Turn 快照 | 一轮执行不能混用新旧知识 |
+| `channels` | Policy 与能力注册表 | 模型不能调用未授权工具或通道 |
+| `evidence_targets` | 问题结构与规则共同产生 | 用于计算 Coverage，而不是只看 Top K |
+| `stop` | Deadline、步数、调用数、覆盖率 | 防止 ReAct 或补搜无限循环 |
+
+Planner 每次迭代先读取剩余预算。已有证据覆盖全部必要目标时停止；查询改写或补搜达到上限时也停止；Deadline 不足以完成验证与 Finalize 时进入 `deadline_exceeded` 或受限回答。**停止条件属于 Runtime，不属于 Prompt 中一句“请不要循环太久”的建议。**
+
+### 检索候选经过复核才成为 Evidence
+
+```mermaid
+flowchart LR
+  A[SearchPlan<br/>查询、Scope、Release]:::data --> B1[精确检索<br/>编号与专名]:::tool
+  A --> B2[全文检索<br/>词项匹配]:::tool
+  A --> B3[向量检索<br/>语义相似]:::tool
+  A --> B4[表格、图谱或受控工具<br/>结构关系]:::tool
+  B1 --> C[前置过滤<br/>ACL 与 Release]:::program
+  B2 --> C
+  B3 --> C
+  B4 --> C
+  C --> D[去重与融合<br/>保留通道来源]:::program
+  D --> E[Rerank 与新鲜度复核<br/>得到候选 Evidence]:::model
+  E --> F{Coverage 达标吗}:::program
+  F -->|否且仍有预算| A
+  F -->|否且预算耗尽| G[insufficient]:::bad
+  F -->|是| H[Evidence Budget<br/>选入上下文]:::ok
+  classDef data fill:#fef3c7,stroke:#ca8a04,color:#713f12
+  classDef tool fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+  classDef program fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+  classDef model fill:#f3e8ff,stroke:#9333ea,color:#581c87
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+```
+
+每个通道都接收可信过滤，不能先搜索全库再在应用层删结果。融合阶段保留稳定 Evidence ID、来源位置、内容哈希、通道和原始排序；Rerank 只能调整相关性，不能恢复已被 ACL 排除的候选。
+
+Coverage 回答“问题要求的证据目标覆盖了多少”，Top K 只回答“返回了几个候选”。用户问负责人和时间窗口时，十条都讲负责人仍不够。证据不足可以有限改写或更换允许通道，但不能扩大 Scope，也不能让模型用预训练常识补空白。
+
+冲突与新鲜度复核发生在选入上下文前。同一字段出现两个不同值时，保留版本、发布日期和来源，不用平均分或多数票掩盖冲突。Evidence Budget 决定哪些片段进入生成上下文，同时保证每条片段仍能回到原文件位置。
+
+### 生成候选后还要验证和 Finalize
+
+```mermaid
+flowchart LR
+  A[Evidence 与问题目标]:::data --> B[Claim Plan<br/>拆成可验证事实]:::program
+  B --> C[模型生成候选答案<br/>Claim 绑定 Evidence ID]:::model
+  C --> D1[事实支持验证]:::program
+  C --> D2[引用与定位验证]:::program
+  C --> D3[权限与 Release 复核]:::program
+  C --> D4[隐私与提示注入检查]:::program
+  D1 --> E{错误可有限修复吗}:::program
+  D2 --> E
+  D3 --> E
+  D4 --> E
+  E -->|可修复且未达上限| C
+  E -->|硬失败或次数耗尽| F[拒答或 insufficient]:::bad
+  E -->|全部通过| G[Finalize 条件更新<br/>答案、引用、终态]:::ok
+  classDef data fill:#fef3c7,stroke:#ca8a04,color:#713f12
+  classDef program fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+  classDef model fill:#f3e8ff,stroke:#9333ea,color:#581c87
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+```
+
+Claim Plan 先把“谁负责、何时执行、适用什么范围”拆成可独立核查的事实。生成器输出候选正文和 Claim-Evidence 绑定；验证器分别检查证据是否直接支持 Claim、引用位置是否存在、证据是否仍属于快照 Scope/Release，以及外部内容中的指令是否污染答案。
+
+格式或缺少一条引用属于可修复问题，可以把稳定错误反馈给模型一次；越权证据、隐私泄露或证据不支持结论属于硬失败，不能通过重写措辞变成成功。修复次数和 Token 继续消费同一个 Turn 预算。
+
+Finalize 使用短事务和条件更新：状态仍非终态、owner/fencing token 仍属于当前 Worker、取消和 Deadline 没有抢先提交，才写答案、Reference、终态和最后事件。模型已经生成文本不代表 Worker 仍有提交权。
+
+## SSE、数据库事实与恢复怎样配合
+
+Worker 把阶段事件先写持久化存储，再通过 Redis 等低延迟通道通知 SSE。每条事件在 Turn 内有单调序号；客户端重连携带最后序号，服务端从数据库补发缺口。Redis 丢通知只会增加轮询或补发延迟，不会让最终事实消失。
+
+取消也不是关闭浏览器连接。显式取消写入持久化标记，节点边界和长循环读取它，并把信号传给模型、HTTP、数据库与工具；迟到结果因 owner、attempt 或终态条件更新失败而被丢弃。客户端断线默认只影响传输，除非产品明确规定“断线即取消”。
+
+Worker 崩溃后，扫描器寻找 Lease 过期且未终态的 Turn。新 Worker 取得更高 fencing token，先检查终态、取消、Deadline 和 Checkpoint，再决定从幂等节点继续还是安全重做。Checkpoint 保存可恢复状态，不等于任意一行代码都能从中间恢复；未知提交状态的外部副作用仍需要业务幂等键和结果查询。
+
 ## 失败传播表
 
 | 失败点 | 是否重试 | 谁决定终态 | 观察证据 |
@@ -169,7 +284,6 @@ SSE 连接断开不等于用户取消。浏览器切换网络时，Worker 仍可
 
 下面不连接真实服务，只把入口和 Worker 的关键状态写成可执行状态对象。这样可以先验证状态顺序，再把数据库、队列和 Graph 适配进去。
 
-
 下面把“时序状态模型”落成最小实现。代码关注“时序模型从幂等提交到 Worker Finalize 保存每个阶段的 owner、快照、事件与允许转移”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
@@ -179,7 +293,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-
 class Status(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
@@ -188,7 +301,6 @@ class Status(StrEnum):
     CANCELLED = "cancelled"
     EXPIRED = "expired"
     FAILED = "failed"
-
 
 @dataclass
 class RuntimeTurn:
@@ -235,7 +347,6 @@ class RuntimeTurn:
         self.status = status
         self.append_event(f"turn.{status}")
 
-
 turn = RuntimeTurn("turn-1", "scope-1", "release-7", deadline_at=10.0)
 turn.claim("owner-a", now=1.0)
 turn.finish(Status.COMPLETED, owner_token="owner-a", now=8.0)
@@ -250,13 +361,11 @@ print(turn.status, turn.events)
 
 ## 用测试覆盖三个最危险的窗口
 
-
 为了验证“用测试覆盖三个最危险的窗口”，下面的测试把“测试在任务派发、外部调用与终态提交窗口注入崩溃，确认重放不产生双 Turn 或双副作用”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
 # 测试在任务派发、外部调用与终态提交窗口注入崩溃，确认重放不产生双 Turn 或双副作用。
 import pytest
-
 
 # 这个用例检查资源所有权和释放路径，失败或取消后不能遗留永久占用。
 def test_old_worker_cannot_finish_new_owner_turn() -> None:
@@ -268,7 +377,6 @@ def test_old_worker_cannot_finish_new_owner_turn() -> None:
 
     assert turn.status is Status.RUNNING
 
-
 # 这个用例把时间推进到截止边界，确认超时保持独立错误语义并释放资源。
 def test_deadline_wins_over_late_answer() -> None:
     turn = RuntimeTurn("turn-expired", "scope-1", "release-7", deadline_at=5.0)
@@ -277,7 +385,6 @@ def test_deadline_wins_over_late_answer() -> None:
 
     assert turn.status is Status.EXPIRED
     assert turn.events[-1] == "2:turn.expired"
-
 
 # 这个用例重复提交或恢复同一运行，确认 Checkpoint、幂等键或事件序号阻止重复副作用。
 def test_duplicate_claim_is_rejected() -> None:
@@ -290,7 +397,7 @@ def test_duplicate_claim_is_rejected() -> None:
 
 第一个测试模拟旧 Worker 迟到写入；第二个测试模拟模型在 Deadline 之后才返回；第三个测试模拟重复投递。执行 `pytest -q` 预期 `3 passed`。数据库集成测试还要让两个独立连接并发 claim，断言条件更新只影响一行。
 
-## 把状态机制落到相似系统
+## 同一 Runtime 模型怎样承接导入与评测任务
 
 遇到“页面一直转圈”，先按 `turn_id` 查当前状态，再查最后事件序号、Worker 租约和 Graph Checkpoint，最后才看模型日志。练习是画出取消和过期的两条时序，并标出哪个组件首次知道事件、哪个组件最终确认终态。
 

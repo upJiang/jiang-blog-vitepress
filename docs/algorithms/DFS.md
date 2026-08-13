@@ -73,8 +73,3 @@ function depthFirst(
 ## 验证与资源上限
 
 覆盖环、自环、不连通、重复边、深链和宽图。输出集合应等于从起点可达集合。处理不可信图时设置最大节点、边、深度和 Deadline；visited 防环，却不能阻止百万节点耗尽内存。
-
-## 参考资料
-
-- [Open Data Structures: Graphs](https://opendatastructures.org/ods-javascript/12_Graphs.html)
-- [VisuAlgo Graph Traversal](https://visualgo.net/en/dfsbfs)

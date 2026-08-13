@@ -14,7 +14,7 @@ export class AuthController {
   async login(@Body() input: LoginDto, @Res({ passthrough: true }) response: Response) {
     const tokens = await this.auth.login(input.email, input.password)
     this.setRefreshCookie(response, tokens.refreshToken)
-    return { accessToken: tokens.accessToken }
+    return { accessToken: tokens.accessToken, expiresIn: 900 }
   }
 
   @Post('refresh')
@@ -22,7 +22,7 @@ export class AuthController {
   async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     const tokens = await this.auth.refresh(request.cookies?.[COOKIE_NAME])
     this.setRefreshCookie(response, tokens.refreshToken)
-    return { accessToken: tokens.accessToken }
+    return { accessToken: tokens.accessToken, expiresIn: 900 }
   }
 
   @Post('logout')

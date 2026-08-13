@@ -113,14 +113,12 @@ from __future__ import annotations
 
 from typing import Annotated, TypedDict
 
-
 # Evidence 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
 class Evidence(TypedDict):
     id: str
     text: str
     score: float
     channels: list[str]
-
 
 def merge_evidence(
     left: list[Evidence],
@@ -155,7 +153,6 @@ def merge_evidence(
         key=lambda item: (-item["score"], item["id"]),
     )
 
-
 class RetrievalState(TypedDict, total=False):
     evidence: Annotated[list[Evidence], merge_evidence]
 ```
@@ -168,7 +165,6 @@ class RetrievalState(TypedDict, total=False):
 
 环境需要 `langgraph`。代码先定义完整 State，再定义节点和路由，最后连接图。输入只有 `question`，输出包含 `intent`、`answer` 和完整事件列表。
 
-
 为了验证“用 Python 写出三条路径”，下面的测试把“条件函数只根据已验证状态选择有限**分支**，Reducer 再合并消息与证据而不覆盖其他字段”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -180,14 +176,12 @@ from typing import Annotated, Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-
 class AgentState(TypedDict, total=False):
     # question 保存原始用户输入，后续改写查询不能覆盖它。
     question: str
     intent: Literal["greeting", "knowledge", "blocked"]
     answer: str
     events: Annotated[list[str], operator.add]
-
 
 def classify(state: AgentState) -> AgentState:
     question = state["question"].strip()
@@ -199,23 +193,18 @@ def classify(state: AgentState) -> AgentState:
         intent = "knowledge"
     return {"intent": intent, "events": [f"classified:{intent}"]}
 
-
 def route(state: AgentState) -> str:
     return state["intent"]
 
-
 def reply_greeting(_state: AgentState) -> AgentState:
     return {"answer": "你好，需要查询什么资料？", "events": ["finished:greeting"]}
-
 
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 def search(state: AgentState) -> AgentState:
     return {"answer": f"准备检索：{state['question']}", "events": ["finished:search"]}
 
-
 def refuse(_state: AgentState) -> AgentState:
     return {"answer": "当前请求不在只读能力范围内。", "events": ["finished:blocked"]}
-
 
 # 先用 State 类型创建图构建器，后续节点读写字段都会受这份状态契约约束。
 builder = StateGraph(AgentState)
@@ -235,7 +224,6 @@ builder.add_edge("greeting", END)
 builder.add_edge("knowledge", END)
 builder.add_edge("blocked", END)
 graph = builder.compile()
-
 
 print(graph.invoke({"question": "你好", "events": []}))
 ```

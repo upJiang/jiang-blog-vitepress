@@ -8,11 +8,6 @@ const ignoredDirectories = new Set(['cache', 'dist', '.temp'])
 const ignoredFiles = new Set(['scripts/check-privacy.mjs'])
 const allowedFindings = new Set([
   'scripts/visual-smoke.mjs|内部 URL|http://localhost:9999',
-  // Public tutorials use the standard loopback address for local-only labs.
-  'docs/devops/docker-compose.md|私网或回环 IPv4|127.0.0.1',
-  'docs/devops/vllm-openai-compatible-serving.md|私网或回环 IPv4|127.0.0.1',
-  'docs/devops/linux-service-troubleshooting.md|私网或回环 IPv4|127.0.0.1',
-  'docs/devops/oci-container-runtime.md|私网或回环 IPv4|127.0.0.1'
 ])
 
 const checks = [
@@ -53,6 +48,8 @@ for (const directory of roots) {
     for (const check of checks) {
       for (const match of source.matchAll(check.pattern)) {
         const findingKey = `${relativeFile}|${check.name}|${match[0]}`
+        // 127.0.0.1 是公开教程中表达“只监听本机”的标准回环地址，不属于私有环境信息。
+        if (check.name === '私网或回环 IPv4' && match[0] === '127.0.0.1') continue
         if (allowedFindings.has(findingKey)) continue
         const line = source.slice(0, match.index).split('\n').length
         findings.push(

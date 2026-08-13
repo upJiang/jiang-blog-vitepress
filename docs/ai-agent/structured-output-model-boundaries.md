@@ -278,9 +278,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-
 Intent = Literal["knowledge_query", "greeting", "unsafe", "unclear"]
-
 
 class ModelDecision(BaseModel):
     """模型可以提出的语义候选；这里没有身份、权限和版本字段。"""
@@ -313,7 +311,6 @@ class ModelDecision(BaseModel):
 
         return self
 
-
 @dataclass(frozen=True, slots=True)
 class TrustedContext:
     """服务端从认证、权限和配置中得到的可信事实。"""
@@ -323,7 +320,6 @@ class TrustedContext:
     release_id: str
     allowed_channels: tuple[str, ...]
     deadline_at: datetime
-
 
 @dataclass(frozen=True, slots=True)
 class SearchCommand:
@@ -336,16 +332,13 @@ class SearchCommand:
     allowed_channels: tuple[str, ...]
     deadline_at: datetime
 
-
 class DecisionRejectedError(ValueError):
     """候选语义合法，但当前分支不应该执行检索。"""
-
 
 def parse_model_decision(raw_json: str) -> ModelDecision:
     """完成 JSON 解析、字段类型、额外字段和领域组合校验。"""
 
     return ModelDecision.model_validate_json(raw_json, strict=True)
-
 
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_search_command(
@@ -384,7 +377,6 @@ def build_search_command(
         deadline_at=trusted.deadline_at,
     )
 
-
 def demo() -> None:
     raw_json = """{
       "intent": "knowledge_query",
@@ -417,7 +409,6 @@ def demo() -> None:
         print("accepted", command.query)
         print("scope", command.visible_scope_ids)
         print("release", command.release_id)
-
 
 if __name__ == "__main__":
     demo()
@@ -502,7 +493,6 @@ from structured_boundary import (
     parse_model_decision,
 )
 
-
 def valid_json() -> str:
     return """{
       "intent": "knowledge_query",
@@ -513,7 +503,6 @@ def valid_json() -> str:
       "reason": "用户询问办理流程"
     }"""
 
-
 def trusted_context(now: datetime) -> TrustedContext:
     return TrustedContext(
         actor_id="user-test",
@@ -522,7 +511,6 @@ def trusted_context(now: datetime) -> TrustedContext:
         allowed_channels=("fulltext",),
         deadline_at=now + timedelta(seconds=20),
     )
-
 
 def test_valid_decision_builds_command() -> None:
     now = datetime.now(UTC)
@@ -536,7 +524,6 @@ def test_valid_decision_builds_command() -> None:
     assert command.visible_scope_ids == ("guide-a",)
     assert command.release_id == "release-test-v1"
 
-
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_model_cannot_add_scope() -> None:
     raw = valid_json().replace(
@@ -547,14 +534,12 @@ def test_model_cannot_add_scope() -> None:
     with pytest.raises(ValidationError, match="extra_forbidden"):
         parse_model_decision(raw)
 
-
 # 这个用例走失败或拒绝分支，确认错误码、终态和副作用都符合契约。
 def test_strict_mode_rejects_numeric_string() -> None:
     raw = valid_json().replace('"confidence": 0.88', '"confidence": "0.88"')
 
     with pytest.raises(ValidationError, match="float_type"):
         parse_model_decision(raw)
-
 
 def test_clarification_requires_a_question() -> None:
     raw = (
@@ -565,7 +550,6 @@ def test_clarification_requires_a_question() -> None:
 
     with pytest.raises(ValidationError, match="clarification_question is required"):
         parse_model_decision(raw)
-
 
 # 这个用例把时间推进到截止边界，确认超时保持独立错误语义并释放资源。
 def test_expired_deadline_stops_before_retrieval() -> None:
@@ -581,7 +565,6 @@ def test_expired_deadline_stops_before_retrieval() -> None:
 
     with pytest.raises(DecisionRejectedError, match="deadline has expired"):
         build_search_command(parse_model_decision(valid_json()), expired, now=now)
-
 
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_empty_scope_stops_before_retrieval() -> None:
@@ -772,7 +755,7 @@ flowchart TD
 
 还要区分结构化响应与 Tool Calling：前者让模型以固定形状“回答应用”，后者让模型提出“调用哪个工具以及参数是什么”。二者都要校验，但工具调用还涉及工具白名单、身份注入、超时、取消和副作用控制，后面会单独展开。
 
-## 带到工作中的结构化边界检查表
+## 结构化边界检查表
 
 在为一个新节点设计输出时，可以按下面顺序检查：
 

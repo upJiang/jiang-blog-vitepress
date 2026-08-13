@@ -7,3 +7,7 @@ data:
   LOG_LEVEL: info
   ACCESS_TOKEN_SECONDS: '900'
   REFRESH_TOKEN_SECONDS: '2592000'
+  WEB_ORIGIN: https://admin.example.test
+  MINIO_ENDPOINT: http://minio.storage.svc.cluster.local:9000
+  MINIO_PUBLIC_ENDPOINT: https://objects.example.test
+  MINIO_BUCKET: backend-files

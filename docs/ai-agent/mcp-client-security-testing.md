@@ -65,7 +65,6 @@ flowchart LR
 
 这里复用 Node 版 Server，但使用 Python Client 与它通信，顺便验证 MCP 的语言无关性。在 Node 示例项目旁创建 Python 虚拟环境，并安装当前 Python SDK 与 Pydantic：
 
-
 下面的命令接收本节“连接 stdio Server”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # Python Client 与 Node Server 使用各自依赖；虚拟环境只隔离客户端 SDK。
@@ -86,17 +85,14 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from pydantic import BaseModel, Field
 
-
 class Note(BaseModel):
     id: str
     title: str
     snippet: str = Field(max_length=500)
     location: str
 
-
 class SearchResult(BaseModel):
     items: list[Note] = Field(max_length=10)
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 async def run_client() -> None:
@@ -113,7 +109,6 @@ async def run_client() -> None:
                 raise RuntimeError("search_notes returned a tool execution error")
             parsed = SearchResult.model_validate(result.structured_content)
             print(parsed.items)
-
 
 asyncio.run(run_client())
 ```
@@ -136,7 +131,6 @@ asyncio.run(run_client())
 ## Host 配置实际上在表达什么
 
 不同产品的配置文件位置与字段会变化，但 stdio 配置通常都表达同一组信息：
-
 
 Host 配置负责确定由哪个本地进程提供 MCP 能力。命令、参数和环境变量来自受控配置，不允许模型临时改写；实际配置文件若要求严格 JSON，需要移除注释。
 ```jsonc

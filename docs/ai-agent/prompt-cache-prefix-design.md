@@ -33,6 +33,8 @@ lastUpdated: false
 
 Prompt Cache 试图复用这段重复工作。但“缓存 Prompt”这个名字很容易造成误解：它不是把上次答案取出来，也不是让模型记住上次聊天。更准确地说，**Prompt Cache 按供应商公开的匹配规则识别相同输入前缀，复用这个前缀已经完成的模型处理状态**。动态问题仍要计算，输出仍要重新生成，权限和答案验证也仍要执行。
 
+这里不重新设计请求对象。[上下文装配与预算](/docs/ai-agent/context-assembly-budget)定义的 `ContextSnapshot` 仍是输入事实：装配器把系统规则、稳定工具 Schema 和输出约束排在前面，把当前问题、会话增量、工具结果和本轮 Evidence 排在后面。Prompt Cache 只记录两段之间的断点与供应商 usage，不修改 Snapshot 的 Scope、Release 或 Block 来源。
+
 要把它用于真实 Agent，不能只知道“把固定内容放前面”。还要回答：模型在 Prefill 阶段做了什么；GPT 与 Claude 在哪里设置断点；怎样从 usage 拆出三类输入；第一次写入为什么可能更贵；至少命中几次才划算；工具、知识版本和租户范围变化后怎样避免错误复用。下面从一次请求的计算路径开始。
 
 ## 两次请求究竟重复了什么
@@ -257,7 +259,7 @@ GPT-5.6 及后续模型允许在支持的内容块上加入 `prompt_cache_breakp
 - `implicit` 是默认值。服务保留最新消息处的隐式断点，也使用显式断点。
 - `explicit` 关闭隐式断点，只读取和写入你标记的显式断点，适合把频繁变化后缀排除在付费写入之外。
 
-一次请求最多创建 4 个新缓存写入。在 `implicit` 模式下，最新消息的隐式断点占一个写入槽；在 `explicit` 模式下，最多可写最近 4 个显式断点。读取时会考虑会话中最近最多 50 个断点，多个命中取最长前缀。当前 GPT-5.6 断点 TTL 的唯一值和默认值都是 `30m`：它表示最短可用时间，不承诺精确过期时刻或最长保留时间。
+一次请求最多创建 4 个新缓存写入。在 `implicit` 模式下，最新消息的隐式断点占一个写入槽；在 `explicit` 模式下，最多可写最近 4 个显式断点。读取时只会检查会话中一段有限的近期断点，多个命中取最长前缀；这个回看上限属于会变化的服务能力，当前指南与 API 参考甚至可能在文档更新窗口给出不同数字，因此实现不应依赖它做业务正确性判断。GPT-5.6 断点 TTL 当前唯一值和默认值都是 `30m`：它表示最短可用时间，不承诺精确过期时刻或最长保留时间。
 
 较早模型不认识 `prompt_cache_options` 和 `prompt_cache_breakpoint` 时会返回 400，不能把新参数无条件发给所有模型。它们继续使用各自的自动缓存与 `prompt_cache_retention` 行为。**模型能力必须按实际 model ID 建表，不要只用“GPT”这个品牌名判断。**
 
@@ -377,7 +379,6 @@ flowchart LR
 from anthropic import Anthropic
 
 client = Anthropic()
-
 
 def ask_claude(question: str, *, automatic: bool, ttl: str = "5m"):
     # 稳定规则位于 system；实际项目应使用不可变 Prompt 版本生成，而不是运行时拼接时间。
@@ -513,7 +514,6 @@ $$
 from dataclasses import dataclass, fields
 from math import floor
 
-
 @dataclass(frozen=True)
 class RateCard:
     # 所有单价统一为“美元/百万 Token”，None 表示费率缺失，不能按 0 处理。
@@ -522,7 +522,6 @@ class RateCard:
     cache_read: float | None
     output: float | None
 
-
 @dataclass(frozen=True)
 class Usage:
     # 三种输入分类互斥；调用方不能再把 total_input 作为第五项传入。
@@ -530,7 +529,6 @@ class Usage:
     cache_write: int
     cache_read: int
     output: int
-
 
 def calculate_cost(usage: Usage, rates: RateCard) -> float:
     token_counts = {field.name: getattr(usage, field.name) for field in fields(Usage)}
@@ -547,7 +545,6 @@ def calculate_cost(usage: Usage, rates: RateCard) -> float:
     total = sum(token_counts[name] * prices[name] for name in token_counts)
     return total / 1_000_000
 
-
 def usage_from_items(items: list[tuple[str, int]]) -> Usage:
     allowed = {field.name for field in fields(Usage)}
     categories = [name for name, _ in items]
@@ -558,7 +555,6 @@ def usage_from_items(items: list[tuple[str, int]]) -> Usage:
         raise ValueError("usage 分类缺失或未知")
     return Usage(**dict(items))
 
-
 def break_even_hits(base: float, write: float, read: float) -> int:
     if min(base, write, read) < 0:
         raise ValueError("费率不能为负数")
@@ -568,7 +564,6 @@ def break_even_hits(base: float, write: float, read: float) -> int:
     threshold = (write - base) / (base - read)
     # 不等式是 n > threshold；floor + 1 能正确处理阈值恰好为整数的情况。
     return max(0, floor(threshold) + 1)
-
 
 def compare_cache_lifecycle(
     *, rates: RateCard, ordinary: Usage, first_write: Usage, cache_hit: Usage, hits: int
@@ -581,7 +576,6 @@ def compare_cache_lifecycle(
     cached = calculate_cost(first_write, rates) + calculate_cost(cache_hit, rates) * hits
     saving_rate = 0.0 if baseline == 0 else (baseline - cached) / baseline
     return {"无缓存累计": baseline, "缓存累计": cached, "节省比例": saving_rate}
-
 
 gpt_rates = RateCard(2.00, 2.50, 0.20, 12.00)
 ordinary = Usage(uncached_input=21_000, cache_write=0, cache_read=0, output=500)
@@ -612,11 +606,9 @@ from prompt_cache_cost import (
     usage_from_items,
 )
 
-
 GPT = RateCard(2.00, 2.50, 0.20, 12.00)
 CLAUDE_5M = RateCard(2.00, 2.50, 0.20, 10.00)
 CLAUDE_1H = RateCard(2.00, 4.00, 0.20, 10.00)
-
 
 @pytest.mark.parametrize(
     ("usage", "rates", "expected"),
@@ -634,12 +626,10 @@ CLAUDE_1H = RateCard(2.00, 4.00, 0.20, 10.00)
 def test_request_cost(usage: Usage, rates: RateCard, expected: float) -> None:
     assert calculate_cost(usage, rates) == pytest.approx(expected)
 
-
 def test_break_even_hits() -> None:
     # GPT、Claude 5 分钟写入需要一次后续命中，1 小时写入需要两次。
     assert break_even_hits(2.00, 2.50, 0.20) == 1
     assert break_even_hits(2.00, 4.00, 0.20) == 2
-
 
 def test_three_request_lifecycle() -> None:
     # 写入后命中两次时，累计费用与正文账单表必须能互相复算。
@@ -653,7 +643,6 @@ def test_three_request_lifecycle() -> None:
     assert report["无缓存累计"] == pytest.approx(0.144)
     assert report["缓存累计"] == pytest.approx(0.082)
     assert report["节省比例"] == pytest.approx(0.4305555556)
-
 
 def test_invalid_usage_and_rate_are_rejected() -> None:
     with pytest.raises(ValueError, match="Token 数"):
@@ -705,7 +694,6 @@ import hashlib
 import json
 from typing import Any
 
-
 def stable_prefix_fingerprint(
     *,
     model: str,
@@ -733,7 +721,6 @@ def stable_prefix_fingerprint(
     )
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
-
 def build_request(question: str, **stable: Any) -> dict[str, Any]:
     fingerprint = stable_prefix_fingerprint(**stable)
     # 动态问题只进入断点后的请求体；它不参与客户端稳定前缀指纹。
@@ -753,7 +740,6 @@ from copy import deepcopy
 
 from prompt_prefix import build_request
 
-
 BASE = {
     "model": "model-a",
     "prompt_version": "prompt-v3",
@@ -766,13 +752,11 @@ BASE = {
     "knowledge_release": "release-42",
 }
 
-
 def test_dynamic_question_does_not_change_prefix() -> None:
     # 两轮问题不同，但稳定规则和可见范围相同，因此客户端指纹应保持一致。
     first = build_request("怎样申请环境？", **BASE)
     second = build_request("发布窗口是什么？", **BASE)
     assert first["prefix_fingerprint"] == second["prefix_fingerprint"]
-
 
 def test_stable_boundaries_change_prefix() -> None:
     baseline = build_request("问题", **BASE)["prefix_fingerprint"]

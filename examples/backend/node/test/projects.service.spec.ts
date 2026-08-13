@@ -2,7 +2,12 @@ import { ConflictException } from '@nestjs/common'
 import { ProjectsService } from '../src/projects/projects.service'
 
 describe('ProjectsService', () => {
-  const principal = { sub: 'user-a', tenantId: 'tenant-a', sessionId: 'session-a' }
+  const principal = {
+    sub: 'user-a',
+    tenantId: 'tenant-a',
+    sessionId: 'session-a',
+    permissions: ['project.read', 'project.write'],
+  }
 
   it('places tenant and version in the update predicate', async () => {
     const project = { id: 'project-a', tenantId: 'tenant-a', version: 2 }
@@ -13,7 +18,7 @@ describe('ProjectsService', () => {
       },
     }
     const service = new ProjectsService(prisma as never)
-    await expect(service.update(principal, 'project-a', { name: 'next', expectedVersion: 1 }))
+    await expect(service.update(principal, 'project-a', { name: 'next', version: 1 }))
       .resolves.toEqual(project)
     expect(prisma.project.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ tenantId: 'tenant-a', version: 1 }),
@@ -28,7 +33,7 @@ describe('ProjectsService', () => {
       },
     }
     const service = new ProjectsService(prisma as never)
-    await expect(service.update(principal, 'project-a', { name: 'stale', expectedVersion: 1 }))
+    await expect(service.update(principal, 'project-a', { name: 'stale', version: 1 }))
       .rejects.toBeInstanceOf(ConflictException)
   })
 })

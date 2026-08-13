@@ -135,10 +135,3 @@ charset 型 meta 标签非常关键，它描述了 HTML 文档自身的编码形
 - referrer: 跳转策略，是一种安全考量。
 
 - theme-color: 页面风格颜色，实际并不会影响页面，但是浏览器可能据此调整页面之外的 UI（如窗口边框或者 tab 的颜色）。
-
-## 参考资料
-
-- [WHATWG HTML：Document metadata](https://html.spec.whatwg.org/multipage/semantics.html#the-head-element)：`head`、`title`、`base`、`meta` 与 `link`。
-- [WHATWG HTML：Scripting](https://html.spec.whatwg.org/multipage/scripting.html)：classic 与 module script 行为。
-- [MDN：Preloading content](https://developer.mozilla.org/docs/Web/HTML/Attributes/rel/preload)：资源提示的使用边界。
-- [Google Search Central：Meta tags](https://developers.google.com/search/docs/crawling-indexing/special-tags)：搜索系统支持的元数据。

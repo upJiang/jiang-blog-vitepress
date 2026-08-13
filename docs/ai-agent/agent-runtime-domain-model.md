@@ -131,7 +131,6 @@ flowchart TD
 
 代码只实现确定性状态机，消息、事件和 Worker 的输入输出全部显式化。运行后会打印每次迁移，非法迁移会抛异常。
 
-
 下面把“状态转移实现”落成最小实现。代码关注“Turn 状态机只允许表中定义的转移，并用终态锁阻止迟到 Worker 覆盖已完成结果”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
@@ -141,7 +140,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-
 class TurnStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
@@ -150,7 +148,6 @@ class TurnStatus(StrEnum):
     FAILED = "failed"
     CANCELLED = "cancelled"
     EXPIRED = "expired"
-
 
 @dataclass
 class Turn:
@@ -178,7 +175,6 @@ class Turn:
         self.status = next_status
         self.events.append(f"{event}:{self.status}")
 
-
 # 新 Turn 创建时固定当前 Release，后续发布不会改变正在运行的快照。
 turn = Turn("turn-demo")
 for event in ["worker_claimed", "answer_validated"]:
@@ -202,7 +198,6 @@ from dataclasses import dataclass, field
 from threading import Lock
 # RuntimeEvent 保存可排序、可重放的事件状态，让断线恢复仍能重建相同执行轨迹。
 
-
 @dataclass(frozen=True)
 class RuntimeEvent:
     turn_id: str
@@ -210,7 +205,6 @@ class RuntimeEvent:
     event_type: str
     payload: dict[str, object]
 # EventStream 保存可排序、可重放的事件状态，让断线恢复仍能重建相同执行轨迹。
-
 
 @dataclass
 class EventStream:
@@ -251,13 +245,11 @@ Task 的 ACK 只说明队列消息处理完成，不说明业务回答成功。W
 
 下面的测试复用 `Turn` 和 `EventStream`。重点不是自然语言答案，而是终态不可逆、取消有中间态，以及断线重放不丢事件。
 
-
 为了验证“用 pytest 固定状态不变量”，下面的测试把“测试覆盖非法转移、终态不可覆盖和事件单调性，防止模型文本直接驱动业务状态”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
 # 测试覆盖非法转移、终态不可覆盖和事件单调性，防止模型文本直接驱动业务状态。
 import pytest
-
 
 def test_completed_turn_cannot_transition_again() -> None:
     # 新 Turn 创建时固定当前 Release，后续发布不会改变正在运行的快照。
@@ -268,7 +260,6 @@ def test_completed_turn_cannot_transition_again() -> None:
     with pytest.raises(ValueError):
         turn.transition("unrecoverable_error")
 
-
 def test_running_cancel_requires_worker_confirmation() -> None:
     # 新 Turn 创建时固定当前 Release，后续发布不会改变正在运行的快照。
     turn = Turn("turn-cancel")
@@ -278,7 +269,6 @@ def test_running_cancel_requires_worker_confirmation() -> None:
     assert turn.status is TurnStatus.CANCEL_REQUESTED
     turn.transition("stopped")
     assert turn.status is TurnStatus.CANCELLED
-
 
 # 这个用例重复提交或恢复同一运行，确认 Checkpoint、幂等键或事件序号阻止重复副作用。
 def test_event_replay_returns_only_unseen_sequence() -> None:
@@ -294,7 +284,7 @@ def test_event_replay_returns_only_unseen_sequence() -> None:
 
 第一个测试让已完成 Turn 再接收失败事件，必须抛错；第二个测试证明 running 取消不是直接 completed 或 cancelled；第三个测试模拟客户端已经看过序号 1，只重放 2 和 3。执行 `pytest -q` 预期得到 `3 passed`。数据库集成测试还要用两个并发连接争抢同一终态，断言只有一个条件更新成功。
 
-## 把状态机制落到相似系统
+## 同一状态模型怎样承接导入与评测任务
 
 测试重复 `answer_validated`、`cancel_requested` 之后迟到的完成事件、过期后 Worker 恢复三种情况。再为 Event 增加 `sequence`，让 SSE 断线能够按序号重放。进一步验证是将“引用”和“证据”作为独立实体，不把它们埋在 Message JSON 里。
 

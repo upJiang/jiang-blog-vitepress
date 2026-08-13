@@ -69,18 +69,15 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-
 class Message(BaseModel):
     role: Literal["system", "developer", "user", "assistant"]
     content: str = Field(min_length=1, max_length=20_000)
-
 
 class ChatRequest(BaseModel):
     model: str
     messages: list[Message] = Field(min_length=1, max_length=100)
     stream: bool = False
     max_tokens: int = Field(default=256, ge=1, le=2_048)
-
 
 class DemoAdapter:
     async def stream(self, messages: list[Message], max_tokens: int) -> AsyncIterator[str]:
@@ -90,10 +87,8 @@ class DemoAdapter:
             await asyncio.sleep(0.01)
             yield f"{word} "
 
-
 app = FastAPI()
 registry = {"demo-chat": DemoAdapter()}
-
 
 def get_adapter(payload: ChatRequest) -> DemoAdapter:
     adapter = registry.get(payload.model)
@@ -104,7 +99,6 @@ def get_adapter(payload: ChatRequest) -> DemoAdapter:
         )
     return adapter
 
-
 @app.middleware("http")
 async def request_context(request: Request, call_next):
     # 请求 ID 用于关联入口、模型适配器和用量日志。
@@ -112,7 +106,6 @@ async def request_context(request: Request, call_next):
     response = await call_next(request)
     response.headers["x-request-id"] = request.state.request_id
     return response
-
 
 @app.post("/v1/chat/completions")
 async def chat_completions(

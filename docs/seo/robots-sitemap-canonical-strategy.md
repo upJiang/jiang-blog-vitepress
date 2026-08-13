@@ -140,7 +140,7 @@ Sitemap 的处理链是：业务页面库筛选合格 URL，生成器输出 XML�
 
 以下冲突需要优先处理：Sitemap URL 同时 noindex；Canonical 指向 404/跳转/noindex；非规范 URL 被大量内链；不应索引页出现在导航；应索引页面被资源规则阻断；多语言页面的 Canonical 与 hreflang 关系互相否定。
 
-## 本篇产物：索引治理矩阵
+## 索引治理矩阵
 
 矩阵按 URL 模板而不是逐页填写：
 

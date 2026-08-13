@@ -167,9 +167,3 @@ document.dispatchEvent(evt);
 捕获与冒泡机制来自 pointer 设备输入的处理，捕获是计算机处理输入的逻辑，冒泡是人类理解事件的思维，捕获总是在冒泡之前发生。
 
 焦点机制则来自操作系统的思路，用于处理键盘事件。除了我们讲到的这些，随着输入设备的不断丰富，还有很多新的事件加入，如 Geolocation 和陀螺仪等.
-
-## 参考资料
-
-- [WHATWG DOM：Events](https://dom.spec.whatwg.org/#events)
-- [MDN：EventTarget.addEventListener](https://developer.mozilla.org/docs/Web/API/EventTarget/addEventListener)
-- [MDN：Event bubbling](https://developer.mozilla.org/docs/Learn_web_development/Core/Scripting/Event_bubbling)

@@ -123,9 +123,3 @@ series: "重学前端"
 **预览环境需要申请机器和域名、部署和建立发布机制，规则校验有三种方法：结构扫描、数据采集和代码扫描。**
 
 持续集成的实施需要重点关注校验规则部分，要建立一个民主讨论、定期更新的校验规则。持续集成机制的建立就是其结果本身，此外，系统中产生的数据也可以有一定管理价值。
-
-## 参考资料
-
-- [GitHub Actions documentation](https://docs.github.com/en/actions)
-- [npm: package-lock and reproducible installs](https://docs.npmjs.com/cli/configuring-npm/package-lock-json)
-- [Playwright: Writing tests](https://playwright.dev/docs/writing-tests)

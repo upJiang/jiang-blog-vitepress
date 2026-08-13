@@ -25,78 +25,86 @@ updated: 2026-08-12
 
 # RabbitMQ 路由、ACK、重试与死信
 
-Worker 已写入数据库，却在发送 ACK 前崩溃。RabbitMQ 会再次投递同一消息，所以消费者必须把“至少一次投递”当作正常路径，而不是异常。
+Worker 已把任务写入数据库，进程在 `basic.ack` 前退出。连接关闭后，RabbitMQ 把未确认消息重新入队，另一个 Worker 再次收到它。手动 ACK 提供的是“处理完成前不删除消息”，不是 exactly-once；消费者必须允许重复。
 
-## Exchange、Binding 和 Queue 分工
+## Exchange 路由，Queue 保存，Binding 连接规则
 
-Exchange、Binding 和 Queue 分工不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+生产者把消息发布到 Exchange，并提供 routing key。Direct Exchange 精确匹配，Topic 按词模式匹配，Fanout 广播到所有绑定 Queue。Queue 才保存等待消费的消息；Exchange 没有匹配且未配置 mandatory/alternate 时，消息可能被丢弃。
+
+声明 durable Exchange/Queue 只保证拓扑在 Broker 重启后存在；消息还需要 persistent 属性，Broker 的持久化与 publisher confirm 才能建立发布证据。
 
 ```mermaid
 flowchart LR
-  A[输入与上下文] --> B[Exchange、Binding 和 Queue 分工]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
+  P[Producer] -->|routing key: document.parse| X[Topic Exchange]
+  X -->|document.*| Q1[parser queue]
+  X -->|#.failed| Q2[audit queue]
+  Q1 --> W1[Worker]
+  Q2 --> W2[Audit Worker]
 ```
 
-图中失败分支不会假装成空成功。消息系统的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+Producer 不应依赖某个消费者在线。它依赖已声明的路由契约和 publisher confirm；拓扑通常由受控部署或幂等声明建立。
 
-## ACK、Prefetch 和消费者容量
+## Publisher confirm 与 Consumer ACK 在链路两端
 
-ACK、Prefetch 和消费者容量要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+Publisher confirm 告诉生产者 Broker 是否接管 publish；Consumer ACK 告诉 Broker 消费者已完成处理。两者互不替代。API 在 publish 超时时仍可能不知道 Broker 是否接收，因此消息要有稳定 event_id。
 
-下面的片段抓住 消息系统 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+消费者先完成数据库事务，再 ACK。若先 ACK 后写库，进程崩溃会永久丢任务；写库后 ACK 虽会重复，但幂等表、唯一约束或条件状态转换能安全吸收。
+
+下面的伪代码展示 event_id 去重和 ACK 顺序。数据库事务成功才确认消息。
 
 ```ts
-await consume(async (message) => {
-  await db.transaction(async (tx) => {
-    await idempotency.claim(tx, message.id)
-    await tasks.apply(tx, message.payload)
-  })
-  channel.ack(message)
-})
+channel.consume(queue, async (message) => {
+  const event = decodeAndValidate(message.content)
+  try {
+    await db.transaction(async (tx) => {
+      const claimed = await inbox.claim(tx, event.eventId)
+      if (claimed) await tasks.apply(tx, event)
+    })
+    channel.ack(message)
+  } catch (error) {
+    await handleRetryOrDeadLetter(channel, message, error)
+  }
+}, { noAck: false })
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+重复 event_id 时事务不再执行副作用，但仍 ACK 当前投递。decode/Schema 错误通常不可重试，应带原因进入 DLQ，而不是无限 requeue。
 
-## 有限重试与死信
+## Prefetch 把在途消息限制在消费者容量内
 
-有限重试与死信最终要落实到可观察证据。消息系统的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+Prefetch 控制一个 Consumer 同时持有多少未 ACK 消息。值过大导致慢 Worker 囤积消息、分配不均和内存上升；值过小可能无法覆盖 IO 等待。根据单任务资源、处理时间和 Worker 并发测量。
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
+进程收到 SIGTERM 后先停止获取新消息，等待在途任务在 deadline 内完成并 ACK；超时则关闭 Channel，让未确认消息重投。不能在关停时批量 ACK 尚未完成的任务。
+
+| 失败类型 | 动作 | 原因 |
 | --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+| 临时网络/依赖错误 | 延迟后有限重试 | 可能恢复 |
+| Schema/参数非法 | 直接 DLQ | 重复不会变正确 |
+| 业务已终止 | ACK 并记录终态 | 不是基础设施失败 |
+| Worker 崩溃 | 连接关闭后重投 | 未 ACK 保留 |
+| 超过最大尝试 | DLQ + 告警 | 需要分析或人工处理 |
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+## 重试不能原地高速 requeue
 
-## 有限重试与死信出现异常时怎样定位
+立即 `nack(requeue=true)` 会形成热循环，故障依赖继续被打满。使用带 TTL 的重试队列、延迟交换插件或调度服务实现 10s/1m/5m 等退避，并在 Header 或消息信封记录 attempt。
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+DLQ 不是垃圾桶。它需要消息原文的受控副本、失败码、首次/最后失败时间、attempt、处理 Runbook 与重放工具。重放仍使用同一 event_id，消费者幂等保护不能绕过。
 
-先固定版本、输入、时间窗口和资源状态，再沿 消息系统 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+生产队列还要确定复制类型和故障策略。单节点 durable Queue 无法承受所在节点与磁盘同时失效；Quorum Queue 用多数副本提交换取更强可用性，也带来写放大和容量成本。选副本数前先定义允许丢失窗口、Broker 故障时是否继续发布，以及磁盘告警后的止损动作。
 
-## ACK、Prefetch 和消费者容量之后还要追问
+## RabbitMQ 语义继续推演
 
-### Exchange、Binding 和 Queue 分工为什么不能只放在调用方处理？
+### 消息设置 persistent 为什么仍可能丢？
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+若发布到不存在/无匹配路由、生产者没等 confirm、Broker 集群策略不足或磁盘故障，persistent 本身不建立端到端保证。要组合 durable 拓扑、mandatory/alternate、confirm 和监控。
 
-### ACK、Prefetch 和消费者容量遇到超时后，什么时候可以重试？
+### ACK 能否放在数据库 COMMIT 同一事务？
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+RabbitMQ ACK 与 MySQL COMMIT 属于不同系统，无法普通地原子提交。采用数据库 Inbox 幂等，让 COMMIT 后 ACK 的重复投递安全。
 
-### 怎样用失败路径证明 消息系统 真的被理解了？
+### DLQ 消息修复后怎样重放？
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+先修复消费者或数据，按筛选批量重发到原交换机，保留 event_id 与审计，限制速率并观察成功/再次失败。不要直接清空 DLQ。
 
-### 有限重试与死信与前一层的责任怎样交接？
+### Queue 长度为零是否代表系统健康？
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。有限重试与死信只处理自己拥有的状态。
+不一定。消息可能未路由、生产停止、全部堆在 unacked，或消费者错误 ACK。一起看 publish rate、confirm、ready、unacked、消费成功和任务业务状态。

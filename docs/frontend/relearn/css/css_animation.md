@@ -61,10 +61,3 @@ transition 与 animation 相比来说，是简单得多的一个属性。它有�
   to { top: 0; transition:top linear}
 }
 ```
-
-## 参考资料
-
-- [CSS Transitions Level 2](https://www.w3.org/TR/css-transitions-2/)
-- [CSS Animations Level 2](https://www.w3.org/TR/css-animations-2/)
-- [MDN：Using CSS animations](https://developer.mozilla.org/docs/Web/CSS/CSS_animations/Using_CSS_animations)
-- [web.dev：Animations](https://web.dev/learn/css/animations/)

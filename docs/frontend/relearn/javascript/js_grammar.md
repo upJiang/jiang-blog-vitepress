@@ -103,7 +103,6 @@ export function modify(){
     a = 2;
 }
 
-
 import {a, modify} from "./a.js";
 console.log(a); //1
 modify();
@@ -294,10 +293,3 @@ f.call(null);
 这段代码展示了严格模式的用法，我这里定义了函数 f，f 中打印 this 值，然后用 call 的方法调用 f，传入 null 作为 this 值，我们可以看到最终结果是 null 原封不动地被当做 this 值打印了出来，这是严格模式的特征。
 
 如果我们去掉严格模式的指令需要，打印的结果将会变成 global。
-
-## 参考资料
-
-- [ECMAScript：ECMAScript Language Scripts and Modules](https://tc39.es/ecma262/#sec-ecmascript-language-scripts-and-modules)
-- [ECMAScript：Declarations and the Variable Statement](https://tc39.es/ecma262/#sec-declarations-and-the-variable-statement)
-- [MDN：JavaScript modules](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Modules)
-- [HTML Standard：Scripting](https://html.spec.whatwg.org/multipage/scripting.html)

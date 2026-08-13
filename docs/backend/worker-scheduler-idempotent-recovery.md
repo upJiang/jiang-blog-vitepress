@@ -26,75 +26,89 @@ updated: 2026-08-12
 
 # Worker、定时任务与故障恢复
 
-定时器在 00:00 触发任务，实例切换又触发一次；旧 Worker 失去租约后仍在写进度。调度、执行和状态所有权必须分开，否则“只跑一次”只是愿望。
+定时任务每天 02:00 生成账单，部署时两个 Scheduler 同时触发，产生两份账单。随后一个 Worker 执行超时被重投，第三份又开始生成。Scheduler 负责“何时产生任务”，Worker 负责“执行任务”，业务唯一键负责“同一任务只能产生一个结果”。
 
-## 任务状态机保存恢复位置
+## 任务记录比进程内 Future 更可靠
 
-任务状态机保存恢复位置不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+API 接受长任务后先在 MySQL 创建 task 行，包含 type、business_key、status、attempt、payload_ref、created_at 和 deadline，再通过 Outbox 发布 task_id。客户端拿 202 与 task_id 查询进度或订阅 SSE。
+
+任务 payload 不放大文件正文，使用对象 key 或数据库资源 ID。Worker 每次执行先按 task_id 读取当前状态与租约，已完成则直接 ACK，取消或过期则进入对应终态。
 
 ```mermaid
-flowchart LR
-  A[输入与上下文] --> B[任务状态机保存恢复位置]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
+stateDiagram-v2
+  [*] --> queued
+  queued --> running: claim + lease
+  running --> succeeded: commit result
+  running --> retry_wait: retryable failure
+  retry_wait --> queued: due time
+  running --> failed: terminal failure
+  queued --> cancelled: user cancel
+  running --> cancelled: cooperative cancel
+  succeeded --> [*]
+  failed --> [*]
 ```
 
-图中失败分支不会假装成空成功。消息系统的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+状态转换使用 `WHERE status=? AND attempt=?` 条件更新，旧 Worker 不能覆盖新 attempt 的终态。
 
-## 调度器产生意图，Worker 执行
+## 领取任务需要租约和 attempt
 
-调度器产生意图，Worker 执行要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+Worker 原子地把 queued/retry_wait 改为 running，增加 attempt，并设置 lease_expires_at。心跳在任务仍属于自己时续租。进程崩溃后 Recovery Scanner 只回收租约已过期的 running 任务。
 
-下面的片段抓住 消息系统 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+租约不是业务幂等。旧 Worker 可能暂停后继续运行，所以写结果时同时匹配 attempt/lease token；外部副作用使用业务幂等键，例如 `invoice:{tenant}:{period}`。
 
-```ts
+这条条件更新展示领取裁决。事务随后读取任务，只有影响一行的 Worker 成为当前所有者。
+
+```sql
 UPDATE tasks
-SET owner = :worker, lease_until = NOW(6) + INTERVAL 30 SECOND, status = "running"
-WHERE id = :id AND status IN ("queued", "retrying")
-  AND (lease_until IS NULL OR lease_until < NOW(6));
+SET status = 'running',
+    attempt = attempt + 1,
+    lease_owner = :worker_id,
+    lease_expires_at = UTC_TIMESTAMP(6) + INTERVAL 60 SECOND,
+    started_at = COALESCE(started_at, UTC_TIMESTAMP(6))
+WHERE id = :task_id
+  AND status IN ('queued', 'retry_wait')
+  AND available_at <= UTC_TIMESTAMP(6);
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+完成更新还要 `WHERE id=? AND status=running AND attempt=? AND lease_owner=?`。影响行数为 0 表示所有权已失效，当前进程不能提交终态。
 
-## Lease、心跳和停机排空
+续租更新同样要匹配当前 attempt，并用数据库时间计算新的租约，避免多台 Worker 时钟漂移。租约过期不代表原 Worker 已停止，它只允许新 Worker 接管；attempt 是 fencing token，数据库终态和派生对象 key 都要携带它。外部 API 若不支持 fencing，就必须使用业务幂等键或补偿。
 
-Lease、心跳和停机排空最终要落实到可观察证据。消息系统的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+## Scheduler 也要幂等地产生任务
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
+多个 Scheduler 可同时扫描到到期计划。数据库在 `(schedule_id, scheduled_for)` 上设置唯一约束，只有一个实例创建任务；或用数据库锁选取到期计划。
+
+处理漏跑时明确 misfire 策略：服务恢复后补跑每个窗口、只跑最新一次，或标记人工处理。时区与夏令时必须写进 schedule，企业任务通常用 UTC 存储触发时刻，展示时转换。
+
+| 任务类型 | 业务唯一键 | 重试关注 |
 | --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+| 月度账单 | tenant + billing_period | 不能重复生成/扣款 |
+| 文档解析 | document_id + content_version | 新版本不能被旧结果覆盖 |
+| 邮件通知 | template + recipient + event_id | 供应商未知结果先查询/去重 |
+| 缓存预热 | resource + version | 允许重复但限制并发 |
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+## 恢复顺序从任务事实开始
 
-## Lease、心跳和停机排空出现异常时怎样定位
+队列积压先看 oldest age、到达率、成功率与下游容量；running 滞留看租约和心跳；状态 completed 但对象缺失则检查提交顺序；重复结果查业务唯一约束和旧 attempt 写入。
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+不要直接把所有 running 改 queued。先确认仍在线 Worker、租约、外部副作用和任务幂等；批量恢复设置速率，避免依赖恢复时形成重试洪峰。
 
-先固定版本、输入、时间窗口和资源状态，再沿 消息系统 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+Scheduler 的时间也可能重复或跳过：进程停机、多副本竞争和时区变化都会影响触发。`(schedule_id, scheduled_for)` 唯一约束让多副本只有一个创建成功；恢复策略明确补跑、跳过或只保留最新一次，不能靠当前时间猜测。
 
-## 调度器产生意图，Worker 执行之后还要追问
+## 任务系统继续推演
 
-### 任务状态机保存恢复位置为什么不能只放在调用方处理？
+### 为什么任务进度不能只放 Redis？
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+Redis 适合高频进度快照，MySQL 保存任务终态、attempt 和所有权事实。Redis 丢失后可从数据库重建基本状态，不能让任务是否成功只依赖易失缓存。
 
-### 调度器产生意图，Worker 执行遇到超时后，什么时候可以重试？
+### 用户取消任务后 Worker 一定马上停止吗？
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+取消是协作信号。Worker 在可中断点检查状态/context；已经发出的不可取消外部操作可能继续，需要等待结果或补偿。响应应区分 cancel_requested 与 cancelled。
 
-### 怎样用失败路径证明 消息系统 真的被理解了？
+### 任务失败后为什么不能永远重试？
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+永久错误不会因时间变正确，无限重试占用容量并掩盖故障。按错误类型设上限和退避，超过后进入 failed/DLQ 并告警。
 
-### Lease、心跳和停机排空与前一层的责任怎样交接？
+### 如何避免旧文档解析覆盖新版本？
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。Lease、心跳和停机排空只处理自己拥有的状态。
+任务绑定 content_version，完成条件更新同时匹配文档当前版本和 task attempt。旧版本可保存历史结果，但不能把 active_version 改回旧值。

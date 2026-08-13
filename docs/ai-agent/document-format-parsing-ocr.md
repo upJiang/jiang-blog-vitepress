@@ -70,7 +70,6 @@ flowchart LR
 from dataclasses import dataclass, field
 from typing import Literal
 
-
 @dataclass(frozen=True)
 class Source:
     # file_id 与结构路径共同定位来源；文件改名时仍可通过稳定 ID 追踪。
@@ -80,7 +79,6 @@ class Source:
     page: int | None = None
     slide: int | None = None
     sheet: str | None = None
-
 
 @dataclass(frozen=True)
 class Block:
@@ -125,7 +123,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-
 @dataclass(frozen=True)
 class ParseResult:
     blocks: tuple[Block, ...]
@@ -133,10 +130,8 @@ class ParseResult:
     parser_version: str
     warnings: tuple[str, ...] = ()
 
-
 class ParserAdapter(Protocol):
     def parse(self, file_path: Path) -> ParseResult: ...
-
 
 class ParserRegistry:
     def __init__(self, adapters: dict[str, ParserAdapter]) -> None:
@@ -269,7 +264,7 @@ OCR 是一个有成本和错误率的外部步骤，不能作为“解析失败�
 
 失败记录至少包含文件 ID、阶段、页码或 sheet、解析器版本、错误类型和重试建议。可重试的网络错误与不可重试的损坏文件不能共用一个“导入失败”字符串。
 
-## 带到工作的解析检查表
+## 解析检查表怎样发现内容覆盖缺口
 
 ```text
 [ ] 文件扩展名、MIME、大小和安全准入已检查

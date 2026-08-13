@@ -91,4 +91,4 @@ flowchart TB
 
 Collective 要求参与 Rank 以一致顺序进入；某个 Rank OOM、数据异常或进程退出，其他 Rank 可能表现为通信超时。日志必须带 job、node、global/local rank、step 和 collective。先找到最早失败 Rank，而不是只看最后超时者。
 
-指标包括 step time 分解、计算/通信重叠、每 Rank 显存、网络、数据等待、Gradient Norm、Checkpoint 时间和失败恢复。当前环境没有训练集群，因此不提供扩展效率数字；文章产物是一张能解释状态分布、通信边和恢复方式的拓扑。
+指标包括 step time 分解、计算/通信重叠、每 Rank 显存、网络、数据等待、Gradient Norm、Checkpoint 时间和失败恢复。当前环境没有训练集群，因此不提供扩展效率数字；验证时保留一张能解释状态分布、通信边和恢复方式的拓扑。

@@ -25,76 +25,85 @@ updated: 2026-08-12
 
 # Node.js 与 NestJS：运行时、模块和请求生命周期
 
-NestJS Controller 中执行一次同步大循环，所有同进程请求都开始排队。Node 的 JavaScript 默认运行在事件循环线程，框架模块和装饰器不会自动把 CPU 工作变成并行。
+NestJS Controller 中加入一次 800 ms 的同步密码批处理后，同进程所有请求都开始排队。NestJS 的 Module、Decorator 和依赖注入不会改变 Node 运行模型：JavaScript 回调主要在事件循环线程执行，同步 CPU 工作会阻塞这一线程。
 
-## Node 事件循环承载请求回调
+## 事件循环在回调之间推进请求
 
-Node 事件循环承载请求回调不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+Node 把 socket 交给操作系统等待，响应就绪后把回调排入相应阶段。Promise reaction 进入 microtask 队列，在当前回调结束后、继续下一轮事件前运行。`await` 只在等待 Promise 时让出，不会把之前的同步循环移到后台。
+
+文件系统、部分 DNS、加密等工作可能使用 libuv 线程池；网络 socket 通常由事件通知处理。线程池有容量，批量密码哈希会竞争 CPU/内存，仍需业务并发上限或独立 Worker。
 
 ```mermaid
 flowchart LR
-  A[输入与上下文] --> B[Node 事件循环承载请求回调]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
+  SOCKET[Socket ready] --> CB[JS request callback]
+  CB --> AWAIT[await DB/HTTP]
+  AWAIT --> LOOP[事件循环处理其他请求]
+  IO[IO complete] --> MICRO[Promise microtask]
+  MICRO --> CB2[继续 Controller/Service]
+  CPU[同步 CPU 循环] -->|阻塞| LOOP
 ```
 
-图中失败分支不会假装成空成功。Node.js的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+观察 event loop delay、CPU Profile 和在途请求。CPU 低时的慢请求则转查连接池、锁和下游等待。
 
-## NestJS 请求管道按顺序执行
+## NestJS 请求管道按职责执行
 
-NestJS 请求管道按顺序执行要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+Middleware 处理通用请求上下文；Guard 决定是否进入 Handler；Interceptor 可包裹执行并记录时间/转换结果；Pipe 校验和转换参数；Controller 调 Service；Exception Filter 统一映射错误。
 
-下面的片段抓住 Node.js 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+顺序会影响状态：认证 Guard 需要 requestId/上下文已存在，Pipe 错误也应进入统一 Problem，Interceptor 若吞掉异常会让错误指标和事务处理失真。把业务权限只写 Decorator/Guard 会漏掉资源状态授权，Service 仍需校验。
+
+下面的 Handler 只把框架输入交给 Service。Principal 来自 Guard，项目 ID 经 Pipe 校验，Service 拥有租户查询和业务错误。
 
 ```ts
-@Get(":id")
+@Get(":projectId")
 @UseGuards(AccessTokenGuard)
-async getProject(@Param("id") id: string, @Principal() principal: Principal) {
-  return this.projects.findScoped(principal.tenantId, id)
+async getProject(
+  @Param("projectId", new ParseUUIDPipe()) projectId: string,
+  @Principal() principal: Principal,
+) {
+  return this.projects.getProject({ principal, projectId })
 }
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+不要注入原始 Response 后到处 `res.status().send()`，这会绕过 Interceptor/Filter 并使测试困难。流式/SSE 等确需底层响应时单独封装适配器。
 
-## 模块边界和优雅关闭
+## Module 与 Provider 决定对象生命周期
 
-模块边界和优雅关闭最终要落实到可观察证据。Node.js的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+默认 Provider 是 Singleton，适合连接池、Repository 和无请求可变状态的 Service。Request-scoped Provider 每请求构造并沿依赖树传播，增加开销；只为读取 Principal 不必把整个数据层改成 request scope，可显式传参。
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
+Module 导入导出依赖边界，避免 Auth、Projects、Files 相互循环。动态模块适合配置外部适配器，但 Secret 校验在启动阶段完成；Provider 构造函数不应发长时间网络请求。
+
+requestId 与 Trace 上下文可用 AsyncLocalStorage 随异步调用传播，但它不是业务参数仓库。Principal、tenant_id 和资源版本仍显式传给 Service；上下文只放日志追踪等横切字段。第三方库若脱离异步资源链，上下文可能丢失，需要跨数据库、队列发布和 Timer 做集成检查。
+
+Microtask 也可能让事件循环饥饿。递归创建已解决 Promise 会连续清空 microtask 队列，Timer 与新 socket 回调迟迟得不到运行；这类问题 CPU 未必打满。应结合 event loop delay 和火焰图定位，拆分批次或移到 Worker，继续增加 `await Promise.resolve()` 并不会释放这一轮 microtask。
+
+| 横切需求 | NestJS 位置 | 仍需业务层处理 |
 | --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+| 身份认证 | Guard | 资源/租户授权 |
+| 参数形状 | Pipe/DTO | 跨字段和状态规则 |
+| 请求计时 | Interceptor | 业务步骤 Span |
+| 错误协议 | Exception Filter | 领域错误分类 |
+| 连接管理 | Singleton Provider | 事务边界 |
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+## 关闭时先停止入口，再释放外部连接
 
-## 模块边界和优雅关闭出现异常时怎样定位
+启用 shutdown hooks 后接收 SIGTERM，readiness 先失败，HTTP Server 停止新连接，再等待在途请求；随后取消 RabbitMQ Consumer、flush OpenTelemetry、断开 Prisma/Redis/MinIO。
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+不要在每个 Provider 的 destroy hook 各自无限等待。应用拥有总 shutdown deadline，每个组件得到子预算；测试在负载中发送 SIGTERM，证明未 ACK 消息重投且进程按时退出。
 
-先固定版本、输入、时间窗口和资源状态，再沿 Node.js 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+## Node 与 NestJS 继续追问
 
-## NestJS 请求管道按顺序执行之后还要追问
+### 把函数写成 async 是否一定不阻塞？
 
-### Node 事件循环承载请求回调为什么不能只放在调用方处理？
+不是。async 函数在第一个真正异步 await 前仍同步运行；JSON 大处理、循环、同步文件 IO 和密码哈希都能阻塞。用 Profile/event loop delay 观察并移入受限 Worker。
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+### Guard 能否访问数据库？
 
-### NestJS 请求管道按顺序执行遇到超时后，什么时候可以重试？
+可以，但每请求查询权限会增加连接压力，并可能与 Service 重复。Guard 做粗权限或缓存版本，依赖资源状态的决策由 Service 的租户范围查询完成。
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+### 为什么 Singleton Service 不能保存 currentUser？
 
-### 怎样用失败路径证明 Node.js 真的被理解了？
+同一实例服务并发请求，字段会被相互覆盖。Principal 显式作为参数或使用可靠请求上下文；Singleton 只保存不可变配置和线程安全客户端。
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+### Unhandled Promise rejection 会怎样？
 
-### 模块边界和优雅关闭与前一层的责任怎样交接？
-
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。模块边界和优雅关闭只处理自己拥有的状态。
+它表示异步错误失去所有者，进程行为随 Node 配置/版本变化。所有后台 Promise 都要被 await、进入任务系统或显式 catch 并上报，不能靠全局 handler 继续未知状态。

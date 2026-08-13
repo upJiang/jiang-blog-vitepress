@@ -105,7 +105,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
-
 class SearchTask(BaseModel):
     query: str = Field(min_length=1, max_length=160)
     channel: str
@@ -121,11 +120,9 @@ class SearchTask(BaseModel):
             raise ValueError("unsupported retrieval channel")
         return value
 
-
 class SearchPlan(BaseModel):
     tasks: list[SearchTask] = Field(min_length=1, max_length=4)
     round: int = Field(ge=1, le=2)
-
 
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate_plan(plan: SearchPlan, *, remaining_tokens: int) -> SearchPlan:
@@ -138,7 +135,6 @@ def validate_plan(plan: SearchPlan, *, remaining_tokens: int) -> SearchPlan:
     if estimated > remaining_tokens:
         raise ValueError("plan exceeds evidence budget")
     return plan
-
 
 # plan 是校验后的执行契约，可信 Scope、版本和预算由程序合并。
 plan = SearchPlan.model_validate(
@@ -180,14 +176,12 @@ print(validate_plan(plan, remaining_tokens=1000).model_dump())
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class NextAction(StrEnum):
     GENERATE = "generate"
     RESEARCH_AGAIN = "research_again"
     REFUSE = "refuse"
     CANCEL = "cancel"
     EXPIRE = "expire"
-
 
 @dataclass(frozen=True)
 class ResearchProgress:
@@ -200,12 +194,10 @@ class ResearchProgress:
     new_candidate_count: int
     cancel_requested: bool = False
 
-
 @dataclass(frozen=True)
 class StopDecision:
     action: NextAction
     reason: str
-
 
 def decide_next(progress: ResearchProgress) -> StopDecision:
     # 收到取消信号就提交取消状态并返回，后面的工具调用和结果写入都不能再发生。
@@ -238,7 +230,7 @@ def decide_next(progress: ResearchProgress) -> StopDecision:
 
 权限问题不进入 `decide_next` 的普通缺口逻辑。若执行器发现计划扩大 Scope 或证据 ACL 复核失败，应直接产生安全拒绝/失败原因，不能把越权当作“再搜一次也许有结果”。
 
-## 练习
+## 用四类问题检验计划和停止条件
 
 给计划增加 `required_claims`，让每个 Claim 对应一个证据目标。测试重复查询、未知通道、超过任务数、超过预算和覆盖完成五条路径。再说明你的问题为什么需要一轮还是两轮。
 
@@ -247,7 +239,6 @@ def decide_next(progress: ResearchProgress) -> StopDecision:
 ```python
 # 示例计划把多目标问题拆成有限步骤，并显式写出依赖、证据槽和无法继续时的动作。
 import pytest
-
 
 # 参数表覆盖证据已齐、仍有缺口、轮次耗尽和 Deadline 到期四种停止条件。
 @pytest.mark.parametrize(

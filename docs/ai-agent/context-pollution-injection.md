@@ -29,6 +29,7 @@ lastUpdated: false
 
 这就是**间接提示注入**。风险不在于模型能否识别“坏话”，而在于系统是否把来自不同信任域的文本放进同一个控制面。只靠 System Prompt 再写一句“不要听文档命令”不能证明安全。即使模型生成了危险候选动作，模型外的权限、Schema、范围、审批和副作用门禁仍必须阻断。
 
+在 `ContextSnapshot` 中，每个 Block 已经带有 kind 与 source_id。本篇继续增加 `trust_domain`、`sanitized` 和 `instruction_allowed`，让装配器知道某段内容是控制规则、用户输入还是外部数据。安全处理生成新 Snapshot 时保留 Scope 与 Release，并把被隔离 Block 的原因写入 `dropped`；它不会把外部文档提升成 system Block。
 
 ## 直接注入、间接注入和上下文污染分别是什么
 
@@ -143,13 +144,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-
 @dataclass(frozen=True)
 class AuthContext:
     user_id: str
     tenant_id: str
     allowed_scope_ids: frozenset[str]
-
 
 @dataclass(frozen=True)
 class ProposedAction:
@@ -158,19 +157,16 @@ class ProposedAction:
     scope_ids: frozenset[str]
     source_evidence_ids: tuple[str, ...]
 
-
 @dataclass(frozen=True)
 class ToolPolicy:
     allowed_tools: frozenset[str]
     max_query_chars: int
-
 
 @dataclass(frozen=True)
 class Decision:
     # status 区分继续执行、答案就绪和需要追问，调用方无需解析回答文本判断终态。
     status: Literal["allow", "deny"]
     reason: str
-
 
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate_action(
@@ -191,7 +187,6 @@ def validate_action(
     if not action.scope_ids.issubset(auth.allowed_scope_ids):
         return Decision("deny", "scope_expansion_denied")
     return Decision("allow", "validated_read_only_action")
-
 
 auth = AuthContext("user-7", "tenant-a", frozenset({"manual-public"}))
 policy = ToolPolicy(frozenset({"search_notes"}), max_query_chars=80)
@@ -259,16 +254,13 @@ Decision(status='deny', reason='tool_not_allowlisted')
 # 回归样本把恶意指令放进文档和工具结果，断言候选被阻断且实际副作用始终为零。
 from action_guard import AuthContext, ProposedAction, ToolPolicy, validate_action
 
-
 AUTH = AuthContext("u", "t", frozenset({"doc-a", "doc-b"}))
 POLICY = ToolPolicy(frozenset({"search_notes"}), 80)
-
 
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_allowed_read_stays_inside_scope() -> None:
     action = ProposedAction("search_notes", "回滚步骤", frozenset({"doc-a"}), ("e1",))
     assert validate_action(action, AUTH, POLICY).status == "allow"
-
 
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_document_cannot_expand_scope() -> None:
@@ -279,14 +271,12 @@ def test_document_cannot_expand_scope() -> None:
     decision = validate_action(action, AUTH, POLICY)
     assert decision.reason == "scope_expansion_denied"
 
-
 def test_unregistered_write_tool_never_executes() -> None:
     action = ProposedAction("delete_notes", "all", frozenset({"doc-a"}), ("evil",))
     assert validate_action(action, AUTH, POLICY).reason == "tool_not_allowlisted"
 ```
 
 代码从 `test_allowed_read_stays_inside_scope`、`test_document_cannot_expand_scope`、`test_unregistered_write_tool_never_executes` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
-
 
 测试只验证门禁决策。为了证明“未执行”，集成测试还应给工具适配器放一个调用计数器，拒绝后断言计数为 0。运行方式：
 
@@ -304,7 +294,7 @@ python3 -m pytest -q
 
 验证失败时可以有限修复：把失败 Claim 和允许证据重新交给模型，要求删除无依据内容；达到次数或 Deadline 后安全拒答。修复过程不能加入新的高权限工具，也不能绕过最初的 Scope 快照。
 
-## 工作中带走的威胁检查表
+## 用威胁检查表追踪污染来源
 
 逐项检查所有会进入模型的外部字符串：文档、网页、OCR、工具返回、错误消息、工具描述、历史摘要和长期记忆。为每项记录来源、信任级别、Scope、版本和内容 hash。提示词负责表达边界，程序负责工具名、参数、权限、预算、审批和副作用。
 

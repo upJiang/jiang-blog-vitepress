@@ -23,6 +23,7 @@ dev = ["mypy==1.17.1", "pytest==8.4.2", "pytest-asyncio==1.1.0", "ruff==0.12.11"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100
@@ -30,6 +31,7 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]
 
 [tool.mypy]
 python_version = "3.13"

@@ -137,9 +137,3 @@ series: "重学前端"
 方案上，它重点和难点在于几个产品实体的设计，数据部分重点在于编辑器和跟服务端 API 的对接，模板部分则主要是版本化和数据的格式定义，模块除了模板的重点，还有拖拽系统，最终产生的页面主要的难点是跟生产环境的对接。
 
 搭建系统的实施主要是把产品在做出来，一般来讲推广是非常自然的事情，最后，搭建系统产生的数据监控关键的指标是用户访问数和生产页面数。
-
-## 参考资料
-
-- [JSON Schema](https://json-schema.org/specification)
-- [OWASP XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
-- [MDN: Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)

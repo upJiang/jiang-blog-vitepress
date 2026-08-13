@@ -134,8 +134,3 @@ function twoSumSorted(
 不要只记“求和用 Map”。先写出朴素解法，再寻找重复问题：双层循环不断重复询问“某个补数是否出现”。Map 把这个询问从线性扫描变成直接查找；有序性又让双指针能一次排除一批不可能候选。
 
 同样思路会继续出现在三数之和、滑动窗口和原地合并中，但每道题都要重新证明指针移动不会漏解。下一篇字符串算法会把“已扫描区域”和“当前窗口”用于字符问题。
-
-## 参考资料
-
-- [ECMAScript：Map Objects](https://tc39.es/ecma262/multipage/keyed-collections.html#sec-map-objects)
-- [MDN：Map](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Map)

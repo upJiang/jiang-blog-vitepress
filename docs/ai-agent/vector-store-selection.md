@@ -171,13 +171,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class Requirement:
     name: str
     weight: int
     required: bool = False
-
 
 @dataclass(frozen=True)
 class Candidate:
@@ -185,14 +183,12 @@ class Candidate:
     # 同一文档在不同通道的名次贡献累加到 scores，键使用稳定文档 ID。
     scores: dict[str, int]
 
-
 @dataclass(frozen=True)
 class DecisionRow:
     name: str
     accepted: bool
     score: int
     missing_required: tuple[str, ...]
-
 
 # 评估函数把安全与基础设施问题作为硬失败，把质量问题保留为人工复核项。
 def evaluate(
@@ -218,13 +214,11 @@ def evaluate(
 
 代码从 `Requirement`、`Candidate`、`DecisionRow` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
 
-
 `Requirement.weight` 表示当前项目重要性，`required` 表示一票否决；候选 score 建议使用 0～3，并附真实实验链接。`evaluate` 先找缺失 required，再计算加权分。排序把通过门槛的候选放前面，即使未通过候选总分较高也不能被选中。
 
 ### 为一个同库 ACL 场景填数据
 
 下面的分数只是**示例输入**，不代表产品固定能力或性能。团队必须用锁定版本和自己的验证结果替换。
-
 
 下面把“为一个同库 ACL 场景填数据”落成最小实现。输入是两组数据：一组是团队已经确认的需求约束，另一组是候选向量库在这些约束上的证据分数。目标不是凭总分拍板，而是先检查 `required=True` 的硬约束，再对剩余能力做加权比较；这样可以观察到“缺少事务或 ACL 能力的候选不能靠其他高分翻盘”。函数返回带有接受状态、总分和缺失项的结果，后续可以把它写入 ADR 或评审表。
 

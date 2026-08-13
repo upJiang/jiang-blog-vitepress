@@ -162,7 +162,6 @@ Middleware 不是独立于 Agent 的另一套运行时。`create_agent` 会把 H
 
 安装 LangChain 1.x 与 pytest：
 
-
 下面的命令接收本节“环境和观察目标”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装流式、Callback 与测试依赖，Fake 适配器会产生可控 token、错误和取消信号。
@@ -172,7 +171,6 @@ python -m pip install "langchain>=1,<2" "pytest>=8,<9"
 ```
 
 这些命令从 `python3`、`source`、`python` 开始按顺序运行，输出用于确认“环境和观察目标”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 程序会运行一个 Agent，订阅 `updates` 与 `custom`，再把内部事件映射成四个公开事件：`tool_requested`、`tool_progress`、`tool_completed`、`answer_completed`。脚本模型可以在第一次调用抛 `ConnectionError`，Middleware 只允许两次总尝试，并让所有尝试共享 RequestContext 中的 Deadline。
 
@@ -198,14 +196,12 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-
 @dataclass(frozen=True)
 class Note:
     note_id: str
     scope_id: str
     title: str
     content: str
-
 
 @dataclass(frozen=True)
 class RequestContext:
@@ -214,14 +210,12 @@ class RequestContext:
     notes: tuple[Note, ...]
 # PublicEvent 保存可排序、可重放的事件状态，让断线恢复仍能重建相同执行轨迹。
 
-
 @dataclass(frozen=True)
 class PublicEvent:
     seq: int
     kind: str
     data: dict[str, Any]
     terminal: bool = False
-
 
 @tool(response_format="content_and_artifact")
 def search_notes(
@@ -244,7 +238,6 @@ def search_notes(
         ensure_ascii=False,
     )
     return content, items
-
 
 class ScriptedChatModel(BaseChatModel):
     failures_before_success: int = 0
@@ -319,7 +312,6 @@ class ScriptedChatModel(BaseChatModel):
             await asyncio.sleep(self.delay_seconds)
         return self._generate(messages, stop, run_manager, **kwargs)
 
-
 class DeadlineRetryMiddleware(AgentMiddleware):
     def __init__(self, *, max_attempts: int = 2) -> None:
         super().__init__()
@@ -345,7 +337,6 @@ class DeadlineRetryMiddleware(AgentMiddleware):
                     break
                 await asyncio.sleep(min(0.01, max(0.0, remaining / 10)))
         raise ConnectionError("model retry budget exhausted") from last_error
-
 
 class RecordingCallback(BaseCallbackHandler):
     def __init__(self) -> None:
@@ -397,7 +388,6 @@ class RecordingCallback(BaseCallbackHandler):
         del output, run_id, parent_run_id, kwargs
         self.events.append("tool_end")
 
-
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_context(*, expired: bool = False) -> RequestContext:
     return RequestContext(
@@ -405,7 +395,6 @@ def build_context(*, expired: bool = False) -> RequestContext:
         deadline_at=monotonic() + (-1 if expired else 5),
         notes=(Note("N1", "public", "访问申请", "在服务门户提交申请。"),),
     )
-
 
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_agent(model: ScriptedChatModel):
@@ -416,7 +405,6 @@ def build_agent(model: ScriptedChatModel):
         context_schema=RequestContext,
         system_prompt="只根据当前可见工具结果回答。",
     )
-
 
 def to_public_event(raw_event: dict[str, Any], seq: int) -> PublicEvent | None:
     event_type = raw_event["type"]
@@ -438,7 +426,6 @@ def to_public_event(raw_event: dict[str, Any], seq: int) -> PublicEvent | None:
     if node == "model" and isinstance(message, AIMessage):
         return PublicEvent(seq, "answer_completed", {"text": str(message.content)}, True)
     return None
-
 
 async def stream_agent(
     model: ScriptedChatModel | None = None,
@@ -462,20 +449,17 @@ async def stream_agent(
             public_events.append(public)
     return public_events, callback.events
 
-
 async def demo() -> None:
     events, callbacks = await stream_agent()
     for event in events:
         print(event.seq, event.kind, event.data, "terminal=" + str(event.terminal))
     print("callbacks", callbacks)
 
-
 if __name__ == "__main__":
     asyncio.run(demo())
 ```
 
 代码从 `Note`、`RequestContext`、`PublicEvent` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
-
 
 ### 工具怎样产生 custom 进度
 
@@ -507,7 +491,6 @@ if __name__ == "__main__":
 
 ### 运行并观察两条轨迹
 
-
 下面的命令接收本节“运行并观察两条轨迹”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 分别运行成功流与一次暂时失败，核对 token 顺序、attempt、Deadline 和最终关闭事件。
@@ -515,7 +498,6 @@ python streaming_agent.py
 ```
 
 这些命令从 `python` 开始按顺序运行，输出用于确认“运行并观察两条轨迹”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 预期公开事件是：
 
@@ -535,7 +517,6 @@ callbacks ['model_start', 'model_end', 'tool_start', 'tool_end', 'model_start', 
 
 测试使用 `asyncio.run`，不额外依赖 pytest-asyncio。下面直接运行这段实现：
 
-
 为了验证“七个测试验证流、重试、Deadline 和取消”，下面的测试把“测试确保流事件有序、重试不重复副作用、Deadline 不重置、取消保持控制信号”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -551,7 +532,6 @@ from streaming_agent import (
     stream_agent,
 )
 
-
 # 这个用例同时固定事件顺序、单调序号和唯一终态，避免客户端恢复出不同状态。
 def test_public_event_order_and_terminal() -> None:
     events, _ = asyncio.run(stream_agent())
@@ -564,12 +544,10 @@ def test_public_event_order_and_terminal() -> None:
     assert [event.seq for event in events] == [1, 2, 3, 4]
     assert [event.terminal for event in events] == [False, False, False, True]
 
-
 def test_public_tool_event_does_not_expose_artifact() -> None:
     events, _ = asyncio.run(stream_agent())
     completed = events[2]
     assert set(completed.data) == {"name", "status"}
-
 
 def test_callbacks_observe_two_model_calls_and_one_tool() -> None:
     _, callbacks = asyncio.run(stream_agent())
@@ -582,7 +560,6 @@ def test_callbacks_observe_two_model_calls_and_one_tool() -> None:
         "model_end",
     ]
 
-
 # 这个用例走失败或拒绝分支，确认错误码、终态和副作用都符合契约。
 def test_one_transient_model_failure_is_retried() -> None:
     model = ScriptedChatModel(failures_before_success=1)
@@ -590,19 +567,16 @@ def test_one_transient_model_failure_is_retried() -> None:
     assert events[-1].kind == "answer_completed"
     assert model.failures_before_success == 0
 
-
 # 这个用例推进重试分支，确认次数预算耗尽后停止而不是无限再次调用。
 def test_retry_budget_exhaustion_stays_connection_error() -> None:
     model = ScriptedChatModel(failures_before_success=3)
     with pytest.raises(ConnectionError, match="retry budget exhausted"):
         asyncio.run(stream_agent(model))
 
-
 # 这个用例把时间推进到截止边界，确认超时保持独立错误语义并释放资源。
 def test_expired_deadline_stops_before_model_call() -> None:
     with pytest.raises(TimeoutError, match="deadline exceeded"):
         asyncio.run(stream_agent(context=build_context(expired=True)))
-
 
 # 这个用例主动取消运行，确认取消信号不会被重试或普通异常处理吞掉。
 def test_task_cancellation_is_not_converted_to_retry() -> None:
@@ -677,7 +651,7 @@ ToolCall 参数流也有同样问题。半截 JSON 只能展示，不能执行�
 
 这些属于 Agent Runtime 的事件平面，不应该全部塞进 LangChain Callback。
 
-## 带到工作中的实现顺序
+## 事件、观测和重试的落地顺序
 
 1. 先定义业务事件 kind、payload、seq 和终态，不直接暴露框架对象。
 2. 决定使用 updates、messages、custom 中的哪些源数据。
@@ -690,7 +664,7 @@ ToolCall 参数流也有同样问题。半截 JSON 只能展示，不能执行�
 9. 明确传输断线、用户取消和后台继续之间的产品语义。
 10. 测试正常、临时失败、耗尽、超时、取消、慢消费者和唯一终态。
 
-## 把这个机制用于相似问题
+## 把 PublicEvent 演进成可重放协议
 
 把 `PublicEvent` 扩展为可重放事件协议：
 

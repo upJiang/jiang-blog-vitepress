@@ -13,12 +13,18 @@ export class CreateProjectDto {
 }
 
 export class UpdateProjectDto {
+  @IsOptional()
   @IsString()
-  @MinLength(1)
+  @MinLength(2)
   @MaxLength(120)
-  name!: string
+  name?: string
 
   @IsInt()
   @Min(1)
-  expectedVersion!: number
+  version!: number
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string | null
 }

@@ -15,7 +15,7 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } })
+    const user = await this.prisma.user.findFirst({ where: { email, status: 'active' } })
     if (!user || !await argon2.verify(user.passwordHash, password)) {
       throw new UnauthorizedException('invalid_credentials')
     }
@@ -23,6 +23,7 @@ export class AuthService {
     const session = await this.prisma.authSession.create({
       data: {
         id: randomUUID(),
+        tenantId: user.tenantId,
         userId: user.id,
         tokenFamilyId: randomUUID(),
         refreshTokenHash: this.hash(refreshToken),
@@ -68,6 +69,7 @@ export class AuthService {
       const next = await tx.authSession.create({
         data: {
           id: randomUUID(),
+          tenantId: session.user.tenantId,
           userId: session.userId,
           tokenFamilyId: session.tokenFamilyId,
           refreshTokenHash: this.hash(refreshToken),
@@ -97,7 +99,12 @@ export class AuthService {
   }
 
   private sign(userId: string, tenantId: string, sessionId: string): string {
-    return this.jwt.sign({ sub: userId, tenantId, sessionId } satisfies Principal)
+    return this.jwt.sign({
+      sub: userId,
+      tenantId,
+      sessionId,
+      permissions: ['project.read', 'project.write', 'file.write', 'task.read'],
+    } satisfies Principal)
   }
 
   private randomToken(): string {

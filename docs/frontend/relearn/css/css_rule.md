@@ -246,10 +246,3 @@ ul { list-style-type: toggle(circle, square); }
 ```
 
 attr() 函数允许 CSS 接受属性值的控制。
-
-## 参考资料
-
-- [CSS Syntax Module Level 3](https://www.w3.org/TR/css-syntax-3/)
-- [CSS Conditional Rules Level 4](https://www.w3.org/TR/css-conditional-4/)
-- [CSS Containment Module Level 3](https://www.w3.org/TR/css-contain-3/)
-- [CSS Cascading and Inheritance Level 5](https://www.w3.org/TR/css-cascade-5/)

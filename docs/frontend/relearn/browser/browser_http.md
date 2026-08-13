@@ -219,11 +219,3 @@ HTTP 2.0 最大的改进有两点，一是**支持服务端推送**，二是**�
 network 中任意右键一个请求 --》 Header Options --> 勾选中 Protocol --》请求列会多出 Protocol ,其中 h2 的就是 http2.0
 
 或者直接看 Response Header/Request Header , 没有 view source 就是 http2.0
-
-## 参考资料
-
-- [HTTP Semantics：RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)
-- [HTTP Caching：RFC 9111](https://www.rfc-editor.org/rfc/rfc9111)
-- [HTTP/2：RFC 9113](https://www.rfc-editor.org/rfc/rfc9113)
-- [HTTP/3：RFC 9114](https://www.rfc-editor.org/rfc/rfc9114)
-- [Fetch Standard](https://fetch.spec.whatwg.org/)

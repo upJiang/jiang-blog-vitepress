@@ -110,6 +110,17 @@ if (expectedFiles.size !== 329) fail(`docs 完整重建应发布 329 个 Markdow
 
 const aiArticles = articles.filter((article) => article.category === "ai-agent")
 const aiBySlug = new Map(aiArticles.map((article) => [article.slug, article]))
+const removedAiSlugs = new Set([
+  "agent-lifecycle",
+  "mcp-skills-subagents",
+  "knowledge-version-release",
+  "admission-model-resource-slots",
+  "agent-cost-deadline-reliability"
+])
+for (const slug of removedAiSlugs) {
+  if (aiBySlug.has(slug)) fail(`已合并的 AI 旧路由重新进入文章清单：${slug}`)
+  if (fs.existsSync(path.join(root, "docs", "ai-agent", `${slug}.md`))) fail(`已合并的 AI 旧路由文件重新出现：${slug}`)
+}
 for (const article of aiArticles) {
   if (article.track !== "mainline" && article.track !== "special") fail(`${article.slug} 缺少有效 track。`)
   if (!Number.isInteger(article.sequence) || Number(article.sequence) < 1) fail(`${article.slug} 缺少有效 sequence。`)
@@ -127,11 +138,13 @@ for (const article of aiArticles) {
     if (dependency.chapter >= article.chapter) fail(`${article.slug} 倒序依赖 ${dependencySlug}。`)
   }
   for (const artifact of article.artifactIn) {
-    const produced = article.dependsOn.some((dependencySlug) =>
-      aiBySlug.get(dependencySlug)?.artifactOut?.includes(artifact)
-    )
+    const produced = article.dependsOn.some((dependencySlug) => aiBySlug.get(dependencySlug)?.artifactOut?.includes(artifact))
     if (!produced) fail(`${article.slug} 消费的产物 ${artifact} 未由直接依赖产生。`)
   }
+  for (const artifact of article.artifactIn) {
+    if (!article.artifactOut.includes(artifact)) fail(`${article.slug} 丢失了上一步产物 ${artifact}。`)
+  }
+  if (article.artifactOut.length === 0) fail(`${article.slug} 没有可由读者验证的连续产物。`)
 }
 
 for (const track of ["mainline", "special"] as const) {

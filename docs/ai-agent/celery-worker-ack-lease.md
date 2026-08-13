@@ -74,6 +74,32 @@ Lease 是带期限的临时所有权。`owner_token` 标识当前持有者，`le
 
 租约时长不能拍脑袋设置。太短会让正常长任务频繁丢失所有权，太长会拖慢故障接管。通常根据心跳间隔和可接受恢复时间选择，例如每 10 秒心跳、连续 3 次未收到才允许接管；无论具体值是多少，都要测试暂停超过租约、数据库短暂不可用和心跳线程存活但业务线程卡死三种情况。
 
+## 模型资源槽也遵守所有权语义
+
+Worker 拿到 Turn Lease，只说明它有权推进业务状态，并不表示任何模型都能立即调用。模型网关还要预留资源槽：全局槽保护进程和连接池，租户槽避免单个租户占满容量，模型槽表达某种模型的并发上限，供应商配额则约束 RPM/TPM。
+
+资源槽有自己的小状态机：`requested → reserved → consumed/released`。预留成功后，正常完成、异常、超时和取消都要走同一个释放出口。模型调用实际开始后记录 consumed；如果 Worker 在调用前失去 Turn Lease，槽位直接释放，不能继续把结果写回旧所有者。
+
+```python
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def hold_model_slot(pool: "SlotPool", key: str) -> AsyncIterator["Reservation"]:
+    # acquire 原子增加占用并返回 fencing token；容量不足时明确排队或拒绝。
+    reservation = await pool.acquire(key)
+    try:
+        # 只有同时持有 Turn Lease 和模型槽时，调用方才能开始外部模型请求。
+        yield reservation
+    finally:
+        # 正常、异常、取消和超时都会释放，避免槽位永久泄漏。
+        await pool.release(reservation)
+```
+
+调用顺序是取得 Turn Lease，按硬能力选择模型，再进入 `hold_model_slot`。`Reservation` 至少包含资源键、owner 和 fencing token；`release` 必须幂等，因为取消处理和 Worker 清理可能同时到达。片段省略了分布式存储，实际实现要用条件更新或原子脚本保证 `acquire/release`，并让扫描器回收过期 Reservation。
+
+观测至少记录当前槽位、等待时长、拒绝原因、Lease 丢失数和过期回收数。槽位持续不归零通常是异常路径没有释放；槽位正常但队列仍增长，则继续查供应商 TPM、Worker 数或单 Turn 耗时，而不是盲目提高并发。
+
 ## 租约和幂等结果
 
 下面的内存实现模拟 Worker 领取任务、租约过期和结果提交。真实项目可把字典替换成带条件更新的 PostgreSQL 表。
@@ -86,7 +112,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-
 @dataclass(frozen=True)
 class Job:
     job_id: str
@@ -94,7 +119,6 @@ class Job:
     owner_token: str | None
     lease_until: int
     result: str | None = None
-
 
 class JobStore:
     def __init__(self) -> None:
@@ -128,7 +152,6 @@ class JobStore:
         self.jobs[job_id] = completed
         return completed
 
-
 if __name__ == "__main__":
     store = JobStore()
     store.enqueue("import-1")
@@ -158,7 +181,6 @@ Celery 的 soft time limit 会在任务进程中触发可捕获异常，hard tim
 # Celery 入口只解析任务 ID、领取所有权并调用共享 Runtime；业务状态不保存在消息体或 Worker 内存。
 from celery import Celery
 
-
 app = Celery("knowledge_worker")
 app.conf.update(
     task_acks_late=True,
@@ -166,7 +188,6 @@ app.conf.update(
     worker_prefetch_multiplier=1,
     task_track_started=True,
 )
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 @app.task(bind=True, max_retries=3)
@@ -213,7 +234,6 @@ def execute_turn(self, turn_id: str) -> str:
 # 测试让旧 Worker 租约过期后迟到提交，断言 fencing token 会拒绝它覆盖新所有者结果。
 import pytest
 
-
 # 这个用例把时间推进到截止边界，确认超时保持独立错误语义并释放资源。
 def test_expired_owner_cannot_overwrite_result() -> None:
     store = JobStore()
@@ -234,7 +254,7 @@ def test_expired_owner_cannot_overwrite_result() -> None:
 
 排障时先看消息是否重复、任务 attempt、Worker 日志中的 owner token、数据库状态和副作用唯一键。然后按时间对齐 Broker 投递记录、任务状态变更和业务提交记录。不要只根据“Celery 显示成功”判断业务成功，因为 ACK 和数据库提交可能处在不同系统。
 
-## 带走的实践
+## 用故障时序检验 ACK、所有权和 Lease
 
 1. 画出 queued、leased、running、retry、succeeded、failed 的状态转换。
 2. 记录 `attempt`、`owner_token`、`lease_until` 和 `last_heartbeat`。

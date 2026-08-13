@@ -22,7 +22,7 @@ export function LoginPage() {
     <main className="login-shell">
       <section className="login-panel">
         <Typography.Title level={1}>项目管理</Typography.Title>
-        <Typography.Paragraph>使用本地种子账号登录 React + NestJS 样章。</Typography.Paragraph>
+        <Typography.Paragraph>同一管理端可连接 NestJS、FastAPI 或 Gin API。</Typography.Paragraph>
         {error && <Alert type="error" message={error} showIcon />}
         <Form layout="vertical" onFinish={handleSubmit(async (input) => {
           setError('')

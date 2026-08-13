@@ -49,7 +49,6 @@ Tool Calling 的本质是**模型生成结构化调用建议，应用程序决�
 
 Schema 让模型和程序对输入形状达成约定：哪些字段存在、类型是什么、是否必填、数值范围和枚举是什么。下面是 `search_notes` 的最小 JSON Schema：
 
-
 下面的 Schema 只允许模型提供查询文本和返回上限。用户身份、Scope、Release 与 Deadline 不属于模型参数，执行器会在 Schema 校验之后从可信请求上下文注入。
 ```jsonc
 {
@@ -165,20 +164,17 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any, Literal
 
-
 @dataclass(frozen=True)
 class ToolCall:
     call_id: str
     name: str
     arguments: dict[str, Any]
 
-
 @dataclass(frozen=True)
 class ExecutionContext:
     user_id: str
     allowed_scope_ids: frozenset[str]
     deadline_seconds: float
-
 
 @dataclass(frozen=True)
 class ToolOutcome:
@@ -188,12 +184,10 @@ class ToolOutcome:
     code: str
     data: dict[str, Any]
 
-
 NOTES = (
     {"id": "n1", "scope_id": "public", "title": "回滚", "text": "停止切流并恢复旧版本"},
     {"id": "n2", "scope_id": "team", "title": "内部记录", "text": "仅团队可见"},
 )
-
 
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate_arguments(arguments: dict[str, Any]) -> tuple[str, int]:
@@ -208,7 +202,6 @@ def validate_arguments(arguments: dict[str, Any]) -> tuple[str, int]:
         raise ValueError("limit must be an integer between 1 and 10")
     return query.strip(), limit
 
-
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 async def search_notes(query: str, limit: int, context: ExecutionContext) -> list[dict[str, str]]:
     await asyncio.sleep(0)
@@ -218,7 +211,6 @@ async def search_notes(query: str, limit: int, context: ExecutionContext) -> lis
         if note["scope_id"] in context.allowed_scope_ids
         and query in f"{note['title']} {note['text']}"
     ][:limit]
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 async def execute(call: ToolCall, context: ExecutionContext) -> ToolOutcome:
@@ -241,7 +233,6 @@ async def execute(call: ToolCall, context: ExecutionContext) -> ToolOutcome:
     status: Literal["ok", "empty"] = "ok" if rows else "empty"
     return ToolOutcome(call.call_id, status, "search_completed", {"items": rows})
 
-
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 async def main() -> None:
     context = ExecutionContext("user-7", frozenset({"public"}), 1.0)
@@ -250,7 +241,6 @@ async def main() -> None:
         context,
     )
     print(outcome)
-
 
 asyncio.run(main())
 ```
@@ -289,7 +279,6 @@ asyncio.run(main())
 
 下面的测试直接复用前文实现。测试使用 pytest 和内存数据，不连接真实服务。下面展示四条核心测试，其余三条按表补齐。
 
-
 为了验证“用 pytest 覆盖七条关键路径”，下面的测试把“每个测试都从模型候选调用进入 execute，并断言执行器返回的稳定业务状态”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -298,9 +287,7 @@ import pytest
 
 from tool_executor import ExecutionContext, ToolCall, execute
 
-
 CTX = ExecutionContext("u", frozenset({"public"}), 1.0)
-
 
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 @pytest.mark.asyncio
@@ -309,13 +296,11 @@ async def test_visible_result_is_returned() -> None:
     assert result.status == "ok"
     assert [item["id"] for item in result.data["items"]] == ["n1"]
 
-
 @pytest.mark.asyncio
 async def test_unknown_tool_is_not_executed() -> None:
     # 调用执行器走完整工具边界，下面同时检查业务状态、公开数据和错误码。
     result = await execute(ToolCall("c2", "delete_notes", {}), CTX)
     assert result.code == "unknown_tool"
-
 
 @pytest.mark.asyncio
 async def test_model_cannot_add_scope_argument() -> None:
@@ -325,7 +310,6 @@ async def test_model_cannot_add_scope_argument() -> None:
         CTX,
     )
     assert result.code == "invalid_arguments"
-
 
 @pytest.mark.asyncio
 async def test_successful_no_match_is_empty_not_error() -> None:

@@ -21,3 +21,21 @@ func TestLive(t *testing.T) {
 		t.Fatal("request ID was not propagated")
 	}
 }
+
+func TestProjectRequestHashUsesNormalizedInput(t *testing.T) {
+	firstDescription := " description "
+	secondDescription := "description"
+	firstName := " Project "
+	secondName := "Project"
+	first, err := projectRequestHash(normalizeProjectInput(projectInput{Name: &firstName, Description: &firstDescription}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := projectRequestHash(normalizeProjectInput(projectInput{Name: &secondName, Description: &secondDescription}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Fatal("normalized inputs must produce the same request hash")
+	}
+}

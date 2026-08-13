@@ -162,10 +162,3 @@ dialog 可能会产生“焦点陷阱”，也就是说，当这样的角色被�
 - 结构角色：文档的结构。
 
 - 窗体角色：弹出的窗体。
-
-## 参考资料
-
-- [WAI-ARIA 1.2](https://www.w3.org/TR/wai-aria-1.2/)：角色、状态和属性约束。
-- [ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/)：组件交互与键盘模式。
-- [Accessible Name and Description Computation](https://www.w3.org/TR/accname-1.2/)：名称和描述计算。
-- [ARIA-AT](https://github.com/w3c/aria-at)：辅助技术互操作性测试。

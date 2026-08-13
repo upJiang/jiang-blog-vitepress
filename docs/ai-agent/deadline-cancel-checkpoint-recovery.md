@@ -75,13 +75,11 @@ from dataclasses import dataclass, asdict
 import json
 import time
 
-
 @dataclass(frozen=True)
 class Checkpoint:
     step: str
     values: tuple[str, ...]
     release_id: int
-
 
 async def fetch(name: str, delay: float, cancelled: asyncio.Event) -> str:
     await asyncio.sleep(delay)
@@ -89,7 +87,6 @@ async def fetch(name: str, delay: float, cancelled: asyncio.Event) -> str:
     if cancelled.is_set():
         raise asyncio.CancelledError
     return f"{name}-result"
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 async def run_turn(deadline_seconds: float) -> Checkpoint:
@@ -112,7 +109,6 @@ async def run_turn(deadline_seconds: float) -> Checkpoint:
         cancelled.set()
         raise
 
-
 if __name__ == "__main__":
     asyncio.run(run_turn(0.2))
 ```
@@ -133,7 +129,6 @@ import pytest
 
 from deadline_runtime import run_turn
 
-
 # 这个用例走正常路径，并同时核对返回状态和关键业务字段。
 @pytest.mark.asyncio
 async def test_success_returns_a_complete_checkpoint() -> None:
@@ -141,13 +136,11 @@ async def test_success_returns_a_complete_checkpoint() -> None:
     assert checkpoint.step == "retrieval_done"
     assert checkpoint.values == ("keyword-result", "vector-result")
 
-
 # 这个用例把时间推进到截止边界，确认超时保持独立错误语义并释放资源。
 @pytest.mark.asyncio
 async def test_expired_turn_has_no_partial_checkpoint() -> None:
     with pytest.raises(TimeoutError):
         await run_turn(0.001)
-
 
 # 这个用例主动取消运行，确认取消信号不会被重试或普通异常处理吞掉。
 @pytest.mark.asyncio
@@ -167,7 +160,7 @@ Checkpoint 写入测试还应注入“副作用提交后、快照提交前”崩
 
 取消后的 Turn 仍要留下**终态**和原因，便于事件重放和用户查询。可取消步骤应在安全点检查持久化状态与本地事件；不可中断的数据库事务则要等待事务结束，再通过幂等状态阻止后续步骤。恢复器不能把用户主动取消的任务重新排队，只有租约过期且状态为 `running` 的任务才可恢复。
 
-## 排障和练习
+## 用四条故障路径定位停止与恢复
 
 先看四个时间：入队时间、开始时间、最近心跳和 Deadline。再看最后一个 Checkpoint 的 step、release_id、事件序号和副作用幂等键。练习是让向量检索故意延迟，观察超时、取消、槽位释放和 Checkpoint 是否完整；然后模拟 Worker 在写入后崩溃，验证恢复不会重复写入。
 

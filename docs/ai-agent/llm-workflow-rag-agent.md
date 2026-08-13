@@ -147,17 +147,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-
 @dataclass(frozen=True)
 class Message:
     role: str
     content: str
 
-
 class ModelGateway(Protocol):
     def generate(self, messages: list[Message], *, max_output_tokens: int) -> str:
         """真实适配器可在这里调用托管模型或自建推理服务。"""
-
 
 class DemoModel:
     def generate(self, messages: list[Message], *, max_output_tokens: int) -> str:
@@ -165,7 +162,6 @@ class DemoModel:
         if "申请" in question:
             return "请根据已经提供的申请说明完成操作。"
         return "当前输入中没有足够资料。"
-
 
 def answer_once(model: ModelGateway, question: str) -> str:
     # 去掉首尾空白后仍为空，说明没有可处理输入；在模型或检索调用前直接拒绝。
@@ -182,7 +178,6 @@ def answer_once(model: ModelGateway, question: str) -> str:
     if not answer.strip():
         raise RuntimeError("model_returned_empty_text")
     return answer.strip()
-
 
 print(answer_once(DemoModel(), "把申请说明整理成三步。"))
 print(answer_once(DemoModel(), "今天账号为什么被拒绝？"))
@@ -246,13 +241,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-
 class Status(StrEnum):
     RECEIVED = "received"
     VALIDATED = "validated"
     COMPLETED = "completed"
     REJECTED = "rejected"
-
 
 @dataclass(frozen=True)
 class Request:
@@ -260,7 +253,6 @@ class Request:
     # question 保存原始用户输入，后续改写查询不能覆盖它。
     question: str
     scope: str
-
 
 @dataclass
 class WorkflowState:
@@ -270,12 +262,10 @@ class WorkflowState:
     answer: str = ""
     events: list[str] = field(default_factory=list)
 
-
 PUBLIC_RULES = {
     "application": "先确认设备符合要求，再提交访问申请。",
     "rejection": "申请被拒时查看原因；信息不完整时补充后重新提交。",
 }
-
 
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate(state: WorkflowState) -> None:
@@ -288,14 +278,12 @@ def validate(state: WorkflowState) -> None:
     state.status = Status.VALIDATED
     state.events.append("request.validated")
 
-
 def load_rules(state: WorkflowState) -> None:
     # 先检查当前状态是否允许继续推进，避免终态被重复任务或迟到结果覆盖。
     if state.status is not Status.VALIDATED:
         return
     state.rules = [PUBLIC_RULES["application"], PUBLIC_RULES["rejection"]]
     state.events.append("rules.loaded")
-
 
 def render_answer(state: WorkflowState) -> None:
     if not state.rules:
@@ -305,7 +293,6 @@ def render_answer(state: WorkflowState) -> None:
     state.status = Status.COMPLETED
     state.events.append("request.completed")
 
-
 def run_workflow(request: Request) -> WorkflowState:
     # 为这次运行创建独立状态对象；节点只通过它交换需要持久化或恢复的字段。
     state = WorkflowState(request=request)
@@ -313,7 +300,6 @@ def run_workflow(request: Request) -> WorkflowState:
     load_rules(state)
     render_answer(state)
     return state
-
 
 ok = run_workflow(Request("req-1", "访问申请被拒怎么办？", "public"))
 bad = run_workflow(Request("req-2", "   ", "public"))
@@ -415,7 +401,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class Document:
     document_id: str
@@ -424,13 +409,11 @@ class Document:
     text: str
     terms: frozenset[str]
 
-
 @dataclass(frozen=True)
 class Answer:
     text: str
     citations: tuple[str, ...]
     status: str
-
 
 DOCUMENTS = [
     Document(
@@ -456,7 +439,6 @@ DOCUMENTS = [
     ),
 ]
 
-
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 def retrieve(question_terms: set[str], scope: str, limit: int = 2) -> list[Document]:
     visible = [document for document in DOCUMENTS if document.scope == scope]
@@ -466,7 +448,6 @@ def retrieve(question_terms: set[str], scope: str, limit: int = 2) -> list[Docum
         key=lambda document: (-len(question_terms & document.terms), document.document_id),
     )
     return [document for document in ranked if question_terms & document.terms][:limit]
-
 
 def answer_with_rag(question_terms: set[str], scope: str) -> Answer:
     # 用当前查询和可信范围执行检索；返回候选会继续接受去重、排序或证据校验。
@@ -478,7 +459,6 @@ def answer_with_rag(question_terms: set[str], scope: str) -> Answer:
     text = " ".join(document.text for document in evidence)
     citations = tuple(document.document_id for document in evidence)
     return Answer(text, citations, "completed")
-
 
 result = answer_with_rag({"访问", "拒绝"}, scope="public")
 print(result)
@@ -579,14 +559,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal, Protocol
 
-
 @dataclass(frozen=True)
 class Action:
     kind: Literal["tool", "answer"]
     name: str = ""
     arguments: dict[str, str] = field(default_factory=dict)
     answer: str = ""
-
 
 @dataclass
 class AgentState:
@@ -596,10 +574,8 @@ class AgentState:
     events: list[str] = field(default_factory=list)
     steps_left: int = 4
 
-
 class Planner(Protocol):
     def decide(self, state: AgentState) -> Action: ...
-
 
 class DemoPlanner:
     def decide(self, state: AgentState) -> Action:
@@ -614,7 +590,6 @@ class DemoPlanner:
         # 两次观察都已存在后才返回 Answer Action；Runtime 还会检查证据和终态条件。
         return Action("answer", answer=f"规则：{rules} 账号状态：{account}")
 
-
 # 白名单执行器只接受两个只读动作；未知动作和不满足 Scope 的动作都会被拒绝。
 def execute_tool(action: Action, scope: str) -> dict[str, str]:
     # 规则查询不读取账号状态，可以在 public 范围直接执行。
@@ -624,7 +599,6 @@ def execute_tool(action: Action, scope: str) -> dict[str, str]:
     if action.name == "read_account_status" and scope == "public":
         return {"tool": action.name, "status": "ok", "content": "当前账号等待资料补充。"}
     raise PermissionError("tool_or_scope_not_allowed")
-
 
 # Runtime 负责循环、预算、动作校验和工具执行；Planner 只负责提出候选动作。
 def run_agent(goal: str, scope: str, planner: Planner) -> AgentState:
@@ -657,7 +631,6 @@ def run_agent(goal: str, scope: str, planner: Planner) -> AgentState:
     # 步数耗尽是明确失败终态，不能继续让模型选择动作。
     state.events.append("turn.failed:step_budget_exhausted")
     return state
-
 
 finished = run_agent("访问申请被拒怎么办？", "public", DemoPlanner())
 print(finished.events)
@@ -803,7 +776,7 @@ Agent 先用 RAG 查规则，观察到“需要检查账号资料状态”，再
 
 可以评估受限 Agent。工具全部只读，模型提出动作，Runtime 控制 Scope、Deadline、最大步骤和终态。若工具集合只有两个固定分支，状态机仍然是更简单的选择。
 
-## 带到工作中的设计卡
+## 用一张设计卡记录选型依据
 
 面对一个新 AI 需求，先写完这张卡，再选框架：
 

@@ -142,12 +142,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class ResolutionStatus(StrEnum):
     RESOLVED = "resolved"
     AMBIGUOUS = "ambiguous"
     NOT_FOUND = "not_found"
-
 
 @dataclass(frozen=True)
 class Entity:
@@ -158,7 +156,6 @@ class Entity:
     release_id: str
     scope_id: str
 
-
 @dataclass(frozen=True)
 class Edge:
     subject_id: str
@@ -168,12 +165,10 @@ class Edge:
     release_id: str
     scope_id: str
 
-
 @dataclass(frozen=True)
 class Resolution:
     status: ResolutionStatus
     candidates: tuple[Entity, ...]
-
 
 # 实体使用稳定 ID 作为关系端点；显示名和别名只负责把用户语言映射到这个 ID。
 ENTITIES = (
@@ -188,11 +183,9 @@ EDGES = (
     Edge("service:billing-lab", "owned_by", "team:secret", "e-owner-secret", "r8", "private"),
 )
 
-
 def normalize_alias(value: str) -> str:
     # casefold 和空白归一化只统一表示形式，不做模糊猜测或自动纠错。
     return " ".join(value.casefold().split())
-
 
 def resolve_entity(
     alias: str, *, entity_type: str, release_id: str, visible_scopes: set[str]
@@ -215,7 +208,6 @@ def resolve_entity(
         return Resolution(ResolutionStatus.AMBIGUOUS, matches)
     return Resolution(ResolutionStatus.RESOLVED, matches)
 
-
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 def query_edges(
     subject_id: str,
@@ -236,7 +228,6 @@ def query_edges(
         and edge.release_id == release_id
         and edge.scope_id in visible_scopes
     )
-
 
 resolution = resolve_entity(
     "结算", entity_type="service", release_id="r8", visible_scopes={"public"}
@@ -267,7 +258,6 @@ else:
 
 下面的测试直接复用前文实现。测试应直接检查状态与返回边，而不是让最终回答文本掩盖错误。
 
-
 为了验证“用 pytest 验证冲突、越权和版本隔离”，下面的测试把“测试构造别名冲突、受限关系和旧版本边，断言查询拒绝猜实体且不泄露越权关系”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -280,7 +270,6 @@ from knowledge_graph import (
     resolve_entity,
 )
 
-
 def test_private_alias_candidate_is_not_exposed() -> None:
     result = resolve_entity(
         "结算",
@@ -291,7 +280,6 @@ def test_private_alias_candidate_is_not_exposed() -> None:
     assert result.status is ResolutionStatus.RESOLVED
     assert [item.entity_id for item in result.candidates] == ["service:billing"]
 
-
 # 这个用例固定版本快照，确认一次运行不会混用新旧知识、策略或模型配置。
 def test_release_mismatch_returns_no_edge() -> None:
     edges = query_edges(
@@ -301,7 +289,6 @@ def test_release_mismatch_returns_no_edge() -> None:
         visible_scopes={"public"},
     )
     assert edges == ()
-
 
 # 这个用例走失败或拒绝分支，确认错误码、终态和副作用都符合契约。
 def test_free_form_predicate_is_rejected() -> None:
@@ -328,7 +315,7 @@ def test_free_form_predicate_is_rejected() -> None:
 
 图谱的持续成本包括实体解析、关系抽取、人工校验、投影一致性、权限同步、Schema 演进和评测。它不应成为“看起来高级”的默认组件。
 
-## 可以带走的双通道设计表
+## 用双通道设计表记录图与文本的职责
 
 1. 列出实体类型、稳定 ID、显示名与允许谓词。
 2. 为每条边定义来源、方向、有效期、Scope 和 Release。

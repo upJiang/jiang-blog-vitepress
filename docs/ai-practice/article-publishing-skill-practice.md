@@ -109,7 +109,6 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-
 REQUIRED_FRONTMATTER = {"title", "description", "category", "updated"}
 SENSITIVE_PATTERNS = {
     "private_key": re.compile(r"-----BEGIN (?:RSA |OPENSSH )?PRIVATE KEY-----"),
@@ -117,13 +116,11 @@ SENSITIVE_PATTERNS = {
     "local_home_path": re.compile(r"/(?:Users|home)/[^/\s]+/"),
 }
 
-
 @dataclass
 class Finding:
     code: str
     message: str
     line: int | None = None
-
 
 def resolve_article(root: Path, raw_path: str) -> Path:
     # 路径必须留在仓库根目录，不能借发布检查读取任意本机文件。
@@ -133,7 +130,6 @@ def resolve_article(root: Path, raw_path: str) -> Path:
     if not candidate.is_file() or candidate.suffix.lower() != ".md":
         raise ValueError("article_not_found_or_not_markdown")
     return candidate
-
 
 def frontmatter_keys(text: str) -> set[str]:
     # 示例只识别顶层键；复杂 YAML 应交给项目已有解析器。
@@ -146,7 +142,6 @@ def frontmatter_keys(text: str) -> set[str]:
         match.group(1)
         for match in re.finditer(r"^([A-Za-z][A-Za-z0-9_-]*):", text[4:end], re.MULTILINE)
     }
-
 
 def inspect(text: str, article: Path, root: Path) -> list[Finding]:
     findings: list[Finding] = []
@@ -176,7 +171,6 @@ def inspect(text: str, article: Path, root: Path) -> list[Finding]:
             findings.append(Finding("sensitive_content", f"命中敏感模式：{name}", line))
     return findings
 
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("article")
@@ -200,7 +194,6 @@ def main() -> int:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if not findings else 1
 
-
 if __name__ == "__main__":
     raise SystemExit(main())
 ```
@@ -209,8 +202,7 @@ if __name__ == "__main__":
 
 它没有检查内容真实性、示例教学质量或引用是否支持结论，因为这些判断不能靠几个关键词稳定完成。Skill 的下一步会用评审量表让 Agent 给每项结论绑定文章位置和来源。
 
-## 参考资料和报告资产怎样写
-
+## 仓库政策与报告资产
 `publishing-policy.md` 记录仓库事实：必填 Frontmatter、内容注册、允许的链接形式、验证命令和发布授权。`review-rubric.md` 用问题指导语义审查，例如“代码前是否说明输入与目标”“关键 Claim 是否有官方或源码证据”“是否包含无法公开的项目细节”。
 
 报告资产至少包含：目标文件、确定性检查结果、语义审查、执行命令、修复差异、未验证项、隐私结论和外部动作状态。资产不预填“全部通过”，每项必须由本次证据填写。
@@ -238,7 +230,7 @@ if __name__ == "__main__":
 
 当多个仓库复用时，把仓库专属字段移出 Skill，改为读取当地规则；共享检查器用参数接受路由映射或 Frontmatter Schema。团队分发前固定版本、变更记录和回滚方式。若 Skill 还要携带 MCP Server 与安装配置，再评估打包 Plugin，而不是让入口承担部署逻辑。
 
-## 把这个 Skill 用到真实仓库前
+## 常见问题
 
 ### 示例脚本为什么没有完整解析 YAML？
 

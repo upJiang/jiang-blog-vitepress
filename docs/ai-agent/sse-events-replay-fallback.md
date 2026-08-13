@@ -77,14 +77,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 # Event 保存可排序、可重放的事件状态，让断线恢复仍能重建相同执行轨迹。
 
-
 @dataclass(frozen=True)
 class Event:
     turn_id: str
     seq: int
     event_type: str
     payload: str
-
 
 # EventLog 保存可排序、可重放的事件状态，让断线恢复仍能重建相同执行轨迹。
 class EventLog:
@@ -100,7 +98,6 @@ class EventLog:
     def after(self, turn_id: str, last_seq: int) -> list[Event]:
         return [event for event in self._events.get(turn_id, []) if event.seq > last_seq]
 
-
 def merge_for_client(received: set[int], events: list[Event]) -> list[Event]:
     """按序过滤已展示与批内重复事件，调用方再检查缺号。"""
     unseen_by_seq = {
@@ -110,7 +107,6 @@ def merge_for_client(received: set[int], events: list[Event]) -> list[Event]:
         if event.seq not in received
     }
     return [unseen_by_seq[seq] for seq in sorted(unseen_by_seq)]
-
 
 if __name__ == "__main__":
     log = EventLog()
@@ -133,14 +129,12 @@ if __name__ == "__main__":
 # 测试制造断线与重复连接，断言事件序号单调、缺口完整且客户端可以按 ID 去重。
 from event_log import EventLog, merge_for_client
 
-
 # 这个用例模拟事件追加或断线重连，客户端只能合并缺失且未见过的序号。
 def test_sequence_is_monotonic_inside_one_turn() -> None:
     log = EventLog()
     first = log.append("turn-1", "status", "retrieving")
     second = log.append("turn-1", "completed", "answer")
     assert (first.seq, second.seq) == (1, 2)
-
 
 # 这个用例模拟事件追加或断线重连，客户端只能合并缺失且未见过的序号。
 def test_reconnect_reads_only_the_missing_suffix() -> None:
@@ -149,7 +143,6 @@ def test_reconnect_reads_only_the_missing_suffix() -> None:
     log.append("turn-1", "evidence", "e-1")
     log.append("turn-1", "completed", "answer")
     assert [event.seq for event in log.after("turn-1", 1)] == [2, 3]
-
 
 # 这个用例重复提交或恢复同一运行，确认 Checkpoint、幂等键或事件序号阻止重复副作用。
 def test_client_merge_deduplicates_replayed_events() -> None:
@@ -176,18 +169,15 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
-
 app = FastAPI()
 event_log = EventLog()
 TERMINAL_EVENTS = {"completed", "failed", "cancelled"}
-
 
 def format_sse(event: Event) -> str:
     """把内部事件编码成浏览器能够解析的 SSE 帧。"""
     # 把影响结果的边界字段组成规范化载荷，缓存键不能遗漏权限或版本。
     payload = json.dumps({"turn_id": event.turn_id, "value": event.payload})
     return f"id: {event.seq}\nevent: {event.event_type}\ndata: {payload}\n\n"
-
 
 async def stream_turn(turn_id: str, last_seq: int) -> AsyncIterator[str]:
     cursor = last_seq
@@ -202,7 +192,6 @@ async def stream_turn(turn_id: str, last_seq: int) -> AsyncIterator[str]:
         # 注释心跳不推进业务序号，只是防止代理误判连接空闲。
         yield ": heartbeat\n\n"
         await asyncio.sleep(1)
-
 
 @app.get("/turns/{turn_id}/events")
 async def events(
@@ -236,7 +225,7 @@ async def events(
 
 慢客户端要有背压策略。SSE 本身没有让服务端无限缓存的义务，生成器写入阻塞时，Runtime 仍可把事件持久化后释放连接。可以限制单连接待发送事件数量，超过上限就关闭并让客户端走快照；不要为了迁就一个断网客户端把所有 Turn 事件留在内存。
 
-## 实践清单
+## 用断线实验检查事件重放
 
 1. 为每个 Turn 建立单调事件序号和终态事件。
 2. 客户端只在成功解析后推进 `Last-Event-ID`。

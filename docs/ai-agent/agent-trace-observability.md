@@ -124,12 +124,10 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
 from opentelemetry.trace import Status, StatusCode
 
-
 provider = TracerProvider()
 provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer("knowledge-agent")
-
 
 @dataclass(frozen=True)
 class SearchCommand:
@@ -137,11 +135,9 @@ class SearchCommand:
     release_id: str
     limit: int
 
-
 class Retriever(Protocol):
     # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
     def search(self, command: SearchCommand) -> list[str]: ...
-
 
 def traced_search(retriever: Retriever, command: SearchCommand) -> list[str]:
     with tracer.start_as_current_span("agent.retrieve") as span:
@@ -198,6 +194,32 @@ HTTP 到同进程协程通常由 OpenTelemetry Context 自动传播；进入 Cel
 
 记录输入/输出 Token、模型与工具调用次数、Embedding 批量、队列年龄、Worker 并发和 GPU 指标。费用是业务换算，Token 与调用次数是更稳定的工程事实。
 
+## Deadline、路由和重试必须出现在同一条 Trace
+
+节点 Timeout 只限制一次等待，**Deadline 是整个 Turn 的绝对停止时间**。重试、模型切换、工具调用和恢复读取同一个 `deadline_at`，并为验证与终态提交预留时间：
+
+```text
+remaining = deadline_at - monotonic_now
+node_timeout = min(node_default_timeout, remaining - finalize_reserve)
+```
+
+每次外部 attempt 记录 `remaining_ms_before`、节点 Timeout、模型能力版本、选择原因、重试序号和实际 usage。下一次 attempt 不会重新获得完整预算。供应商建议等待 60 秒而 Turn 只剩 5 秒时，应停止或按预定义边界返回受限结果，不能继续退避。
+
+模型路由先过滤硬能力，再比较价格和延迟。上下文长度、结构化输出、Tool Calling、数据区域和健康状态不满足的模型不能成为降级候选。便宜模型若无法输出所需 Schema，会带来更多修复与重试；数据策略不允许的供应商则不能进入候选集。
+
+| 失败类型 | 是否有限重试 | 是否允许切换 | Trace 必须留下什么 |
+| --- | --- | --- | --- |
+| 参数或 Schema 错误 | 修正后最多一次 | 通常否 | validation code、修正次数 |
+| 权限或内容政策拒绝 | 否 | 否 | policy version、稳定原因码 |
+| 明确限流或暂时不可用 | 剩余预算足够时 | 备选满足硬能力时 | provider attempt、Retry-After |
+| 工具返回契约错误 | 通常否 | 可切换已验证适配器 | tool version、contract error |
+| 无检索证据 | 可改写查询一次 | 不扩大权限范围 | channels、coverage、停止条件 |
+| 用户取消或 Deadline 到期 | 否 | 否 | cancel source、remaining budget |
+
+成本按 Turn 聚合，但保留每个 Span 的普通输入、缓存写入、缓存读取、输出、Embedding、Rerank 和外部工具用量。价格表单独版本化，失败调用也计入成本；只统计最终成功模型会掩盖重试风暴。
+
+降级需要成为显式事件，例如 `rerank_bypassed`、`fallback_model_selected` 或 `partial_answer_finalized`。它不能绕过权限、引用和输出验证。已有独立且验证通过的 Claim 时，可以返回说明缺口的部分结果；必要证据未覆盖或安全校验未完成时，只能进入 `insufficient`、`denied` 或 `deadline_exceeded`。
+
 ## 慢请求怎样沿 Trace 排查
 
 假设总耗时 20 秒：
@@ -242,7 +264,7 @@ API 创建 Turn 后把任务交给 Worker。任务消息应携带标准 Trace Co
 
 AI SLO 通常至少覆盖可用性、延迟、质量和成本。质量信号比 HTTP 状态更慢、更不完整，可以通过离线 Eval、在线验证失败和用户反馈组合，而不是承诺一个无法实时测量的绝对正确率。
 
-## 带到工作的观测字典
+## 观测字典怎样连接 Trace、指标和成本
 
 ```text
 业务身份：conversation_id / turn_id / task_id 怎样关联

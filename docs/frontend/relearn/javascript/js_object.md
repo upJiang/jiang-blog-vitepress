@@ -296,10 +296,3 @@ function cls(){    this.a = 100; //除了函数内，其它地方都无法访问
 - 类型数组和数组缓冲区：跟内存块相关联，下标运算比较特殊。
 
 - bind 后的 function：跟原来的函数相关联。
-
-## 参考资料
-
-- [ECMAScript：Objects](https://tc39.es/ecma262/#sec-objects)
-- [ECMAScript：Property Descriptor Specification Type](https://tc39.es/ecma262/#sec-property-descriptor-specification-type)
-- [MDN：Working with objects](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Working_with_objects)
-- [MDN：Proxy](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Proxy)

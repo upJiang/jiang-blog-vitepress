@@ -147,10 +147,3 @@ JavaScript 中的 StringLiteral 支持单引号和双引号两种写法。
 ```
 `a${b}c${d}e`
 ```
-
-## 参考资料
-
-- [ECMAScript：ECMAScript Language Lexical Grammar](https://tc39.es/ecma262/#sec-ecmascript-language-lexical-grammar)
-- [ECMAScript：ECMAScript Language Expressions](https://tc39.es/ecma262/#sec-ecmascript-language-expressions)
-- [MDN：Lexical grammar](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Lexical_grammar)
-- [ESTree specification](https://github.com/estree/estree)

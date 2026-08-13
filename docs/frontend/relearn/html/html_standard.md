@@ -64,10 +64,3 @@ DOM interface:
 - Content attributes：内容属性。
 
 - DOM interface：用 WebIDL 定义的元素类型接口。
-
-## 参考资料
-
-- [WHATWG HTML：Parsing HTML documents](https://html.spec.whatwg.org/multipage/parsing.html)：tokenization、tree construction 与错误恢复。
-- [WHATWG HTML：Semantics](https://html.spec.whatwg.org/multipage/dom.html#semantics-2)：元素语义与内容模型。
-- [WHATWG DOM Standard](https://dom.spec.whatwg.org/)：节点、事件和 DOM 接口。
-- [Web Platform Tests：HTML](https://github.com/web-platform-tests/wpt/tree/master/html)：跨浏览器公开测试。

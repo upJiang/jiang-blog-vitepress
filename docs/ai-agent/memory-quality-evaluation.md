@@ -30,6 +30,7 @@ lastUpdated: false
 
 记忆与压缩评测要回答两类问题：**信息是否正确保留，系统是否只保留应该保留的信息。** 前者关注覆盖和下游任务，后者关注来源、授权、冲突、过期、撤回和隐私。高覆盖率不能抵消一次越权泄露。
 
+评测样本直接比较压缩或记忆处理前后的 `ContextSnapshot`：可信边界字段应完全相同，允许变化的是 history/memory Block、Token 数和丢弃原因。若策略降低了 Token，却改变 `scope_hash`、`release_id` 或把无来源文本变成 system Block，立即判为硬失败，不再用平均质量分抵消。
 
 ## 先定义被测系统，而不是只测最后一句回答
 
@@ -158,7 +159,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 # ProducedFact 表示一个可单独核查的事实单元，后续必须为它找到证据或明确拒绝。
 
-
 @dataclass(frozen=True)
 class ProducedFact:
     key: str
@@ -168,7 +168,6 @@ class ProducedFact:
     @property
     def normalized(self) -> str:
         return f"{self.key}={self.value}"
-
 
 @dataclass(frozen=True)
 class EvalResult:
@@ -180,7 +179,6 @@ class EvalResult:
     @property
     def hard_pass(self) -> bool:
         return not self.missing and not self.unsupported and not self.forbidden_present
-
 
 # 评估函数把安全与基础设施问题作为硬失败，把质量问题保留为人工复核项。
 def evaluate_facts(
@@ -199,7 +197,6 @@ def evaluate_facts(
     )
     coverage = len(must_keep & actual) / max(1, len(must_keep))
     return EvalResult(coverage, missing, unsupported, forbidden)
-
 
 # 执行当前算法或装配函数，下面用确定性字段核对结果而不是比较自然语言。
 result = evaluate_facts(
@@ -230,13 +227,11 @@ print("publishable", result.hard_pass)
 
 将代码下面直接执行这段实现。下面 pytest 分别加入敏感字段和伪造来源；目标是证明覆盖率满分不能掩盖硬失败。
 
-
 为了验证“测试“覆盖满分但仍然禁止发布””，下面的测试把“测试构造字段全部覆盖但包含未授权事实的摘要，证明隐私硬失败会阻断候选策略”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
 # 测试构造字段全部覆盖但包含未授权事实的摘要，证明隐私硬失败会阻断候选策略。
 from memory_eval import ProducedFact, evaluate_facts
-
 
 def test_privacy_failure_blocks_perfect_coverage() -> None:
     # 执行当前算法或装配函数，下面用确定性字段核对结果而不是比较自然语言。
@@ -252,7 +247,6 @@ def test_privacy_failure_blocks_perfect_coverage() -> None:
     assert result.coverage == 1.0
     assert result.hard_pass is False
     assert result.forbidden_present == frozenset({"secret=123456"})
-
 
 def test_unknown_source_is_unsupported() -> None:
     # 执行当前算法或装配函数，下面用确定性字段核对结果而不是比较自然语言。
@@ -312,7 +306,7 @@ python3 -m pytest -q
 
 汇总页提供任务桶趋势，但每个失败都能回到原始模拟输入和中间状态。若报告只写“准确率 92%”，工程师无法判断剩余 8% 是少了一个文风偏好，还是泄露了敏感信息。
 
-## 带走一份发布门禁
+## 用发布门禁比较记忆策略
 
 硬失败包括：未授权或敏感字段进入长期存储/未来上下文、撤回或过期事实仍可读、硬约束丢失、无来源事实成为 active、不同用户或 Scope 数据串用。趋势指标包括普通字段覆盖、压缩比、Token、延迟、摘要调用成本和下游任务成功。
 

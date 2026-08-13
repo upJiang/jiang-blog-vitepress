@@ -125,7 +125,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 # EvidenceCandidate 保存可追溯来源、稳定标识和可见范围，供 Claim 绑定与引用校验。
 
-
 @dataclass(frozen=True)
 class EvidenceCandidate:
     evidence_id: str
@@ -136,13 +135,11 @@ class EvidenceCandidate:
     release_id: str
     scope_id: str
 
-
 @dataclass(frozen=True)
 class SelectionResult:
     selected: tuple[EvidenceCandidate, ...]
     uncovered_targets: frozenset[str]
     used_tokens: int
-
 
 def select_evidence(
     candidates: list[EvidenceCandidate],
@@ -196,7 +193,6 @@ def select_evidence(
         used_tokens=used_tokens,
     )
 
-
 CANDIDATES = [
     EvidenceCandidate("e1", "release", "deploy", 35, 0.95, "r7", "team-a"),
     EvidenceCandidate("e2", "release", "deploy", 30, 0.91, "r7", "team-a"),
@@ -229,7 +225,6 @@ from __future__ import annotations
 import hashlib
 import json
 
-
 def scope_fingerprint(scope_ids: set[str], policy_version: str) -> str:
     # 把影响结果的边界字段组成规范化载荷，缓存键不能遗漏权限或版本。
     payload = {
@@ -239,7 +234,6 @@ def scope_fingerprint(scope_ids: set[str], policy_version: str) -> str:
     # 使用稳定键顺序和紧凑 JSON 编码，等价输入才能得到相同哈希。
     encoded = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
 
 def retrieval_cache_key(
     *,
@@ -258,7 +252,6 @@ def retrieval_cache_key(
     # 使用稳定键顺序和紧凑 JSON 编码，等价输入才能得到相同哈希。
     encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True)
     return "rag:retrieval:" + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
 
 scope_hash = scope_fingerprint({"team-a", "public"}, "acl-v3")
 print(
@@ -286,7 +279,6 @@ print(
 from cache_keys import retrieval_cache_key, scope_fingerprint
 from evidence_budget import CANDIDATES, select_evidence
 
-
 def test_selection_never_exceeds_token_budget() -> None:
     # 60 Token 只能容纳部分证据，结果必须保留未覆盖的 rollback 槽。
     result = select_evidence(
@@ -296,7 +288,6 @@ def test_selection_never_exceeds_token_budget() -> None:
     )
     assert result.used_tokens <= 60
     assert "rollback" in result.uncovered_targets
-
 
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_scope_change_produces_another_key() -> None:
@@ -314,7 +305,6 @@ def test_scope_change_produces_another_key() -> None:
         scope_hash=scope_fingerprint({"public", "team-a"}, "acl-v3"),
     )
     assert key_a != key_b
-
 
 # 这个用例固定版本快照，确认一次运行不会混用新旧知识、策略或模型配置。
 def test_release_change_produces_another_key() -> None:
@@ -342,7 +332,7 @@ def test_release_change_produces_another_key() -> None:
 
 建议观察：各层命中率、复核淘汰率、按原因失效数量、缓存节省的延迟、重算延迟和旧版本键数量。指标标签使用有限枚举，不把查询或用户 ID 放进标签。
 
-## 一份可以带走的设计检查表
+## 用设计检查表核对证据预算与缓存隔离
 
 1. 明确 Candidate 变成 Evidence 的全部门禁。
 2. 从模型窗口中先扣除指令、历史、工具和输出空间，再计算**证据预算**。

@@ -26,79 +26,90 @@ updated: 2026-08-12
 
 # Kubernetes 探针、资源、HPA 与排障
 
-应用加载迁移需要 40 秒，liveness 每 10 秒失败一次，Kubernetes 持续重启它。startupProbe 应覆盖启动窗口；readiness 决定能否接流量；liveness 只处理无法自愈的卡死。
+应用启动迁移需要 40 秒，liveness 第 10 秒开始探测并连续失败，Kubernetes 不断重启容器，服务永远到不了 ready。startup、readiness 和 liveness 回答不同问题；资源 requests/limits 与 HPA 又决定它在哪里运行、何时扩容和何时被 OOM。
 
-## 三种探针回答不同问题
+## 三类探针不能互相替代
 
-三种探针回答不同问题不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+startupProbe 给慢启动进程一个独立窗口，成功后才启用 liveness/readiness；readiness 表示当前能否接新流量，失败会摘除 Endpoint；liveness 表示进程是否需要重启。
 
-```mermaid
-flowchart LR
-  A[输入与上下文] --> B[三种探针回答不同问题]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
-```
+数据库短暂不可用通常让 readiness 失败，不应让所有 Pod liveness 失败并同时重启。liveness 只检查事件循环/关键内部状态，避免深度依赖和高成本操作。
 
-图中失败分支不会假装成空成功。Kubernetes的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+| 探针 | 失败动作 | 适合检查 |
+| --- | --- | --- |
+| startup | 启动期不进入其他探针，持续失败则重启 | 初始化是否在上限内完成 |
+| readiness | 停止接收新流量 | 连接池/关键依赖能否服务 |
+| liveness | 重启容器 | 死锁、事件循环永久卡死 |
+| 业务监控 | 告警/人工/自动处置 | 端到端登录、任务新鲜度 |
 
-## requests、limits 与 OOMKilled
+## requests 用于调度，limits 用于运行时约束
 
-requests、limits 与 OOMKilled要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+Scheduler 根据 requests 判断节点是否容纳 Pod；CPU limit 会被节流，内存 limit 不能通过节流回收，超限可能 OOMKilled。requests 过低让节点超卖，过高则浪费容量并阻止调度。
 
-下面的片段抓住 Kubernetes 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+从压测与运行指标设置初值：正常负载 CPU/内存、峰值、启动峰值和单请求上限。Java/Node/Python 运行时还要让堆配置感知容器内存，给原生内存、线程栈和缓冲留余量。
+
+下面把探针和资源放进同一容器。数值只是示意，必须用当前服务启动时间和容量证据调整。
 
 ```yaml
 startupProbe:
-  httpGet: { path: /health/startup, port: 3000 }
-  failureThreshold: 30
-  periodSeconds: 2
+  httpGet: { path: /health/live, port: http }
+  periodSeconds: 5
+  failureThreshold: 12
 readinessProbe:
-  httpGet: { path: /health/ready, port: 3000 }
+  httpGet: { path: /health/ready, port: http }
+  periodSeconds: 5
+  failureThreshold: 2
 livenessProbe:
-  httpGet: { path: /health/live, port: 3000 }
+  httpGet: { path: /health/live, port: http }
+  periodSeconds: 10
+  failureThreshold: 3
+resources:
+  requests: { cpu: 250m, memory: 256Mi }
+  limits: { cpu: "1", memory: 512Mi }
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+startup 最多给约 60 秒。readiness 失败约 10 秒摘流，liveness 连续失败才重启。实际还需 timeoutSeconds 和 terminationGracePeriodSeconds 与应用停机预算对齐。
 
-## HPA 信号和 kubectl 证据链
+## HPA 扩的是 Pod，不是数据库容量
 
-HPA 信号和 kubectl 证据链最终要落实到可观察证据。Kubernetes的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+HPA 根据 CPU、内存或自定义指标调整 Deployment 副本。CPU 百分比通常相对 request 计算，request 设置错误会让扩缩判断失真。扩容有采集、调度、拉镜像、启动和 ready 延迟，不能瞬间吸收尖峰。
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
-| --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+API 副本增加会增加数据库连接池、Redis 连接和 Broker Consumer。最大副本要进入全局连接预算；队列 Worker 更适合按 oldest age/lag 扩容，但仍受下游吞吐上限。
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+```mermaid
+flowchart LR
+  METRIC[CPU/lag/request rate] --> HPA[HPA Controller]
+  HPA --> DEP[Deployment replicas]
+  DEP --> PODS[更多 ready Pods]
+  PODS --> DB[(共享 MySQL 连接预算)]
+  PODS --> MQ[共享队列/下游]
+```
 
-## HPA 信号和 kubectl 证据链出现异常时怎样定位
+当瓶颈在 MySQL 锁或连接时，扩 Pod 会让竞争更严重。扩容决策要同时看下游饱和度。
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+## 排障沿期望状态和实际状态比较
 
-先固定版本、输入、时间窗口和资源状态，再沿 Kubernetes 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+`kubectl get` 只给摘要。Pending 查 events、requests、node taint/PVC；CrashLoopBackOff 查 current/previous logs 与退出码；OOMKilled 查 limit 和工作集；ready 0/1 查探针响应与依赖。
 
-## requests、limits 与 OOMKilled之后还要追问
+ImagePullBackOff 查镜像名称、digest、Registry 身份和网络。修改前保存 describe、events、日志、Deployment revision 与指标时间线；直接删 Pod 可能暂时恢复，却丢失根因证据。
 
-### 三种探针回答不同问题为什么不能只放在调用方处理？
+节点内存紧张时，Kubelet 会根据 QoS、优先级和超额用量选择驱逐对象。requests 等于 limits 的 Guaranteed Pod 通常比没有 requests 的 BestEffort 更不容易被驱逐，但这不是免死保证。查看 Pod reason、节点 MemoryPressure 和 eviction 事件，区分应用触碰自身 limit 的 OOMKilled 与节点级驱逐。
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+滚动发布还会因 maxSurge 短时增加总 requests。平时节点刚好容纳 10 个副本，不代表能再调度第 11 个候选 Pod；这会让发布卡在 Pending。容量规划要预留滚动峰值，或调整 surge/unavailable 并确认可用性目标。
 
-### requests、limits 与 OOMKilled遇到超时后，什么时候可以重试？
+## Kubernetes 运行状态继续追问
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+### readiness 失败时在途请求会怎样？
 
-### 怎样用失败路径证明 Kubernetes 真的被理解了？
+它阻止新的 Service 流量，但已经建立的连接/请求可能继续。发布摘流还需 preStop/应用 drain 和足够 termination grace，入口也可能有连接复用。
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+### CPU limit 为什么会让延迟抖动？
 
-### HPA 信号和 kubectl 证据链与前一层的责任怎样交接？
+进程达到配额后被周期性 throttling，即使节点还有空闲 CPU，也可能暂停。观察 throttled_seconds 与 P99，按服务特性决定是否设置/提高 limit，并保留 request。
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。HPA 信号和 kubectl 证据链只处理自己拥有的状态。
+### HPA 最小副本能设为 0 吗？
+
+标准 HPA 通常最小至少 1；缩到 0 需要事件驱动扩缩等机制。冷启动会增加首请求延迟，数据库迁移和唯一 Scheduler 也要独立处理。
+
+### Pod Pending 为什么可能与镜像无关？
+
+可能没有满足 requests 的节点、taint/toleration 不匹配、PVC 未绑定、亲和性无解。先读 Pod events 与 scheduler reason，不先改镜像。

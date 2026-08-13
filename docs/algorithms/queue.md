@@ -71,8 +71,3 @@ function maxSlidingWindow(values: readonly number[], k: number): number[] {
 ## 怎样验证不变量
 
 每轮结束检查队列下标递增、对应值递减，且所有下标都在当前窗口内。小数组与朴素 `Math.max(...slice)` 交叉验证，覆盖重复最大值、负数、单元素与 k 等于数组长度。
-
-## 参考资料
-
-- [Open Data Structures: Queues and Deques](https://opendatastructures.org/ods-javascript/2_Stacks_Queues_and_Deques.html)
-- [ECMAScript Array](https://tc39.es/ecma262/multipage/indexed-collections.html)

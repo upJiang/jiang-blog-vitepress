@@ -34,9 +34,5 @@ const section = computed(() =>
         </ul>
       </section>
     </div>
-    <div class="chapter-guide__practice">
-      <span>本文产物</span>
-      <p>{{ chapter.practice.result }}</p>
-    </div>
   </aside>
 </template>

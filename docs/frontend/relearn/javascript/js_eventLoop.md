@@ -91,10 +91,3 @@ function sleep(duration) {
 }
 sleep(1000).then( ()=> console.log("finished"));
 ```
-
-## 参考资料
-
-- [HTML Standard：Event loops](https://html.spec.whatwg.org/multipage/webappapis.html#event-loops)
-- [MDN：Microtask guide](https://developer.mozilla.org/docs/Web/API/HTML_DOM_API/Microtask_guide)
-- [ECMAScript：Jobs and Host Operations](https://tc39.es/ecma262/#sec-jobs-and-host-operations-to-enqueue-jobs)
-- [Node.js：The Node.js Event Loop](https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick)

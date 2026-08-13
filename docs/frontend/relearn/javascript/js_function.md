@@ -225,10 +225,3 @@ Function.prototype.myBind = function (ctx) {
         };
  };
 ```
-
-## 参考资料
-
-- [ECMAScript：ECMAScript Function Objects](https://tc39.es/ecma262/#sec-ecmascript-function-objects)
-- [ECMAScript：Arrow Function Definitions](https://tc39.es/ecma262/#sec-arrow-function-definitions)
-- [MDN：Functions](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Functions)
-- [MDN：Iterators and generators](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Iterators_and_generators)

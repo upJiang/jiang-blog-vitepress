@@ -129,7 +129,6 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
-
 class State(TypedDict, total=False):
     # question 保存原始用户输入，后续改写查询不能覆盖它。
     question: str
@@ -137,10 +136,8 @@ class State(TypedDict, total=False):
     answer: str
     approved: bool
 
-
 def research(state: State) -> State:
     return {"evidence": [f"资料：{state['question']}"]}
-
 
 def request_approval(state: State) -> State:
     # interrupt 保存当前 State 并暂停线程，恢复时 Command 的值会成为 approved。
@@ -149,14 +146,11 @@ def request_approval(state: State) -> State:
     )
     return {"approved": bool(approved)}
 
-
 def answer(state: State) -> State:
     return {"answer": f"基于 {state['evidence'][0]} 的回答"}
 
-
 def route_after_approval(state: State) -> str:
     return "answer" if state["approved"] else END
-
 
 # 先用 State 类型创建图构建器，后续节点读写字段都会受这份状态契约约束。
 builder = StateGraph(State)
@@ -275,7 +269,7 @@ def test_resume_reuses_completed_research_checkpoint() -> None:
 
 数据库集成测试还要真正换成持久化 Checkpointer：第一次进程写入中断快照后销毁图实例，第二个实例使用同一数据库与 `thread_id` 恢复。只有这个测试才能证明跨进程恢复；内存 saver 的单进程测试只能证明图协议。
 
-## 测试与练习
+## 用中断测试证明恢复没有重复执行
 
 用内存 saver 测试同一 thread 恢复后不重复 `research`；再写一个模拟 Worker 崩溃的测试，确认幂等键能取回已有结果。进一步验证是把状态分为“可重放”和“必须查询事实”两类，并为每个外部副作用写出崩溃窗口。
 

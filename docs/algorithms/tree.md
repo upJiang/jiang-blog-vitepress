@@ -74,8 +74,3 @@ function inorder<T>(root: TreeNode<T> | null): T[] {
 测试用递归版本作为小规模 oracle，覆盖空树、只有左链、只有右链、完全树和深链。验证输出长度等于节点数，并确保输入节点引用没有被修改。
 
 下一篇比较递归 DFS 与队列 BFS，学习层序遍历为何需要记录当前层大小。
-
-## 参考资料
-
-- [Open Data Structures: Binary Trees](https://opendatastructures.org/ods-javascript/6_Binary_Trees.html)
-- [VisuAlgo Binary Tree](https://visualgo.net/en/bst)

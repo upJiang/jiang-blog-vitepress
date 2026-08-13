@@ -68,9 +68,3 @@ function mergeSort<T>(
 ## 验证
 
 除了有序性，还检查结果是输入的排列，没有丢失或新增元素。稳定性用带原始序号的相同 Key 记录验证。比较器属性可以用随机三元组检查传递性。基准覆盖随机、已排序、逆序、大量重复和小数组，不能只测一种输入。
-
-## 参考资料
-
-- [ECMAScript Array sort](https://tc39.es/ecma262/multipage/indexed-collections.html#sec-array.prototype.sort)
-- [Open Data Structures: Sorting](https://opendatastructures.org/ods-javascript/11_Sorting_Algorithms.html)
-- [Intl.Collator](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/Collator)

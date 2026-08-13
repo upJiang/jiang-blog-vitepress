@@ -43,7 +43,6 @@ AIMessage     模型：根据这条说明回答入口，并在无证据时拒答
 
 本篇会用当前 LangChain 1.x 的 `create_agent` 实际运行这条轨迹。模型使用离线 `ScriptedChatModel`，因此不需要 API Key，也不会用一个自写 `while` 循环冒充框架行为。脚本模型只替代“模型怎样选择动作”，消息协议、Tool 执行节点、ToolRuntime 注入和图递归限制都由真实 LangChain 执行。
 
-
 ## Agent 比固定链多的是“由模型提出下一步”
 
 固定链在写代码时就确定顺序，例如：先检索，再生成，再校验。Agent 的控制流里有一个模型决策点：模型可以请求工具，也可以直接回答；拿到工具观察后，还能再次请求工具。
@@ -148,7 +147,6 @@ ToolMessage 必须使用原 ToolCall 的 ID。它的 `content` 给模型阅读�
 
 安装 LangChain 1.x、Pydantic 和 pytest；示例不会连接模型供应商：
 
-
 下面的命令接收本节“环境、输入和预期轨迹”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装 Agent、Fake 模型和测试依赖，预期轨迹由固定 AIMessage 与 ToolCall 驱动。
@@ -158,7 +156,6 @@ python -m pip install "langchain>=1,<2" "pydantic>=2.11,<3" "pytest>=8,<9"
 ```
 
 这些命令从 `python3`、`source`、`python` 开始按顺序运行，输出用于确认“环境、输入和预期轨迹”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 运行目标不是测试模型知识，而是验证 Harness 的真实控制流。输入“访问申请在哪里？”，预期消息类型依次为 Human、AI、Tool、AI；ToolMessage 的 ID 与第一条 AIMessage 中的 ToolCall ID 相同。
 
@@ -180,7 +177,6 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-
 @dataclass(frozen=True)
 class Note:
     note_id: str
@@ -188,14 +184,12 @@ class Note:
     title: str
     content: str
 
-
 @dataclass(frozen=True)
 class RequestContext:
     actor_id: str
     scope_ids: tuple[str, ...]
     deadline_at: float
     notes: tuple[Note, ...]
-
 
 # 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
 @tool(response_format="content_and_artifact")
@@ -224,7 +218,6 @@ def search_notes(
         ensure_ascii=False,
     )
     return content, items
-
 
 class ScriptedChatModel(BaseChatModel):
     mode: Literal["normal", "direct", "loop"] = "normal"
@@ -288,7 +281,6 @@ class ScriptedChatModel(BaseChatModel):
 
         return ChatResult(generations=[ChatGeneration(message=response)])
 
-
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_context() -> RequestContext:
     return RequestContext(
@@ -300,7 +292,6 @@ def build_context() -> RequestContext:
             Note("N2", "private", "访问申请内部审批", "仅管理员可查看。"),
         ),
     )
-
 
 def run_agent(
     # question 保存原始用户输入，后续改写查询不能覆盖它。
@@ -324,7 +315,6 @@ def run_agent(
     )
     return result["messages"]
 
-
 def demo() -> None:
     for index, message in enumerate(run_agent("访问申请在哪里？")):
         if isinstance(message, AIMessage) and message.tool_calls:
@@ -335,13 +325,11 @@ def demo() -> None:
             detail = message.content
         print(index, type(message).__name__, detail)
 
-
 if __name__ == "__main__":
     demo()
 ```
 
 代码从 `Note`、`RequestContext`、`search_notes` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
-
 
 ### 模型替身只替换模型决策
 
@@ -365,7 +353,6 @@ if __name__ == "__main__":
 
 ### 运行并逐条观察消息
 
-
 下面的命令接收本节“运行并逐条观察消息”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 运行后逐条核对 Human、AI、Tool 和最终 AI 消息，call_id 必须成对且步数不超上限。
@@ -373,7 +360,6 @@ python simple_agent.py
 ```
 
 这些命令从 `python` 开始按顺序运行，输出用于确认“运行并逐条观察消息”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
 
 输出中的 JSON 空格可能随版本变化，但消息类型和调用关系应该稳定：
 
@@ -402,7 +388,6 @@ from langgraph.errors import GraphRecursionError
 
 from simple_agent import run_agent, search_notes
 
-
 def test_normal_run_has_complete_message_loop() -> None:
     # 按角色顺序装配 system 与 user 消息；消息顺序会直接改变模型看到的指令层级。
     messages = run_agent("访问申请在哪里？")
@@ -413,7 +398,6 @@ def test_normal_run_has_complete_message_loop() -> None:
         AIMessage,
     ]
 
-
 def test_tool_message_matches_original_call_id() -> None:
     # 按角色顺序装配 system 与 user 消息；消息顺序会直接改变模型看到的指令层级。
     messages = run_agent("访问申请在哪里？")
@@ -423,12 +407,10 @@ def test_tool_message_matches_original_call_id() -> None:
     assert isinstance(tool_result, ToolMessage)
     assert first_ai.tool_calls[0]["id"] == tool_result.tool_call_id
 
-
 # 这个用例提交不受支持的工具或参数，确认请求在真正执行前被契约校验拒绝。
 def test_model_schema_hides_runtime_context() -> None:
     schema = search_notes.tool_call_schema.model_json_schema()
     assert set(schema["properties"]) == {"query"}
-
 
 def test_private_note_never_reaches_tool_artifact() -> None:
     messages = run_agent("访问申请在哪里？")
@@ -436,13 +418,11 @@ def test_private_note_never_reaches_tool_artifact() -> None:
     assert isinstance(tool_result, ToolMessage)
     assert [item["note_id"] for item in tool_result.artifact] == ["N1"]
 
-
 def test_direct_answer_does_not_execute_tool() -> None:
     # 按角色顺序装配 system 与 user 消息；消息顺序会直接改变模型看到的指令层级。
     messages = run_agent("你好", mode="direct")
     assert [type(message) for message in messages] == [HumanMessage, AIMessage]
     assert "你好" in str(messages[-1].content)
-
 
 def test_empty_evidence_produces_explicit_refusal() -> None:
     # 按角色顺序装配 system 与 user 消息；消息顺序会直接改变模型看到的指令层级。
@@ -450,7 +430,6 @@ def test_empty_evidence_produces_explicit_refusal() -> None:
     assert isinstance(messages[-2], ToolMessage)
     assert messages[-2].artifact == []
     assert messages[-1].content == "当前可见资料中没有足够证据。"
-
 
 def test_non_stopping_model_hits_graph_limit() -> None:
     with pytest.raises(GraphRecursionError, match="Recursion limit"):
@@ -543,7 +522,7 @@ Deadline 是绝对截止时刻。模型、工具、重试和验证都共享剩�
 
 不要把本地脚本模型测试删掉。它负责快速验证 Harness 和业务边界；真实模型测试负责验证供应商协议与行为。两层测试解决不同问题。
 
-## 带到工作中的最小 Agent 验收表
+## 怎样判断最小 Agent 已经跑对
 
 - 输入消息、可信 Context 和 Runnable config 分开传递；
 - Model 只收到需要的消息和 Tool Schema；
@@ -556,7 +535,7 @@ Deadline 是绝对截止时刻。模型、工具、重试和验证都共享剩�
 - 真实模型之外保留确定性模型替身测试；
 - 中间状态需要恢复时及时进入显式 LangGraph 设计。
 
-## 把这个机制用于相似问题
+## 从一次 search 演进到 search 后按 ID 读取
 
 在脚本中增加第二个工具 `get_note(note_id)`，让模型先 search，再按返回 ID fetch：
 
@@ -594,4 +573,4 @@ Runtime 可把工具名和规范化参数组成稳定 action key，在执行前�
 
 ### 为什么这个简单 Agent 还不能直接当企业 Runtime？
 
-它通常在单进程内保存 Messages，缺少持久化 Turn、幂等提交、任务所有权、Lease、版本快照、事件重放、Checkpoint 和最终权限复核。进程退出或浏览器断线时，状态与副作用边界都不明确。简单 Agent 用来理解模型—工具循环；当请求变长、分支增多或需要恢复时，应把状态放入显式 Runtime，而不是继续在回调里堆逻辑。
+它通常在单进程内保存 Messages，缺少持久化 Turn、幂等提交、任务所有权、Lease、版本快照、事件重放、Checkpoint 和最终权限复核。进程退出或浏览器断线时，状态与副作用边界都不明确。简单 Agent 适合用来理解模型和工具的循环；当请求变长、分支增多或需要恢复时，应把状态放入显式 Runtime，不要继续在回调里堆逻辑。

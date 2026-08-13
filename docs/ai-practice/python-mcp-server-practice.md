@@ -102,18 +102,15 @@ from pydantic import BaseModel
 mcp = FastMCP("package-version")
 PACKAGE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
-
 class PackageVersion(BaseModel):
     package: str
     version: str
     checked_at: str
     cached: bool
 
-
 class CacheEntry(BaseModel):
     result: PackageVersion
     expires_at: float
-
 
 class PackageIndex:
     def __init__(
@@ -178,15 +175,12 @@ class PackageIndex:
         )
         return result
 
-
 repository = PackageIndex()
-
 
 @mcp.tool
 async def get_latest_package_version(name: str) -> PackageVersion:
     """Return the latest published version of a public Python package."""
     return await repository.latest(name)
-
 
 if __name__ == "__main__":
     mcp.run()
@@ -219,7 +213,6 @@ import asyncio
 
 from fastmcp import Client
 
-
 async def main() -> None:
     # 使用 "server.py" 可由 Client 启动 stdio Server；HTTP 部署时改为服务地址。
     async with Client("server.py") as client:
@@ -231,7 +224,6 @@ async def main() -> None:
             {"name": "fastmcp"},
         )
         print(result.structured_content)
-
 
 asyncio.run(main())
 ```
@@ -251,7 +243,6 @@ from fastmcp import Client
 from fastmcp.exceptions import ToolError
 
 import server
-
 
 @pytest.mark.asyncio
 async def test_tool_contract_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -296,7 +287,6 @@ async def test_tool_contract_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "description" not in first.structured_content
     assert calls == 1
 
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("status", "message"),
@@ -314,7 +304,6 @@ async def test_http_errors(
         with pytest.raises(ToolError, match=message):
             await client.call_tool("get_latest_package_version", {"name": "missing"})
 
-
 @pytest.mark.asyncio
 async def test_invalid_name_never_calls_upstream(monkeypatch: pytest.MonkeyPatch) -> None:
     def unexpected(request: httpx.Request) -> httpx.Response:
@@ -329,7 +318,6 @@ async def test_invalid_name_never_calls_upstream(monkeypatch: pytest.MonkeyPatch
                 "get_latest_package_version",
                 {"name": "https://internal.example"},
             )
-
 
 @pytest.mark.asyncio
 async def test_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -360,3 +348,13 @@ Mock 测试固定故障分支，不依赖公网状态。上线前还应有少量
 - 外部内容怎样标记为数据，避免间接提示注入扩大动作权限。
 
 **FastMCP 让第一个 MCP Server 足够容易写出来；工程能力决定它能否被长期信任。** 先从窄、只读、可验证的能力开始，保留真实 Client 测试，再逐步增加认证和写操作，比把整个内部 API 一次性暴露成几十个 Tool 更容易维护。
+
+## 常见问题
+
+### 为什么已经测试了查询函数，还要通过真实 MCP Client 再测一次？
+
+查询函数的单元测试只能证明输入归一化、缓存和上游错误映射等内部逻辑。真实 Client 会经过 Tool 注册、Schema 生成、参数反序列化、协议调用和结构化结果返回，能够发现函数测试看不到的契约偏差。例如参数在 Python 中有默认值，生成后的 Schema 却可能仍把它列为必填；返回对象在本地断言正常，经协议编码后也可能丢字段。两层测试关注不同边界，应同时保留。
+
+### 只读 MCP Server 还需要权限和超时吗？
+
+需要。只读表示不会直接修改数据，不代表读取范围天然安全，也不代表调用没有资源成本。Server 仍要从可信连接上下文确定身份和租户，限制可查询对象，并为单次上游请求和整个 Tool Call 设置 Deadline。若调用超时，应返回明确的结果未知或上游超时错误，不能伪装成空结果。日志还要脱敏记录主体、工具名、耗时和错误类别，方便区分权限拒绝、限流与真实无数据。

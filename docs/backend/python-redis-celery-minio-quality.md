@@ -27,78 +27,93 @@ updated: 2026-08-12
 
 # Python 接入 Redis、Celery、MinIO 与测试质量
 
-Celery 任务超时后被重投，旧进程稍后又把状态写成 completed，覆盖新任务的 failed。任务更新必须带 attempt 或 lease version，只有当前所有者能提交终态。
+Celery 任务超时后重投，新 Worker 把 attempt=2 标成 failed；旧 Worker 随后恢复，把同一任务覆盖成 completed。`acks_late` 只改变 Broker 确认时机，不能阻止旧所有者写状态。任务表需要 attempt/租约，外部对象需要版本化 key。
 
-## Celery 的 ACK 和重试语义
+## Celery 传递 task_id，不传 ORM 对象和大文件
 
-Celery 的 ACK 和重试语义不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+API 在 MySQL 创建任务和 Outbox，Celery 消息只带稳定 task_id、schema_version。Worker 创建自己的数据库 Session，重新读取 Principal 范围/任务状态；ORM 对象不能跨进程序列化。
 
-```mermaid
-flowchart LR
-  A[输入与上下文] --> B[Celery 的 ACK 和重试语义]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
-```
+大文件保存在 MinIO，消息带 object_key 或 document_id。JSON Serializer 与白名单任务避免 pickle 执行风险；Broker/Result Backend 凭证和 Queue 权限最小化。
 
-图中失败分支不会假装成空成功。Python的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+| 组件 | 保存 | 不保存 |
+| --- | --- | --- |
+| MySQL tasks | 状态、attempt、租约、结果引用 | 高频百分比每次写 |
+| Redis | 短时进度/限流/缓存 | 唯一成功事实 |
+| RabbitMQ/Celery | 待投递任务 | 长期结果 |
+| MinIO | 源文件与派生对象 | 授权规则 |
+| SSE | 进度事件传输 | 任务状态真相 |
 
-## Redis 只保存进度快照
+## ACK、retry 和任务租约共同决定恢复
 
-Redis 只保存进度快照要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+`acks_late` 让任务执行后 ACK，Worker 丢失会重投；`autoretry` 仍要只覆盖临时错误，并设置 max_retries/backoff/jitter。业务非法不重试，进入 failed。
 
-下面的片段抓住 Python 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+每次领取增加 attempt。完成 SQL 同时匹配 task_id、attempt 和 running；影响 0 表示租约丢失。`soft_time_limit` 提供协作异常，hard limit 可能直接杀进程，清理不能只依赖 finally。
+
+Worker 的 prefetch 会改变故障表现。并发为 8、prefetch multiplier 为 4 时，一个进程可能预取 32 条消息；长任务会让其他 Worker 空闲，而这些消息仍显示 unacked。需要按任务时长拆 Queue，降低长任务预取，并同时观察队列 ready、unacked 与 oldest age。只看 ready=0 可能误以为积压已经消失。
+
+下面的任务只演示所有权检查，真实代码还要为 MinIO/DB 客户端设置 timeout，并分类异常。
 
 ```python
-updated = await repo.complete(
-    task_id=task_id,
-    attempt=attempt,
-    object_key=object_key,
-)
-if not updated:
-    raise LostLease(task_id)
+@celery.task(bind=True, acks_late=True, max_retries=5)
+def parse_document(self, task_id: str) -> None:
+    lease = tasks.claim(task_id, celery_task_id=self.request.id)
+    try:
+        object_key = parser.run(lease.document_id, lease.attempt)
+        if not tasks.complete_if_owned(
+            task_id, lease.attempt, object_key
+        ):
+            raise LostLease(task_id)
+    except RetryableDependencyError as exc:
+        raise self.retry(exc=exc, countdown=backoff(self.request.retries))
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+同步 Celery Worker 使用同步 SQLAlchemy/MinIO 客户端，不能随意在任务中混用一个全局 asyncio loop。FastAPI 的 AsyncSession 不传入 Worker。
 
-## pytest、ruff 和 mypy 各自负责什么
+Celery 的 retry 是一次新的投递机会，不是事务回滚。若第一次已经上传对象或调用了外部 API，重试前必须能识别原副作用。代码按错误类型决定：输入格式错误写终态并 ACK；依赖超时且结果可查询时先查；临时网络失败才退避重试；达到上限后保留任务、异常分类和最后一次 attempt 供人工恢复。
 
-pytest、ruff 和 mypy 各自负责什么最终要落实到可观察证据。Python的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+## Redis 进度与 SSE 有版本防倒退
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
-| --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+Worker 把 `{attempt, sequence, percent, stage}` 写 Redis，并发布进度；Lua/条件逻辑只接受更高 attempt 或同 attempt 更高 sequence。旧 Worker 的 90% 不能覆盖新 attempt 的 20%。
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+SSE 端先从 MySQL/Redis读取当前快照，再订阅新事件；断线用 task_id 和 Last-Event-ID 恢复。Redis 丢失后至少从 MySQL 得到 queued/running/terminal，不把空进度当任务不存在。
 
-## pytest、ruff 和 mypy 各自负责什么出现异常时怎样定位
+```mermaid
+sequenceDiagram
+  participant W as Celery Worker
+  participant R as Redis
+  participant DB as MySQL
+  participant S as SSE API
+  W->>R: progress(attempt, sequence)
+  W->>DB: 条件提交终态
+  S->>DB: 读取任务事实
+  S->>R: 读取/订阅进度
+  S-->>S: 只向前发送事件
+```
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+SSE 只是传输层；浏览器重连或丢事件不会改变任务是否成功。终态始终可通过 GET /tasks/{id} 查询。
 
-先固定版本、输入、时间窗口和资源状态，再沿 Python 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+## pytest 验证崩溃、重投与清理
 
-## Redis 只保存进度快照之后还要追问
+单元测试用 eager/直接调用验证错误分类，但 eager 不模拟 Broker ACK 与多进程。集成启动真实 Worker 和 RabbitMQ，杀掉执行中 Worker，断言重投且业务只产生一个结果。
 
-### Celery 的 ACK 和重试语义为什么不能只放在调用方处理？
+ruff 检查代码，mypy 检查类型，pytest 覆盖 MySQL/Redis/MinIO。测试对象使用 run_id 前缀，关闭 Worker/连接后精确清理；失败日志和 task_id 保存到临时 Artifact。
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+集成用例还要让 Worker 在三个时间点退出：领取后尚未写入、对象上传后尚未提交、数据库提交后尚未 ACK。前两种应由租约和对象清理恢复；第三种会重复投递，但 Inbox/终态条件更新必须吸收重复。这样才能证明 `acks_late`、业务幂等和资源清理真的组合起来了。
 
-### Redis 只保存进度快照遇到超时后，什么时候可以重试？
+## Python 任务链继续追问
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+### Celery Result Backend 能否替代 tasks 表？
 
-### 怎样用失败路径证明 Python 真的被理解了？
+它适合框架任务结果和调试，不一定满足租户权限、业务状态、长期审计和跨语言契约。业务任务仍在 MySQL 建模，Result Backend 可选。
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+### 为什么 Celery eager 测试不够？
 
-### pytest、ruff 和 mypy 各自负责什么与前一层的责任怎样交接？
+它在测试进程同步执行，没有序列化、Broker、ACK、预取、Worker 崩溃和重投。规则单测可用，可靠性必须真实集成。
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。pytest、ruff 和 mypy 各自负责什么只处理自己拥有的状态。
+### 任务 hard timeout 后对象上传到一半怎么办？
+
+使用分段上传/临时 key，完成后才标记数据库；周期任务清理过期 multipart 和非当前 attempt 对象。不能依赖被强杀进程执行清理。
+
+### Celery retry 会不会产生新 task_id？
+
+通常 retry 维持 Celery task identity，但业务不能依赖实现细节保证幂等。始终使用自己的业务 task_id/event_id/attempt 进行状态裁决。

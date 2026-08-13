@@ -98,13 +98,11 @@ from dataclasses import dataclass
 from ipaddress import ip_address
 from urllib.parse import urlsplit, urlunsplit
 
-
 @dataclass(frozen=True)
 class NetworkDecision:
     allowed: bool
     code: str
     normalized_url: str = ""
-
 
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate_target(url: str, resolved_ips: list[str]) -> NetworkDecision:
@@ -174,7 +172,6 @@ Office 的现代格式本质上常是 ZIP 容器，`.docx`、`.pptx`、`.xlsx` �
 # 解压前逐项规范化成员路径并累计声明大小，越界路径或膨胀比超限会在写磁盘前被拒绝。
 from pathlib import Path
 
-
 # 成员路径先解析为绝对路径，再确认它仍位于解压根目录内。
 def safe_member_path(root: Path, member_name: str) -> Path:
     if not member_name or "\x00" in member_name:
@@ -240,11 +237,9 @@ created_at
 # 测试覆盖内网跳转、路径穿越和压缩膨胀，断言被拒内容从未进入解析与索引阶段。
 from pathlib import Path
 
-
 def test_plain_http_is_denied_before_dns_use() -> None:
     result = validate_target("http://docs.example.test/file.pdf", ["203.0.113.10"])
     assert result == NetworkDecision(False, "scheme_denied")
-
 
 # 这个用例走失败或拒绝分支，确认错误码、终态和副作用都符合契约。
 def test_any_denied_address_rejects_the_host() -> None:
@@ -253,7 +248,6 @@ def test_any_denied_address_rejects_the_host() -> None:
         ["203.0.113.10", "::1"],
     )
     assert result.code == "address_range_denied"
-
 
 def test_archive_path_cannot_escape_root(tmp_path: Path) -> None:
     # 从这里进入可能失败的外部边界，下面只转换已经明确分类的异常。

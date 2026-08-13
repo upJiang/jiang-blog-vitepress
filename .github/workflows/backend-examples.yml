@@ -1,0 +1,88 @@
+name: Backend Examples
+
+on:
+  pull_request:
+    paths:
+      - 'examples/backend/**'
+      - '.github/workflows/backend-examples.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'examples/backend/**'
+      - '.github/workflows/backend-examples.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/backend/node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: examples/backend/node/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn prisma:generate
+      - run: yarn lint
+      - run: yarn test
+      - run: yarn build
+
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/backend/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.8.17
+      - run: uv sync --locked --group dev
+      - run: uv run ruff check app tests
+      - run: uv run mypy app
+      - run: uv run pytest
+
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/backend/go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: examples/backend/go/go.mod
+          cache: true
+      - run: gofmt -w $(find . -name '*.go' -type f)
+      - run: git diff --exit-code -- '*.go'
+      - run: go test ./...
+      - run: go vet ./...
+
+  react:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/backend/react
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: examples/backend/react/yarn.lock
+      - run: yarn install --frozen-lockfile
+      - run: yarn typecheck
+      - run: yarn build
+
+  compose-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f examples/backend/compose.yaml config --quiet

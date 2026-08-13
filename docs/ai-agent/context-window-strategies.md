@@ -30,8 +30,7 @@ lastUpdated: false
 
 只保留最近四条，可能忘掉禁止项；只做摘要，可能把甲和乙同时写进去；只按语义找“负责人”，又可能召回已经被推翻的旧消息。上下文压缩真正困难的地方不是“怎样变短”，而是不同信息有不同保留语义。
 
-本篇用同一段会话比较五种策略。每种都要回答五个问题：输入是什么、内部保存什么状态、怎样处理、输出什么、在哪些情况下会损坏信息。最后把它们组合成一条可执行管线，并用测试检查关键字段。
-
+本篇用同一段会话比较五种策略。输入来自[上下文装配器](/docs/ai-agent/context-assembly-budget)中的 history Block，输出仍写回同一个 `ContextSnapshot`；`turn_id`、`scope_hash`、`release_id` 和 `policy_version` 不随摘要改写。每种策略都要回答五个问题：输入是什么、内部保存什么状态、怎样处理、输出什么、在哪些情况下会损坏信息。最后把它们组合成一条可执行管线，并用测试检查关键字段。
 
 ## 先把测试对话和保留目标写清楚
 
@@ -186,13 +185,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class Message:
     message_id: int
     text: str
 # Fact 表示一个可单独核查的事实单元，后续必须为它找到证据或明确拒绝。
-
 
 @dataclass(frozen=True)
 class Fact:
@@ -200,13 +197,11 @@ class Fact:
     value: str
     source_message_id: int
 
-
 def sliding_window(messages: list[Message], size: int) -> list[Message]:
     if size < 1:
         raise ValueError("window size must be positive")
     # 只保留最近 size 条消息，旧消息中的约束会直接丢失，因此不能单独用于长期状态。
     return messages[-size:]
-
 
 def extract_facts(messages: list[Message]) -> dict[str, Fact]:
     # 结构化事实保留来源消息 ID，同名事实由较新的消息覆盖。
@@ -225,14 +220,12 @@ def extract_facts(messages: list[Message]) -> dict[str, Fact]:
             )
     return facts
 
-
 def rolling_summary(previous: list[str], new_messages: list[Message]) -> list[str]:
     facts = extract_facts(new_messages)
     # 先移除会被新事实替换的旧负责人，再追加本轮抽取结果，避免摘要自相矛盾。
     unchanged = [line for line in previous if not line.startswith("rollback_owner=")]
     updates = [f"{name}={fact.value}" for name, fact in sorted(facts.items())]
     return unchanged + updates
-
 
 def hierarchical_ranges(messages: list[Message], chunk_size: int) -> list[tuple[int, int]]:
     if chunk_size < 1:
@@ -243,7 +236,6 @@ def hierarchical_ranges(messages: list[Message], chunk_size: int) -> list[tuple[
         if (chunk := messages[start : start + chunk_size])
     ]
 
-
 def semantic_select(messages: list[Message], query_terms: set[str]) -> list[Message]:
     # 语义选择只返回与当前问题相关的消息；硬约束仍需由独立策略强制保留。
     return [
@@ -251,7 +243,6 @@ def semantic_select(messages: list[Message], query_terms: set[str]) -> list[Mess
         for message in messages
         if any(term in message.text for term in query_terms)
     ]
-
 
 # 按角色顺序装配 system 与 user 消息；消息顺序会直接改变模型看到的指令层级。
 messages = [
@@ -288,19 +279,16 @@ print("semantic", [item.message_id for item in semantic_select(messages, {"负�
 # 测试锁定目标、约束、当前决定和来源范围，任何策略遗漏硬字段都判为不合格。
 from context_strategies import extract_facts, messages, semantic_select, sliding_window
 
-
 # 这个用例核对证据与引用关系，防止无来源 Claim 被当成已经验证的答案。
 def test_window_does_not_claim_to_keep_early_constraints() -> None:
     recent = sliding_window(messages, 2)
     assert all("禁止推送生产" not in item.text for item in recent)
-
 
 # 这个用例检查资源所有权和释放路径，失败或取消后不能遗留永久占用。
 def test_latest_confirmed_owner_overwrites_old_candidate() -> None:
     facts = extract_facts(messages)
     assert facts["rollback_owner"].value == "乙，已确认"
     assert facts["rollback_owner"].source_message_id == 4
-
 
 def test_semantic_relevance_does_not_remove_stale_fact() -> None:
     selected = semantic_select(messages, {"负责人"})
@@ -333,7 +321,7 @@ python3 -m pytest -q
 
 组合策略的停止条件也要明确：已覆盖本轮所需字段、剩余预算足够、继续检索的边际收益低于成本，或达到 Deadline。不能让 Agent 因“也许还有相关历史”无限召回。
 
-## 迁移到工作时的决策清单
+## 为一次压缩决策留下可复查记录
 
 先问信息是什么类型：最近交互、精确状态、长期背景、任务层次还是按需旧细节。再问它能否改写、是否需要来源、是否有撤销或过期、是否涉及权限。最后才选择策略。
 

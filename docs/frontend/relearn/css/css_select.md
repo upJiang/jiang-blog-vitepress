@@ -257,7 +257,6 @@ specificity = base * base * a + base * b + c
 ```
 <div id="my" class="x y z">text<div>
 
-
 .x {
     background-color:lightblue;
 }
@@ -318,7 +317,6 @@ by a fictional tag sequence. The other lines
 will be treated as ordinary lines in the
 paragraph.</p>
 
-
 p::first-line {
     text-transform: uppercase
 }
@@ -356,7 +354,6 @@ CSS 标准只要求 ::first-line 和 ::first-letter 实现有限的几个 CSS �
 ```
 <p class="special">I'm real element</p>
 
-
 p.special::before {
     display: block;
     content: "pseudo! ";
@@ -374,10 +371,3 @@ p.special::before {
 ```
 
 这对于实现一些列表样式是非常有用的。
-
-## 参考资料
-
-- [Selectors Level 4](https://www.w3.org/TR/selectors-4/)
-- [CSS Cascading and Inheritance Level 5](https://www.w3.org/TR/css-cascade-5/)
-- [CSS Pseudo-Elements Level 4](https://www.w3.org/TR/css-pseudo-4/)
-- [MDN：CSS selectors](https://developer.mozilla.org/docs/Web/CSS/CSS_selectors)

@@ -845,23 +845,6 @@ a {
   line-height: 1.65;
 }
 
-.chapter-guide__practice {
-  margin-top: 16px;
-  border-top: 1px solid var(--vp-c-divider);
-  padding-top: 14px;
-}
-
-.chapter-guide__practice span {
-  color: var(--vp-c-text-3);
-  font-size: 12px;
-}
-
-.chapter-guide__practice p {
-  margin: 5px 0 0;
-  color: var(--vp-c-text-1);
-  font-size: 14px;
-}
-
 .mermaid-loading,
 .mermaid-error {
   display: grid;
@@ -1282,18 +1265,6 @@ a {
   color: var(--vp-c-text-3);
   font-size: 12px;
   line-height: 1.5;
-}
-
-.article-group--mainline .article-index-list a {
-  grid-template-columns: 36px minmax(0, 1fr) 24px;
-}
-
-.article-index-sequence {
-  color: var(--vp-c-brand-1);
-  font-family: var(--vp-font-family-mono);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.8;
 }
 
 .article-special-cluster + .article-special-cluster {

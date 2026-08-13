@@ -75,4 +75,4 @@ Elastic 调度可以重建失败 Worker，但训练恢复仍需可靠 Checkpoint
 
 观察 Collective 时间占 Step 比例、消息大小、算法、通道、节点内/跨节点带宽、计算重叠和最慢 Rank。平均带宽会掩盖单节点慢链路；逐 Rank 分布与拓扑更重要。
 
-在真实集群可使用官方测试工具建立通信基线，再与训练 Trace 比较。当前环境没有 NVIDIA 多卡和集群，因此本篇不运行 NCCL 测试。文章产物是一张从训练 Step 到 Communicator、Collective、GPU、网卡和 Rank 日志的证据图。
+在真实集群可使用官方测试工具建立通信基线，再与训练 Trace 比较。当前环境没有 NVIDIA 多卡和集群，因此本篇不运行 NCCL 测试。验证时保留一张从训练 Step 到 Communicator、Collective、GPU、网卡和 Rank 日志的证据图。

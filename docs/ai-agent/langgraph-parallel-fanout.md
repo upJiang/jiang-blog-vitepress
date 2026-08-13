@@ -102,7 +102,6 @@ flowchart LR
 from dataclasses import dataclass
 from typing import Literal
 
-
 @dataclass(frozen=True)
 class BranchResult:
     branch: str
@@ -110,7 +109,6 @@ class BranchResult:
     status: Literal["ok", "empty", "timeout", "denied", "failed"]
     candidates: tuple[str, ...] = ()
     error_code: str = ""
-
 
 def classify_branch_failure(branch: str, error: Exception) -> BranchResult:
     # 只有已知异常才转换成可判断的稳定错误码。
@@ -137,7 +135,6 @@ def classify_branch_failure(branch: str, error: Exception) -> BranchResult:
 
 下面使用 `Send` 创建三个研究任务。为保持示例可运行，检索函数返回固定匿名数据；真实仓储只需维持相同的结果契约。
 
-
 下面把“最小图”落成最小实现。代码关注“图把同一只读查询扇出到精确、全文与向量分支，结果携带通道状态后由 Reducer 汇合”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
@@ -150,7 +147,6 @@ from typing import Annotated, TypedDict
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
-
 class ResearchState(TypedDict, total=False):
     # question 保存原始用户输入，后续改写查询不能覆盖它。
     question: str
@@ -160,13 +156,11 @@ class ResearchState(TypedDict, total=False):
     errors: Annotated[list[dict[str, str]], operator.add]
     answer: str
 
-
 def fan_out(state: ResearchState) -> list[Send]:
     # 先按可信范围裁剪候选，越权数据不会进入后续排序、缓存或返回值。
     allowed = {"exact", "dense", "table"}
     branches = [name for name in state["branches"] if name in allowed]
     return [Send("research", {**state, "active_branch": name}) for name in branches]
-
 
 def research(state: ResearchState) -> ResearchState:
     branch = state["active_branch"]
@@ -177,7 +171,6 @@ def research(state: ResearchState) -> ResearchState:
             {"id": f"{branch}:1", "source": branch, "score": 0.8, "text": "匿名证据"}
         ]
     }
-
 
 def fuse(state: ResearchState) -> ResearchState:
     best_by_id: dict[str, dict[str, object]] = {}
@@ -190,7 +183,6 @@ def fuse(state: ResearchState) -> ResearchState:
         return {"answer": "当前可见范围没有足够证据。"}
     return {"answer": f"融合得到 {len(ordered)} 条候选。"}
 
-
 # 先用 State 类型创建图构建器，后续节点读写字段都会受这份状态契约约束。
 builder = StateGraph(ResearchState)
 builder.add_conditional_edges(START, fan_out)
@@ -201,7 +193,6 @@ builder.add_edge("research", "fuse")
 builder.add_edge("fuse", END)
 # 编译阶段检查图结构，并把 Checkpointer 注入可恢复的运行时。
 graph = builder.compile()
-
 
 result = graph.invoke(
     {"question": "访问申请怎么办", "branches": ["exact", "dense", "table"], "candidates": [], "errors": []}
@@ -229,7 +220,6 @@ print(result["answer"], result["errors"])
 # 每个分支取局部上限与全局剩余时间的较小值，失败只标记该通道且不会重置整轮 Deadline。
 from collections import defaultdict
 
-
 def reciprocal_rank_fusion(rankings: list[list[str]], constant: int = 60) -> list[str]:
     # 同一文档在不同通道的名次贡献累加到 scores，键使用稳定文档 ID。
     scores: dict[str, float] = defaultdict(float)
@@ -238,7 +228,6 @@ def reciprocal_rank_fusion(rankings: list[list[str]], constant: int = 60) -> lis
             scores[document_id] += 1 / (constant + position)
     # 按融合分数降序返回，并用稳定文档 ID 打破同分，确保结果可以复现。
     return sorted(scores, key=lambda document_id: (-scores[document_id], document_id))
-
 
 print(reciprocal_rank_fusion([["a", "b"], ["b", "c"]]))
 ```
@@ -255,7 +244,7 @@ RRF 的输入是每个通道自己的名次，不是原始分数，因此适合�
 
 测试还要验证 Reducer 的类型边界：一个分支返回 `candidates`，另一个返回 `errors`，两者都应出现在融合输入；如果把字段写成普通 `list`，后写的分支可能覆盖先写结果。并行任务的日志必须带 `turn_id`、`branch`、`attempt` 和 `deadline_at`，这样慢分支被取消时仍能解释它是否真的结束。
 
-## 测试与练习
+## 用乱序和部分失败检验并行语义
 
 测试一条分支成功、一条分支超时、全部空结果和 ACL 失败四种情况。断言候选来源、错误码、融合顺序和终态。进一步验证是加入第四个 `graph` 分支，但把全局最大分支数限制为 3，并说明 Planner 如何选择舍弃项。
 

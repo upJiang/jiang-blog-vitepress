@@ -67,8 +67,3 @@ function remove(
 ## 边界与演进
 
 空树查找失败，删除为空；删除叶、单子、双子和根都要测试。顺序插入 1..n 会让递归深度与查询都退化，工程中使用 AVL、红黑树、B-Tree 或运行时提供的有序结构，取决于更新、范围查询与存储位置。
-
-## 参考资料
-
-- [Open Data Structures: Binary Search Trees](https://opendatastructures.org/ods-javascript/6_Binary_Trees.html)
-- [VisuAlgo BST](https://visualgo.net/en/bst)

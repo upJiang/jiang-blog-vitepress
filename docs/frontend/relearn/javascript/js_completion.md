@@ -532,10 +532,3 @@ condition ? branch1 : branch2
 这里需要注意，条件表达式也像逻辑表达式一样，可能忽略后面表达式的计算。这一点跟 C 语言的条件表达式是不一样的。
 
 条件表达式实际上就是 JavaScript 中的右值表达式了 RightHandSideExpression，是可以放到赋值运算后面的表达式。
-
-## 参考资料
-
-- [ECMAScript：The Completion Record Specification Type](https://tc39.es/ecma262/#sec-completion-record-specification-type)
-- [ECMAScript：ECMAScript Language Statements and Declarations](https://tc39.es/ecma262/#sec-ecmascript-language-statements-and-declarations)
-- [ECMAScript：ECMAScript Language Expressions](https://tc39.es/ecma262/#sec-ecmascript-language-expressions)
-- [MDN：Control flow and error handling](https://developer.mozilla.org/docs/Web/JavaScript/Guide/Control_flow_and_error_handling)

@@ -66,8 +66,3 @@ function levelOrder<T>(root: TreeNode<T> | null): T[][] {
 ## 验证
 
 空树、单节点、左右不平衡和宽树都要覆盖。BFS 输出拍平后应包含每个节点一次；每一层孩子只出现在父层之后。若把 `levelSize` 放在 for 循环中动态读取，新增孩子会被错误并入当前层，测试应抓到。
-
-## 参考资料
-
-- [Open Data Structures: Binary Trees](https://opendatastructures.org/ods-javascript/6_Binary_Trees.html)
-- [Open Data Structures: BFS](https://opendatastructures.org/ods-javascript/12_Graphs.html)

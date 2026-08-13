@@ -26,77 +26,92 @@ updated: 2026-08-12
 
 # Go 与 Gin：Context、并发和请求生命周期
 
-Handler 启动 goroutine 后立刻返回，goroutine 继续使用已经取消的请求 Context 并不断重试。Go 并发很轻，但生命周期不会自动正确；后台工作必须有新的所有者和上限。
+Gin Handler 启动 goroutine 后立即返回，goroutine 继续使用 `*gin.Context`，请求结束后还在重试并写响应。goroutine 很轻，但它必须有所有者、Context 和并发上限；Gin Context 只属于当前请求，不能传给后台任务。
 
-## Gin Handler 运行在请求 goroutine
+## 每个请求在独立 goroutine 中执行 Handler 链
 
-Gin Handler 运行在请求 goroutine不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+net/http 接受连接并为请求运行 goroutine，Gin 依次执行 Middleware 与 Handler。阻塞 socket 不会阻塞所有请求，但会占用 goroutine 和下游连接；无界请求仍可耗尽内存/文件描述符。
 
-```mermaid
-flowchart LR
-  A[输入与上下文] --> B[Gin Handler 运行在请求 goroutine]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
-```
+Gin Middleware 注入 requestId/Principal、记录响应；Handler 绑定和校验输入、调用 Service、统一写 Problem。业务层不接收 `*gin.Context`，只接收标准 `context.Context` 与显式 Principal。
 
-图中失败分支不会假装成空成功。Go的调用方应根据稳定错误码决定停止、重试或重新读取状态。
-
-## context.Context 传播取消和 deadline
-
-context.Context 传播取消和 deadline要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
-
-下面的片段抓住 Go 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+Handler 从 HTTP Context 派生 2 秒 deadline，Service 与 Repository 必须继续把 ctx 传给 GORM/Redis/HTTP。
 
 ```go
-func GetProject(c *gin.Context) {
-  ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
-  defer cancel()
-  project, err := service.Get(ctx, principal(c), c.Param("id"))
-  writeResult(c, project, err)
+func (h *Handler) GetProject(c *gin.Context) {
+    ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+    defer cancel()
+
+    project, err := h.projects.Get(
+        ctx,
+        PrincipalFrom(c),
+        c.Param("projectId"),
+    )
+    WriteResult(c, project, err)
 }
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+不要把 cancel defer 去掉，也不要把 ctx 存到 struct。请求结束后 ctx.Done 关闭，下游调用应返回 context canceled/deadline exceeded 并停止无价值工作。
 
-## channel、并发上限和 pprof
+Handler 读取 Body 也受资源边界约束。先用 `http.MaxBytesReader` 或 Gin 等价处理限制体积，再绑定 JSON；响应 Header 尚未写出时才能选择正确状态码。调用 `c.JSON` 后继续写会产生重复 Header 或拼接 Body，Middleware 应检查 `c.IsAborted()`，认证失败后 `AbortWithStatusJSON` 并立即结束当前处理分支。
 
-channel、并发上限和 pprof最终要落实到可观察证据。Go的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+## Context 传取消、deadline 和请求范围值
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
+Context 作为第一个参数沿调用链传递，不放可选业务参数。Value 只保存 requestId/trace 等请求范围元数据，使用私有 key 类型；tenant_id/Principal 更适合显式参数，避免权限条件隐形。
+
+后台任务不能直接继承客户端 Context，因为请求一结束就取消。可靠任务先持久化，由 Worker 使用自己带 deadline 的 Context；短 goroutine 也要复制必要值并由 errgroup/WaitGroup 所有。
+
+```mermaid
+flowchart LR
+  HTTP[request.Context] --> SVC[Service ctx]
+  SVC --> DB[GORM WithContext]
+  SVC --> REDIS[Redis command ctx]
+  SVC --> HTTP2[Outbound request ctx]
+  HTTP -->|不要直接继承| BG[持久后台任务]
+  BG --> WCTX[Worker context + deadline]
+```
+
+取消传播到支持 Context 的客户端；不支持的旧 SDK 需要包装 timeout 或更换，否则 Handler 返回后底层操作仍占资源。
+
+Context 只是取消信号，驱动仍要主动监听；压测需验证取消后连接和 goroutine 确实下降。
+
+## channel 和并发限制建立背压
+
+goroutine 启动成本小，不代表可以每请求创建无上限并行任务。用 semaphore channel、worker pool 或 errgroup.SetLimit 限制下游并发；写 channel 要考虑接收者退出，否则 goroutine 永久阻塞。
+
+只由发送者/所有者关闭 channel，避免重复 close；用 select 同时监听 ctx.Done。共享 map 需要 mutex/sync.Map 或单 goroutine 所有，`go test -race` 检查数据竞态。
+
+`errgroup.WithContext` 适合同一请求里“任一失败则整体取消”的并行查询，但并行数仍需 `SetLimit`。如果两个查询共享一笔 SQL 事务，就不应并发复用同一事务连接。还要保留首个有意义错误：ctx 被同组任务取消产生的 `context canceled` 不应覆盖真正的下游失败。
+
+| 故障 | 证据 | 修复 |
 | --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+| goroutine 持续增长 | pprof goroutine 创建栈 | 明确 owner/cancel/limit |
+| 请求取消但 DB 继续 | Trace + Context 未传 | WithContext/QueryContext |
+| channel send 卡死 | goroutine dump | buffer/select/关闭协议 |
+| 共享 map panic/竞态 | race detector | 锁或单所有者 |
+| CPU 热点 | CPU pprof | 算法/并行度/队列 |
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+## pprof 与优雅停机验证生命周期
 
-## channel、并发上限和 pprof出现异常时怎样定位
+pprof 端点只在受控管理网络开放，采集 CPU、heap、goroutine、mutex/block。Profile 与版本、负载、时间窗口绑定，不能把测试机结果当生产结论。
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+signal.NotifyContext 接收 SIGTERM，HTTP Server Shutdown 停新请求并等待；Worker cancel 后 drain，关闭数据库/Redis/RabbitMQ。所有 Wait 都有 deadline，超时记录未结束任务后退出。
 
-先固定版本、输入、时间窗口和资源状态，再沿 Go 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+`Server.Shutdown` 等待 Handler 返回，不会替你关闭应用创建的 goroutine，也不会自动停止 RabbitMQ Consumer。服务需要一个顶层 owner 记录 HTTP、Scheduler、Consumer 和 Telemetry 的启动与关闭顺序。测试在请求阻塞、SSE 长连接和后台消费三种状态下发信号，确认 readiness 先下线，SSE 收到结束或连接关闭，未完成消息可以重投。
 
-## context.Context 传播取消和 deadline之后还要追问
+## Go 并发继续追问
 
-### Gin Handler 运行在请求 goroutine为什么不能只放在调用方处理？
+### 可以把 gin.Context Copy 后交给 goroutine 吗？
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+Copy 允许只读部分请求信息，但后台工作仍应有明确生命周期，不能写原响应。可靠任务持久化参数，使用标准 Context 和 Worker。
 
-### context.Context 传播取消和 deadline遇到超时后，什么时候可以重试？
+### Context canceled 应返回 499 还是 500？
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+客户端已断开时常在日志内部标记 canceled，网关可能使用 499；应用未必还能发送响应。内部 deadline 可映射 504/稳定错误，不能统一 500。
 
-### 怎样用失败路径证明 Go 真的被理解了？
+### goroutine 泄漏为什么 CPU 可能不高？
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+泄漏 goroutine 可能阻塞在 channel/socket，几乎不耗 CPU，却占栈、引用对象和连接。看 goroutine 数与 dump，不只看 CPU。
 
-### channel、并发上限和 pprof与前一层的责任怎样交接？
+### 多核 Go 是否不需要 Worker？
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。channel、并发上限和 pprof只处理自己拥有的状态。
+短 CPU 可由 goroutine 多核运行，但长任务仍会占 CPU、内存和请求 deadline。需要可靠重试/状态的工作进入持久 Worker，设置并发。

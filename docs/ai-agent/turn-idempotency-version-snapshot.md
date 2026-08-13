@@ -65,6 +65,21 @@ sequenceDiagram
 
 第一次提交在一个事务里完成两件事：用唯一约束保护幂等键，用当前 `active_release_id` 写入 Turn。**Worker 永远读取 Turn 自己的版本快照**，而不是每一步重新查询“当前激活版本”。发布新版本只影响之后创建的 Turn。
 
+## 准入先判断能不能开始，快照再固定怎样执行
+
+Agent 的资源消耗发生在不同层。用户可能请求过快，租户可能占满并发，模型供应商可能耗尽 TPM，队列也可能长到所有新任务都会在 Deadline 前过期。因此准入不能只检查一个总 QPS。
+
+| 边界 | 约束对象 | 典型观察值 | 被拒绝后能否原样重试 |
+| --- | --- | --- | --- |
+| 身份与权限 | 谁能提交、可信 Scope | principal、tenant、scope | 否，先修正权限 |
+| 速率限制 | 时间窗口内请求或 Token | RPM、TPM、Retry-After | 等窗口后可以 |
+| 并发准入 | 同时运行的 Turn | active slots、queue age | 容量恢复后可以 |
+| 单 Turn 预算 | 本次执行最多消耗什么 | Deadline、调用数、Token | 不能靠重试重置 |
+
+固定顺序是认证并计算服务端 Scope，验证请求与幂等键，读取速率和容量状态，决定接受、排队或拒绝，然后在短事务中创建 Turn，并固定 Release、Policy、模型能力和 Deadline。**进入消息队列只表示任务已被接收，不表示它一定还能在预算内执行。** Worker 领取时会再次检查 Deadline，过期任务直接写明确终态。
+
+准入事件应区分 `admission.accepted`、`admission.queued` 和 `admission.rejected`。如果都折叠成 HTTP 429，运维无法知道是单用户突发、全局模型容量不足，还是队列年龄超标。拒绝原因也属于幂等响应：同一个键重放时返回原 Turn 或原拒绝结果，不能悄悄创建另一次执行。
+
 ## 幂等的边界
 
 **幂等不是“接口调用两次结果一样”这么简单。** 对只读检索，重复执行通常没有副作用；对发送邮件、扣费、写入向量等动作，必须把幂等键传到副作用边界，并由目标系统的唯一约束或去重表保护。模型调用本身很难做到严格幂等，因此应把模型输出写入 Turn 事件，再由事件状态决定是否可以再次调用。
@@ -79,7 +94,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class Turn:
     turn_id: str
@@ -88,7 +102,6 @@ class Turn:
     request_fingerprint: str
     release_id: int
     status: str
-
 
 class TurnStore:
     def __init__(self, active_release_id: int) -> None:
@@ -123,7 +136,6 @@ class TurnStore:
         if release_id <= self.active_release_id:
             raise ValueError("release_must_move_forward")
         self.active_release_id = release_id
-
 
 if __name__ == "__main__":
     store = TurnStore(active_release_id=7)
@@ -166,7 +178,6 @@ PostgreSQL 的 `INSERT ... ON CONFLICT` 可以帮助获得已有行，但仍要�
 
 下面的测试直接复用前文实现。测试输入覆盖同 Key 相同请求、同 Key 不同请求和发布后的新 Key，输出直接断言 Turn 身份与 Release。
 
-
 为了验证“用 pytest 推演重复、冲突与快照”，下面的测试把“测试覆盖相同请求重放、同键不同内容冲突和 active 变化，证明已创建 Turn 的快照不漂移”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -174,7 +185,6 @@ PostgreSQL 的 `INSERT ... ON CONFLICT` 可以帮助获得已有行，但仍要�
 import pytest
 
 from turn_store import TurnStore
-
 
 # 这个用例改变缓存边界字段，确认权限、版本或策略变化会产生不同键。
 def test_same_key_returns_the_same_turn() -> None:
@@ -185,14 +195,12 @@ def test_same_key_returns_the_same_turn() -> None:
     assert again_created is False
     assert again.turn_id == first.turn_id
 
-
 # 这个用例改变缓存边界字段，确认权限、版本或策略变化会产生不同键。
 def test_same_key_cannot_hide_another_request() -> None:
     store = TurnStore(active_release_id=7)
     store.admit("user-1", "key-1", "hash-a")
     with pytest.raises(ValueError, match="different_request"):
         store.admit("user-1", "key-1", "hash-b")
-
 
 # 这个用例固定版本快照，确认一次运行不会混用新旧知识、策略或模型配置。
 def test_existing_turn_keeps_its_release_snapshot() -> None:

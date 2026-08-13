@@ -1,0 +1,17 @@
+meta {
+  name: get task
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/tasks/{{taskId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("returns task state or a scoped 404", function() {
+    expect(res.status).to.be.oneOf([200, 404])
+  })
+}

@@ -19,14 +19,39 @@ services:
       retries: 30
 
   node-api:
+    profiles: ['apis']
     build: ./node
     environment:
       JWT_SECRET: replace-with-at-least-32-characters
       DATABASE_URL: mysql://backend:backend-local-only@mysql:3306/backend_learning
       WEB_ORIGIN: http://localhost:5173
       PORT: 3001
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://backend:backend-local-only@rabbitmq:5672/
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9000
+      MINIO_ACCESS_KEY: backend
+      MINIO_SECRET_KEY: backend-local-only
+      MINIO_BUCKET: backend-files
     ports:
       - '3001:3001'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+
+  migrate:
+    image: mysql:8.4
+    volumes:
+      - ./common:/migrations:ro
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: backend
+      MYSQL_PASSWORD: backend-local-only
+      MYSQL_DATABASE: backend_learning
+    entrypoint: ['/bin/sh', '/migrations/migrate.sh']
     depends_on:
       mysql:
         condition: service_healthy
@@ -67,7 +92,6 @@ services:
       MINIO_ROOT_USER: backend
       MINIO_ROOT_PASSWORD: backend-local-only
     ports:
-      - '9000:9000'
       - '9001:9001'
     volumes:
       - backend-minio:/data
@@ -77,28 +101,74 @@ services:
       timeout: 5s
       retries: 20
 
+  minio-init:
+    image: minio/mc:RELEASE.2025-07-21T05-28-08Z
+    volumes:
+      - ./common/minio-cors.json:/config/cors.json:ro
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        mc alias set local http://minio:9000 backend backend-local-only
+        mc mb --ignore-existing local/backend-files
+        mc cors set local/backend-files /config/cors.json
+    depends_on:
+      minio:
+        condition: service_healthy
+
+  object-gateway:
+    image: nginx:1.28-alpine
+    ports:
+      - '9000:9000'
+    volumes:
+      - ./common/object-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+
   python-api:
     profiles: ['apis']
     build: ./python
     environment:
       BACKEND_DATABASE_URL: mysql+asyncmy://backend:backend-local-only@mysql:3306/backend_learning
       BACKEND_JWT_SECRET: replace-with-at-least-32-characters
+      BACKEND_WEB_ORIGIN: http://localhost:5173
+      BACKEND_REDIS_URL: redis://redis:6379/0
+      BACKEND_RABBITMQ_URL: amqp://backend:backend-local-only@rabbitmq:5672/
+      BACKEND_MINIO_ENDPOINT: minio:9000
+      BACKEND_MINIO_PUBLIC_ENDPOINT: http://localhost:9000
+      BACKEND_MINIO_ACCESS_KEY: backend
+      BACKEND_MINIO_SECRET_KEY: backend-local-only
+      BACKEND_MINIO_BUCKET: backend-files
     ports:
       - '3002:3002'
     depends_on:
-      mysql:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
 
   go-api:
     profiles: ['apis']
     build: ./go
     environment:
       DATABASE_DSN: backend:backend-local-only@tcp(mysql:3306)/backend_learning?parseTime=true&loc=UTC
+      JWT_SECRET: replace-with-at-least-32-characters
+      WEB_ORIGIN: http://localhost:5173
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://backend:backend-local-only@rabbitmq:5672/
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9000
+      MINIO_ACCESS_KEY: backend
+      MINIO_SECRET_KEY: backend-local-only
+      MINIO_BUCKET: backend-files
     ports:
       - '3003:3003'
     depends_on:
-      mysql:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
 
 volumes:
   backend-mysql:

@@ -25,81 +25,112 @@ updated: 2026-08-12
 
 # Dockerfile 与 Compose：搭建可重复的 MySQL 后端栈
 
-镜像在开发机能跑，CI 中却因为复制了 node_modules 和本机路径失败。Dockerfile 的构建上下文必须只包含可重建源码，依赖版本由锁文件固定，运行配置在启动时注入。
+`docker compose up` 显示 API started，但 API 立刻因 MySQL connection refused 退出。Compose 的启动顺序只说明容器进程已创建，数据库完成初始化和接受连接是另一状态。可复现本地栈需要正确 Dockerfile、健康检查、依赖就绪和持久卷。
 
-## 多阶段构建缩小运行镜像
+## Dockerfile 把构建依赖与运行依赖分开
 
-多阶段构建缩小运行镜像不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+多阶段构建在 builder 安装依赖、编译和测试，在 runtime 只复制生产产物与必要依赖。固定基础镜像版本/digest，设置非 root 用户、明确 WORKDIR 和 ENTRYPOINT，并让 PID 1 接收信号。
 
-```mermaid
-flowchart LR
-  A[输入与上下文] --> B[多阶段构建缩小运行镜像]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
-```
+构建上下文由 `.dockerignore` 排除 node_modules、Git、日志、测试数据和本地 Secret。环境相关配置在运行时注入，同一镜像依次进入候选和生产，不能为每个环境重新编译。
 
-图中失败分支不会假装成空成功。容器的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+下面是 Node API 的多阶段骨架。版本和包管理命令应与仓库锁文件一致，示例使用仓库现有 Yarn。
 
-## Compose 组织依赖而不替代就绪检查
-
-Compose 组织依赖而不替代就绪检查要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
-
-下面的片段抓住 容器 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
-
-```yaml
-FROM node:22-bookworm-slim AS build
+```dockerfile
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY . .
-RUN yarn build
+RUN yarn test && yarn build
 
-FROM node:22-bookworm-slim
-COPY --from=build /app/dist /app/dist
-CMD ["node", "/app/dist/main.js"]
+FROM node:22-alpine AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+RUN addgroup -S app && adduser -S app -G app
+COPY --from=build --chown=app:app /app/dist ./dist
+COPY --from=build --chown=app:app /app/node_modules ./node_modules
+USER app
+EXPOSE 3000
+CMD ["node", "dist/main.js"]
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+真实项目可用生产依赖裁剪进一步缩小镜像。测试失败时构建应停止；Secret 不通过 ARG/ENV 写入镜像，BuildKit secret 也要确认不会复制进产物。
 
-## 配置、Secret 和卷的生命周期
+## Compose 服务名就是本地 DNS 名称
 
-配置、Secret 和卷的生命周期最终要落实到可观察证据。容器的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+同一 Compose Network 内，API 连接 `mysql:3306`、`redis:6379`、`rabbitmq:5672`、`minio:9000`。宿主端口只为浏览器或本机工具发布，服务间连接不绕宿主映射。
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
-| --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+Volume 保存 MySQL/MinIO 数据；Redis 是否持久化由本地实验目标决定。开发栈的默认密码只能用于隔离本机，并用 `.env.example` 说明变量，不把真实凭证提交。
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+以下 Compose 片段只展示 MySQL 就绪条件和 API 依赖。完整仓库还包含 Redis、RabbitMQ 与 MinIO。
 
-## 配置、Secret 和卷的生命周期出现异常时怎样定位
+```yaml
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: backend
+      MYSQL_USER: backend
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?required}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - mysql-data:/var/lib/mysql
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+  node-api:
+    build: ./node
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://backend:${MYSQL_PASSWORD}@mysql:3306/backend
+```
 
-先固定版本、输入、时间窗口和资源状态，再沿 容器 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+`depends_on` 只帮助启动顺序，运行中 MySQL 仍可能重启。API 需要有限连接重试、readiness 和错误响应，不能把 Compose 当高可用编排器。
 
-## Compose 组织依赖而不替代就绪检查之后还要追问
+已有连接在 MySQL 重启后会失效，应用不能只在启动阶段重试一次。连接池应丢弃坏连接、按总 deadline 有限重连；readiness 反映是否还能接受依赖数据库的新请求。否则 Compose 看似所有容器都在 running，业务仍会持续返回 500。
 
-### 多阶段构建缩小运行镜像为什么不能只放在调用方处理？
+## 迁移属于一次性作业，不属于每个 API 启动
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+三个 API 副本同时启动并自动迁移会竞争锁，也把结构变更隐藏在进程日志。Compose 中用独立 migrate 服务执行共享 SQL，成功后再启动 API；生产则使用受控 Job。
 
-### Compose 组织依赖而不替代就绪检查遇到超时后，什么时候可以重试？
+健康检查分存活与就绪：容器自身 HEALTHCHECK 可证明进程接口响应，应用 `/health/ready` 再检查能否接新请求。不要每秒执行深度全表查询作为健康检查。
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+```mermaid
+flowchart LR
+  UP[docker compose up] --> INFRA[MySQL/Redis/MQ/MinIO]
+  INFRA --> HEALTH{关键依赖 ready}
+  HEALTH --> MIGRATE[Migration Job]
+  MIGRATE --> API[Node/Python/Go API]
+  API --> REACT[React dev server]
+```
 
-### 怎样用失败路径证明 容器 真的被理解了？
+基础设施健康不代表迁移成功，迁移成功也不代表业务可用。启动脚本应分别报告每个阶段的失败。
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+## 本地数据重置必须明确目标
 
-### 配置、Secret 和卷的生命周期与前一层的责任怎样交接？
+`docker compose down` 不默认删除 Named Volume；加 `-v` 会删除栈数据，属于破坏性操作。开发脚本应显示将删除的 Compose project 与 Volume 名称，只对明确的隔离数据执行。
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。配置、Secret 和卷的生命周期只处理自己拥有的状态。
+排查先运行 `docker compose config` 查看变量展开，再看 ps、logs、health 与网络。不要因为一个服务失败就删除所有 Volume，数据库初始化错误与已有数据版本不兼容需要分别处理。
+
+## Compose 环境继续追问
+
+### 为什么 healthcheck 中要写 `$$MYSQL_ROOT_PASSWORD`？
+
+Compose 会在宿主解析单 `$` 变量，双 `$` 保留给容器 Shell 在运行时读取。先用 `docker compose config` 检查最终命令，避免密码被错误展开或为空。
+
+### 开发时修改代码是否每次重建镜像？
+
+可用 Bind Mount 和框架热更新提高效率，但生产验证必须用最终镜像。开发 override 不应改变数据库地址、认证或文件路径等关键语义。
+
+### 为什么不要把 `sleep 10` 当就绪等待？
+
+不同机器和已有数据初始化时间不同，固定睡眠既可能过短也浪费时间。轮询真实健康条件并设总超时，失败时输出依赖日志。
+
+### Compose 能否直接当生产编排？
+
+小型单机部署可以，但滚动更新、自愈、调度、Secret、权限和多机高可用能力有限。是否使用取决于规模与运维要求，不能把本地栈原样称为企业生产方案。

@@ -125,9 +125,3 @@ series: "重学前端"
 我们仍然从目标、方案设计、执行和结果四个方面来讲解，工具体系的目标除了单个工具解决具体问题之外，还要注意一致性和配合问题，因此我们需要工具链。
 
 工具链一般会涵盖研发阶段的各个主要操作。工具体系的执行比较简单，很容易就可以做到完全的自动化。工具体系的监控同样非常重要，工具的监控除了帮助我们改进工具体系，对研发体系的其它部分也有帮助。
-
-## 参考资料
-
-- [Node.js Corepack](https://nodejs.org/api/corepack.html)
-- [pnpm: Continuous Integration](https://pnpm.io/continuous-integration)
-- [Vite: Performance](https://vite.dev/guide/performance)

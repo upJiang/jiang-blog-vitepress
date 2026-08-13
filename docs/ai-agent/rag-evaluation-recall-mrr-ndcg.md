@@ -48,7 +48,6 @@ lastUpdated: false
 
 最小样本不只是问题和答案。建议保存：
 
-
 一条评测样本既要保存问题和相关性标注，也要固定可见范围与知识版本。否则同一问题在不同权限或 Release 下得到不同结果时，指标无法解释差异来源。
 ```jsonc
 {
@@ -164,7 +163,6 @@ import math
 from dataclasses import dataclass
 from statistics import median
 
-
 @dataclass(frozen=True)
 class EvalCase:
     case_id: str
@@ -172,7 +170,6 @@ class EvalCase:
     ranked_chunk_ids: tuple[str, ...]
     claim_supported: tuple[bool, ...]
     latency_ms: float
-
 
 # 这个指标函数只处理已标注的排序或布尔结果，不把生成文本质量混入检索指标。
 def recall_at_k(relevance: dict[str, int], ranked: tuple[str, ...], k: int) -> float:
@@ -183,14 +180,12 @@ def recall_at_k(relevance: dict[str, int], ranked: tuple[str, ...], k: int) -> f
         return 1.0 if not ranked[:k] else 0.0
     return len(relevant & set(ranked[:k])) / len(relevant)
 
-
 # 这个指标函数只处理已标注的排序或布尔结果，不把生成文本质量混入检索指标。
 def reciprocal_rank(relevance: dict[str, int], ranked: tuple[str, ...]) -> float:
     for position, chunk_id in enumerate(ranked, start=1):
         if relevance.get(chunk_id, 0) > 0:
             return 1 / position
     return 0.0
-
 
 # 这个指标函数只处理已标注的排序或布尔结果，不把生成文本质量混入检索指标。
 def dcg(grades: list[int]) -> float:
@@ -199,7 +194,6 @@ def dcg(grades: list[int]) -> float:
         for position, grade in enumerate(grades, start=1)
     )
 
-
 # 这个指标函数只处理已标注的排序或布尔结果，不把生成文本质量混入检索指标。
 def ndcg_at_k(relevance: dict[str, int], ranked: tuple[str, ...], k: int) -> float:
     actual_grades = [relevance.get(chunk_id, 0) for chunk_id in ranked[:k]]
@@ -207,11 +201,9 @@ def ndcg_at_k(relevance: dict[str, int], ranked: tuple[str, ...], k: int) -> flo
     ideal = dcg(ideal_grades)
     return dcg(actual_grades) / ideal if ideal > 0 else 1.0
 
-
 # 这个指标函数只处理已标注的排序或布尔结果，不把生成文本质量混入检索指标。
 def support_rate(values: tuple[bool, ...]) -> float:
     return sum(values) / len(values) if values else 1.0
-
 
 # 这个指标函数只处理已标注的排序或布尔结果，不把生成文本质量混入检索指标。
 def percentile(values: list[float], fraction: float) -> float:
@@ -220,7 +212,6 @@ def percentile(values: list[float], fraction: float) -> float:
     ordered = sorted(values)
     index = math.ceil(fraction * len(ordered)) - 1
     return ordered[max(0, index)]
-
 
 CASES = (
     EvalCase(
@@ -238,7 +229,6 @@ CASES = (
         121.0,
     ),
 )
-
 
 for case in CASES:
     print(
@@ -271,22 +261,18 @@ import pytest
 
 from rag_eval import ndcg_at_k, recall_at_k, reciprocal_rank, support_rate
 
-
 # 这个用例用固定样本核对评测指标，避免实现变化悄悄改变分母、排序或通过条件。
 def test_recall_uses_only_top_k() -> None:
     relevance = {"a": 1, "b": 1}
     assert recall_at_k(relevance, ("x", "a", "b"), 2) == 0.5
 
-
 def test_reciprocal_rank_uses_first_relevant_position() -> None:
     assert reciprocal_rank({"a": 1}, ("x", "a", "a")) == 0.5
-
 
 # 这个用例用固定样本核对评测指标，避免实现变化悄悄改变分母、排序或通过条件。
 def test_ideal_ranking_has_perfect_ndcg() -> None:
     relevance = {"a": 3, "b": 2, "c": 1}
     assert ndcg_at_k(relevance, ("a", "b", "c"), 3) == pytest.approx(1.0)
-
 
 # 这个用例核对证据与引用关系，防止无来源 Claim 被当成已经验证的答案。
 def test_support_rate_does_not_hide_unsupported_claim() -> None:

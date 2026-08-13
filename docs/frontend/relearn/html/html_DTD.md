@@ -143,10 +143,3 @@ ProcessingInstruction 包含两个部分，紧挨着第一个问号后，空格�
 ```
 
 每一个文本实体由&开头，由;结束，这属于基本语法的规定，文本实体可以用#后跟一个十进制数字，表示字符 Unicode 值。除此之外这两个符号之间的内容，则由 DTD 决定。
-
-## 参考资料
-
-- [WHATWG HTML：The DOCTYPE](https://html.spec.whatwg.org/multipage/syntax.html#the-doctype)：现代作者语法。
-- [WHATWG HTML：Determining the document mode](https://html.spec.whatwg.org/multipage/parsing.html#the-initial-insertion-mode)：模式选择算法。
-- [WHATWG Quirks Mode Standard](https://quirks.spec.whatwg.org/)：历史兼容行为清单。
-- [Web Platform Tests：quirks](https://github.com/web-platform-tests/wpt/tree/master/quirks)：公开回归测试。

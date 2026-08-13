@@ -2,7 +2,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
-import { articles, articleFile, articlePath } from '../.vitepress/content.ts'
+import {
+  articles,
+  articleFile,
+  articlePath,
+  frontendTracks,
+  sections
+} from '../.vitepress/content.ts'
 import { removedBackendRoutes } from '../.vitepress/removed-backend-routes.ts'
 
 const baseURL = process.env.BLOG_URL ?? 'http://localhost:9999'
@@ -21,7 +27,9 @@ const representativeRoutes = [
   '/docs/ai-agent/mcp-protocol-lifecycle',
   '/docs/ai-agent/rag-evaluation-recall-mrr-ndcg',
   '/docs/ai-agent/knowledge-agent-capstone',
-  '/docs/ai-agent/agent-lifecycle',
+  '/docs/ai-agent/agent-request-lifecycle-runtime',
+  '/docs/ai-agent/python-openai-responses-first-call',
+  '/docs/ai-agent/agent-compose-local-runtime',
   '/docs/ai-agent/prompt-cache-prefix-design',
   '/docs/ai-practice/mcp-design-workflow-mining',
   '/docs/ai-practice/python-mcp-server-practice',
@@ -43,6 +51,48 @@ const representativeRoutes = [
 
 function assert(condition, message) {
   if (!condition) errors.push(message)
+}
+
+function frontendTrackFor(article) {
+  if (article.slug.startsWith('relearn/') || article.part === '基础与手写') return 'fundamentals'
+  if (article.part === 'TypeScript' || article.slug === 'typescript-type-system-engineering') return 'typescript'
+  if (
+    article.part === 'React' ||
+    article.slug === 'react-fiber-concurrent-rendering' ||
+    article.slug === 'nextjs-rendering-cache-invalidation'
+  ) return 'react'
+  if (article.part === 'Vue' || article.slug === 'vue-reactivity-scheduler') return 'vue'
+  if (article.part === '构建工具' || article.part === '现代前端：构建工具') return 'tooling'
+  return 'engineering'
+}
+
+function sectionExpectation(category) {
+  const categoryArticles = articles.filter((article) => article.category === category)
+  if (category === 'frontend') {
+    return {
+      tabCount: frontendTracks.length,
+      secondKey: frontendTracks[1].key,
+      thirdKey: frontendTracks[2].key,
+      secondCount: categoryArticles.filter(
+        (article) => frontendTrackFor(article) === frontendTracks[1].key
+      ).length
+    }
+  }
+  if (category === 'ai-agent') {
+    return {
+      tabCount: 3,
+      secondKey: 'mainline',
+      thirdKey: 'special',
+      secondCount: categoryArticles.filter((article) => article.track === 'mainline').length
+    }
+  }
+  const parts = [...new Set(categoryArticles.map((article) => article.part))]
+  return {
+    tabCount: parts.length + 1,
+    secondKey: 'part-1',
+    thirdKey: 'part-2',
+    secondCount: categoryArticles.filter((article) => article.part === parts[0]).length
+  }
 }
 
 const browser = await chromium.launch({ headless: true })
@@ -91,6 +141,13 @@ try {
       if (!article.preserved) {
         assert((await page.locator('h1').count()) === 1, `${width}px 文章缺少唯一一级标题：${route}`)
       }
+      assert((await page.locator('.VPLastUpdated').count()) === 0, `${width}px 文章仍展示更新时间：${route}`)
+      const templateHeadings = await page.locator('.VPDoc h2').evaluateAll((headings) =>
+        headings
+          .map((heading) => heading.textContent?.trim() ?? '')
+          .filter((heading) => /^参考资料|(?:本篇|本文)产物/.test(heading))
+      )
+      assert(templateHeadings.length === 0, `${width}px 文章仍展示模板章节：${route}`)
       if (article.category === 'backend') {
         assert(
           (await page.locator('h1').textContent())?.replace(/\u200b/g, '').trim() === article.title,
@@ -104,7 +161,8 @@ try {
           (await page.locator('.chapter-guide').count()) === 0,
           `${width}px 后端文章仍展示固定阅读信息模板：${route}`
         )
-        if (article.slug !== 'mysql-crud-parameter-binding') {
+        // 只有正文确实包含 Mermaid 时才等待 SVG；没有图的文章不应被测试脚本误判。
+        if (await page.locator('.mermaid').count() > 0) {
           await page.locator('.mermaid svg').first().waitFor({ timeout: 10_000 })
           assert(
             (await page.locator('.mermaid svg').count()) > 0,
@@ -189,6 +247,123 @@ try {
   await page.goto(`${baseURL}/docs/frontend/?track=vue`, { waitUntil: 'networkidle' })
   assert(await page.locator('#frontend-tab-vue').getAttribute('aria-selected').then((value) => value === 'true'), '专题 Tab 无法从查询参数恢复')
 
+  for (const viewport of [
+    { width: 375, height: 812 },
+    { width: 812, height: 375 },
+    { width: 768, height: 1024 },
+    { width: 1024, height: 768 },
+    { width: 1440, height: 900 }
+  ]) {
+    const sectionPage = await browser.newPage({ viewport })
+    sectionPage.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text())
+    })
+    sectionPage.on('pageerror', (error) => consoleErrors.push(error.message))
+
+    for (const section of sections) {
+      const expectation = sectionExpectation(section.key)
+      const idPrefix = section.key === 'frontend' ? 'frontend' : 'category'
+      const categoryArticles = articles.filter((article) => article.category === section.key)
+      await sectionPage.goto(`${baseURL}${section.path}`, { waitUntil: 'networkidle' })
+
+      const tabs = sectionPage.locator('.frontend-track-tabs [role="tab"]')
+      assert(
+        (await tabs.count()) === expectation.tabCount,
+        `${viewport.width}px ${section.title} Tab 数量错误`
+      )
+      assert(
+        (await sectionPage.locator('.frontend-track-tabs [role="tab"][aria-selected="true"]').count()) === 1,
+        `${viewport.width}px ${section.title} 没有唯一激活 Tab`
+      )
+      assert(
+        (await sectionPage.locator('.frontend-track-tabs [role="tab"][tabindex="0"]').count()) === 1,
+        `${viewport.width}px ${section.title} roving tabindex 错误`
+      )
+      assert(
+        (await sectionPage.locator('.article-index-list a').count()) === categoryArticles.length,
+        `${viewport.width}px ${section.title} 默认没有展示全部文章`
+      )
+
+      const controlledPanels = await tabs.evaluateAll((elements) =>
+        elements.every((element) => {
+          const panelId = element.getAttribute('aria-controls')
+          return Boolean(panelId && document.getElementById(panelId)?.getAttribute('role') === 'tabpanel')
+        })
+      )
+      assert(controlledPanels, `${viewport.width}px ${section.title} 的 aria-controls 没有关联有效面板`)
+
+      await sectionPage.locator(`#${idPrefix}-tab-${expectation.secondKey}`).click()
+      assert(
+        new URL(sectionPage.url()).searchParams.get('track') === expectation.secondKey,
+        `${viewport.width}px ${section.title} 没有保存 track 查询参数`
+      )
+      assert(
+        (await sectionPage.locator('.frontend-track-panel .article-index-list a').count()) === expectation.secondCount,
+        `${viewport.width}px ${section.title} 第二个 Tab 的文章数量错误`
+      )
+      await sectionPage.reload({ waitUntil: 'networkidle' })
+      assert(
+        (await sectionPage.locator(`#${idPrefix}-tab-${expectation.secondKey}`).getAttribute('aria-selected')) === 'true',
+        `${viewport.width}px ${section.title} 刷新后没有恢复 Tab`
+      )
+
+      await sectionPage.locator(`#${idPrefix}-tab-${expectation.thirdKey}`).click()
+      await sectionPage.goBack({ waitUntil: 'networkidle' })
+      assert(
+        (await sectionPage.locator(`#${idPrefix}-tab-${expectation.secondKey}`).getAttribute('aria-selected')) === 'true',
+        `${viewport.width}px ${section.title} 后退时没有恢复 Tab`
+      )
+      await sectionPage.goForward({ waitUntil: 'networkidle' })
+      assert(
+        (await sectionPage.locator(`#${idPrefix}-tab-${expectation.thirdKey}`).getAttribute('aria-selected')) === 'true',
+        `${viewport.width}px ${section.title} 前进时没有恢复 Tab`
+      )
+
+      await sectionPage.goto(`${baseURL}${section.path}?track=invalid`, { waitUntil: 'networkidle' })
+      assert(
+        new URL(sectionPage.url()).searchParams.get('track') === 'all' &&
+          (await sectionPage.locator(`#${idPrefix}-tab-all`).getAttribute('aria-selected')) === 'true',
+        `${viewport.width}px ${section.title} 无效 Tab 没有回退到全部`
+      )
+
+      await sectionPage.locator(`#${idPrefix}-tab-${expectation.secondKey}`).focus()
+      await sectionPage.keyboard.press('ArrowDown')
+      assert(
+        await sectionPage.locator(`#${idPrefix}-tab-${expectation.thirdKey}`).evaluate(
+          (element) => document.activeElement === element && element.getAttribute('aria-selected') === 'true'
+        ),
+        `${viewport.width}px ${section.title} 不支持方向键切换`
+      )
+      await sectionPage.keyboard.press('Enter')
+      assert(
+        (await sectionPage.locator(`#${idPrefix}-tab-${expectation.thirdKey}`).getAttribute('aria-selected')) === 'true',
+        `${viewport.width}px ${section.title} Enter 后状态错误`
+      )
+      await sectionPage.keyboard.press('Home')
+      assert(
+        await sectionPage.locator(`#${idPrefix}-tab-all`).evaluate((element) => document.activeElement === element),
+        `${viewport.width}px ${section.title} 不支持 Home`
+      )
+      await sectionPage.keyboard.press('End')
+      assert(
+        await tabs.last().evaluate((element) => document.activeElement === element),
+        `${viewport.width}px ${section.title} 不支持 End`
+      )
+      await sectionPage.locator('.frontend-track-panel').focus()
+      await sectionPage.keyboard.press('Escape')
+      assert(
+        await tabs.last().evaluate((element) => document.activeElement === element),
+        `${viewport.width}px ${section.title} Escape 后焦点没有返回当前 Tab`
+      )
+
+      const overflow = await sectionPage.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+      )
+      assert(overflow <= 1, `${viewport.width}px ${section.title} 栏目存在 ${overflow}px 横向溢出`)
+    }
+    await sectionPage.close()
+  }
+
   if (checksDevMiddleware) {
     const legacyResponse = await page.request.get(`${baseURL}/docs/frontend/algorithms/array.html`, { maxRedirects: 0 })
     assert(legacyResponse.status() === 302, '开发环境旧算法地址没有返回 302')
@@ -236,7 +411,7 @@ try {
     await removedPage.close()
   }
 
-  await page.goto(`${baseURL}/docs/ai-agent/agent-lifecycle`, { waitUntil: 'networkidle' })
+  await page.goto(`${baseURL}/docs/ai-agent/agent-request-lifecycle-runtime`, { waitUntil: 'networkidle' })
   await page.locator('.mermaid svg').first().waitFor({ timeout: 10_000 })
   assert((await page.locator('.mermaid svg').count()) > 0, 'Agent 文章 Mermaid 未渲染')
   const mermaidPreview = page.locator('.mermaid-preview').first()
@@ -258,9 +433,13 @@ try {
   assert(
     await mermaidViewer.locator('.mermaid-viewer__diagram svg').evaluate((diagram) => {
       const bounds = diagram.getBoundingClientRect()
-      return bounds.width >= 300 && bounds.height >= 80
+      return (
+        bounds.width >= 300 &&
+        bounds.height >= 40 &&
+        Boolean(diagram.getAttribute('viewBox'))
+      )
     }),
-    '放大后的流程图没有正常显示'
+    '放大后的流程图没有正常显示或缺少有效 viewBox'
   )
   const mermaidStage = mermaidViewer.locator('.mermaid-viewer__stage')
   const zoomBefore = await mermaidViewer.locator('output').textContent()

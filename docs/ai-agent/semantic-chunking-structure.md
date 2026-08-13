@@ -184,12 +184,10 @@ import hashlib
 import json
 import unicodedata
 
-
 def normalize_chunk_text(text: str) -> str:
     # 先统一空白和大小写，确保查询与校验使用同一种输入表示。
     normalized = unicodedata.normalize("NFC", text)
     return "\n".join(line.rstrip() for line in normalized.strip().splitlines())
-
 
 def stable_chunk_id(
     *,
@@ -215,7 +213,6 @@ def stable_chunk_id(
         separators=(",", ":"),
     )
     return "chunk:" + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
 
 first = stable_chunk_id(
     document_id="manual",
@@ -244,7 +241,6 @@ print(first, first == second)
 # 测试区分排版噪声与语义变化：前者保持 ID，后者产生新 ID 并触发向量更新。
 from stable_id import stable_chunk_id
 
-
 BASE = {
     "document_id": "manual",
     "source_version": "v8",
@@ -253,17 +249,14 @@ BASE = {
     "chunker_version": "semantic-v2",
 }
 
-
 # 这个用例改变正文或切片器版本，稳定 ID 只在语义或算法边界变化时更新。
 def test_same_input_has_same_id() -> None:
     assert stable_chunk_id(**BASE) == stable_chunk_id(**BASE)
-
 
 # 这个用例改变正文或切片器版本，稳定 ID 只在语义或算法边界变化时更新。
 def test_content_change_has_another_id() -> None:
     changed = {**BASE, "text": "生产访问默认有效期为 14 天。"}
     assert stable_chunk_id(**BASE) != stable_chunk_id(**changed)
-
 
 # 这个用例固定切片边界与关系字段，重建索引后仍能回到相同来源位置。
 def test_chunker_upgrade_has_another_id() -> None:
@@ -291,7 +284,6 @@ Token 不是中文字符数的固定倍数。切片器应该使用目标模型�
 ## 一个可迁移的切片算法
 
 下面是伪实现，展示职责而非某个框架 API：
-
 
 下面把“一个可迁移的切片算法”落成最小实现。代码关注“切片器按结构边界累积 Block，超过预算时结束当前片段，并保留父级标题与相邻关系”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
@@ -344,7 +336,7 @@ def build_chunks(blocks: list[Block]) -> list[Chunk]:
 
 如果 Recall 高但证据完整率低，先修复结构和父片段；如果证据完整但延迟过高，再调整候选数和索引。不要只看一个相似度分数决定切片好坏。
 
-## 带到工作的切片卡
+## 用切片卡记录结构、版本和召回假设
 
 ```text
 文档类型与样本：

@@ -64,8 +64,3 @@ function findCycleEntry<T>(head: ListNode<T> | null): ListNode<T> | null {
 ## 验证
 
 覆盖无环、头节点自环、环入口在头、中间入口、重复值节点和长前缀小环。使用 Set 版本作为小规模 oracle，比较返回的是同一节点引用。若把 `slow === fast` 错写成值相等，重复值用例应失败。
-
-## 参考资料
-
-- [Floyd's cycle-finding algorithm](https://en.wikipedia.org/wiki/Cycle_detection)
-- [Open Data Structures: Linked Lists](https://opendatastructures.org/ods-javascript/3_Linked_Lists.html)

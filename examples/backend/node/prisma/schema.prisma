@@ -10,18 +10,27 @@ datasource db {
 model User {
   id           String        @id @db.Char(36)
   tenantId     String        @map("tenant_id") @db.Char(36)
-  email        String        @unique @db.VarChar(190)
+  departmentId String?       @map("department_id") @db.Char(36)
+  email        String        @db.VarChar(190)
   passwordHash String        @map("password_hash") @db.VarChar(255)
+  displayName  String        @map("display_name") @db.VarChar(120)
+  status       UserStatus    @default(active)
+  passwordVersion BigInt     @default(1) @map("password_version") @db.UnsignedBigInt
+  version      BigInt        @default(1) @db.UnsignedBigInt
   sessions     AuthSession[]
   projects     Project[]
+  files        StoredFile[]
   createdAt    DateTime      @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.DateTime(6)
 
-  @@index([tenantId])
+  @@unique([tenantId, email])
+  @@index([tenantId, departmentId, status, id])
   @@map("users")
 }
 
 model AuthSession {
   id               String    @id @db.Char(36)
+  tenantId         String    @map("tenant_id") @db.Char(36)
   userId           String    @map("user_id") @db.Char(36)
   tokenFamilyId    String    @map("token_family_id") @db.Char(36)
   refreshTokenHash Bytes     @unique @map("refresh_token_hash") @db.Binary(32)
@@ -33,8 +42,8 @@ model AuthSession {
   createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime(6)
   user             User      @relation(fields: [userId], references: [id])
 
-  @@index([userId, revokedAt, expiresAt])
-  @@index([tokenFamilyId])
+  @@index([tenantId, userId, expiresAt])
+  @@index([tenantId, tokenFamilyId, revokedAt])
   @@map("auth_sessions")
 }
 
@@ -42,15 +51,126 @@ model Project {
   id          String    @id @db.Char(36)
   tenantId    String    @map("tenant_id") @db.Char(36)
   ownerId     String    @map("owner_id") @db.Char(36)
+  departmentId String?  @map("department_id") @db.Char(36)
   name        String    @db.VarChar(120)
   description String?   @db.Text
-  version     Int       @default(1) @db.UnsignedInt
+  status      ProjectStatus @default(draft)
+  version     BigInt    @default(1) @db.UnsignedBigInt
   deletedAt   DateTime? @map("deleted_at") @db.DateTime(6)
   createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.DateTime(6)
   owner       User      @relation(fields: [ownerId], references: [id])
 
   @@unique([tenantId, name])
-  @@index([tenantId, updatedAt, id])
+  @@index([tenantId, status, updatedAt, id])
+  @@index([tenantId, departmentId, deletedAt, id])
   @@map("projects")
+}
+
+model IdempotencyKey {
+  tenantId      String            @map("tenant_id") @db.Char(36)
+  scope         String            @db.VarChar(120)
+  idemKey       String            @map("idem_key") @db.VarChar(128)
+  requestHash   Bytes             @map("request_hash") @db.Binary(32)
+  status        IdempotencyStatus
+  responseStatus Int?             @map("response_status") @db.UnsignedSmallInt
+  responseJson  Json?             @map("response_json")
+  expiresAt     DateTime          @map("expires_at") @db.DateTime(6)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.DateTime(6)
+
+  @@id([tenantId, scope, idemKey])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+model StoredFile {
+  id          String     @id @db.Char(36)
+  tenantId    String     @map("tenant_id") @db.Char(36)
+  ownerId     String     @map("owner_id") @db.Char(36)
+  bucket      String     @db.VarChar(120)
+  objectKey   String     @map("object_key") @db.VarChar(512)
+  filename    String     @db.VarChar(255)
+  contentType String     @map("content_type") @db.VarChar(120)
+  sizeBytes   BigInt     @map("size_bytes") @db.UnsignedBigInt
+  sha256      String     @db.Char(64)
+  status      FileStatus
+  version     BigInt     @default(1) @db.UnsignedBigInt
+  createdAt   DateTime   @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.DateTime(6)
+  owner       User       @relation(fields: [ownerId], references: [id])
+
+  @@index([tenantId, ownerId, status, id])
+  @@unique([bucket, objectKey])
+  @@map("files")
+}
+
+model BackgroundTask {
+  id          String       @id @db.Char(36)
+  tenantId    String       @map("tenant_id") @db.Char(36)
+  taskType    String       @map("task_type") @db.VarChar(80)
+  status      TaskStatus
+  progress    Int          @default(0) @db.UnsignedTinyInt
+  attempt     Int          @default(0) @db.UnsignedInt
+  ownerToken  String?      @map("owner_token") @db.Char(36)
+  leaseUntil  DateTime?    @map("lease_until") @db.DateTime(6)
+  inputJson   Json         @map("input_json")
+  resultJson  Json?        @map("result_json")
+  errorCode   String?      @map("error_code") @db.VarChar(120)
+  version     BigInt       @default(1) @db.UnsignedBigInt
+  createdAt   DateTime     @default(now()) @map("created_at") @db.DateTime(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.DateTime(6)
+  events      TaskEvent[]
+
+  @@index([status, leaseUntil, createdAt])
+  @@index([tenantId, createdAt, id])
+  @@map("tasks")
+}
+
+model TaskEvent {
+  taskId     String         @map("task_id") @db.Char(36)
+  sequence   BigInt         @db.UnsignedBigInt
+  eventType  String         @map("event_type") @db.VarChar(80)
+  dataJson   Json           @map("data_json")
+  createdAt  DateTime       @default(now()) @map("created_at") @db.DateTime(6)
+  task       BackgroundTask @relation(fields: [taskId], references: [id])
+
+  @@id([taskId, sequence])
+  @@map("task_events")
+}
+
+enum UserStatus {
+  active
+  locked
+  disabled
+}
+
+enum ProjectStatus {
+  draft
+  active
+  archived
+}
+
+enum IdempotencyStatus {
+  processing
+  completed
+  failed
+}
+
+enum FileStatus {
+  pending
+  uploaded
+  scanning
+  ready
+  rejected
+  deleting
+  deleted
+}
+
+enum TaskStatus {
+  queued
+  running
+  retrying
+  completed
+  failed
+  cancelled
 }

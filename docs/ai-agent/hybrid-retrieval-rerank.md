@@ -133,7 +133,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-
 @dataclass
 class Candidate:
     chunk_id: str
@@ -141,7 +140,6 @@ class Candidate:
     rrf_score: float = 0.0
     rerank_score: float = 0.0
     channels: list[str] = field(default_factory=list)
-
 
 TEXTS = {
     "c-error": "错误码 ERR_CONN_104 表示上游连接被关闭",
@@ -151,7 +149,6 @@ TEXTS = {
     "c-cache": "页面缓存按版本键失效",
     "c-health": "健康检查验证候选进程能够响应",
 }
-
 
 # RRF 只使用各通道名次，不直接比较全文分数与向量距离这两种不同量纲。
 def rrf_fuse(
@@ -169,10 +166,8 @@ def rrf_fuse(
             candidate.channels.append(channel)
     return fused
 
-
 def terms(text: str) -> set[str]:
     return {term.strip("，。？") for term in text.split() if term.strip()}
-
 
 # 精排只处理融合后的有限候选，并用统一特征重新计算可比较分数。
 def rerank(question: str, candidates: dict[str, Candidate]) -> list[Candidate]:
@@ -185,7 +180,6 @@ def rerank(question: str, candidates: dict[str, Candidate]) -> list[Candidate]:
         candidates.values(),
         key=lambda item: (-item.rerank_score, -item.rrf_score, item.chunk_id),
     )
-
 
 rankings = {
     "exact": ["c-error", "c-release", "c-reload"],
@@ -214,19 +208,16 @@ for candidate in rerank("代理 热加载 旧进程 长连接", fused):
 # 测试固定去重、稳定排序和通道缺失降级，确保一个检索器失败不会清空其他可用候选。
 from hybrid import rrf_fuse, rerank
 
-
 # 这个用例用固定样本核对评测指标，避免实现变化悄悄改变分母、排序或通过条件。
 def test_multi_channel_candidate_accumulates_score() -> None:
     fused = rrf_fuse({"a": ["c-reload"], "b": ["c-reload"]})
     assert fused["c-reload"].channels == ["a", "b"]
     assert fused["c-reload"].rrf_score > 1 / 61
 
-
 # 这个用例重复提交或恢复同一运行，确认 Checkpoint、幂等键或事件序号阻止重复副作用。
 def test_same_chunk_is_deduplicated() -> None:
     fused = rrf_fuse({"a": ["c-reload"], "b": ["c-reload"]})
     assert list(fused) == ["c-reload"]
-
 
 def test_rerank_is_stable() -> None:
     fused = rrf_fuse({"fulltext": ["c-reload", "c-drain"]})
@@ -261,7 +252,7 @@ def test_rerank_is_stable() -> None:
 
 评测时分别保存各通道 Recall@K、融合后 Recall@K、Rerank 后 MRR/nDCG、最终 Evidence 覆盖率、P50/P95 延迟和降级率。只有融合带来稳定收益时才值得承担额外连接、计算和排障成本。
 
-## 可迁移到工作的检索设计表
+## 用检索设计表固定通道和降级语义
 
 为项目中的 20 个真实问题填一张表：查询类型、不可改写实体、开放通道、每路 Top-K、过滤字段、融合方法、Reranker 版本、证据上限和失败终态。随后完成三个迁移实验：关闭向量通道观察缩写问题，关闭全文通道观察精确术语问题，让 Reranker 超时验证 RRF 降级。
 

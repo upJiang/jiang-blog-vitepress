@@ -94,7 +94,6 @@ Base Protocol 定义 JSON-RPC 消息、版本和消息模式；Tools/Resources/P
 
 ### 请求必须有唯一 ID
 
-
 一次工具调用需要用 `id` 关联成功响应、错误响应和取消请求。输入是 Host 已选择的工具名、经过模型生成的业务参数，以及由 Client 填入的协议元数据；目标是观察 Server 怎样先识别方法，再校验参数，最后把同一个 `id` 带回响应。下面的注释用于标出字段职责，真正发送的 JSON 要移除注释。
 ```jsonc
 {
@@ -121,11 +120,9 @@ Base Protocol 定义 JSON-RPC 消息、版本和消息模式；Tools/Resources/P
 
 这份对象的阅读入口是 `jsonrpc`、`id`、`method`、`params`。调用方先校验字段形状，再注入或核对可信上下文，最后把结果交给下一层；缺字段、额外字段与业务拒绝要保留不同错误，不能统一转换成空对象。
 
-
 现代请求把协议版本、客户端实现信息和能力放在 `_meta` 中。`id` 在未完成请求之间保持唯一，用于把并发响应对应回来。`clientInfo` 是实现身份，不是已认证用户身份；业务认证仍走可信传输或授权框架。
 
 ### 成功响应包含 `resultType`
-
 
 成功响应复用请求 `id`，并把完成类型、模型可见内容和结构化结果放进 `result`。输入是 Server 已执行完成的工具结果，目标是让 Client 区分协议完成状态、面向模型的内容块与面向程序的结构化字段；客户端先按协议解码，再按工具自己的输出 Schema 校验 `structuredContent`。
 ```jsonc
@@ -165,7 +162,6 @@ JSON-RPC Error 用于协议、方法、参数或版本层失败，包含整数 `
 ## 现代版本发现：`server/discover`
 
 现代 Server 必须实现 `server/discover`，Client 可以在其他请求前调用，也可以直接调用业务 RPC 并处理版本错误。discover 返回支持的协议版本、能力、Server 信息、可选 instructions 和缓存字段。
-
 
 现代无状态连接把协议版本和客户端信息放在每次请求的 `_meta` 中。Server 根据这些元数据返回能力描述，但认证身份仍来自 HTTP 鉴权边界。
 ```jsonc

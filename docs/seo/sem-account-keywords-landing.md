@@ -1,25 +1,26 @@
 ---
-title: SEM 基础、账户结构与落地页
-description: 从业务目标出发设计平台、系列、广告组、关键词和落地页之间的可控关系。
+title: SEM 账户、关键词、出价、落地页与 90 天协同计划
+description: 从账户结构和搜索词开始，串联匹配、否定词、预算、创意、落地页、归因和 SEO 回流。
 category: seo
-part: 第七部分：SEM 与协同增长
-chapter: 18
+part: 第五部分：站外、数据与投放
+chapter: 12
 tags:
   - SEM
-  - Account Structure
+  - Bidding
+  - Landing Page
 prerequisites:
-  - 读过第 1、2、5、17 章
+  - 读过第 1、2、11 章
 outcomes:
-  - 建立可解释的搜索广告账户
-  - 让查询、创意和页面任务一致
+  - 建立可控制的搜索广告账户
+  - 制定 SEO/SEM 联合验证计划
 practice:
   type: implementation
-  result: 完成 SEM 账户与意图结构图
+  result: 完成一份 90 天搜索增长 Runbook
   verify:
-    - 品牌与非品牌分开
-    - 每个广告组有单一页面任务
+    - 含预算停止条件和回滚
+    - 广告词与 SEO 页面互相反馈但不重复归因
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
 
 # 第一天投了 500 元，为什么 80 次点击没有一条有效咨询
@@ -145,7 +146,7 @@ updated: 2026-08-11
 
 学习期内避免连续大改，但追踪完全失效、错误地域、失效页面、政策问题和异常消耗需要立即止损。
 
-## 本篇产物：账户与意图结构图
+## 账户与意图结构图
 
 ```text
 平台/账户｜市场/币种/时区｜核心业务结果｜

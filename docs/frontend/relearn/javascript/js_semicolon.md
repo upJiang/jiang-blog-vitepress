@@ -96,10 +96,3 @@ console.log(RegExp.$1)
 ```
 
 这段代码本意是声明函数 f，然后赋值给 g，再测试 Template 中是否含有字母 a。但是因为没有自动插入分号，函数 f 被认为跟 Template 一体的，进而被莫名其妙地执行了一次。
-
-## 参考资料
-
-- [ECMAScript：Rules of Automatic Semicolon Insertion](https://tc39.es/ecma262/#sec-rules-of-automatic-semicolon-insertion)
-- [ECMAScript：Restricted Productions](https://tc39.es/ecma262/#sec-automatic-semicolon-insertion)
-- [MDN：Lexical grammar - ASI](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Lexical_grammar#automatic_semicolon_insertion)
-- [Prettier：Semicolons](https://prettier.io/docs/options#semicolons)

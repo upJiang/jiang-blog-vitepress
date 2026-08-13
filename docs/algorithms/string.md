@@ -76,9 +76,3 @@ function longestUniqueSubstring(input: string): number {
 空串返回 0，单字符返回 1，全部相同返回 1。测试加入 emoji、组合字符和旗帜，明确期望基于 code point 还是字素簇。不要对任意 Unicode 使用简单 `split('')` 反转，它会拆开代理对。
 
 字符串不可变，循环中反复拼接可能产生隐藏复制。大量片段优先收集后 `join`，再在目标引擎用代表数据验证。正则也应检查灾难性回溯风险，不能把复杂模式当作免费的一行实现。
-
-## 参考资料
-
-- [ECMAScript String](https://tc39.es/ecma262/multipage/text-processing.html)
-- [Unicode Normalization](https://unicode.org/reports/tr15/)
-- [Intl.Segmenter](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter)

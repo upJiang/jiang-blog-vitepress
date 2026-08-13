@@ -132,7 +132,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class ChunkInput:
     chunk_id: str
@@ -140,12 +139,10 @@ class ChunkInput:
     text: str
     token_count: int
 
-
 @dataclass(frozen=True)
 class BatchPlan:
     chunk_ids: tuple[str, ...]
     total_tokens: int
-
 
 def plan_batches(
     chunks: list[ChunkInput],
@@ -203,7 +200,6 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import Protocol
 
-
 @dataclass(frozen=True)
 class VectorRecord:
     idempotency_key: str
@@ -211,10 +207,8 @@ class VectorRecord:
     model_revision: str
     vector: tuple[float, ...]
 
-
 class EmbeddingProvider(Protocol):
     def embed(self, texts: list[str]) -> list[tuple[float, ...]]: ...
-
 
 class OneShotFailureProvider:
     def __init__(self, failing_text: str) -> None:
@@ -234,13 +228,11 @@ class OneShotFailureProvider:
             for text in texts
         ]
 
-
 def vector_key(release_id: str, chunk: ChunkInput, model_revision: str) -> str:
     raw = "\x00".join(
         [release_id, chunk.chunk_id, chunk.content_hash, model_revision]
     )
     return sha256(raw.encode("utf-8")).hexdigest()
-
 
 def write_batch(
     *,
@@ -300,7 +292,6 @@ def make_chunk(chunk_id: str, text: str, tokens: int) -> ChunkInput:
     digest = sha256(text.encode("utf-8")).hexdigest()
     return ChunkInput(chunk_id, digest, text, tokens)
 
-
 # 这个用例把时间推进到截止边界，确认超时保持独立错误语义并释放资源。
 def test_successful_vectors_are_not_recomputed_after_timeout() -> None:
     first = make_chunk("c-1", "访问申请", 20)
@@ -343,7 +334,6 @@ def test_successful_vectors_are_not_recomputed_after_timeout() -> None:
     assert written == ["c-2"]
     assert len(store) == 2
     assert provider.calls == [("访问申请",), ("发布条件",), ("发布条件",)]
-
 
 def test_model_revision_creates_a_new_projection() -> None:
     chunk = make_chunk("c-1", "访问申请", 20)

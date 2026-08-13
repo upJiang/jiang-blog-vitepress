@@ -28,7 +28,7 @@ lastUpdated: false
 ---
 # Agent 怎样决策：Router、ReAct、Planner、Reflection 与框架选型
 
-前一篇已经用普通 Python 跑通了有限 Agent 循环：模型提出动作，程序执行工具，再把观察送回模型。这里继续追问一个更难的问题：当任务从一次检索变成多种问题时，循环应该怎样选择执行方式？
+[有限 Agent 循环](/docs/ai-agent/python-agent-loop-from-scratch) 已经跑通“模型提出动作、程序执行工具、观察回到模型”的最小路径。现在继续追问一个更难的问题：当任务从一次检索变成多种问题时，循环应该怎样选择执行方式？
 
 > 收到问题后，程序怎样决定下一步做什么？
 
@@ -243,12 +243,10 @@ from dataclasses import dataclass, field
 from time import monotonic
 from typing import Literal, Protocol
 
-
 Mode = Literal["direct", "react", "plan", "reject"]
 # Status 记录当前状态或决策，后续分支只依据这份显式值继续。
 Status = Literal["running", "completed", "failed", "expired", "insufficient"]
 ActionKind = Literal["tool", "finish"]
-
 
 @dataclass(frozen=True, slots=True)
 class Action:
@@ -257,13 +255,11 @@ class Action:
     query: str | None = None
     answer: str | None = None
 
-
 @dataclass(frozen=True, slots=True)
 class PlanStep:
     step_id: str
     query: str
     depends_on: tuple[str, ...] = ()
-
 
 @dataclass(slots=True)
 class RuntimeState:
@@ -277,7 +273,6 @@ class RuntimeState:
     answer: str = ""
     repair_attempted: bool = False
 
-
 class Policy(Protocol):
     def next_action(self, state: RuntimeState) -> Action: ...
 
@@ -286,7 +281,6 @@ class Policy(Protocol):
     def synthesize(self, question: str, observations: list[str]) -> str: ...
 
     def repair(self, answer: str, issue: str) -> str: ...
-
 
 class KnowledgeTool:
     """只读工具；真实系统还要注入 ACL、Release、超时和审计。"""
@@ -300,7 +294,6 @@ class KnowledgeTool:
 
     def search(self, query: str) -> str:
         return self._notes.get(query, "NO_EVIDENCE")
-
 
 class ScriptedPolicy:
     """用确定脚本代替在线模型，便于复现控制流。"""
@@ -327,7 +320,6 @@ class ScriptedPolicy:
             return f"{answer}；共同要求：多因素认证。"
         return answer
 
-
 def route(question: str) -> Mode:
     normalized = question.strip()
     if normalized in {"你好", "谢谢"}:
@@ -338,11 +330,9 @@ def route(question: str) -> Mode:
         return "plan"
     return "react"
 
-
 def ensure_time(deadline: float) -> None:
     if monotonic() >= deadline:
         raise TimeoutError("turn deadline expired")
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 def run_react(
@@ -390,7 +380,6 @@ def run_react(
     state.events.append("max_steps_exceeded")
     return state
 
-
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate_plan(steps: tuple[PlanStep, ...], *, max_steps: int) -> None:
     if not steps or len(steps) > max_steps:
@@ -406,7 +395,6 @@ def validate_plan(steps: tuple[PlanStep, ...], *, max_steps: int) -> None:
             raise ValueError("a plan step cannot depend on itself")
         if not set(step.depends_on) <= known:
             raise ValueError("plan contains an unknown dependency")
-
 
 def run_plan(
     state: RuntimeState,
@@ -447,7 +435,6 @@ def run_plan(
     state.status = "completed"
     return state
 
-
 def validate_and_reflect(state: RuntimeState, policy: Policy) -> RuntimeState:
     if state.status != "completed":
         return state
@@ -470,7 +457,6 @@ def validate_and_reflect(state: RuntimeState, policy: Policy) -> RuntimeState:
         state.status = "insufficient"
     return state
 
-
 def run(question: str, *, timeout_seconds: float = 1.0) -> RuntimeState:
     mode = route(question)
     state = RuntimeState(question=question, mode=mode)
@@ -491,7 +477,6 @@ def run(question: str, *, timeout_seconds: float = 1.0) -> RuntimeState:
         validate_and_reflect(state, policy)
 
     return state
-
 
 if __name__ == "__main__":
     for sample in ("你好", "访问申请入口是什么", "比较两种办公方式的共同要求"):
@@ -552,17 +537,14 @@ from agent_patterns import (
     run_react,
 )
 
-
 class RepeatingPolicy(ScriptedPolicy):
     def next_action(self, state: RuntimeState) -> Action:
         del state
         return Action(kind="tool", tool="search", query="访问申请入口")
 
-
 def test_router_keeps_greeting_on_direct_path() -> None:
     assert route("你好") == "direct"
     assert run("你好").step == 0
-
 
 def test_atomic_query_uses_one_tool_step() -> None:
     # 为这次运行创建独立状态对象；节点只通过它交换需要持久化或恢复的字段。
@@ -573,7 +555,6 @@ def test_atomic_query_uses_one_tool_step() -> None:
     assert state.step == 1
     assert state.events == ["action:tool", "action:finish"]
 
-
 def test_comparison_uses_plan_and_bounded_reflection() -> None:
     # 为这次运行创建独立状态对象；节点只通过它交换需要持久化或恢复的字段。
     state = run("比较两种办公方式的共同要求")
@@ -583,7 +564,6 @@ def test_comparison_uses_plan_and_bounded_reflection() -> None:
     assert state.repair_attempted is True
     assert state.events[-1] == "answer_repaired"
     assert "共同要求" in state.answer
-
 
 def test_react_stops_repeated_action() -> None:
     # 为这次运行创建独立状态对象；节点只通过它交换需要持久化或恢复的字段。
@@ -749,7 +729,7 @@ Dify 把模型供应商、Prompt、知识库、Workflow、Agent 和应用发布�
 
 这也不是全局结论。两步固定流程继续用普通函数；快速工具 Agent 可以评估 Agents SDK 或 LangChain；多角色研究可以实验 AutoGen/CrewAI；需要业务人员编辑流程时可以评估 Dify；微软技术栈可以评估 Semantic Kernel。选择只对约束负责，不对热度负责。
 
-## 带到工作中的产物
+## 选型结论怎样留下可复查证据
 
 完成选型前，至少留下三份可复查材料：
 

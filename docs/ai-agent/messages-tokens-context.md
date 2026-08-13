@@ -200,7 +200,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class ContextBlock:
     # Block 使用稳定 ID 和 kind 保存结构单元，正文不再是无法定位的一整段字符串。
@@ -211,7 +210,6 @@ class ContextBlock:
     priority: int
     required: bool = False
     source_id: str | None = None
-
 
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def assemble(blocks: list[ContextBlock], input_budget: int) -> list[ContextBlock]:
@@ -232,7 +230,6 @@ def assemble(blocks: list[ContextBlock], input_budget: int) -> list[ContextBlock
             selected.append(block)
             remaining -= block.tokens
     return selected
-
 
 blocks = [
     ContextBlock("system", "system", "只根据证据回答", 80, 100, True),
@@ -261,13 +258,11 @@ print([block.block_id for block in chosen])
 # 测试锁定消息顺序、硬约束保留和总预算上限，历史过长时只淘汰允许压缩的部分。
 import pytest
 
-
 # 这个用例核对上下文装配或压缩结果，关键约束不能在摘要后消失。
 def test_required_context_is_not_silently_dropped() -> None:
     blocks = [ContextBlock("system", "system", "规则", 120, 100, True)]
     with pytest.raises(ValueError, match="required_context_exceeds_budget"):
         assemble(blocks, input_budget=100)
-
 
 def test_same_priority_uses_stable_id() -> None:
     blocks = [
@@ -328,7 +323,7 @@ System 与工具 Schema：3,800
 4. 输出预留是否符合任务类型？
 5. 裁剪后每条引用还能否回查原文？
 
-## 带走一张检查单
+## 用请求检查单定位 Token 与消息问题
 
 - 是否记录消息角色、来源和版本，而不是只保存拼接后的字符串；
 - 是否使用目标模型 tokenizer 计量输入与输出；

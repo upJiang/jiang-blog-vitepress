@@ -26,6 +26,19 @@ function groupArticles(items: ChapterMeta[]): DefaultTheme.SidebarItem[] {
   }))
 }
 
+function groupAiArticles(items: ChapterMeta[]): DefaultTheme.SidebarItem[] {
+  const byTrack = (track: 'mainline' | 'special'): DefaultTheme.SidebarItem[] =>
+    items
+      .filter((item) => item.track === track)
+      .sort((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0))
+      .map((item) => ({ text: item.title, link: articlePath(item) }))
+
+  return [
+    { text: '推荐阅读顺序', collapsed: false, items: byTrack('mainline') },
+    { text: '专题阅读', collapsed: true, items: byTrack('special') }
+  ]
+}
+
 export function createSidebar(): DefaultTheme.SidebarMulti {
   return Object.fromEntries(
     sections.map((section) => [
@@ -35,7 +48,9 @@ export function createSidebar(): DefaultTheme.SidebarMulti {
           text: section.title,
           link: section.path
         },
-        ...groupArticles(articlesByCategory(section.key))
+        ...(section.key === 'ai-agent'
+          ? groupAiArticles(articlesByCategory(section.key))
+          : groupArticles(articlesByCategory(section.key)))
       ]
     ])
   )

@@ -157,7 +157,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-
 class SearchStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -179,7 +178,6 @@ class SearchStep(BaseModel):
         if self.kind == "clarify" and self.depends_on:
             raise ValueError("clarify step cannot depend on hidden execution")
         return self
-
 
 class SearchPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -215,13 +213,11 @@ class SearchPlan(BaseModel):
 
 不要把 Scope 回填到模型对象后再序列化给模型。执行器接收两个不同对象：`SearchPlan` 和服务端 `ExecutionScope`。
 
-
 下面把“Runtime 怎样合并可信 Scope”落成最小实现。代码关注“Runtime 丢弃模型产生的权限字段，并把服务端 Scope、Release 与 Deadline 注入每个检索任务”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
 # Runtime 丢弃模型产生的权限字段，并把服务端 Scope、Release 与 Deadline 注入每个检索任务。
 from dataclasses import dataclass
-
 
 @dataclass(frozen=True)
 class ExecutionScope:
@@ -230,7 +226,6 @@ class ExecutionScope:
     allowed_document_ids: frozenset[str]
     deadline_ms: int
 
-
 @dataclass(frozen=True)
 class RetrievalCommand:
     step_id: str
@@ -238,7 +233,6 @@ class RetrievalCommand:
     release_id: str
     allowed_document_ids: frozenset[str]
     limit: int
-
 
 # 编译阶段把模型计划收窄成可执行命令，并注入服务端掌握的权限与版本。
 def compile_retrievals(
@@ -266,7 +260,6 @@ def compile_retrievals(
 ## 正常计划怎样运行
 
 输入问题：“比较版本 7 和版本 8 的发布条件。”模型候选计划可以是：
-
 
 这个计划对象由查询理解节点产生，Runtime 只接受固定版本、有限步骤和显式依赖。带注释的写法用于说明字段职责，真正发送时要移除注释。
 ```jsonc
@@ -325,7 +318,6 @@ JSON 缺字段、类型错误或 extra 字段属于生成/契约错误。可以�
 
 ## 测试约束没有被改写
 
-
 为了验证“测试约束没有被改写”，下面的测试把“测试让模型候选篡改范围、时间和**否定条件**，断言最终 SearchPlan 仍保留可信约束”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -357,7 +349,6 @@ def test_scope_is_injected_by_runtime() -> None:
     assert command.release_id == "release-8"
     assert command.allowed_document_ids == frozenset({"doc-visible"})
     assert command.limit == 5
-
 
 # 这个用例走失败或拒绝分支，确认错误码、终态和副作用都符合契约。
 def test_future_dependency_is_rejected() -> None:
@@ -397,7 +388,7 @@ def test_future_dependency_is_rejected() -> None:
 
 只看 Recall 可能鼓励把查询改得很宽。要同时观察 drift、查询数、延迟和权限。对于分解，还要区分独立子问题与依赖子问题，确认执行顺序正确。
 
-## 本篇实践产物
+## 用 SearchPlan 对照表检查改写与分解
 
 为一个多目标问题填写：
 

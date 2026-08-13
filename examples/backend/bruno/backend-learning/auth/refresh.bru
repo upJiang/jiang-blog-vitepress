@@ -1,0 +1,19 @@
+meta {
+  name: refresh
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/auth/refresh
+  body: none
+  auth: none
+}
+
+tests {
+  test("rotates refresh cookie", function() {
+    expect(res.status).to.equal(200)
+    expect(res.body.accessToken).to.be.a("string")
+    expect(res.headers["set-cookie"]).to.be.ok
+  })
+}

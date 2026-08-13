@@ -54,17 +54,14 @@ import asyncio
 from dataclasses import dataclass
 from typing import Protocol
 
-
 class TextModel(Protocol):
     async def complete(self, prompt: str) -> str: ...
-
 
 @dataclass(frozen=True)
 class CompletionResult:
     index: int
     text: str | None
     error: str | None
-
 
 class DemoModel:
     async def complete(self, prompt: str) -> str:
@@ -73,7 +70,6 @@ class DemoModel:
         if prompt == "fail":
             raise RuntimeError("upstream unavailable")
         return prompt.upper()
-
 
 async def run_bounded(
     prompts: list[str],
@@ -99,11 +95,9 @@ async def run_bounded(
     # 所有任务已结束，因此槽位不再包含 None。
     return [result for result in results if result is not None]
 
-
 async def main() -> None:
     results = await run_bounded(["one", "fail", "three"], DemoModel(), 2)
     print(results)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

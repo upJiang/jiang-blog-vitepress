@@ -172,7 +172,7 @@ description: 检查 Markdown 技术文章的 Frontmatter、标题、内部链接
 
 组合时由 Skill 编排方法，不要让它复制 MCP 的认证逻辑；SubAgent 接收 Skill 中可隔离的子任务，但权限不会因委派扩大；项目规则始终约束所有执行者。若 Skill 只是启动一个 Tool 而没有流程价值，直接使用 Tool 更简单。
 
-## 从设计走向维护时会遇到什么
+## 常见问题
 
 ### `SKILL.md` 应该写得多详细？
 

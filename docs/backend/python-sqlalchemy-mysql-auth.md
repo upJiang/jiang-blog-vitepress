@@ -26,76 +26,91 @@ updated: 2026-08-12
 
 # SQLAlchemy 2、MySQL 与认证会话
 
-SQLAlchemy Session 不是 HTTP Session。前者追踪 ORM 对象和数据库事务，后者表示登录会话。名称相同，但状态所有者、生命周期和失败处理完全不同。
+SQLAlchemy `Session` 与登录 Session 名字相同，却完全不是一类状态：前者追踪 ORM 对象和数据库事务，后者证明浏览器会话身份。把两者混在依赖中会出现数据库已 rollback、登录 Session 却被误撤销，或反过来。
 
-## SQLAlchemy 2 使用显式 statement
+## SQLAlchemy 2 先构造 Statement，再显式执行
 
-SQLAlchemy 2 使用显式 statement不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+`select(Project).where(...)` 构造 SQL 表达式，AsyncSession.execute 通过异步 MySQL 驱动执行。Identity Map 保证同一 Session 内同一主键通常映射同一对象，但它不是跨请求缓存。
 
-```mermaid
-flowchart LR
-  A[输入与上下文] --> B[SQLAlchemy 2 使用显式 statement]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
-```
+租户范围进入每条 Statement，详情使用 `tenant_id + id`；列表使用稳定排序和游标。Lazy load 在 async 中容易产生隐式 IO，应显式 selectinload/joinedload 或 DTO 查询，并用 SQL 日志/查询计数验证。
 
-图中失败分支不会假装成空成功。Python的调用方应根据稳定错误码决定停止、重试或重新读取状态。
-
-## AsyncSession 一请求一事务边界
-
-AsyncSession 一请求一事务边界要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
-
-下面的片段抓住 Python 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+查询把 tenant_id 与 project_id 同时绑定，找不到统一返回领域 NotFound。参数由 SQLAlchemy 绑定，不拼字符串。
 
 ```python
-stmt = select(Project).where(
-    Project.id == project_id,
+statement = select(Project).where(
     Project.tenant_id == principal.tenant_id,
+    Project.id == project_id,
 )
-project = (await session.execute(stmt)).scalar_one_or_none()
+result = await session.execute(statement)
+project = result.scalar_one_or_none()
+if project is None:
+    raise ProjectNotFound(project_id)
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+不要先按 id 查询再在 Python 比较 tenant_id，那会把越权对象加载进内存并可能泄露日志/关联。Repository 集成测试准备其他租户同类数据。
 
-## 认证会话和数据库会话分离
+## 一请求一个工作单元，事务由用例拥有
 
-认证会话和数据库会话分离最终要落实到可观察证据。Python的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+依赖创建 AsyncSession 并保证关闭，Service 使用 `async with session.begin()` 包住项目更新、审计与 Outbox。flush 获取约束结果但不提交；异常离开 begin 自动 rollback。
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
+捕获 IntegrityError 后 Session 处于失败状态，先 rollback；根据驱动错误码/约束名映射冲突。不要在 Repository 内 commit，否则跨 Repository 操作无法原子回滚。
+
+`flush` 会把待处理 INSERT/UPDATE 发给 MySQL，因此唯一约束、外键和类型错误可能在 flush 阶段出现；它仍属于当前事务，其他连接通常看不到未提交结果。`commit` 还可能因为死锁、连接中断或日志刷盘失败而报错。连接在 COMMIT 响应返回前断开时结果可能未知，不能在新事务中盲目再执行一次非幂等写入，应通过业务 ID 或幂等记录查询最终状态。
+
+```mermaid
+sequenceDiagram
+  participant F as FastAPI
+  participant S as Service
+  participant SA as AsyncSession
+  participant DB as MySQL
+  F->>S: command + principal + session
+  S->>SA: begin
+  SA->>DB: UPDATE + audit + outbox
+  DB-->>SA: constraint/affected rows
+  SA->>DB: COMMIT or ROLLBACK
+  S-->>F: domain result
+```
+
+数据库 Session 生命周期结束后才由 HTTP 层序列化稳定 DTO，避免序列化触发 lazy query。
+
+关联加载需要根据访问形状选择。`selectinload` 先查父项，再用主键集合查关联，适合一对多列表；`joinedload` 使用 JOIN，集合关系会产生重复行并可能放大分页结果。对管理端列表，直接选择 DTO 所需列通常更清楚。测试对固定 fixture 记录 SQL 数量，新增字段时若从 2 条变成 102 条即可及时发现 N+1。
+
+## 密码与 Refresh 会话使用独立表和事务
+
+用户表保存 Argon2id hash；认证会话表保存 Refresh Token hash、family_id、expires、revoked、replaced_by。登录事务创建会话，响应设置原始随机 Token 到 HttpOnly Cookie。
+
+刷新先按哈希锁定会话，检查未撤销/未过期，再创建新 Token 并把旧会话 replaced_by 指向新会话。旧值重放时撤销 family。数据库事务保证同一个旧 Token 只能成功轮换一次。
+
+| 状态 | 数据库动作 | 对外结果 |
 | --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+| 有效 Refresh | 锁定、创建新行、替换旧行 | 新 Cookie + Access |
+| 已替换值重放 | 撤销整个 family | 401 并清 Cookie |
+| 过期/撤销 | 不创建新会话 | 401 |
+| 登出 | 撤销当前行/family 策略 | 过期 Cookie |
+| 密码修改 | 更新 hash、撤销全部会话 | 重新登录 |
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+## Alembic 管结构，应用不自动建表
 
-## 认证会话和数据库会话分离出现异常时怎样定位
+Model 变化生成/编写 Alembic migration，人工审查类型、索引、数据迁移和 downgrade 现实性。在空库与上一版本库升级，比较 information_schema；生产由单独 Job 运行。
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+Python 测试运行 ruff、mypy、pytest；MySQL 集成验证事务、N+1 和认证并发。SQLite 语义与 MySQL 类型、锁、约束不同，不能作为唯一集成数据库。
 
-先固定版本、输入、时间窗口和资源状态，再沿 Python 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+AsyncEngine 的 pool_size、max_overflow 与 Uvicorn Worker 数相乘才是服务总连接上限。四个进程各允许 20 条连接，不是 20，而是最多 80；再叠加 Celery 与迁移 Job 可能超过 MySQL 预算。Pool timeout 应短于请求 deadline，指标记录 checkout 等待和连接使用量，避免把“池里排队”误判成慢 SQL。
 
-## AsyncSession 一请求一事务边界之后还要追问
+## SQLAlchemy 与认证继续追问
 
-### SQLAlchemy 2 使用显式 statement为什么不能只放在调用方处理？
+### expire_on_commit 应该设 false 吗？
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+async API 常设 false 避免 commit 后访问属性触发隐式 IO，但对象可能是旧值。返回前构造 DTO；需要最新数据库状态时显式 refresh，而不是依赖默认。
 
-### AsyncSession 一请求一事务边界遇到超时后，什么时候可以重试？
+### 为什么 Refresh 轮换要锁行？
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+两个并发刷新都读到有效旧行时可能各自签发新 Token。`SELECT FOR UPDATE` 或原子条件更新让只有一个成功，另一个识别为已替换/重放。
 
-### 怎样用失败路径证明 Python 真的被理解了？
+### Pydantic Model 能直接当 ORM Model 吗？
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+职责不同。Pydantic 表达 API 输入输出，SQLAlchemy 表达持久化与关系。直接共用会把数据库字段暴露给客户端，也难以兼容演进。
 
-### 认证会话和数据库会话分离与前一层的责任怎样交接？
+### 为什么 Alembic autogenerate 仍需人工审查？
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。认证会话和数据库会话分离只处理自己拥有的状态。
+它无法理解重命名 vs 删除新增、数据回填、锁风险和业务兼容窗口。生成结果只是候选迁移，不是生产计划。

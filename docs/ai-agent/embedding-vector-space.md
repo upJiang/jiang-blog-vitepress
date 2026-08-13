@@ -143,7 +143,6 @@ cos(a, b) = (a · b) / (||a|| × ||b||)
 # 三个函数对同一向量对计算方向、内积和直线距离，归一化前后结果用于解释度量差异。
 import math
 
-
 def cosine_similarity(left: list[float], right: list[float]) -> float:
     # 两个向量必须来自兼容模型并具有相同非零维度，否则各维无法一一相乘。
     if len(left) != len(right) or not left:
@@ -156,7 +155,6 @@ def cosine_similarity(left: list[float], right: list[float]) -> float:
         raise ValueError("zero vector has no direction")
     # 点积除以两个范数，把结果缩放为只比较方向的相似度。
     return dot / (norm_left * norm_right)
-
 
 print(cosine_similarity([0.8, 0.6], [0.75, 0.66]))
 ```
@@ -216,12 +214,10 @@ print(cosine_similarity([0.8, 0.6], [0.75, 0.66]))
 # 写入键同时包含片段 ID、模型与版本；同内容重试覆盖同一投影，更换模型则生成新向量版本。
 from dataclasses import dataclass
 
-
 @dataclass(frozen=True)
 class Chunk:
     chunk_id: str
     text: str
-
 
 async def embed_in_batches(chunks: list[Chunk], batch_size: int, client: EmbeddingClient, dimension: int) -> list[tuple[str, list[float]]]:
     results: list[tuple[str, list[float]]] = []
@@ -334,7 +330,7 @@ LIMIT $6;
 7. 精确扫描是否能找到，近似索引是否才是问题；
 8. 混合检索是否需要全文、精确编号或结构化通道。
 
-## 可以带走的三张卡
+## 模型、向量版本和入库记录怎样保存
 
 ### 文档导入卡
 

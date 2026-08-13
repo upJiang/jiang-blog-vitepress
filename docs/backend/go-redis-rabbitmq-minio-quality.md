@@ -27,76 +27,100 @@ updated: 2026-08-12
 
 # Go 接入 Redis、RabbitMQ、MinIO 与测试
 
-Go 消费者收到 SIGTERM 后停止 ACK，却没有取消上传 Context，进程一直等 MinIO 超时。关闭流程需要停止拉取、取消在途操作、等待有限时间，再关闭连接。
+Go Worker 收到 SIGTERM 后停止 ACK，却没有取消 MinIO 上传；`WaitGroup.Wait` 一直不返回，编排器最终强杀。外部调用都要接收 Context，Consumer 要停止拉取、等待有限在途工作，再关闭 Channel、Redis、MinIO Transport 和数据库。
 
-## 所有外部调用都接收 Context
+## 适配器接口由业务动作定义
 
-所有外部调用都接收 Context不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+Cache 暴露 GetProject/Invalidate，Publisher 暴露 PublishOutboxEvent，ObjectStore 暴露 Presign/Head/Put，不把 redis.Client/amqp.Channel/minio.Client 传遍 Service。实现统一 timeout、错误分类、Tracing 和前缀。
 
-```mermaid
-flowchart LR
-  A[输入与上下文] --> B[所有外部调用都接收 Context]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
-```
+客户端通常并发安全但连接/Channel 语义不同：Redis/HTTP 可复用池，RabbitMQ Channel 失败后需要重建；不要每任务 dial 新连接。
 
-图中失败分支不会假装成空成功。Go的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+RabbitMQ 自动重连不能只重新 Dial。连接恢复后，旧 Channel、Consumer Tag、Confirm 流都已失效；代码要重新声明 Exchange/Queue/Binding，建立 Confirm Channel，再开始 publish/consume。恢复过程使用单一 owner 和退避，其他 goroutine 通过状态等待，避免同时创建几十条连接。
 
-## RabbitMQ ACK 在事务之后
+| 适配器 | Context 取消效果 | 关闭关注 |
+| --- | --- | --- |
+| Redis | 命令/等待连接返回 | 关闭 Client/池 |
+| RabbitMQ publish | SDK 可能需 select 包装 confirm | 停止发布、关 Channel/Connection |
+| RabbitMQ consume | cancel consumer/关闭 delivery | 处理未 ACK |
+| MinIO | HTTP request/上传取消 | 关闭 idle connections |
+| MySQL | QueryContext/事务 | rollback + close pool |
 
-RabbitMQ ACK 在事务之后要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+## Consumer 用 errgroup 与 semaphore 管理在途任务
 
-下面的片段抓住 Go 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+主循环读取 deliveries，先获取并发令牌再启动 goroutine；每个任务派生有界 Context。SIGTERM 取消主 Context，调用 basic.cancel/停止读取，不再领取新消息；已领取任务按业务决定完成或取消后 NACK。
+
+ACK/NACK 对应的 Channel 操作要串行或遵循客户端并发保证。数据库事务提交后 ACK，重复 event_id 由 Inbox 唯一约束吸收。
+
+关闭骨架把所有权放在 Run。真实实现还需处理 Channel 关闭、重连和 confirm，不在 goroutine 中丢弃 error。
 
 ```go
-ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
-defer cancel()
-go worker.Run(ctx)
-<-ctx.Done()
-worker.Drain(20 * time.Second)
+func (w *Worker) Run(ctx context.Context) error {
+    group, workerCtx := errgroup.WithContext(ctx)
+    group.SetLimit(w.maxConcurrent)
+    for {
+        select {
+        case <-workerCtx.Done():
+            w.consumer.Cancel()
+            return group.Wait()
+        case delivery, ok := <-w.deliveries:
+            if !ok { return group.Wait() }
+            d := delivery
+            group.Go(func() error { return w.handle(workerCtx, d) })
+        }
+    }
+}
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+若 handle 因一条业务坏消息返回 error 导致整个 group 取消，可能过度。实现应先分类：不可重试消息 DLQ 并返回 nil，基础设施致命错误才终止 Worker。
 
-## 标准测试、go vet 和 pprof
+Delivery 的 ACK/NACK 必须只执行一次。把确认责任留在 Run/handle 的明确位置，不在多个 defer 和错误分支分别确认；发生 Channel close 时确认结果可能未知，消息会由 Broker 重新入队。消费者依赖 Inbox `event_id` 唯一约束承受这次重复，而不是尝试凭内存标记“刚才大概 ACK 了”。
 
-标准测试、go vet 和 pprof最终要落实到可观察证据。Go的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+## 对象写入与任务 attempt 一起版本化
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
-| --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+MinIO key 包含 tenant/task/content version/attempt，上传时计算 checksum。MySQL 条件完成成功后，异步清理非当前 attempt 对象；不能先覆盖 canonical key 再判断所有权。
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+预签名接口由 API 查询授权生成，Go SDK 只接收内部 key。浏览器提供的 key、Bucket 和过期时间不直接传给 SDK；下载 Header/文件名由服务端记录构造。
 
-## 标准测试、go vet 和 pprof出现异常时怎样定位
+```mermaid
+sequenceDiagram
+  participant W as Go Worker
+  participant O as MinIO
+  participant DB as MySQL
+  participant Q as RabbitMQ
+  W->>O: PUT versioned attempt key
+  O-->>W: checksum/etag
+  W->>DB: complete WHERE attempt=current
+  DB-->>W: affected=1
+  W->>Q: ACK
+  Note over W,O: affected=0 时对象进入清理，不提交旧结果
+```
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+顺序允许上传孤儿，不允许数据库指向未上传完成对象。孤儿可清理，破坏已提交引用更难恢复。
 
-先固定版本、输入、时间窗口和资源状态，再沿 Go 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+MinIO Go SDK 最终通过 HTTP Transport 工作。每次请求接受 Context，但连接建立、Response Header、空闲连接也需要 Transport/Client 超时与池上限。上传完成后核对预期大小和 checksum；S3 ETag 在分段上传时未必等于文件 MD5，不能把 ETag 当通用内容哈希。
 
-## RabbitMQ ACK 在事务之后之后还要追问
+## 测试同时看 goroutine、连接和业务结果
 
-### 所有外部调用都接收 Context为什么不能只放在调用方处理？
+单元用接口 Fake；集成使用固定容器，运行 go test -race 与 goleak 类检查/pprof 前后对比，验证重复投递、SIGTERM drain、Redis timeout 和 MinIO 中断。
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+每测创建 run_id Queue/key/object 前缀，关闭 Consumer 后删除。CI 运行 gofmt check、go vet、go test、迁移与生产 build；二进制镜像用非 root 和只读文件系统启动。
 
-### RabbitMQ ACK 在事务之后遇到超时后，什么时候可以重试？
+故障测试不仅断开服务端口，还要记录恢复后的连接数、goroutine 数和业务状态。Redis 恢复时缓存允许丢失但 MySQL 不受影响；RabbitMQ 恢复后未确认消息重投；MinIO 超时后任务保持可重试而数据库不能指向半成品。三种依赖的降级语义不同，不能统一成一个“重连成功”断言。
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+## Go 外部依赖继续追问
 
-### 怎样用失败路径证明 Go 真的被理解了？
+### errgroup 任一任务失败就取消全部是否总正确？
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+只适合同一请求内必须共同成功的子任务。独立消息不应因一个坏 payload 停止所有消费，先在 handle 中分类并终结该消息。
 
-### 标准测试、go vet 和 pprof与前一层的责任怎样交接？
+### Context 能否存进 Worker struct？
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。标准测试、go vet 和 pprof只处理自己拥有的状态。
+不应长期保存请求 Context。Run 接收生命周期 Context，handle 派生子 Context；配置和客户端存 struct，Context 沿调用参数传递。
+
+### 关闭 Redis Client 会等待所有命令吗？
+
+具体库行为需验证，不能把 Close 当 drain。先取消新工作和等待在途 goroutine，最后关闭客户端；每条命令自身有 deadline。
+
+### 为什么 race test 通过仍可能泄漏？
+
+race detector 查数据竞态，不查 goroutine 永久等待或连接未关。结合 goroutine 数、pprof、超时停机和 open connection 指标。

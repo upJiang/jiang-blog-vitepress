@@ -237,10 +237,3 @@ var offsetX = document.documentElement.getBoundingClientRect().x - element.getBo
 像 HTML 和 CSS 分别承担了语义和表现的分工，DOM 和 CSSOM 也有语义和表现的分工。
 
 CSSOM 是 CSS 的对象模型，在 W3C 标准中，它包含两个部分：描述样式表和规则等 CSS 的模型部分（CSSOM），和跟元素视图相关的 View 部分（CSSOM View）。
-
-## 参考资料
-
-- [CSS Object Model](https://www.w3.org/TR/cssom-1/)
-- [CSSOM View Module](https://www.w3.org/TR/cssom-view-1/)
-- [CSS Cascading and Inheritance](https://www.w3.org/TR/css-cascade-5/)
-- [MDN：CSS Object Model](https://developer.mozilla.org/docs/Web/API/CSS_Object_Model)

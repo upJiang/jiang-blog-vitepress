@@ -18,7 +18,7 @@ outcomes:
   - 能判断普通 Python、LangChain 与 LangGraph 的适用边界
 practice:
   type: implementation
-  result: 实现一个无 API Key、可同步与异步验证的 LangChain 术语解释器
+  result: 把纯 Python 只读 Agent 的模型节点改造成可同步与异步验证的 LangChain Runnable
   verify:
     - 输入清洗、Prompt 装配、模型输出和边界校验可以独立测试
     - 空输入与空模型输出会在明确节点失败
@@ -28,21 +28,21 @@ lastUpdated: false
 ---
 # LangChain 核心抽象：Message、Prompt、Model、Parser 与 Runnable
 
-纯 Python 已经可以表达 Router、ReAct、Planner 和 Reflection。进入 LangChain 时先不写 Agent 循环，也不接在线模型，而是观察框架如何统一输入输出与组合边界。
+前面的纯 Python Agent 已经有 `ModelGateway`、消息列表、工具循环和停止条件。它可以运行，但每个节点仍用自定义调用方式：模型适配器叫 `generate`，消息装配是普通函数，输出解析和批量、异步、Trace 配置又各有入口。
 
-我们从一个很小的目标开始：做一个“术语解释器”。调用方传入：
-
-```text
-什么是 Runnable？
-```
-
-程序依次完成：检查问题、装配系统与用户消息、调用聊天模型、提取文本、检查空答案，最后返回：
+这一篇只改模型节点的组合方式，不改业务场景。调用方仍然提交只读知识问题：
 
 ```text
-Runnable 是 LangChain 中统一表示可调用处理节点的协议。
+访问申请需要先满足哪些条件？
 ```
 
-直接写 Python 函数完全能完成这个需求。学习 LangChain 的重点，是看清它把哪些反复出现的约定变成了公共接口，以及这些接口怎样为后面的 Tool、Retriever 和 Agent 铺路。
+程序依次检查问题、装配系统与用户消息、调用聊天模型、提取候选文本、检查空答案，最后返回：
+
+```text
+候选回答：先完成身份校验，再由负责人审批。[N1]
+```
+
+这还不是最终可信答案，因为 Evidence 和 Citation 会在后面的 RAG 与验证节点接入。本篇关注的是：LangChain 把哪些反复出现的调用约定变成公共接口，以及这些接口怎样替换 `agent-demo/app/model_gateway.py` 外层的组合代码。纯 Python 的权限、工具执行和停止条件继续保留。
 
 这篇会回答：
 
@@ -86,19 +86,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-
 Role = Literal["system", "user", "assistant"]
-
 
 @dataclass(frozen=True, slots=True)
 class Message:
     role: Role
     content: str
 
-
 class ChatModelPort(Protocol):
     def invoke(self, messages: list[Message]) -> Message: ...
-
 
 class LocalModel:
     def invoke(self, messages: list[Message]) -> Message:
@@ -108,9 +104,8 @@ class LocalModel:
         return Message(
             role="assistant",
             # 返回 assistant 角色，调用方随后会统一校验角色和空内容。
-            content=f"术语问题已收到：{user.content}",
+            content=f"知识问题已收到：{user.content}",
         )
-
 
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_messages(question: str) -> list[Message]:
@@ -118,10 +113,9 @@ def build_messages(question: str) -> list[Message]:
     if not normalized:
         raise ValueError("question must not be empty")
     return [
-        Message("system", "用两句话解释术语，不编造事实。"),
+        Message("system", "只根据调用方提供的可见资料回答；证据不足时明确说明。"),
         Message("user", normalized),
     ]
-
 
 # 校验函数在数据进入下一阶段前执行，失败时返回稳定错误或直接阻断。
 def validate_response(response: Message) -> str:
@@ -132,20 +126,18 @@ def validate_response(response: Message) -> str:
         raise ValueError("model returned an empty answer")
     return answer
 
-
 def answer_question(model: ChatModelPort, question: str) -> str:
     messages = build_messages(question)
     response = model.invoke(messages)
     return validate_response(response)
 
-
 if __name__ == "__main__":
-    print(answer_question(LocalModel(), "什么是 Runnable？"))
+    print(answer_question(LocalModel(), "访问申请需要先满足哪些条件？"))
 ```
 
 执行从 `answer_question` 开始。它没有直接拼 HTTP，而是先调用 `build_messages`；空白问题在模型调用前失败。`ChatModelPort` 是 Python `Protocol`，只约定实现者拥有 `invoke(messages)`，因此本地替身和云端 SDK 适配器都能接入。模型返回后，`validate_response` 检查角色和空内容，最后才把字符串交给业务调用方。
 
-运行这段代码会输出 `术语问题已收到：什么是 Runnable？`。如果 `LocalModel` 返回 `role="user"`，错误会停在 `validate_response`，不会让错误消息悄悄变成答案。
+运行这段代码会输出 `知识问题已收到：访问申请需要先满足哪些条件？`。如果 `LocalModel` 返回 `role="user"`，错误会停在 `validate_response`，不会让错误消息悄悄变成答案。
 
 LangChain 并没有改变这条基本数据流。它把 Message、Prompt、Model、Parser 和执行方式定义成可复用接口，减少每个集成重复设计一套协议。
 
@@ -185,8 +177,6 @@ LangChain Core 常见消息类型包括：
 ### Message 的生命周期
 
 消息从用户请求进入 Runtime，经过裁剪、上下文装配、模型调用和持久化。并不是所有输入上下文都要作为正式消息保存：检索候选和临时修复草稿可以只存在于 Turn 状态；只有经过验证的最终 `AIMessage` 才进入对话历史。
-
-
 
 ## Prompt：把变量装配成模型真正看到的输入
 
@@ -286,7 +276,6 @@ validate(parser(model(prompt(normalize(input)))))
 
 在空目录创建 Python 虚拟环境。这里使用当前 LangChain Core 1.x，并用上限避免未来主版本静默破坏示例：
 
-
 下面的命令接收本节“环境准备”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 在隔离环境锁定 LangChain 与测试依赖，避免全局版本改变 Runnable 和消息行为。
@@ -298,13 +287,11 @@ python -c "import langchain_core; print(langchain_core.__version__)"
 
 这些命令从 `python3`、`source`、`python` 开始按顺序运行，输出用于确认“环境准备”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
 
-
 版本命令应打印 `1.x`。实际项目还要把解析后的精确版本写入 lockfile，不能只依赖宽泛范围每次重新安装。
 
 ### 实现 Prompt、Model、Parser 和边界函数
 
 下面直接执行这段实现。`FakeListChatModel` 是官方核心包中的测试模型，不发网络请求；`RunnableLambda` 把普通 Python 函数接入 Runnable 协议。
-
 
 为了验证“实现 Prompt、Model、Parser 和边界函数”，下面的测试把“"""在 Prompt 格式化前清洗并验证业务输入。"""”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
@@ -320,7 +307,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable, RunnableLambda
 
-
 def normalize_input(payload: dict[str, str]) -> dict[str, str]:
     """在 Prompt 格式化前清洗并验证业务输入。"""
 
@@ -331,7 +317,6 @@ def normalize_input(payload: dict[str, str]) -> dict[str, str]:
     if len(question) > 200:
         raise ValueError("question is too long for this demo")
     return {"question": question}
-
 
 def validate_answer(answer: str) -> str:
     """在模型文本进入业务层前检查最小输出约束。"""
@@ -345,13 +330,12 @@ def validate_answer(answer: str) -> str:
         raise ValueError("answer exceeded the demo output limit")
     return normalized
 
-
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def make_chain(model: BaseChatModel) -> Runnable[dict[str, str], str]:
     prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", "你负责解释 Agent 开发术语。回答不超过两句话，不编造项目事实。"),
-            ("human", "请解释：{question}"),
+            ("system", "只根据已授权资料回答知识问题；没有证据时明确说明。"),
+            ("human", "当前问题：{question}"),
         ]
     )
     parser = StrOutputParser()
@@ -364,42 +348,39 @@ def make_chain(model: BaseChatModel) -> Runnable[dict[str, str], str]:
         | RunnableLambda(validate_answer)
     )
 
-
 # 构造函数把已验证字段组装成下游对象，不在这里引入新的权限或业务决策。
 def build_demo_chain() -> Runnable[dict[str, str], str]:
     model = FakeListChatModel(
         responses=[
-            "Runnable 是 LangChain 中统一表示可调用处理节点的协议。",
-            "Message 用角色和内容表达一次对话项。",
-            "Prompt 在运行时把变量装配成模型输入。",
+            "候选回答：先完成身份校验，再由负责人审批。[N1]",
+            "候选回答：申请入口位于统一服务页面。[N2]",
+            "候选回答：当前资料没有说明处理时长。",
         ]
     )
     return make_chain(model).with_config(
         {
-            "run_name": "term_explainer",
+            "run_name": "knowledge_answer_candidate",
             "tags": ["local-demo"],
             "metadata": {"example": "langchain-core"},
         }
     )
 
-
 async def async_demo(chain: Runnable[dict[str, str], str]) -> None:
     # 这里才发起模型调用；返回值仍是候选结果，必须经过空值、结构或证据校验。
-    answer = await chain.ainvoke({"question": "什么是 Runnable？"})
+    answer = await chain.ainvoke({"question": "访问申请需要先满足哪些条件？"})
     print("async", answer)
-
 
 # 入口函数按固定顺序编排各步骤，具体校验和副作用仍由各自函数负责。
 def main() -> None:
     chain = build_demo_chain()
 
-    first = chain.invoke({"question": "什么是 Runnable？"})
+    first = chain.invoke({"question": "访问申请需要先满足哪些条件？"})
     print("sync", first)
 
     batch = chain.batch(
         [
-            {"question": "什么是 Message？"},
-            {"question": "什么是 Prompt？"},
+            {"question": "访问申请入口在哪里？"},
+            {"question": "一般多久处理完成？"},
         ],
         config={"max_concurrency": 2},
     )
@@ -412,7 +393,6 @@ def main() -> None:
     output_schema: dict[str, Any] = chain.output_schema.model_json_schema()
     print("input_type", input_schema.get("type"))
     print("output_type", output_schema.get("type"))
-
 
 if __name__ == "__main__":
     main()
@@ -434,18 +414,17 @@ if __name__ == "__main__":
 
 ```bash
 # 运行同一输入并观察 Prompt、模型响应与 Parser 的逐层结果，错误应停在对应边界。
-python langchain_terms.py
+python app/langchain_agent.py
 ```
 
 这些命令从 `python` 开始按顺序运行，输出用于确认“实现 Prompt、Model、Parser 和边界函数”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
 
-
 前三组输出中的文本应与预设响应对应，最后显示输入为 object、输出为 string：
 
 ```text
-sync Runnable 是 LangChain 中统一表示可调用处理节点的协议。
-batch ['Message 用角色和内容表达一次对话项。', 'Prompt 在运行时把变量装配成模型输入。']
-async Runnable 是 LangChain 中统一表示可调用处理节点的协议。
+sync 候选回答：先完成身份校验，再由负责人审批。[N1]
+batch ['候选回答：申请入口位于统一服务页面。[N2]', '候选回答：当前资料没有说明处理时长。']
+async 候选回答：先完成身份校验，再由负责人审批。[N1]
 input_type object
 output_type string
 ```
@@ -463,17 +442,15 @@ output_type string
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-from langchain_terms import make_chain
-
+from app.langchain_agent import make_chain
 
 def test_chain_returns_trimmed_model_text() -> None:
-    chain = make_chain(FakeListChatModel(responses=["  Runnable 是统一调用协议。  "]))
+    chain = make_chain(FakeListChatModel(responses=["  候选回答：[N1]  "]))
 
     # 通过框架入口执行整条链，下面的断言验证中间适配没有改变业务契约。
-    result = chain.invoke({"question": "什么是 Runnable？"})
+    result = chain.invoke({"question": "访问申请需要什么条件？"})
 
-    assert result == "Runnable 是统一调用协议。"
-
+    assert result == "候选回答：[N1]"
 
 # 空输入或空命中属于独立业务路径；这个用例确认它不会越过校验边界触发多余调用。
 def test_empty_question_stops_before_model() -> None:
@@ -482,22 +459,20 @@ def test_empty_question_stops_before_model() -> None:
     with pytest.raises(ValueError, match="question must not be empty"):
         chain.invoke({"question": "   "})
 
-
 def test_empty_model_answer_stops_after_parser() -> None:
     chain = make_chain(FakeListChatModel(responses=["   "]))
 
     with pytest.raises(ValueError, match="model returned an empty answer"):
-        chain.invoke({"question": "什么是 Message？"})
-
+        chain.invoke({"question": "处理时长是多少？"})
 
 # 这个用例改变完成顺序或调用方式，确认结果仍遵守同一份确定性契约。
 @pytest.mark.asyncio
 async def test_ainvoke_uses_the_same_boundaries() -> None:
-    chain = make_chain(FakeListChatModel(responses=["Prompt 负责装配消息。"] ))
+    chain = make_chain(FakeListChatModel(responses=["当前资料没有说明处理时长。"] ))
 
-    result = await chain.ainvoke({"question": "什么是 Prompt？"})
+    result = await chain.ainvoke({"question": "处理时长是多少？"})
 
-    assert result == "Prompt 负责装配消息。"
+    assert result == "当前资料没有说明处理时长。"
 ```
 
 第一项测试证明 Parser 后的 `validate_answer` 去掉首尾空白；第二项在 Prompt 和 Model 之前失败；第三项在 Model 与 Parser 之后失败；异步测试证明 `ainvoke` 复用同一组输入输出边界。
@@ -592,7 +567,7 @@ batch 是多个输入的执行策略。每一项仍有独立上下文、错误�
 
 线性、无状态组合用 Runnable 足够。只有分支、回边、并行合并、跨请求状态或恢复需求出现时，图抽象才开始产生实际价值。
 
-## 带到工作中的节点登记表
+## 用节点登记表守住 Runnable 契约
 
 为每个 Runnable 记录：
 
@@ -610,9 +585,9 @@ batch 是多个输入的执行策略。每一项仍有独立上下文、错误�
 
 对 Prompt、Model、Parser 和领域校验分别填一行。链路出错时，这张表能帮助定位输入在哪个节点第一次偏离契约。
 
-## 把这个机制用于相似问题
+## 给模型节点接入 Evidence 时，哪些边界不能丢
 
-把术语解释器扩成“只根据给定证据解释术语”：
+把当前模型节点扩成“只根据给定 Evidence 回答知识问题”：
 
 1. 输入增加 `evidence`，但先用普通函数检查它是否为空和是否超过长度；
 2. Prompt 把 evidence 放进明确的数据区，不把它拼进 SystemMessage；

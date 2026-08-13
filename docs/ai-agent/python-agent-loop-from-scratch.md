@@ -86,20 +86,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
-
 @dataclass(frozen=True, slots=True)
 class ToolDecision:
+    # 工具分支保留 call_id，后续 ToolResult 必须用它与本次候选配对。
     kind: Literal["tool_call"]
     call_id: str
     name: str
     arguments: dict[str, object]
 
-
 @dataclass(frozen=True, slots=True)
 class FinalDecision:
+    # 最终分支只有候选答案；是否接受它仍由 Agent 循环检查证据状态。
     kind: Literal["final_answer"]
     answer: str
-
 
 # 联合类型让调用方先检查 kind，再访问该分支独有字段。
 ModelDecision: TypeAlias = ToolDecision | FinalDecision
@@ -117,27 +116,27 @@ from typing import Literal, Protocol, Sequence
 
 from app.schemas import ModelDecision, ToolDecision
 
-
 @dataclass(frozen=True, slots=True)
 class AgentMessage:
+    # role 决定消息在模型协议中的位置；call_id 把工具候选与工具结果配成一对。
     role: Literal["user", "assistant", "tool"]
     content: str
     call_id: str | None = None
 
-
 @dataclass(frozen=True, slots=True)
 class ToolOutcome:
+    # status 供循环选择分支，code 保留稳定错误语义，content 才会回传给模型。
     call_id: str
     status: Literal["ok", "empty", "error"]
     code: str
     content: str
 
-
 class DecisionModel(Protocol):
+    # 模型只读取当前消息快照并提出动作，不直接执行工具或修改运行状态。
     def decide(self, messages: Sequence[AgentMessage]) -> ModelDecision: ...
 
-
 class ToolExecutor(Protocol):
+    # 执行器接收已经结构化的调用，返回与 call_id 对齐的观察结果。
     def execute(self, decision: ToolDecision) -> ToolOutcome: ...
 ```
 
@@ -158,12 +157,10 @@ from app.messages import AgentMessage
 from app.schemas import FinalDecision, ToolDecision
 from app.tools import DecisionModel, ToolExecutor
 
-
 class RunStatus(StrEnum):
     COMPLETED = "completed"
     NO_EVIDENCE = "no_evidence"
     FAILED = "failed"
-
 
 @dataclass(slots=True)
 class AgentState:
@@ -175,7 +172,6 @@ class AgentState:
     answer: str = ""
     last_tool_status: str | None = None
 
-
 @dataclass(frozen=True, slots=True)
 class AgentResult:
     status: RunStatus
@@ -183,19 +179,16 @@ class AgentResult:
     steps: int
     messages: tuple[AgentMessage, ...]
 
-
 def call_fingerprint(decision: ToolDecision) -> str:
     # 排序后的 JSON 消除字典键顺序差异，同一工具与参数得到同一指纹。
     arguments = json.dumps(decision.arguments, ensure_ascii=False, sort_keys=True)
     return f"{decision.name}:{arguments}"
-
 
 def finish(state: AgentState, status: RunStatus, answer: str) -> AgentResult:
     # 只有这个函数写终态，避免错误分支稍后又被覆盖为 completed。
     state.status = status
     state.answer = answer
     return AgentResult(status, answer, state.step, tuple(state.messages))
-
 
 def run_agent(
     question: str,
@@ -272,7 +265,6 @@ from app.messages import AgentMessage
 from app.schemas import FinalDecision, ModelDecision, ToolDecision
 from app.tools import ToolOutcome
 
-
 class ScriptedModel:
     def __init__(self, decisions: list[ModelDecision]) -> None:
         self._decisions = deque(decisions)
@@ -283,9 +275,9 @@ class ScriptedModel:
             raise AssertionError("unexpected model call")
         return self._decisions.popleft()
 
-
 class SearchNotesExecutor:
     def execute(self, decision: ToolDecision) -> ToolOutcome:
+        # 测试执行器也保留未知工具分支，证明循环不会默认执行任意名称。
         if decision.name != "search_notes":
             return ToolOutcome(decision.call_id, "error", "unknown_tool", "")
         query = decision.arguments.get("query")
@@ -298,8 +290,8 @@ class SearchNotesExecutor:
             )
         return ToolOutcome(decision.call_id, "empty", "search_completed", "没有可见结果")
 
-
 def test_tool_result_returns_to_model() -> None:
+    # 两个预设决策分别模拟“先查工具”和“看到证据后回答”。
     model = ScriptedModel([
         ToolDecision("tool_call", "call-1", "search_notes", {"query": "切流验证"}),
         FinalDecision("final_answer", "先检查健康接口，再核对真实流量版本。"),
@@ -307,6 +299,7 @@ def test_tool_result_returns_to_model() -> None:
 
     result = run_agent("怎样验证切流？", model, SearchNotesExecutor())
 
+    # 除终态外还检查步数、消息顺序与 call_id，避免只靠最终文案误判成功。
     assert result.status is RunStatus.COMPLETED
     assert result.steps == 2
     assert [message.role for message in result.messages] == ["user", "assistant", "tool"]
@@ -321,7 +314,7 @@ def test_tool_result_returns_to_model() -> None:
 
 Responses API 适配器要把两类 output item 映射成本文对象：文本消息转换为 `FinalDecision`，函数调用转换为 `ToolDecision`。转换时解析 arguments JSON、保留供应商 `call_id`，拒绝未知 item 组合。工具执行后，下一次请求要提交与该调用配对的结果，而不是把工具正文伪装成普通用户消息。
 
-这里不重复一大段供应商 SDK 代码，因为第 5 篇已经完整解释工具 Schema、执行门禁和 ToolResult。需要记住的边界是：**SDK 负责协议转换，Agent 循环负责状态和停止，工具执行器负责权限与副作用。** 三者不能合成一个“万能函数”。
+这里不重复一大段供应商 SDK 代码，因为[不用框架实现 Tool Calling](/docs/ai-agent/tool-calling-contracts)已经完整解释工具 Schema、执行门禁和 ToolResult。需要记住的边界是：**SDK 负责协议转换，Agent 循环负责状态和停止，工具执行器负责权限与副作用。** 三者不能合成一个“万能函数”。
 
 ## 为什么现在还不需要 LangChain 或 LangGraph
 
@@ -335,6 +328,8 @@ Responses API 适配器要把两类 output item 映射成本文对象：文本�
 
 模型可能重复相同调用、产生无效参数，或始终认为证据不足。`while True` 把停止权交给不确定输出，无法限制费用和时间。程序至少要固定最大步数、整轮 Deadline、重复动作、取消信号和不可重试错误。
 
+调试时应记录每步的决策类型、工具指纹、剩余时间和停止原因，而不是只保存最终文本。若同一指纹连续出现，优先检查 ToolResult 是否真的回传、模型是否看到了 `call_id`，以及错误结果有没有被错误包装成普通用户消息。
+
 ### `max_steps=4` 应该怎样选择？
 
 它取决于任务和工具链，不是通用答案。单次知识检索通常两步就能完成；多子问题研究可能需要更多。先用 Eval 记录成功样本的步骤分布，再为长尾设置上限。达到上限要暴露为明确终态，不能静默返回半成品。
@@ -343,9 +338,13 @@ Responses API 适配器要把两类 output item 映射成本文对象：文本�
 
 只读知识 Agent 承诺的是基于当前可见资料回答。工具成功但无结果表示证据缺口，不等于事实不存在，也不授权模型用训练记忆补齐。可以允许一次查询改写；仍为空时应解释资料不足。
 
+这里要把 `empty` 与 `failed` 分开：前者表示检索执行成功但当前 Scope 和 Release 下没有结果，后者表示查询根本没有可靠完成。只有 `empty` 适合进入有限改写；超时、权限拒绝或依赖故障应保留原错误，避免把系统故障误报成“资料不存在”。
+
 ### 工具参数不同，但语义相同，指纹还能发现重复吗？
 
 本文的 JSON 指纹只发现结构完全相同的重复。`"切流验证"` 与 `"验证切流"` 仍是不同指纹。企业 Runtime 可以记录规范化查询、工具结果 ID 和证据覆盖变化；连续动作没有带来新证据时，也应停止或重规划。
+
+一个更稳的做法是同时比较“动作指纹”和“新增信息”：先对查询做保守规范化，再比较本轮新增 Evidence ID 或覆盖目标。改写后的字符串不同却没有增加证据时，继续循环只会增加成本；但不要用向量相似度直接合并所有查询，否则可能误伤确实需要区分的版本号和专有名词。
 
 ### 为什么工具错误有些直接终止，有些可以回到模型？
 

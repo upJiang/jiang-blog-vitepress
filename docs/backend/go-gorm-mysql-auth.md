@@ -26,77 +26,98 @@ updated: 2026-08-12
 
 # GORM、MySQL 与 Go 认证授权
 
-GORM 的 `First(&project, id)` 没有租户条件，知道 UUID 的用户就可能读到其他租户。Scope 必须进入查询构造，而不是查出对象后再判断。
+`db.First(&project, id)` 生成只按主键过滤的 SQL，知道 UUID 的用户便可能读到其他租户项目。GORM 帮助构造 SQL 和映射 Struct，不会推断租户、权限或乐观版本；这些条件必须进入每次查询和事务。
 
-## GORM Model 标签映射 Schema
+## Model Tag 映射列，但共享 Schema 由迁移拥有
 
-GORM Model 标签映射 Schema不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+Struct 定义字段类型、列名和关联，指针/Null 类型表达 NULL。UUID 二进制转换、UTC DATETIME(6)、复合索引与约束要与共享 schema.sql 一致。
 
-```mermaid
-flowchart LR
-  A[输入与上下文] --> B[GORM Model 标签映射 Schema]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
-```
+生产不使用 AutoMigrate 作为唯一 Schema 管理，它不会表达复杂数据回填和兼容发布。golang-migrate 执行审查后的 SQL；空库、上一版本升级与三语言 information_schema 比较。
 
-图中失败分支不会假装成空成功。Go的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+| Go 字段 | MySQL | 注意 |
+| --- | --- | --- |
+| ID uuid.UUID/[]byte | BINARY(16) | 统一 Scanner/Valuer |
+| Version uint32 | INT UNSIGNED | 条件 UPDATE |
+| CreatedAt time.Time | DATETIME(6) | 连接与序列化使用 UTC |
+| DeletedAt *time.Time | 可空 DATETIME | 所有查询与唯一性语义 |
+| TenantID | BINARY(16) + 索引前缀 | 每条资源查询 |
 
-## Scope 固定租户和数据范围
+## Scope 复用查询条件，不隐藏 Principal
 
-Scope 固定租户和数据范围要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+Repository 方法接收 Principal/tenantID，构造 `Where("tenant_id=? AND id=?")`。GORM Scope 可复用 active/department 范围，但不能依赖全局变量保存当前租户。
 
-下面的片段抓住 Go 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+Preload 通常额外查询关联，Joins 可能扩大行数。开启参数化 SQL 日志/Trace 并检查查询数量；列表只选 DTO 字段，避免加载大关联和 N+1。
+
+GORM 用 Struct 做 `Updates` 时默认跳过零值，这在把 `enabled` 改为 false、计数改为 0 时会悄悄不更新。白名单 `map[string]any` 或显式 `Select` 能表达“这个零值是用户提交的”，输入 DTO 则用指针区分缺失和零值。更新后必须检查 `RowsAffected`，不能因 Error=nil 就返回成功。
+
+查询将 Context 与租户条件一起传给 GORM。ErrRecordNotFound 统一映射 NotFound，其他数据库错误保留 cause。
 
 ```go
-result := db.WithContext(ctx).
-  Where("tenant_id = ? AND id = ?", principal.TenantID, id).
-  First(&project)
-if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-  return Project{}, ErrNotFound
+func (r *ProjectRepository) FindScoped(
+    ctx context.Context,
+    tenantID, projectID uuid.UUID,
+) (Project, error) {
+    var project Project
+    result := r.db.WithContext(ctx).
+        Where("tenant_id = ? AND id = ?", tenantID, projectID).
+        First(&project)
+    if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+        return Project{}, ErrProjectNotFound
+    }
+    return project, result.Error
 }
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+返回前不能再按 tenant 比较，因为错误行已经加载。集成测试创建两个租户，并断言跨租户与随机 ID 得到相同错误。
 
-## 事务、预加载和乐观版本
+## 事务回调覆盖更新、审计与认证轮换
 
-事务、预加载和乐观版本最终要落实到可观察证据。Go的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+`db.Transaction` 回调返回 nil 才 commit，返回错误 rollback。回调中的所有 Repository 使用 tx，不可误用全局 db；外部 RabbitMQ/HTTP 不放事务，Outbox 同事务写入。
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
-| --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+事务隔离和锁由 MySQL 决定，GORM 只生成语句。库存或 Refresh Session 使用 `FOR UPDATE` 时，查询条件必须命中合适索引并保持一致加锁顺序；否则范围扫描会扩大锁集合。死锁是并发裁决，整笔事务可在有限次数内从头重试，回调里若已发外部消息就无法安全重放，因此消息只能写 Outbox。
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+Refresh 轮换用 `clause.Locking{Strength:"UPDATE"}` 锁定哈希会话，检查 family/replaced/revoked，创建新行并替换。Argon2id 使用受维护库，参数与其他语言一致；密码验证并发受限。
 
-## 事务、预加载和乐观版本出现异常时怎样定位
+```mermaid
+sequenceDiagram
+  participant H as Gin Handler
+  participant S as Auth Service
+  participant G as GORM tx
+  participant DB as MySQL
+  H->>S: refresh cookie
+  S->>G: Transaction
+  G->>DB: SELECT session FOR UPDATE
+  G->>DB: INSERT new + UPDATE old
+  G->>DB: COMMIT
+  S-->>H: new cookie + access
+```
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+Cookie 只有 commit 成功后才写响应。commit 结果未知时不签发第二个无关联会话，调用方重新刷新会触发数据库状态判断。
 
-先固定版本、输入、时间窗口和资源状态，再沿 Go 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+## Go 错误映射保留 errors.Is 链
 
-## Scope 固定租户和数据范围之后还要追问
+Repository 包装底层错误用 `%w`，Service 返回领域 sentinel/typed error，HTTP 适配用 errors.Is/As 映射 status/code。不要比较错误字符串，也不要把 MySQL 错误写响应。
 
-### GORM Model 标签映射 Schema为什么不能只放在调用方处理？
+驱动返回的 duplicate key、deadlock、lock wait timeout 需要在基础设施层解析成稳定类型。duplicate key 还要按约束名区分用户名冲突、幂等键重复或其他数据问题；把所有 1062 都映射为同一个 409 会让客户端收到错误字段。日志保存 MySQL code、constraint、requestId，响应只给公开的领域 code。
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+测试运行 go test -race、go test ./...、go vet，MySQL 集成验证 Scope、锁、约束和迁移。连接池 MaxOpenConns 按副本总预算设置，Context timeout 传到每条查询。
 
-### Scope 固定租户和数据范围遇到超时后，什么时候可以重试？
+GORM 底层仍是 `database/sql` 池，要同时观察 InUse、Idle、WaitCount 与 WaitDuration，不能只调 ORM 参数。
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+## GORM 与认证继续追问
 
-### 怎样用失败路径证明 Go 真的被理解了？
+### GORM Hook 适合写审计吗？
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+通用 created_at 等可用 Hook，但审计需要 actor、用例、before/after 和事务语义，隐式 Hook 难获得完整上下文。通常由 Service 显式写审计。
 
-### 事务、预加载和乐观版本与前一层的责任怎样交接？
+### Save 为什么可能覆盖不该改的列？
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。事务、预加载和乐观版本只处理自己拥有的状态。
+Save 常更新所有字段，零值语义也复杂。使用明确 Updates map/struct 和版本条件，只允许白名单字段；检查 RowsAffected。
+
+### Prepared Statement 缓存是否总开启？
+
+它减少解析但占服务端/客户端资源，并与连接池相关。按驱动/GORM 配置和实际重复查询测量，不把它当 SQL 注入防线；参数绑定本身更基础。
+
+### Go 密码哈希为什么不能每请求启动无限 goroutine？
+
+Argon2id 故意耗内存/CPU，无限并发可耗尽进程。登录限速并使用 semaphore/Worker 限制哈希并发，按目标硬件参数化。

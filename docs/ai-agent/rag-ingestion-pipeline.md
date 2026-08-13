@@ -154,7 +154,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-
 class Stage(StrEnum):
     ADMIT = "admit"
     PARSE = "parse"
@@ -165,13 +164,11 @@ class Stage(StrEnum):
     VALIDATE = "validate"
     ACTIVATE = "activate"
 
-
 class Status(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
-
 
 ORDER = (
     Stage.ADMIT,
@@ -183,7 +180,6 @@ ORDER = (
     Stage.VALIDATE,
     Stage.ACTIVATE,
 )
-
 
 @dataclass
 class Ingestion:
@@ -225,7 +221,6 @@ class Ingestion:
         self.status = Status.FAILED
         self.error_code = error_code
 
-
 job = Ingestion("ing-1", "release-8")
 for stage in ORDER:
     job.start(stage)
@@ -249,12 +244,10 @@ import pytest
 
 from ingestion import Ingestion, Stage, Status
 
-
 def test_stage_cannot_be_skipped() -> None:
     job = Ingestion("ing-1", "release-8")
     with pytest.raises(ValueError, match="expected admit"):
         job.start(Stage.PARSE)
-
 
 # 这个用例走失败或拒绝分支，确认错误码、终态和副作用都符合契约。
 def test_parse_failure_prevents_later_work() -> None:
@@ -268,7 +261,6 @@ def test_parse_failure_prevents_later_work() -> None:
     assert Stage.ACTIVATE not in job.artifacts
     with pytest.raises(ValueError, match="terminal"):
         job.start(Stage.OCR)
-
 
 # 这个用例重复提交或恢复同一运行，确认 Checkpoint、幂等键或事件序号阻止重复副作用。
 def test_duplicate_completion_is_rejected() -> None:
@@ -309,13 +301,48 @@ def test_duplicate_completion_is_rejected() -> None:
 
 新 Turn 在创建时读取 active Release 并固定下来；已经运行的 Turn 继续读旧 Release。这样激活发生在回答中途，也不会让一次回答混用两个版本。候选过期或 CAS 冲突时创建新的候选，不覆盖已经上线的更新。
 
+### Release 不是一个模糊的 version 字段
+
+导入链里至少有四种版本，它们解决的问题不同：
+
+| 版本 | 它固定什么 | 什么变化会产生新版本 | 在线查询是否直接使用 |
+| --- | --- | --- | --- |
+| Source 版本 | 原始文件字节、哈希与对象位置 | 文件内容重新上传 | 否 |
+| Document 版本 | 解析器输出的 Block 与结构 | 解析器、OCR 或清洗规则变化 | 否 |
+| Index 版本 | Chunk、Embedding revision 与索引参数 | 模型、维度、距离或 ANN 参数变化 | 否 |
+| Knowledge Release | 一组可共同查询的完整投影 | 候选数据通过发布检查 | 是 |
+
+如果所有变化都写进一个 `version`，系统无法判断应该重做 OCR、只重算向量，还是只切换在线指针。**Release 是在线读取边界，不是某个文件的修订号。** 一次 Turn 固定 Release 后，检索、缓存、Evidence 和引用都携带这个值。
+
+候选 Release 从 `building` 进入 `validating`。验证器至少对账 Source 对象的 SHA-256、Block/Chunk 与原文定位覆盖率、当前 Embedding revision 的向量数量和维度，以及各投影的 ACL 一致性。每项检查保存规则版本、期望值、实际值和证据位置，不能只留一个 `validated=true`。
+
+```mermaid
+flowchart LR
+  A[创建 building 候选<br/>旧 Release 继续服务]:::input --> B[解析与切片<br/>写 Document 投影]:::program
+  B --> C[向量与全文索引<br/>写 Index 投影]:::program
+  C --> D{完整性、权限与质量<br/>全部通过吗}:::program
+  D -->|否| E[候选 failed<br/>保留旧 active]:::bad
+  D -->|是| F[候选 validated<br/>等待短事务]:::data
+  F --> G[CAS 切换 active 指针<br/>旧版本进入 retained]:::ok
+  G --> H[新 Turn 固定新 Release]:::ok
+  classDef input fill:#ccfbf1,stroke:#0f766e,color:#134e4a
+  classDef program fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+  classDef data fill:#fef3c7,stroke:#ca8a04,color:#713f12
+  classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef bad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+```
+
+`building` 允许 Worker 分批提交，所以解析过程不占发布锁。`validated` 只说明候选在某个基线下通过检查；激活事务还要比较 `base_release_id` 与 Source 快照，防止过期候选覆盖已经上线的新版本。失败候选不立即删除，排障才能判断是缺页、少写向量、ACL 不一致还是评测门禁失败。
+
+回滚也是一次受控的指针切换，不是删除新索引。旧 Release 按保留策略继续可读，因为运行中的 Turn 和审计记录仍可能引用它；清理任务只处理超过保留期、没有运行引用且不再作为回滚点的版本。
+
 ## 失败恢复和清理不是同一动作
 
 可重试错误在同一绝对 Deadline 内有限重试；永久输入错误直接失败；人工修复后创建新 attempt。失败候选的数据可以晚些清理，但先保留诊断所需元数据和错误证据。清理任务按明确 Release ID 删除对象、Block、Chunk、向量和缓存，不能用宽泛条件碰到 active/retained 版本。
 
 取消导入时，Worker 在阶段边界和长循环中检查取消标记，停止产生新外部副作用。已写入候选的数据保持不可见，随后由清理任务处理。
 
-## 一份可以直接带走的导入 Runbook
+## 用导入 Runbook 定位失败阶段
 
 ### 设计时
 

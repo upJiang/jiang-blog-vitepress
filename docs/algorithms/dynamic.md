@@ -80,9 +80,3 @@ LIS 的 O(n²) DP 定义 `dp[i]` 为以 i 结尾的最长长度，答案是所�
 用归纳证明：基线正确；假设依赖状态正确；转移枚举最后决策的所有互斥可能，因此当前状态正确。还要证明计算顺序已计算依赖，空间压缩没有覆盖仍要使用的旧值。
 
 小规模用暴力子集对照 0/1 背包，故意把容量改为正序，单件不能重复的用例应失败。边界覆盖容量 0、空物品、不可达、全负、重复值和大计数溢出。
-
-## 参考资料
-
-- [Open Data Structures](https://opendatastructures.org/)
-- [MIT 6.006 Dynamic Programming](https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/)
-- [VisuAlgo DP](https://visualgo.net/en/recursion)

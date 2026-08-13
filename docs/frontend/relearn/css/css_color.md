@@ -134,7 +134,6 @@ radial-gradient(shape size at position, start-color, ..., last-color);
 </style>
 <div class="button orange">123</div>
 
-
 var btn = document.querySelector(".button");
 var h = 25;
 setInterval(function(){
@@ -156,10 +155,3 @@ CSS 中的很多属性还会产生形状，比如我们常见的属性：
 - border-radius
 
 这些产生形状的属性非常有趣，我们也能看到很多利用它们来产生的 CSS 黑魔法。然而，这里我有一个相反的建议，我们仅仅把它们用于基本的用途，把 border 用于边框、把阴影用于阴影，把圆角用于圆角，所有其它的场景，都有一个更好的替代品：datauri+svg。
-
-## 参考资料
-
-- [CSS Color Module Level 4](https://www.w3.org/TR/css-color-4/)
-- [CSS Color Module Level 5](https://www.w3.org/TR/css-color-5/)
-- [WCAG：Contrast minimum](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)
-- [MDN：CSS colors](https://developer.mozilla.org/docs/Web/CSS/CSS_colors)

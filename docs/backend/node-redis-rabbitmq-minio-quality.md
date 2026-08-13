@@ -27,75 +27,93 @@ updated: 2026-08-12
 
 # Node.js 接入 Redis、RabbitMQ、MinIO 与质量门禁
 
-Node Worker 上传对象后崩溃，RabbitMQ 重投消息；如果对象键每次随机生成，会产生重复文件。任务 ID 应进入对象键和幂等表，让重试返回同一结果。
+RabbitMQ 重投文件任务，Node Worker 每次生成随机对象 key，于是 MinIO 出现三份结果；Jest 结束后进程又因 Redis 与 Channel 未关闭而挂住。外部依赖接入的难点不在 SDK 能调用，而在确定性 key、幂等提交、连接生命周期和隔离测试。
 
-## 连接生命周期由 Nest Provider 管理
+## 连接客户端由 Provider 统一拥有
 
-连接生命周期由 Nest Provider 管理不能只靠术语记忆。先确定输入来自谁、状态由谁拥有、一次操作改变了哪些记录，再看输出如何被下一层使用。**状态所有者一旦含糊，重试和故障恢复就会出现重复或丢失。**
+Redis、RabbitMQ Connection/Channel 和 MinIO Client 在应用生命周期内复用，由 Infrastructure Module 创建、健康检查和关闭。业务 Service 依赖窄端口，不直接读取环境变量或 new SDK Client。
 
-```mermaid
-flowchart LR
-  A[输入与上下文] --> B[连接生命周期由 Nest Provider 管理]
-  B --> C[状态检查]
-  C -->|满足约束| D[提交结果]
-  C -->|不满足| E[稳定错误]
-  D --> F[日志 / 指标 / 审计]
-```
+启动时验证 URL、TLS 和 Bucket/Exchange 配置；依赖暂不可用时 readiness=false，有限重连并抖动。连接错误不在每个请求内创建新客户端补救，否则故障会产生连接风暴。
 
-图中失败分支不会假装成空成功。Node.js的调用方应根据稳定错误码决定停止、重试或重新读取状态。
+RabbitMQ 的 Connection 和 Channel 不是同一层。TCP Connection 可以长期复用，Channel 承载 publish、consume、confirm 与异常状态；声明不存在的交换机等协议错误可能直接关闭 Channel。适配器收到 `close` 后要停止接受新发布，重建拓扑与 ConfirmChannel，再恢复 Outbox 派发。**只重连 TCP 而继续持有旧 Channel，发布调用可能已经失去确认能力。**
 
-## 消息副作用使用确定性键
+| 依赖 | Provider 拥有 | 业务方法关注 |
+| --- | --- | --- |
+| Redis | 连接、前缀、超时 | get/set/invalidate/rateLimit |
+| RabbitMQ | Connection、Channel、confirm、prefetch | publish/consume 事件信封 |
+| MinIO | Endpoint、TLS、Bucket | presign/head/delete |
+| MySQL/Prisma | 连接池、事务客户端 | 状态与 Outbox |
+| OpenTelemetry | SDK/Exporter | Span/结构化字段 |
 
-消息副作用使用确定性键要放回请求时间线：开始时读到什么，中间获得什么锁、连接或租约，成功时提交什么，失败时又能否回到原状态。这样才能判断超时后是安全重试、查询原结果，还是进入人工对账。
+## 任务 ID 同时约束消息、对象与数据库状态
 
-下面的片段抓住 Node.js 中最容易出错的一条执行路径。先观察输入条件和状态标识，再看副作用在什么位置发生。
+API 在 MySQL 创建 task 与 Outbox；Worker 收到 task_id 后领取 attempt，用确定性对象 key `tenant/task/task-id/result.json` 上传。完成更新匹配 task_id 与 attempt，旧 Worker 无法覆盖新结果。
+
+上传对象后、数据库完成前崩溃会重投；相同 key 的 PUT 应得到相同内容或先比 checksum。若结果依赖版本，把 content_version 放 key，不能让旧任务覆盖新源文件。
+
+消费代码先读取当前租约，上传确定性 key，最后条件提交并 ACK。每个调用都有 timeout/AbortSignal。
 
 ```ts
-const objectKey = `${tenantId}/tasks/${taskId}/result.json`
-await minio.putObject(bucket, objectKey, payload)
-await tasks.markCompleted(taskId, objectKey)
+const objectKey = [
+  "tenants", task.tenantId,
+  "tasks", task.id,
+  "attempt-" + task.attempt + ".json",
+].join("/")
+
+await objectStore.put(objectKey, result, { signal })
+const committed = await tasks.completeIfOwned({
+  taskId: task.id,
+  attempt: task.attempt,
+  objectKey,
+})
+if (!committed) throw new LostTaskLease(task.id)
 channel.ack(message)
 ```
 
-片段之后要核对实际输出或影响行数。只看到函数没有抛错还不够；还要确认状态版本、提交结果和下游可见性与预期一致。
+LostTaskLease 时不能把旧 attempt 标成成功。对象成为孤儿，由按 task 状态和保留期执行的清理器删除；ACK/NACK 由错误分类决定。
 
-## Jest 集成测试连接真实依赖
+发布端也有一个不能省略的状态。Outbox Dispatcher 在 ConfirmChannel 上发送事件，等待 Broker confirm 后才把 `published_at` 写入 MySQL。网络在 confirm 返回前中断时，发布结果未知，Dispatcher 会再次发送；消费者必须用 `event_id` 的唯一 Inbox 记录去重。Publisher confirm 证明 Broker 接收了消息，**不证明消费者完成业务，也不等于 MySQL 与 RabbitMQ 原子提交。**
 
-Jest 集成测试连接真实依赖最终要落实到可观察证据。Node.js的配置、日志或执行结果需要携带稳定标识，例如 requestId、资源版本、任务 ID 或制品摘要，避免只凭“看起来正常”判断系统。
+## 测试用真实依赖验证协议，用替身验证规则
 
-| 阶段 | 应保存的事实 | 失败后的动作 |
-| --- | --- | --- |
-| 接收输入 | 身份、范围、版本、requestId | 拒绝无效或越界输入 |
-| 执行中 | 锁、连接、租约或任务 attempt | 超时后取消或等待恢复 |
-| 提交结果 | 影响行数、状态版本、事件 ID | 冲突则重新读取，不覆盖新状态 |
-| 交付输出 | 状态码、结构化日志和指标 | 根据稳定错误码处理 |
+Service 单测替换 Cache、Publisher 和 ObjectStore 端口，验证 key、错误分类与状态转换。集成测试启动固定版本 Redis/RabbitMQ/MinIO/MySQL，使用唯一 run_id 前缀、Queue 与 Bucket key，测试结束精确删除。
 
-这张表的重点是可恢复性：每次状态变化都要能回答“现在由谁负责，下一步允许什么”。
+RabbitMQ 测试包含 Consumer 崩溃重投、非法消息 DLQ 和 confirm；MinIO 验证 presign、HEAD、checksum、超限/不存在；Redis 验证 TTL、原子限流和失效。只 Mock SDK 无法证明。
 
-## Jest 集成测试连接真实依赖出现异常时怎样定位
+```mermaid
+flowchart LR
+  J[Jest] --> APP[Nest testing module]
+  APP --> DB[(isolated MySQL)]
+  APP --> R[(Redis prefix run-id)]
+  APP --> Q[RabbitMQ queue run-id]
+  APP --> O[MinIO prefix run-id]
+  J --> ASSERT[DB + message + object assertions]
+```
 
-| 现象 | 先确认 | 处理顺序 |
-| --- | --- | --- |
-| 调用超时或无响应 | 确认请求是否到达当前组件，以及是否已产生副作用。 | 先查 requestId 和状态记录，再决定取消或重试 |
-| 返回成功但状态不对 | 比较提交影响行数、版本号和后续读取。 | 绕过缓存读取真相，再检查序列化和失效 |
-| 重试后出现重复 | 检查幂等键、唯一约束或消息 ID 是否覆盖副作用。 | 停止自动重试，查询原结果并修复去重边界 |
+并行测试不共享 Queue consumer 或数据库行。失败时保留容器日志到临时 Artifact，清理只匹配当前 run_id。
 
-先固定版本、输入、时间窗口和资源状态，再沿 Node.js 的状态记录找到等待发生在哪一步。只有确认瓶颈后，才改变超时、池大小或副本数，并记录改变后的新证据。
+## 质量门禁覆盖编译之外的运行事实
 
-## 消息副作用使用确定性键之后还要追问
+Node 项目运行 ESLint、TypeScript、Jest 单元/集成、OpenAPI 契约和生产 build；镜像启动后做 health 与 SIGTERM drain。依赖锁文件固定，native argon2 模块在目标架构镜像中验证。
 
-### 连接生命周期由 Nest Provider 管理为什么不能只放在调用方处理？
+运行指标观察 Redis 错误/命中、publish confirm、ready/unacked/DLQ、MinIO 延迟、任务 oldest age 和进程 event loop delay。外部依赖错误按稳定 code 输出，不泄露 endpoint 和凭证。
 
-调用方可以改善交互，但无法控制并发请求、绕过客户端的调用和进程故障。约束必须由拥有业务状态的一层执行，并由数据库约束、消息确认或运行时所有权提供最终裁决。
+停机测试不能只看进程最终退出。先把 readiness 切为失败，停止 HTTP 新流量与 Consumer 拉取，等待有上限的在途任务；随后关闭 Channel、Connection、Redis、Prisma，最后 flush Trace。测试在 confirm 未返回、对象正在上传和 Redis 命令超时三个位置发送 SIGTERM，确认消息要么已 ACK 并有数据库终态，要么会被重新投递。
 
-### 消息副作用使用确定性键遇到超时后，什么时候可以重试？
+## Node 外部依赖继续追问
 
-超时只说明调用方没有及时拿到结果，不能证明服务端没有提交。读请求通常可以重试；写请求需要幂等键、版本条件或可查询的任务 ID，否则重试可能产生第二次副作用。
+### RabbitMQ Channel 可以被多个 Consumer 共用吗？
 
-### 怎样用失败路径证明 Node.js 真的被理解了？
+技术上可行，但确认、prefetch 和错误会互相影响。通常按用途建立有限 Channel，Connection 复用；关闭顺序先 cancel Consumer，再关 Channel/Connection。
 
-用一条正常路径和至少两条失败路径做对照，记录输入、状态变化、原始输出和恢复动作。测试应覆盖并发、重复、取消或依赖不可用，而不只是单次 200。
+### MinIO 上传能否放在 MySQL 事务里？
 
-### Jest 集成测试连接真实依赖与前一层的责任怎样交接？
+不能形成原子提交，且长上传持有数据库连接和锁。先建立任务/对象状态，上传后用条件事务提交，失败由清理和重试恢复。
 
-交接内容写入契约：输入带身份、范围和版本，输出带结果、状态码和可追踪 ID。Jest 集成测试连接真实依赖只处理自己拥有的状态。
+### Jest `--forceExit` 为什么不是修复？
+
+它掩盖未关闭的 Server、Timer、Redis/RabbitMQ 连接，生产停机同样会泄漏。用 open handles/生命周期 hook 找到所有者并显式关闭。
+
+### 缓存异常时 Node API 应自动无限重连吗？
+
+无限快速重连会阻塞和放大故障。客户端退避重连，业务按操作选择降级/拒绝，readiness 与告警反映状态，并保护 MySQL 回源。

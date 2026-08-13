@@ -154,7 +154,6 @@ Pydantic 枚举说明系统“实现过哪些 channel”，Runtime Policy 决定
 
 ### 环境准备
 
-
 下面的命令接收本节“环境准备”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 锁定 LangChain、Pydantic 与测试依赖，模型候选会使用同一 Schema 解析和校验。
@@ -165,11 +164,9 @@ python -m pip install "langchain-core>=1,<2" "pydantic>=2.11,<3" "pytest>=8,<9"
 
 这些命令从 `python3`、`source`、`python` 开始按顺序运行，输出用于确认“环境准备”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
 
-
 ### 模型、Parser 与有限修复
 
 下面直接运行这段实现：
-
 
 下面把“模型、Parser 与**有限修复**”落成最小实现。代码关注“首次候选先经过 Pydantic；只对格式缺口提供一次修复，可信 Scope 与业务约束仍由程序注入”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
@@ -184,9 +181,7 @@ from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-
 Channel = Literal["exact", "fulltext", "vector", "structured"]
-
 
 class SearchBranch(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -195,7 +190,6 @@ class SearchBranch(BaseModel):
     channel: Channel
     query: str = Field(min_length=1, max_length=300)
     top_k: int = Field(ge=1, le=50)
-
 
 class SearchPlan(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -216,20 +210,16 @@ class SearchPlan(BaseModel):
             raise ValueError("evidence budget must cover every branch")
         return self
 
-
 class PlanParseError(ValueError):
     def __init__(self, *, attempts: int, last_error: str) -> None:
         super().__init__(f"search plan parsing failed after {attempts} attempt(s)")
         self.attempts = attempts
         self.last_error = last_error
 
-
 parser = PydanticOutputParser(pydantic_object=SearchPlan)
-
 
 def parse_plan(raw_text: str) -> SearchPlan:
     return parser.parse(raw_text)
-
 
 def parse_with_one_repair(
     raw_text: str,
@@ -250,11 +240,9 @@ def parse_with_one_repair(
             last_error=str(second_error),
         ) from second_error
 
-
 def deterministic_demo_repair(raw_text: str, error: str) -> str:
     del error
     return raw_text.replace('"top_k": "8"', '"top_k": 8')
-
 
 def demo() -> None:
     raw_text = """{
@@ -277,7 +265,6 @@ def demo() -> None:
     print("branch", plan.branches[0].channel, plan.branches[0].top_k)
     print("format_instructions_chars", len(parser.get_format_instructions()))
 
-
 if __name__ == "__main__":
     demo()
 ```
@@ -297,7 +284,6 @@ python structured_plan.py
 
 这些命令从 `python` 开始按顺序运行，输出用于确认“模型、Parser 与有限修复”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
 
-
 预期输出显示字符串 top_k 被唯一一次修复为整数，格式说明长度是一个大于零的数字：
 
 ```text
@@ -312,7 +298,6 @@ format_instructions_chars 1000
 
 下面直接运行这段实现：
 
-
 为了验证“测试合法、越权和二次失败”，下面的测试把“测试证明合法对象通过、越权字段被业务编译器拒绝、连续格式错误只消耗一次修复预算”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
@@ -323,7 +308,6 @@ import pytest
 from langchain_core.exceptions import OutputParserException
 
 from structured_plan import PlanParseError, parse_plan, parse_with_one_repair
-
 
 def valid_payload() -> dict[str, object]:
     return {
@@ -340,14 +324,12 @@ def valid_payload() -> dict[str, object]:
         "evidence_budget": 8,
     }
 
-
 def test_valid_plan_becomes_pydantic_object() -> None:
     # 模型或路由器给出候选动作后，Runtime 仍要校验类型、参数和剩余预算。
     plan = parse_plan(json.dumps(valid_payload(), ensure_ascii=False))
 
     assert plan.branches[0].branch_id == "entry"
     assert plan.branches[0].top_k == 8
-
 
 # 这个用例走失败或拒绝分支，确认错误码、终态和副作用都符合契约。
 def test_unknown_channel_is_rejected() -> None:
@@ -356,7 +338,6 @@ def test_unknown_channel_is_rejected() -> None:
 
     with pytest.raises(OutputParserException, match="literal_error"):
         parse_plan(json.dumps(payload, ensure_ascii=False))
-
 
 # 这个用例重复提交或恢复同一运行，确认 Checkpoint、幂等键或事件序号阻止重复副作用。
 def test_duplicate_branch_id_is_rejected() -> None:
@@ -367,7 +348,6 @@ def test_duplicate_branch_id_is_rejected() -> None:
     with pytest.raises(OutputParserException, match="branch ids must be unique"):
         parse_plan(json.dumps(payload, ensure_ascii=False))
 
-
 # 这个用例固定权限边界：越权字段不能进入结果，也不能触达受保护的数据访问。
 def test_model_cannot_add_scope() -> None:
     payload = valid_payload()
@@ -375,7 +355,6 @@ def test_model_cannot_add_scope() -> None:
 
     with pytest.raises(OutputParserException, match="extra_forbidden"):
         parse_plan(json.dumps(payload, ensure_ascii=False))
-
 
 def test_repair_is_called_only_once() -> None:
     calls = 0
@@ -453,7 +432,7 @@ Pydantic 模型是内部协议。新增必填字段、重命名 branch_id 或删
 
 每个 Turn 保存 schema_version。消费者先兼容新旧版本，生产者再开始输出新版本；历史对象通过确定迁移函数升级。模型 Prompt、Schema 和 Parser 版本要一同记录，避免只更新其中一层。
 
-## 带到工作中的选择表
+## 三种结构化路径怎样选择
 
 | 条件 | 推荐路径 |
 | --- | --- |
@@ -464,7 +443,7 @@ Pydantic 模型是内部协议。新增必填字段、重命名 branch_id 或删
 | 解析错误可修复 | 最多一次、共享 Deadline 的 repair |
 | 权限/策略拒绝 | 直接终态，不请求模型“改权限” |
 
-## 把这个机制用于相似问题
+## SearchPlan 加入依赖关系后怎样校验
 
 为 SearchPlan 增加 `depends_on`：
 
