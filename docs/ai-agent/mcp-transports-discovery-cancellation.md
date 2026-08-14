@@ -2,8 +2,8 @@
 title: MCP 传输与生命周期：stdio、Streamable HTTP、Legacy SSE、发现、取消和重连
 description: 沿一次连接拆开传输、会话、能力发现、调用、取消、断开和重连，并说明旧 SSE 的兼容边界。
 category: ai-agent
-part: MCP、Skill 与 SubAgent 专题
-chapter: 53
+part: 工具与能力扩展
+chapter: 10
 tags:
   - MCP
   - stdio
@@ -27,6 +27,8 @@ lastUpdated: false
 ---
 # MCP 传输与生命周期：stdio、Streamable HTTP、Legacy SSE、发现、取消和重连
 
+## 传输与生命周期分别负责什么
+
 MCP 传输负责在 Client 与 Server 之间搬运协议消息。stdio 使用父子进程的标准输入输出，适合同机能力；Streamable HTTP 使用远程 HTTP 端点，适合共享服务。它们不改变 `search_notes` 的输入输出 Schema，却决定进程怎样启动、日志写到哪里、取消怎样送达，以及连接中断后还能确认哪些事实。
 
 最常见的误判，是把“传输已连接”当成“工具已成功”。一次调用至少有四层状态：
@@ -40,7 +42,7 @@ MCP 传输负责在 Client 与 Server 之间搬运协议消息。stdio 使用父
 
 HTTP 502 不能映射成“搜索没有结果”，`tools/list` 成功也不能证明当前用户有权读取笔记。排障必须保留这四层。
 
-## stdio 是谁启动谁
+## stdio 的进程所有权
 
 stdio 模式通常由 Client 启动 Server 子进程。Client 把 JSON-RPC 消息写入子进程 stdin，从 stdout 读取响应；Server 的诊断日志只能写 stderr。
 
@@ -122,7 +124,7 @@ sequenceDiagram
 
 用普通 `curl` 看到 `/mcp` 返回 200，只能证明 HTTP 入口可达。完整验证必须由 MCP Client 携带协议版本、Client 信息和能力元数据，执行 `server/discover`、`tools/list` 与受控调用。
 
-## Legacy SSE 不是“所有 SSE 响应”
+## Legacy SSE 的兼容边界
 
 早期 HTTP+SSE 传输通常用一个 GET SSE 端点接收 Server 消息，再用另一个端点提交 Client 消息。Streamable HTTP 后来把交互收敛为 MCP POST 端点，但某次 POST 的响应仍可以使用 `text/event-stream`。
 
@@ -135,7 +137,7 @@ sequenceDiagram
 
 旧 Server 仍可能需要兼容。配置中应写清协议日期、允许的回退路径、停止支持时间和契约测试，不能看到 `sse` 三个字就自动切换模式。
 
-## 取消在两种传输中不是同一个动作
+## 两种传输的取消语义
 
 在 `2026-07-28` 现代协议中：
 

@@ -2,8 +2,8 @@
 title: Agent Eval：从样本集、评分器到版本回归门禁
 description: 把“看起来回答不错”变成可重复比较的评测：固定样本、运行版本、检索指标、Claim 支持、引用、工具轨迹与人工复核。
 category: ai-agent
-part: 答案质量与运行
-chapter: 67
+part: 答案可信、安全与质量
+chapter: 61
 tags:
   - Agent Eval
   - Regression
@@ -25,6 +25,8 @@ updated: 2026-08-07T00:00:00.000Z
 lastUpdated: false
 ---
 # Agent Eval：从样本集、评分器到版本回归门禁
+
+## Agent Eval 是什么
 
 Agent Eval 是一套用固定输入和运行条件执行真实 Runtime、保存轨迹并比较版本的质量实验。它位于 Agent 实现与发布门禁之间，用于发现检索、工具路径、证据支持或权限行为的回归，而不是只给最终答案打一个总分。
 
@@ -272,7 +274,7 @@ def test_quality_failure_requires_review() -> None:
 
 候选可以在平均相关性上提高，却让表格问题下降或工具次数翻倍。报告需要列出逐样本差异和严重失败，方便判断是否接受取舍。
 
-## 阈值怎样设才不自欺
+## 阈值来自基线、风险与业务容忍度
 
 没有适用于所有 Agent 的通用“90 分上线线”。可以从当前稳定版本建立基线，再按业务风险设门禁：
 

@@ -2,8 +2,8 @@
 title: LangGraph 条件路由与 Reducer：分支为什么不会互相覆盖
 description: 在最小 StateGraph 上加入问题分类、条件边和并行列表合并，逐步观察状态快照。
 category: ai-agent
-part: LangGraph：状态图和执行语义
-chapter: 17
+part: LangGraph 与状态执行
+chapter: 26
 tags:
   - LangGraph
   - Reducer
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangGraph 条件路由与 Reducer：分支为什么不会互相覆盖
+
+## 条件路由与 Reducer 分别负责什么
 
 条件路由根据当前 State 选择下一节点；Reducer 定义同一 State 字段收到多份更新时怎样合并。两者位于 LangGraph 的状态更新层：路由改变执行方向，Reducer 改变更新组合方式。它们不负责理解业务问题，也不替节点执行副作用。
 
@@ -86,7 +88,7 @@ LangGraph 节点返回的是状态更新，不是要求你原地修改同一个�
 
 这和数据库事务不是一回事。Reducer 只定义图状态更新怎样合并，不提供跨进程锁，也不会替你去重。如果两个并行节点都返回同一个事件，`operator.add` 会保留两份；需要稳定 ID 或去重时，应写自定义 Reducer。
 
-### 没有 Reducer 时究竟发生什么
+### 缺少 Reducer 时的并发覆盖
 
 普通 State 字段使用单值 channel。串行节点先后更新它没有问题，新值覆盖旧值；但同一个 super-step 中有多个节点同时更新这个字段时，运行时无法判断哪个值代表正确结果，应暴露并发更新冲突。不要依赖“完成得晚的节点覆盖完成得早的节点”，并行完成顺序不稳定，而且这会掩盖状态所有权错误。
 
@@ -106,7 +108,7 @@ Reducer 接收两个值：channel 已有值 `left` 和本次更新 `right`，返
 | `events` | 追加 | 节点事件 | 需要稳定顺序和去重 |
 | `evidence` | 自定义去重 | 多路证据 | 不能只按正文去重 |
 
-## 为证据写一个真正可用的 Reducer
+## 实现证据 Reducer
 
 下面的 `Evidence` 带稳定 ID、来源通道和分数。Reducer 按 ID 去重；同一证据被多路召回时保留较高分版本，并把通道集合并起来；最后按分数降序、ID 升序排列。输入是两份证据列表，输出仍是一份新列表，不修改任何输入对象。
 

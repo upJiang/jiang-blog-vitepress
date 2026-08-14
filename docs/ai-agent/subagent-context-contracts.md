@@ -2,8 +2,8 @@
 title: SubAgent：上下文隔离、任务契约与并行协作
 description: 把资料检索、代码验证和内容审查拆成独立任务，处理权限继承、结果契约、冲突、成本和停止条件。
 category: ai-agent
-part: Skill：沉淀任务方法
-chapter: 59
+part: 工具与能力扩展
+chapter: 16
 tags:
   - SubAgent
   - Context Isolation
@@ -26,13 +26,15 @@ lastUpdated: false
 ---
 # SubAgent：上下文隔离、任务契约与并行协作
 
+## SubAgent 是什么
+
 SubAgent 是由主 Agent 创建、在限定上下文和工具权限内完成一个子任务的执行单元。它位于主任务编排和具体工具调用之间，用于隔离独立调查、并行处理无依赖工作，并把结果按约定结构交回主 Agent。
 
 “多开几个 Agent”不等于系统就变强。真正需要回答的是：哪些任务可以独立执行，子任务需要看到什么，能使用哪些工具，结果以什么格式返回，主 Agent 怎样合并**冲突**。
 
 本文用一次技术资料核对作例子：主 Agent 需要同时确认文档事实、代码行为和测试证据。三件事可以并行，但它们不应共享一份无限上下文，也不能直接互相修改文件。
 
-## SubAgent 解决的不是所有问题
+## SubAgent 的适用条件
 
 **SubAgent** 是主 Agent 委派出来的独立执行单元。它可以有自己的上下文、工具白名单、预算和结果契约。主 Agent 仍然拥有最终目标和合并责任。
 
@@ -189,7 +191,7 @@ async def collect_evidence(input_text: str) -> list[EvidencePackage]:
 
 这段代码是调度示意，实际 `runSubtask` 需要实现权限、Deadline、取消、重试和结果 Schema 校验。若某个子任务返回不是 `EvidencePackage`，合并器应标为契约错误，而不是猜测字段含义。
 
-## 冲突不是让模型投票
+## 冲突合并需要确定性规则
 
 假设文档写“超时 10 秒”，代码常量是 5 秒，测试断言也是 5 秒。三个子任务都可能正确描述了自己看到的证据。主 Agent 应输出冲突和版本，而不是用多数票挑一个：
 

@@ -2,8 +2,8 @@
 title: Skill 实战：从空目录写出可验证的任务能力
 description: 从一个页面审计任务开始，创建 SKILL.md、参考资料、结构化采集器和模板，理解触发、渐进读取与失败验证。
 category: ai-agent
-part: Skill：沉淀任务方法
-chapter: 58
+part: 工具与能力扩展
+chapter: 15
 tags:
   - Skill
   - Codex
@@ -26,6 +26,8 @@ updated: 2026-08-07T00:00:00.000Z
 lastUpdated: false
 ---
 # Skill 实战：从空目录写出可验证的任务能力
+
+## Skill 实战要解决什么问题
 
 页面审计 Skill 是一套让 Agent 重复执行只读网页检查的方法。它接收用户明确授权的 URL 与允许主机，采集 HTTP 状态、最终 URL、原始 HTML 中的 title、canonical 和 robots，再把已确认事实与数据缺口分开。Skill 位于用户任务与采集脚本之间：负责触发、顺序和解释边界，不负责修改网站。
 

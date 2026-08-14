@@ -2,8 +2,8 @@
 title: MCP 是什么：与 HTTP API、Tool Calling 和插件的边界
 description: 从 Host 为什么需要统一连接外部能力讲起，区分协议、模型候选、业务 API 和能力打包方式。
 category: ai-agent
-part: MCP、Skill 与 SubAgent 专题
-chapter: 51
+part: 工具与能力扩展
+chapter: 8
 tags:
   - MCP
   - HTTP API
@@ -27,13 +27,15 @@ lastUpdated: false
 ---
 # MCP 是什么：与 HTTP API、Tool Calling 和插件的边界
 
+## MCP 解决什么问题
+
 MCP（Model Context Protocol）是 AI 应用连接外部能力的应用协议。Server 按协议暴露 Tools、Resources 和 Prompts；Host 内的 Client 负责发现和调用；Host 再决定哪些能力交给模型、哪些结果可以进入上下文。它位于 Agent Runtime 与数据库、文件系统或业务 API 之间，解决不同 Host 重复编写连接适配器的问题。
 
 [不用框架实现 Tool Calling](/docs/ai-agent/tool-calling-contracts) 时，`search_notes` 是应用内部 Python 函数，ToolCall、执行门禁和 ToolResult 都在同一进程。只要 Agent 和工具在同一仓库，这个边界最简单。但如果代码编辑器、桌面助手和自动化 Agent 都想使用同一个搜索能力，每个 Host 都重新约定“怎样发现工具、参数长什么样、如何调用、错误怎样返回”，连接代码会迅速重复。
 
 真正需要记住的是：**MCP 是应用间协议，不是模型的新能力，也不是替代所有 HTTP API 的后端框架。**
 
-## 没有 MCP 时，重复发生了什么
+## MCP 统一哪些重复连接工作
 
 假设有三个 Host 和三个外部系统。没有共同协议时，可能出现九份定制适配：每个 Host 分别处理认证、工具目录、参数 Schema、超时和结果格式。
 
@@ -84,7 +86,7 @@ Server 将业务函数注册为 MCP 能力，验证参数，调用后端并返�
 
 Server 不是数据库本身。`search_notes` Server 可以在内部调用 PostgreSQL 或 REST API，但数据库事务、数据范围和缓存策略仍由实现负责。
 
-## Tools、Resources、Prompts 不是三种叫法相同的函数
+## Tools、Resources 与 Prompts 的能力区别
 
 | 能力 | 主要用途 | 典型输入 | 典型输出 | 由谁决定读取/调用 |
 | --- | --- | --- | --- | --- |

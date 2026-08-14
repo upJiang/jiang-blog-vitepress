@@ -2,8 +2,8 @@
 title: Planner、SearchPlan 与停止条件：Agent 怎样决定查到哪里
 description: 把自然语言问题转换成有预算的研究计划，解释查询任务、证据目标、优先级和停止条件。
 category: ai-agent
-part: LangGraph：状态图和执行语义
-chapter: 21
+part: LangGraph 与状态执行
+chapter: 29
 tags:
   - Planner
   - SearchPlan
@@ -26,11 +26,13 @@ lastUpdated: false
 ---
 # Planner、SearchPlan 与停止条件：Agent 怎样决定查到哪里
 
+## Planner 与 SearchPlan 是什么
+
 Planner 是把用户目标拆成有限研究步骤的决策组件，SearchPlan 是经过 Schema、权限、版本和预算校验后交给执行器的中间协议。它们位于 Agent 的“计划层”，介于 Router/意图理解和检索、工具执行之间；Planner 可以提出候选，只有程序生成的可信字段才能决定范围、Deadline 和停止条件。
 
 “请帮我调查访问申请被拒的原因”不是一次查询。系统可能要先找申请条件，再找错误原因，最后确认当前版本。Planner 的职责是把目标拆成有限的研究任务；它不是把所有事情交给模型自由发挥。**SearchPlan** 是程序可以校验、执行、记录和停止的中间协议。
 
-## Planner 不等于 Router，也不等于 ReAct 循环
+## Planner、Router 与 ReAct 的职责区别
 
 Router 在有限选项中选择下一条路径，例如 `greeting / knowledge / blocked`。Planner 把一个目标拆成多个带证据目标和**预算**的任务，任务数量和参数可以随问题变化。ReAct 则常让模型在每一步根据 Observation 再决定下一 Action；如果没有轮次、工具和预算上限，它容易形成开放循环。
 
@@ -281,7 +283,7 @@ def test_stop_decision(
 
 把测试保存到 `test_planner.py` 后执行 `pytest -q`，预期输出 `4 passed`。如果把 Deadline 判断放到 coverage 判断之后，第四个用例会错误返回 `generate` 并失败。这个用例直接验证停止顺序，而不只检查每个分支是否单独存在。生产实现还应把 `reason` 写入结构化事件，方便 Eval 区分早停、预算耗尽和正常覆盖。
 
-## Planner 的输出不是执行命令
+## Planner 输出与执行命令的边界
 
 Planner 负责把用户目标转换成候选研究任务，执行器负责校验并运行。计划中的 query、channel 和 evidence_goal 都来自模型，必须经过白名单、长度、重复和预算检查；Scope、Release、身份、Deadline 和最大轮次来自 Runtime，不能由 Planner 填写。校验失败时可以修复一次格式，但权限和预算冲突直接停止。
 
@@ -298,7 +300,7 @@ Planner 负责把用户目标转换成候选研究任务，执行器负责校验
 | gap_found | Claim 缺口 | 生成一次补搜 | round 2 plan |
 | covered | 全部目标有证据 | 进入生成 | evidence package |
 
-## 计划评测看覆盖而不是文案
+## 计划评测关注目标覆盖与停止条件
 
 固定问题集标注 required Claims 和允许通道，比较 Planner 是否覆盖所有目标、是否生成重复任务、平均候选数、额外 Token 和停止原因。计划文字写得漂亮没有意义；只要漏掉一个必需目标、扩大范围或超过预算就应失败。
 

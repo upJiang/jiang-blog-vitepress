@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import matter from "gray-matter"
-import { articles, articleFile, articlePath, sections } from "../.vitepress/content"
+import { articles, articleFile, articlePath, sectionStages, sections } from "../.vitepress/content"
 import { draftArticleFiles } from "../.vitepress/drafts"
 
 const root = process.cwd()
@@ -174,9 +174,21 @@ for (const slug of removedAiSlugs) {
   if (aiBySlug.has(slug)) fail(`已合并的 AI 旧路由重新进入文章清单：${slug}`)
   if (fs.existsSync(path.join(root, "docs", "ai-agent", `${slug}.md`))) fail(`已合并的 AI 旧路由文件重新出现：${slug}`)
 }
+const aiStageKeys = new Set(sectionStages['ai-agent'].map((stage) => stage.key))
+const expectedAiStageCounts: Record<string, number> = {
+  'model-foundations': 4,
+  'agent-loop': 3,
+  'tools-capabilities': 9,
+  'langchain-components': 8,
+  'langgraph-state': 7,
+  'context-memory': 8,
+  'rag-knowledge': 18,
+  'quality-safety': 5,
+  'runtime-delivery': 8
+}
 for (const article of aiArticles) {
-  if (article.track !== "mainline" && article.track !== "special") fail(`${article.slug} 缺少有效 track。`)
-  if (!Number.isInteger(article.sequence) || Number(article.sequence) < 1) fail(`${article.slug} 缺少有效 sequence。`)
+  if (!aiStageKeys.has(article.stageKey)) fail(`${article.slug} 缺少有效 stageKey。`)
+  if (!Number.isInteger(article.sequence) || Number(article.sequence) !== article.chapter) fail(`${article.slug} 缺少规范顺序 sequence。`)
   if (!article.milestone) fail(`${article.slug} 缺少 milestone。`)
   if (!Array.isArray(article.dependsOn) || !Array.isArray(article.artifactIn) || !Array.isArray(article.artifactOut)) {
     fail(`${article.slug} 缺少连续产物元数据。`)
@@ -200,11 +212,73 @@ for (const article of aiArticles) {
   if (article.artifactOut.length === 0) fail(`${article.slug} 没有可由读者验证的连续产物。`)
 }
 
-for (const track of ["mainline", "special"] as const) {
-  const sequences = aiArticles.filter((article) => article.track === track).map((article) => article.sequence).sort((a, b) => Number(a) - Number(b))
-  sequences.forEach((sequence, index) => {
-    if (sequence !== index + 1) fail(`AI ${track} 的 sequence 不连续：${sequences.join(", ")}`)
-  })
+for (const stage of sectionStages['ai-agent']) {
+  const actual = aiArticles.filter((article) => article.stageKey === stage.key).length
+  const expected = expectedAiStageCounts[stage.key]
+  if (actual !== expected) fail(`AI/Agent 阶段 ${stage.label} 应为 ${expected} 篇，实际为 ${actual} 篇。`)
+}
+
+const aiIndexBody = matter(fs.readFileSync(path.join(root, 'docs/ai-agent/index.md'), 'utf8')).content
+if (/推荐阅读顺序|专题阅读/.test(aiIndexBody)) {
+  fail('AI/Agent 索引不能保留推荐阅读顺序或专题阅读双轨语义。')
+}
+if (aiArticles.some((article) => article.part === '认识 AI 应用' || article.part === 'Tool、MCP、Skill 与 SubAgent')) {
+  fail('AI/Agent 文章仍使用旧的双轨或专题分组。')
+}
+
+function articleHeadings(slug: string): { h1: string | undefined; h2: string[] } {
+  const article = aiBySlug.get(slug)
+  if (!article) return { h1: undefined, h2: [] }
+  const content = matter(fs.readFileSync(path.join(root, articleFile(article)), 'utf8')).content
+    .replace(/(?:```|~~~)[^\n]*\n[\s\S]*?(?:```|~~~)/g, '')
+  return {
+    h1: content.match(/^#\s+(.+)$/m)?.[1],
+    h2: [...content.matchAll(/^##\s+(.+)$/gm)].map((match) => match[1])
+  }
+}
+
+for (const article of aiArticles) {
+  const headings = articleHeadings(article.slug)
+  if (headings.h1 !== article.title) fail(`${article.slug} 的 H1 与文章标题不一致。`)
+  if (headings.h2.length === 0) fail(`${article.slug} 缺少可进入本文目录的 H2。`)
+}
+
+const focusHeadingSequences: Record<string, string[]> = {
+  'llm-workflow-rag-agent': [
+    '先用同一个问题看四条执行路径',
+    '四个概念分别负责什么',
+    'LLM 的职责与四条边界',
+    '工作流为什么由程序控制',
+    'RAG 怎样把外部知识带进回答',
+    'Agent 怎样在受限循环中选择下一步',
+    '怎样选择最小可行方案'
+  ],
+  'python-openai-responses-first-call': [
+    'Responses API 解决什么问题',
+    '请求由哪些字段组成',
+    '准备 Python 环境和凭证',
+    '发出第一次同步请求',
+    '读取文本、响应状态和 usage',
+    '流式事件怎样到达',
+    '认证、限流、超时和空响应怎样区分',
+    '用 Fake Adapter 测试无密钥路径'
+  ],
+  'python-agent-loop-from-scratch': [
+    'Agent 循环的定义与作用',
+    '从用户输入到最终回答的执行链路',
+    '执行链路的 Python 实现',
+    '循环终止与异常处理',
+    '状态复杂化后的框架选择'
+  ]
+}
+
+for (const [slug, expected] of Object.entries(focusHeadingSequences)) {
+  const actual = articleHeadings(slug).h2
+  let cursor = 0
+  for (const heading of actual) {
+    if (heading === expected[cursor]) cursor += 1
+  }
+  if (cursor !== expected.length) fail(`${slug} 的重点标题树未按学习顺序排列。`)
 }
 
 for (const file of markdownFiles) {

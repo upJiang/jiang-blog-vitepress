@@ -1,11 +1,9 @@
 ---
 title: LangChain 结构化输出：原生约束、Pydantic 解析与有限修复
-description: >-
-  区分模型原生 Structured Outputs、Tool Calling 和文本后置解析，使用 PydanticOutputParser 实现嵌套
-  SearchPlan 校验、错误分类与最多一次修复。
+description: 区分模型原生 Structured Outputs、Tool Calling 和文本后置解析，使用 PydanticOutputParser 实现嵌套 SearchPlan 校验、错误分类与最多一次修复。
 category: ai-agent
-part: LangChain：从函数到 Agent
-chapter: 11
+part: LangChain 组件组合
+chapter: 20
 tags:
   - LangChain
   - Pydantic
@@ -29,6 +27,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangChain 结构化输出：原生约束、Pydantic 解析与有限修复
+
+## LangChain 结构化输出解决什么问题
 
 LangChain 结构化输出是把模型生成结果转换成应用可校验对象的几种集成路径。模型原生约束在生成阶段限制结构，Tool Calling 用工具参数承载对象，Pydantic Parser 则在文本生成后解析和校验。它们位于 ChatModel 输出与业务命令之间，不负责补齐用户权限、Scope 或 Deadline。
 
@@ -118,7 +118,7 @@ flowchart LR
 
 当供应商没有原生 Schema 能力，或应用需要独立解析历史文本时，后置 Parser 很有用；能使用原生严格结构化输出时，通常优先减少格式失败，再保留本地 Pydantic 防御性校验。
 
-## Format instructions 是提示，不是协议保证
+## Format instructions 的约束边界
 
 `parser.get_format_instructions()` 会根据模型生成一段格式要求。将它作为模板变量插入 System/Human Prompt，可以告诉模型字段与 JSON 形状。
 

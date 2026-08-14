@@ -1,11 +1,9 @@
 ---
 title: LangChain Tool：Schema、ToolRuntime 与受控执行边界
-description: >-
-  从一次 search_notes 调用拆开工具描述、参数 Schema、ToolCall、可信
-  ToolRuntime、ToolMessage、返回值校验和错误终态，并用七个测试验证权限与失败语义。
+description: 从一次 search_notes 调用拆开工具描述、参数 Schema、ToolCall、可信 ToolRuntime、ToolMessage、返回值校验和错误终态，并用七个测试验证权限与失败语义。
 category: ai-agent
-part: LangChain：从函数到 Agent
-chapter: 12
+part: LangChain 组件组合
+chapter: 21
 tags:
   - LangChain
   - Tool Calling
@@ -29,6 +27,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangChain Tool：Schema、ToolRuntime 与受控执行边界
+
+## LangChain Tool 是什么
 
 LangChain Tool 是把一个程序能力注册为模型可描述、Runtime 可校验和执行的对象。Schema 声明模型能填写的参数，ToolRuntime 携带服务端身份、Scope 与 Deadline，ToolMessage 保存执行结果并关联原 ToolCall。它位于模型决策和真实函数之间，模型只能提出调用，不能直接获得数据库或外部系统权限。
 
@@ -70,7 +70,7 @@ LangChain 的 Tool 在模型和程序之间建立一份可机器读取的契约�
 
 Tool 不是**权限**系统。它可以描述“查询资料”，却不知道当前 HTTP 请求是谁发起的，也不能仅凭模型参数决定租户、数据范围或审批权限。身份与范围必须来自认证后的服务端上下文。
 
-### Tool、Tool Calling 和 ToolCall 不是同一个东西
+### Tool、Tool Calling 与 ToolCall 的职责区别
 
 | 名称 | 它是什么 | 谁产生 | 是否已经执行 |
 | --- | --- | --- | ---: |
@@ -558,7 +558,7 @@ artifact 并不天然可信。它仍来自 Repository 或外部 API，进入证�
 
 ToolMessage 是模型的观察，不等于最终对用户的错误响应。Runtime 还要把它转换成稳定事件和终态。权限拒绝、取消和 Deadline 到期通常不应该重新进入模型循环。
 
-## Tool 返回值为什么仍是不可信内容
+## Tool 返回值的信任边界
 
 只读工具不代表内容安全。文档、网页或第三方接口可能返回：
 

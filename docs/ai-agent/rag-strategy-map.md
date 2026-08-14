@@ -2,8 +2,8 @@
 title: RAG 策略地图：Naive、Advanced、Adaptive、Corrective 与 Agentic RAG
 description: 用同一知识问答分别运行固定检索、查询改写、纠错检索和 Agentic 研究，说明复杂度增加换来了什么。
 category: ai-agent
-part: RAG 与知识工程：策略
-chapter: 33
+part: RAG 知识工程
+chapter: 40
 tags:
   - RAG
   - Adaptive RAG
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # RAG 策略地图：Naive、Advanced、Adaptive、Corrective 与 Agentic RAG
+
+## RAG 策略是什么
 
 RAG 策略是一组决定检索链怎样执行的控制方案：保持固定、增强召回、根据输入路由、纠正低质量结果，或交给 Agent 有界规划。它位于问题理解和 Evidence 产出之间，用于让不同难度的问题采用与风险相称的检索路径，而不是选择某个向量库品牌。策略越复杂，需要保存和验证的状态、预算与失败路径也越多。
 
@@ -322,7 +324,7 @@ def test_no_progress_does_not_repeat_correction() -> None:
 
 这些测试还没有验证检索质量。路由测试回答“选了哪条路”，Recall 与证据支持率回答“这条路是否有效”，两类测试会在本组最后一篇合并。
 
-## 怎样从 Naive 逐步升级，而不是一次装满组件
+## 从 Naive RAG 按问题逐步升级
 
 先为问题集标注类型和必要证据。运行 Naive 基线后，把失败按层分类：
 

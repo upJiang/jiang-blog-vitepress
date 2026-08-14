@@ -2,8 +2,8 @@
 title: pgvector、索引结构、召回率与向量写入
 description: 从精确扫描推进到 HNSW/IVFFlat，理解距离算子、过滤顺序、索引参数、批量写入和召回评测。
 category: ai-agent
-part: 知识怎样进入 Agent
-chapter: 43
+part: RAG 知识工程
+chapter: 50
 tags:
   - PostgreSQL
   - pgvector
@@ -24,6 +24,8 @@ updated: 2026-08-06T00:00:00.000Z
 lastUpdated: false
 ---
 # pgvector、索引结构、召回率与向量写入
+
+## pgvector 是什么
 
 pgvector 是 PostgreSQL 的扩展，为关系表增加向量列、距离算子和近似最近邻索引。它位于 Embedding 投影和 Retriever 之间：负责把带有 Release、模型版本和范围字段的向量存起来并参与候选召回，不负责生成向量、决定权限，也不自动证明 Recall 合格。
 

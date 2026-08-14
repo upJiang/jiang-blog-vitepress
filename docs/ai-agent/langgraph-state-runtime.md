@@ -2,8 +2,8 @@
 title: LangGraph 是什么：用 State、Node 和 Edge 运行第一个状态图
 description: 先解释状态图在 Agent 中的位置，再从普通函数推导 StateGraph，并观察分支、super-step、Reducer 和 Checkpoint 边界。
 category: ai-agent
-part: LangGraph：状态图和执行语义
-chapter: 16
+part: LangGraph 与状态执行
+chapter: 25
 tags:
   - LangGraph
   - State
@@ -28,6 +28,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangGraph 是什么：用 State、Node 和 Edge 运行第一个状态图
+
+## LangGraph 是什么
 
 LangGraph 是一个用共享状态和有向图组织长流程的运行库。State 保存节点之间要传递的数据，Node 完成一次计算并返回局部更新，Edge 决定下一步。Reducer 处理同一轮的多份更新，Checkpoint 保存可恢复的执行快照。
 
@@ -127,7 +129,7 @@ class AgentState(TypedDict, total=False):
 
 `question` 保存原始输入，避免后续节点只能看到改写结果；`intent` 是条件边使用的枚举；`queries` 保存检索词；`evidence` 保存当前证据；`answer` 保存候选答案；`status` 让 API 能够把图终态映射成可观察的业务状态。使用 `total=False` 表示节点可以只返回自己负责的字段，而不必每次重新构造完整状态。
 
-### State 不是“把所有变量塞进 TypedDict”
+### State 只保存跨节点共享的数据
 
 设计 State 时，可以逐字段回答四个问题：谁创建它、谁读取它、谁能更新它、恢复时是否需要它。
 
@@ -215,7 +217,7 @@ app = builder.compile()
 
 `StateGraph(AgentState)` 告诉框架每个节点使用哪份状态契约；三个 `add_node` 把函数注册到图中；`START` 把入口连到理解节点；条件边调用 `route_after_understand`，再按返回值选择检索或直接结束；检索固定进入组织答案；组织答案后到 `END`。如果意图枚举增加了 `cancelled` 却没有增加对应路由，图应该在测试中失败，而不是静默走错分支。
 
-### `compile()` 到底检查和产出了什么
+### `compile()` 的检查项与产物
 
 Builder 是图的声明阶段：注册节点、入口、出口和边。`compile()` 把声明转换成可调用的 Pregel 运行对象，并检查没有入口、未知节点等结构问题；如果传入 Checkpointer、缓存或中断配置，也是在编译时绑定。
 
@@ -259,7 +261,7 @@ python -m ai_agent_runtime.langgraph_basics
 
 本文在 Python 3.13.2、LangGraph 0.6.11 下实际运行。定向测试输出 `5 passed`；入口打印四条路径：`answer_ready`、`greeting`、`need_more_input` 和 `no_evidence`。内置 Retriever 只是一组确定性测试数据，不能证明真实检索质量。
 
-## 图不是按代码行运行，而是按 super-step 推进
+## 图按 super-step 推进
 
 LangGraph 的执行模型借鉴 Pregel。你可以先把一个 super-step 理解为“一批当前可以运行的节点读取同一轮已提交状态，完成后再合并更新”。串行图中每轮通常只有一个节点；出现并行边时，同一轮会有多个节点。
 
@@ -292,7 +294,7 @@ flowchart LR
 
 这个模型解释了并发写冲突：如果同一个 super-step 里的两个节点都更新 `answer`，运行时不能靠“最后一个完成者”随意决定结果。没有声明合并规则时应该暴露冲突；需要收集多份结果的字段必须定义 Reducer。
 
-## 把“无证据”设计成状态，而不是空字符串
+## 将无证据设计为显式状态
 
 当前最小示例总会返回一条模拟证据。真实 Retriever 可能返回空数组。此时 `compose_node` 不应继续请求模型“尽量回答”，否则 RAG 会退化成没有依据的普通生成。
 
@@ -353,7 +355,7 @@ flowchart LR
 
 节点完成后先保存状态，进程中断时按 `run_id` 找到最近快照，恢复前检查任务是否已经取消或超时，再决定是否重试。若节点已经发送邮件、写入外部系统，恢复可能再次执行副作用，因此要用幂等键或把副作用放到可对账的任务表。短小的只读问答可以不启用持久 Checkpoint；长时间研究和人工暂停才值得增加存储成本。
 
-## 用 pytest 验证路径，而不是只看一句答案
+## 用 pytest 验证路径和中间状态
 
 下面的测试复用前文编译出的 `app`。输入覆盖知识问题、寒暄和空问题，断言同时检查路由、终态与节点轨迹；这样即使最终文案变化，也能发现条件边走错、检索被跳过或拒答分支丢失。测试失败时先比较实际 `route` 和 `status`，再根据 `trace` 定位哪个节点没有返回预期状态更新。
 

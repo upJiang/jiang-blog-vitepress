@@ -2,8 +2,8 @@
 title: 向量库怎样选：pgvector、Qdrant、Milvus、Weaviate 与 Pinecone
 description: 从数据所有权、过滤、事务、规模、运维和供应商依赖比较向量存储，而不是只看名称。
 category: ai-agent
-part: RAG 与知识工程：Embedding 和写入
-chapter: 42
+part: RAG 知识工程
+chapter: 49
 tags:
   - Vector Database
   - Architecture
@@ -24,6 +24,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # 向量库怎样选：pgvector、Qdrant、Milvus、Weaviate 与 Pinecone
+
+## 向量存储在 RAG 中的位置
 
 “我们要做 RAG，向量库选哪个？”这个问题如果从产品名称开始，最后通常会变成一张功能勾选表。真正影响系统的约束往往在功能表之外：用户只能看哪些 Chunk，权限变化多久生效，文档和向量是否需要同一事务，团队能否值守新集群，备份恢复是否演练过，模型换维度时怎样双轨迁移。
 
@@ -100,7 +102,7 @@ flowchart TB
 
 图中的选择不是一次性的。数据规模、过滤复杂度、团队能力和供应商约束变化后，可以重新评估；因此 ADR 必须写触发重新评估的条件。
 
-## 五种方案分别是什么，不是什么
+## 五种向量存储方案的系统位置
 
 ### pgvector
 

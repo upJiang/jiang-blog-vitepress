@@ -2,8 +2,8 @@
 title: MCP 客户端、测试、认证与安全边界
 description: 从 listTools 和 callTool 走到超时、取消、OAuth、权限、返回值校验、日志审计与远程部署检查。
 category: ai-agent
-part: MCP：连接外部能力
-chapter: 56
+part: 工具与能力扩展
+chapter: 13
 tags:
   - MCP Client
   - OAuth
@@ -25,6 +25,8 @@ updated: 2026-08-07T00:00:00.000Z
 lastUpdated: false
 ---
 # MCP 客户端、测试、认证与安全边界
+
+## MCP Client 是什么
 
 MCP Client 是 Host 内部连接一个 Server 的协议组件。它负责版本探测、能力发现、请求发送、结果校验、超时、取消和关闭，位于 Agent 的工具选择与外部 Server 之间。Client 不等于整个 Host：用户授权、工具暴露策略和模型上下文仍由 Host 管理，业务数据权限由 Server 重新判断。
 
@@ -84,7 +86,7 @@ try {
 
 `listTools()` 不只是为了展示名称。Client 会取得输入和输出 Schema，后续 `callTool()` 可据此验证结构化结果。Host 还要把目录按当前用户与任务过滤，不能把 Server 声明的所有能力原样交给模型。
 
-## 关闭连接是功能，不是清理细节
+## 连接关闭与资源释放
 
 stdio transport 会启动子进程，Client 因此拥有它的生命周期。伴随测试在连接后确认 `transport.pid` 存在，`finally` 关闭 Client，稍后再断言 PID 为 `null`：
 
@@ -206,7 +208,7 @@ Server 端至少重新判断：
 
 进行中的 Run 固定目录或 Schema 指纹。收到工具列表变化通知时，新 Run 可以刷新；当前 Run 若继续执行，应使用已验证版本，安全紧急下线则明确返回 `tool_unavailable`。
 
-## Server 结果是不可信外部内容
+## Server 结果的信任边界
 
 `search_notes` 的 `excerpt` 可能包含“忽略之前规则”之类文本。即使 Schema 正确，这仍只是数据，不是系统指令。Client 和 Host 应执行四层处理：
 

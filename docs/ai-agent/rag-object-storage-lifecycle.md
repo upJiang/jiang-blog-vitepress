@@ -2,8 +2,8 @@
 title: RAG 的对象存储：文件、对象键、校验和与生命周期
 description: 把上传文件和解析片段分开管理，讲清对象键、Multipart、预签名、校验和、孤立对象和删除边界。
 category: ai-agent
-part: RAG 与知识工程：导入和版本
-chapter: 35
+part: RAG 知识工程
+chapter: 42
 tags:
   - Object Storage
   - RAG
@@ -25,6 +25,8 @@ lastUpdated: false
 ---
 # RAG 的对象存储：文件、对象键、校验和与生命周期
 
+## 对象存储在 RAG 中的位置
+
 对象存储是通过 Bucket 和 Object Key 保存不可变字节对象的服务。在 RAG 导入链里，它位于上传接口与解析 Worker 之间，保存 PDF、Office、图片等原始文件；数据库保存租户、状态、校验和与知识 Release，切片和向量索引由下游系统负责。
 
 一个 300 MB 的演示文稿上传到知识库时，应用 API 有三种常见做法：把字节塞进数据库、先写 API 服务器本地磁盘，或保存到**对象存储**。前两种在单机演示里能工作，到了多实例和异步 Worker 就会暴露问题：数据库备份被大文件拖慢，本地文件只在某一台机器上，容器重建后路径又消失。
@@ -33,7 +35,7 @@ lastUpdated: false
 
 每个候选 Release 都应能追溯到不可变的源字节。本文从创建上传意图、浏览器直传、服务端校验、触发导入，一直讲到未完成 **Multipart** 和孤立对象的清理边界。
 
-## 对象存储不是“网络硬盘路径”
+## 对象键、内容校验和与文件身份
 
 对象存储通常由 Bucket、Object Key、Object Bytes、Metadata 和版本/**生命周期**策略组成。
 
@@ -82,7 +84,7 @@ sequenceDiagram
 
 浏览器输入的大小和 hash 只是“预期值”，不能作为最终事实。API 的 `HEAD` 或校验接口读取实际对象大小、服务端记录的校验和和版本标识。对象验证成功表示字节完整，不表示文件安全、解析成功或知识可发布；后面还有安全扫描、解析和 Release 门禁。
 
-## 预签名请求到底授权了什么
+## 预签名请求的授权范围
 
 预签名请求把一组有限条件签进 URL 或表单：HTTP 方法、Bucket、对象键、过期时间，某些实现还可绑定 Content-Type、大小区间和校验和头。它的作用是让持有者在短时间内完成指定上传，不暴露服务端长期 Access Key。
 
@@ -227,7 +229,7 @@ class UploadRecord:
 
 对账输出应分成 `retry_complete`、`abort_multipart`、`quarantine_orphan`、`repair_dispatch` 和 `manual_review`，而不是一个“自动清理”列表。删除是最后一步，必须再次检查引用。
 
-## 删除边界：谁仍可能引用对象
+## 删除前检查对象引用
 
 原始对象可能被候选 Release、active Release、retained 回滚版本、正在运行的导入任务或正在生成下载链接的用户请求引用。清理器至少确认：
 

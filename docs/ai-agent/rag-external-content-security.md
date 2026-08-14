@@ -2,8 +2,8 @@
 title: 外部内容进入 RAG 前的安全准入
 description: 从 URL、压缩包和网页内容开始，检查协议、DNS、重定向、MIME、Magic、压缩炸弹和提示注入。
 category: ai-agent
-part: RAG 与知识工程：导入和版本
-chapter: 36
+part: RAG 知识工程
+chapter: 43
 tags:
   - RAG
   - SSRF
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # 外部内容进入 RAG 前的安全准入
+
+## RAG 外部内容准入是什么
 
 安全准入是一组在外部字节进入解析器和索引前执行的确定性检查。它位于 URL/上传对象与 RAG 导入流水线之间，用于限制网络目标、文件类型、压缩展开、解析资源和语义风险。检查通过只表示内容可以进入下一层，不表示文档事实可信。
 

@@ -1,11 +1,9 @@
 ---
 title: Node.js 实战：实现一个只读 search_notes MCP Server
-description: >-
-  使用 TypeScript MCP SDK v2 分包和 Zod 4 建立现代 stdio Server，注册输入输出
-  Schema，并验证工具发现、参数拒绝与结构化结果。
+description: 使用 TypeScript MCP SDK v2 分包和 Zod 4 建立现代 stdio Server，注册输入输出 Schema，并验证工具发现、参数拒绝与结构化结果。
 category: ai-agent
-part: Tool、MCP、Skill 与 SubAgent
-chapter: 55
+part: 工具与能力扩展
+chapter: 12
 tags:
   - MCP
   - Node.js
@@ -29,6 +27,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Node.js 实战：实现一个只读 search_notes MCP Server
+
+## MCP Server 是什么
 
 Node.js MCP Server 是运行在 Client 与业务代码之间的协议适配器。它把 Zod Schema 暴露为 Tool 契约，在调用进入 Repository 前校验参数，再把业务对象编码成 MCP 内容。它适合已有 Node 服务、CLI 或本地开发工具，不因为使用 JavaScript 就改变 Server 的权限责任。
 

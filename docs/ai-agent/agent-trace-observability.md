@@ -2,8 +2,8 @@
 title: Agent Trace：日志、指标与一次运行怎样关联
 description: 从一次慢回答出发，用 Trace 还原模型、检索、工具、队列和验证阶段，并设计低基数指标与隐私安全日志。
 category: ai-agent
-part: 答案质量与运行
-chapter: 68
+part: 答案可信、安全与质量
+chapter: 62
 tags:
   - OpenTelemetry
   - Trace
@@ -26,6 +26,8 @@ lastUpdated: false
 ---
 # Agent Trace：日志、指标与一次运行怎样关联
 
+## Agent Trace 是什么
+
 Agent Trace 是一组按父子关系记录单次运行各阶段的 Span。它位于 Agent Runtime 和可观测平台之间，用于把排队、检索、模型、工具与验证耗时串成一条路径；Metric 观察大量运行的变化，Log 保存离散事件，三者通过稳定 ID 关联。
 
 用户说“这个回答等了二十秒”，普通访问日志只告诉你接口最终返回 200。时间耗在排队、检索、重排、模型首 Token、工具重试还是引用验证，仍然不知道。
@@ -43,7 +45,7 @@ Agent Trace 是一组按父子关系记录单次运行各阶段的 Span。它位
 
 **Trace** 通常从请求或任务开始，但业务查询与取消应围绕 `turn_id`。如果只保存 request ID，客户端断线后就无法把重连查询与原运行关联起来。
 
-## 一条 Agent Trace 应该长什么样
+## Agent Trace 的 Span 层级
 
 ```mermaid
 flowchart TD
@@ -166,7 +168,7 @@ def traced_search(retriever: Retriever, command: SearchCommand) -> list[str]:
 
 `turn_id` 和 `task_id` 可作为 Span 属性用于单次定位，但它们属于高基数，不进入 Metric label。若隐私策略不允许直接记录，可使用受控关联表或短期标识。问题正文、Evidence 文本、访问令牌和任意工具返回不出现在 Span。
 
-### 怎样验证埋点不是“写了但没用”
+### 验证 Span 是否覆盖真实执行路径
 
 准备一个返回两个 ID 的 Fake Retriever 和一个抛 `TimeoutError` 的 Fake。运行正常分支时，Console 输出应包含 `agent.retrieval.candidate_count=2` 和 OK；失败分支应包含 `agent.error.type=deadline_exceeded` 和异常事件，同时调用仍会向上抛出超时。
 
@@ -260,7 +262,7 @@ API 创建 Turn 后把任务交给 Worker。任务消息应携带标准 Trace Co
 
 失去 Lease、取消或 Deadline 到达后，Worker 要停止继续写事件。Trace 记录停止原因，但业务状态仍由数据库的条件更新保证单一终态。
 
-## 告警怎样避免只有噪声
+## 告警需要稳定信号与处置动作
 
 一个可行动告警要包含窗口、指标、阈值来源、影响范围和排查入口。例如“某模型版本的 deadline_exceeded 比稳定基线上升，并且工具超时占主要比例”，比“接口有错误”更可操作。
 

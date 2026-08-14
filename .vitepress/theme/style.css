@@ -58,6 +58,8 @@
   --vp-custom-block-tip-bg: rgb(22 163 74 / 8%);
   --vp-custom-block-warning-border: #d97706;
   --vp-custom-block-warning-bg: rgb(217 119 6 / 9%);
+  --xj-custom-block-info-border: #64748b;
+  --xj-custom-block-info-bg: #f1f5f9;
   --vp-layout-max-width: 1520px;
   --vp-sidebar-width: 288px;
 }
@@ -91,6 +93,8 @@
   --xj-diagram-line: #94a3b8;
   --xj-diagram-shadow: rgb(0 0 0 / 30%);
   --xj-diagram-scrim: rgb(2 6 23 / 82%);
+  --xj-custom-block-info-border: #64748b;
+  --xj-custom-block-info-bg: #161d2a;
   --xj-diagram-input-fill: #123c36;
   --xj-diagram-input-stroke: #2dd4bf;
   --xj-diagram-input-text: #ccfbf1;
@@ -114,6 +118,37 @@
   --xj-diagram-failure-text: #fee2e2;
   --vp-code-line-highlight-color: rgb(255 255 255 / 6%);
   --vp-code-line-number-color: #6f7884;
+}
+
+.vp-doc .custom-block {
+  margin: 24px 0;
+  border-width: 0 0 0 3px;
+  border-style: solid;
+  border-radius: 6px;
+  padding: 16px 18px;
+}
+
+.vp-doc .custom-block.info {
+  border-color: var(--xj-custom-block-info-border);
+  background: var(--xj-custom-block-info-bg);
+}
+
+.vp-doc .custom-block .custom-block-title {
+  margin: 0 0 10px;
+  color: var(--vp-c-text-1);
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.vp-doc .custom-block p,
+.vp-doc .custom-block ul {
+  margin: 8px 0;
+}
+
+.vp-doc .custom-block strong {
+  color: inherit;
 }
 
 * {

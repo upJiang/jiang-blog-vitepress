@@ -2,8 +2,8 @@
 title: Python 实战：实现同一份 search_notes MCP Server
 description: 使用 Python、MCP 2.0、Annotated 约束和进程内 Client 实现同一工具契约。
 category: ai-agent
-part: Tool、MCP、Skill 与 SubAgent
-chapter: 54
+part: 工具与能力扩展
+chapter: 11
 tags:
   - MCP
   - Python
@@ -26,6 +26,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Python 实战：实现同一份 search_notes MCP Server
+
+## Python MCP Server 的输入与输出
 
 MCP Server 是把业务能力适配为 MCP Tool、Resource 或 Prompt 的程序。它位于 Client 与真实数据源之间：对外声明 Schema、校验协议输入、调用业务层并编码结果；对内仍要依赖 Repository、认证和权限策略。Server 不是数据库，也不能把模型传来的 `user_id` 当成可信身份。
 
@@ -101,7 +103,7 @@ class SearchNotesResult(BaseModel):
 
 公开结果只有 `id`、`title` 和摘要。fixture 内部仍保存完整 `body`，Repository 显式映射成 `excerpt`，避免不小心把内部记录所有字段透传给 Client。真实项目还应在 Repository 查询层限制可见范围，而不是先读取全部数据再在 Tool 函数里过滤。
 
-## Repository 不需要知道 MCP
+## Repository 与 MCP 适配层的职责
 
 Repository 接收已经收窄的业务参数，返回公开结果模型：
 

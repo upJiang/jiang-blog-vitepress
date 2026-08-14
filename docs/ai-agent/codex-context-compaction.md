@@ -2,8 +2,8 @@
 title: Codex 的手动与自动上下文压缩：从机制到 Agent 设计启示
 description: 用 Codex 当前公开的 /compact、自动阈值、Hook 和 App Server 事件解释压缩生命周期，并实现不覆盖原始历史的审计记录。
 category: ai-agent
-part: 上下文工程：预算和记忆
-chapter: 27
+part: 上下文与记忆
+chapter: 34
 tags:
   - Codex
   - Compaction
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Codex 的手动与自动上下文压缩：从机制到 Agent 设计启示
+
+## 上下文压缩是什么
 
 Codex 上下文压缩是一种把较早对话换成较短表示的运行机制，用于为后续模型调用腾出窗口空间。它位于会话历史和下一次活动上下文之间，可以由 `/compact` 手动触发，也可以在长对话达到阈值后自动触发。
 
@@ -67,7 +69,7 @@ Codex 也会在长对话中自动压缩。`model_auto_compact_token_limit` 可�
 
 自动触发需要比手动触发更谨慎，因为它可能发生在用户没有显式要求的时候。自建 Agent 至少要记录触发原因、源消息范围、压缩策略版本和压缩后的校验结果，否则一次质量下降很难定位是模型回答问题还是历史投影问题。
 
-## `total` 与 `body_after_prefix` 到底统计什么
+## `total` 与 `body_after_prefix` 的统计范围
 
 `model_auto_compact_token_limit_scope` 有两个公开取值：
 
@@ -150,7 +152,7 @@ command = ["python3", "/absolute/path/to/check_compaction.py"]
 
 第一个 Hook 只匹配自动压缩，适合记录“预算触发”；第二个同时匹配手动和自动压缩，适合做统一审计。路径必须使用真实绝对路径或配置支持的可解析路径。Hook 脚本发生异常时要留下结构化错误；不要在脚本里输出 Transcript 或凭证。
 
-## App Server 为什么立即返回空对象
+## App Server 的异步生命周期事件
 
 Codex App Server 暴露 `thread/compact/start` 来手动触发线程压缩。请求会立即返回 `{}`，这只表示“触发请求已接受”，不表示压缩已经完成。进度通过同一 `threadId` 上的标准 `turn/*` 和 `item/*` 通知发送，其中包含 `contextCompaction` item 的 `item/started` 与 `item/completed` 生命周期。
 
@@ -303,7 +305,7 @@ def test_validation_does_not_overwrite_transcript() -> None:
 
 Token 减少只是资源指标，不能单独证明质量。可把固定长对话分别交给未压缩基线和候选压缩策略，再问“当前目标是什么、哪些操作被禁止、还有什么没做”，比较字段覆盖与无来源新增。涉及隐私或权限的缺失是硬失败，不能靠平均分掩盖。
 
-## 什么时候不要压缩
+## 不适合压缩的场景
 
 以下内容更适合保留原文或引用，而不是让模型自由摘要：
 

@@ -1,11 +1,9 @@
 ---
 title: Runnable 与 LCEL：串行、并行、分支和异常怎样传播
-description: >-
-  用一个知识问题路由器逐步运行 RunnableSequence、RunnableParallel、RunnableBranch 与
-  Passthrough.assign，追踪每个节点的数据形状、并发和失败边界。
+description: 用一个知识问题路由器逐步运行 RunnableSequence、RunnableParallel、RunnableBranch 与 Passthrough.assign，追踪每个节点的数据形状、并发和失败边界。
 category: ai-agent
-part: LangChain：从函数到 Agent
-chapter: 10
+part: LangChain 组件组合
+chapter: 19
 tags:
   - LangChain
   - LCEL
@@ -29,6 +27,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Runnable 与 LCEL：串行、并行、分支和异常怎样传播
+
+## Runnable 与 LCEL 是什么
 
 Runnable 是 LangChain 中统一输入、输出和调用方式的可组合执行单元；LCEL 是用这些单元声明串行、并行和分支的组合语法。它位于模型调用前后的应用编排层，用于让数据流、批量、异步和异常传播保持可观察；它不是带持久状态和回边的 Agent 图。
 
@@ -116,7 +116,7 @@ parallel output = {
 
 两个子节点默认看到的是同一个输入。它们不应该修改共享可变字典，否则线程或异步**并发**会产生数据竞争。更安全的做法是把输入当不可变值，每个分支返回自己的结果，再由外层合并。
 
-### 并行不等于无限并发
+### 并行需要显式并发上限
 
 同步 batch 可能使用线程池，异步 Runnable 使用任务并发，具体行为取决于实现。`max_concurrency` 控制并发上限；还要同时遵守模型供应商速率限制、数据库连接池、HTTP 连接池和全局准入槽。
 
@@ -454,7 +454,7 @@ parallel retrieval -> normalize scores -> deduplicate -> fuse -> rerank
 
 每一步定义输入类型、排序语义和预算。RAG 章节会具体实现多路检索融合。
 
-## Branch 为什么仍然不是 Agent 循环
+## Branch 与 Agent 循环的控制权区别
 
 Branch 一次选择路径，Sequence 向前执行。即使组合多个 Branch，控制图仍然没有回边。ReAct 需要根据 Tool Observation 返回模型节点，Reflection 需要验证后有限回到修复节点；用嵌套 LCEL 手写循环会让状态和停止条件分散。
 

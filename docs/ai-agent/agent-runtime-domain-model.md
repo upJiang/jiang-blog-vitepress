@@ -2,8 +2,8 @@
 title: Agent Runtime 状态是什么：Conversation、Turn、Message、Event 与 Task
 description: 先区分最小聊天数据和异步运行数据，再实现 Turn 状态机、事件序号、幂等约束与 PostgreSQL 表关系。
 category: ai-agent
-part: LangGraph：状态图和执行语义
-chapter: 20
+part: Runtime、异步执行与交付
+chapter: 63
 tags:
   - Runtime
   - Turn
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Agent Runtime 状态是什么：Conversation、Turn、Message、Event 与 Task
+
+## Runtime 状态模型是什么
 
 Agent Runtime 状态是一组在模型调用之外保存的业务事实，用于让 API、队列、Worker 和客户端对同一轮执行形成一致判断：它属于哪段对话、现在运行到哪一步、已经发过哪些事件，以及哪个 Worker 正在执行。只存一张 `chat_messages` 表可以做同步 Demo；一旦加入排队、取消和断线重放，这张表就无法回答“哪次执行已经结束、哪个事件漏了、迟到 Worker 还能不能写”。
 
@@ -60,7 +62,7 @@ Turn 从用户按下发送开始，到 `completed / failed / cancelled / expired
 
 “重试一次模型调用”不是新 Turn；“用户重新提交同一业务操作”是否新 Turn，要看幂等键是否仍在有效作用域。不要用队列任务 ID 代替 Turn ID，因为一个 Turn 可能经历多次任务投递和 Worker 接管。
 
-### Message：用户可见内容，不是执行日志
+### Message：用户可见内容
 
 用户 Message 保存原问题，Assistant Message 保存最后允许展示的答案。工具入参、检索候选和内部验证错误不应全部伪装成 Message；它们属于 Event、Trace 或证据制品。失败 Turn 可以只有用户消息和一个错误终态，不一定有正式 Assistant Message。
 
@@ -99,7 +101,7 @@ flowchart TD
 
 图中 Conversation 拥有多个 Turn；当前 Turn 关联一条用户 Message、零或一条正式 Assistant Message，以及多条 Event。Task 只负责把 Turn 交给 Worker 执行，Worker 产生的模型或工具过程先写 Event，只有验证成功才提交 Assistant Message 和完成终态。
 
-## ID 怎样连接，又怎样防止串线
+## 对象 ID 的连接与隔离
 
 | ID | 谁生成 | 唯一范围 | 主要用途 |
 | --- | --- | --- | --- |
@@ -322,7 +324,7 @@ def test_only_one_terminal_event_is_allowed() -> None:
 - 一条事件序号分配规则，能支撑 `Last-Event-ID` 重放；
 - 一条 Lease 规则，能拒绝旧 Worker 的迟到写入。
 
-## Conversation、Turn 和 Message 为什么不能合并
+## Conversation、Turn 与 Message 的生命周期差异
 
 Conversation 是用户可继续对话的容器，Turn 是一次有明确输入和终态的执行，Message 是可展示内容。一个 Conversation 包含多个 Turn，一个 Turn 可以产生用户 Message、AI Message 和工具观察，但失败 Turn 也可能没有正式 AI Message。若三者共用一张“聊天记录”表，就很难表达取消、重试、版本快照和重复请求。
 

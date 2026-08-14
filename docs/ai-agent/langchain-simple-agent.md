@@ -1,11 +1,9 @@
 ---
 title: LangChain create_agent：模型、工具与消息循环怎样闭合
-description: >-
-  使用当前 create_agent 和离线 ScriptedChatModel 跑通 HumanMessage、ToolCall、ToolMessage
-  与最终 AIMessage，拆解 Harness、停止条件、递归上限和企业 Runtime 边界。
+description: 使用当前 create_agent 和离线 ScriptedChatModel 跑通 HumanMessage、ToolCall、ToolMessage 与最终 AIMessage，拆解 Harness、停止条件、递归上限和企业 Runtime 边界。
 category: ai-agent
-part: LangChain：从函数到 Agent
-chapter: 13
+part: LangChain 组件组合
+chapter: 22
 tags:
   - LangChain
   - create_agent
@@ -29,6 +27,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangChain create_agent：模型、工具与消息循环怎样闭合
+
+## create_agent 是什么
 
 `create_agent` 是 LangChain 用来组装模型、工具和消息循环的工厂。它返回一个可调用的状态图：模型根据消息提出 ToolCall，工具节点执行受控能力并追加 ToolMessage，模型再决定继续调用还是给出最终 AIMessage。它适合边界清楚的有限 Agent，不替代业务侧的权限、持久化、用量和终态管理。
 
@@ -56,7 +56,7 @@ LangChain 1.x 的 `create_agent` 可以实际运行这条轨迹。离线 `Script
 
 LangChain 当前把这个关系概括为 `Agent = Model + Harness`。`create_agent` 是一个 Harness 工厂：输入 Model、Tools、System Prompt、Middleware、上下文与 Checkpointer 等配置，返回一个编译后的状态图。
 
-### Agent 不是“会调用一次工具的函数”
+### Agent 与单次工具调用的区别
 
 一次函数调用只有输入和返回。Agent 循环还要保留：
 
@@ -471,7 +471,7 @@ Deadline 是绝对截止时刻。模型、工具、重试和验证都共享剩�
 
 企业 Runtime 通常三者同时使用。只设置 recursion limit，无法处理慢工具；只设置 timeout，无法阻止快速死循环；只限制工具次数，模型本身仍可能重复推理。
 
-## 正常结束不等于答案已经可信
+## 正常终态与答案可信度的区别
 
 `create_agent` 的标准停止条件是模型不再返回 ToolCall。它不知道你的业务要求“每个事实必须有可见证据”，也不知道 N1 是否仍属于当前知识版本。
 

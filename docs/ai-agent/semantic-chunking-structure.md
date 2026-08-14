@@ -2,8 +2,8 @@
 title: 语义切片：标题、表格、代码、父子片段与稳定 ID
 description: 从检索问题反推切片边界，保留章节路径、相邻关系、表头、代码块、父子片段和可重建标识。
 category: ai-agent
-part: 知识怎样进入 Agent
-chapter: 39
+part: RAG 知识工程
+chapter: 46
 tags:
   - Chunking
   - Parent-Child Retrieval
@@ -25,6 +25,8 @@ updated: 2026-08-07T00:00:00.000Z
 lastUpdated: false
 ---
 # 语义切片：标题、表格、代码、父子片段与稳定 ID
+
+## 语义切片是什么
 
 语义切片（chunking）是把解析后的 Block 组织成可检索片段的过程。它位于文档解析和 Embedding/索引之间，用于保留足以回答问题的语义边界，同时保存原文定位、版本、权限和稳定 ID。
 
@@ -311,7 +313,7 @@ def build_chunks(blocks: list[Block]) -> list[Chunk]:
 
 `is_hard_boundary`、`exceeds_budget` 和 `make_chunk` 需要按文件类型实现。这段伪代码还没有处理表格合并单元格、列表、overlap、异常 Block 和权限字段，所以不能直接当成生产切片器。
 
-## 质量检查：不要只检查数量
+## 切片质量检查覆盖结构与来源
 
 切片完成后至少抽查五类问题：
 

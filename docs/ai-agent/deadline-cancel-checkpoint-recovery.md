@@ -2,8 +2,8 @@
 title: Deadline、取消、Checkpoint 与停滞恢复
 description: 把用户取消、绝对截止时间、图快照和停滞扫描放进同一状态机，明确谁能改变终态。
 category: ai-agent
-part: 可信运行：异步和恢复
-chapter: 64
+part: Runtime、异步执行与交付
+chapter: 67
 tags:
   - Deadline
   - Cancellation
@@ -25,6 +25,8 @@ updated: 2026-08-10T00:00:00.000Z
 lastUpdated: false
 ---
 # Deadline、取消、Checkpoint 与停滞恢复
+
+## Deadline、取消与恢复分别解决什么问题
 
 Deadline 是整个 Turn 允许运行到的绝对时刻，取消是一种主动停止信号，Checkpoint 是可恢复的状态快照，停滞恢复则负责接管失去进展的任务。四者位于 Agent Runtime 的资源与恢复层，用于让长任务在超时、用户离开或 Worker 故障后得到明确终态，而不是继续占用资源或从头重复副作用。
 
@@ -158,7 +160,7 @@ async def test_parent_cancellation_is_not_converted_to_failure() -> None:
 
 Checkpoint 写入测试还应注入“副作用提交后、快照提交前”崩溃：恢复器读取副作用幂等键，发现结果已存在后补写 Checkpoint，而不是再次调用外部系统。这是恢复正确性最关键的窗口。
 
-## 取消不是删除
+## 取消信号与状态保留
 
 取消后的 Turn 仍要留下**终态**和原因，便于事件重放和用户查询。可取消步骤应在安全点检查持久化状态与本地事件；不可中断的数据库事务则要等待事务结束，再通过幂等状态阻止后续步骤。恢复器不能把用户主动取消的任务重新排队，只有租约过期且状态为 `running` 的任务才可恢复。
 
@@ -174,7 +176,7 @@ Deadline 是绝对时刻，局部 Timeout 是某一次等待允许使用的时�
 
 安全 Checkpoint 应位于纯计算完成或幂等副作用提交之后。保存“准备写向量”无法证明向量已经写入；恢复时仍需用幂等键查询目标系统。Checkpoint 至少记录 graph version、node、release_id、input hash、completed side effects 和 event sequence，结构变更时通过 schema version 做迁移或拒绝恢复。
 
-## 停滞恢复不是无条件重跑
+## 停滞恢复与副作用幂等
 
 恢复器扫描租约过期的 running Turn，先用条件更新取得新 owner token，再读取最后 Checkpoint。用户已取消、终态已提交或 Deadline 已过的任务不能恢复。旧 Worker 醒来后如果 owner token 不匹配，所有写入都应失败，这能防止两个执行者同时推进状态。
 

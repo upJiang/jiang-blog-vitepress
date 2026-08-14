@@ -2,8 +2,8 @@
 title: Embedding 批处理、限流、部分失败与幂等写入
 description: 把片段分批发送给 Embedding 服务，处理 Token 上限、速率限制、重试、死信和重复写入。
 category: ai-agent
-part: RAG 与知识工程：Embedding 和写入
-chapter: 41
+part: RAG 知识工程
+chapter: 48
 tags:
   - Embedding
   - Batching
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Embedding 批处理、限流、部分失败与幂等写入
+
+## Embedding 批处理写入解决什么问题
 
 批处理是把多条 Chunk 组织成一次 Embedding 请求的传输单位；幂等是同一业务投影重复执行时，结果仍然只留下一个可识别的向量事实。它们位于 `Chunk -> Embedding Provider -> Vector Store -> Release` 这条投影链：批处理约束请求形状，幂等约束重试和恢复后的写入，二者都不改变 Embedding 的语义定义。
 

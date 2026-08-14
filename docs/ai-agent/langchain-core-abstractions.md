@@ -2,8 +2,8 @@
 title: LangChain 核心抽象：Message、Prompt、Model、Parser 与 Runnable
 description: 从一次无框架模型调用开始，逐层映射 LangChain 的消息、提示模板、聊天模型、输出解析器和统一执行协议，并实际运行同步、批量与异步链路。
 category: ai-agent
-part: LangChain：从函数到 Agent
-chapter: 8
+part: LangChain 组件组合
+chapter: 17
 tags:
   - LangChain
   - Message
@@ -27,6 +27,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangChain 核心抽象：Message、Prompt、Model、Parser 与 Runnable
+
+## LangChain 解决什么问题
 
 LangChain Core 是一组用于组合模型调用、消息装配、输出解析和异步执行的接口。它位于应用编排层，连接业务输入与供应商 ChatModel；这些抽象的用途是让同一条调用链可以被独立测试、批量运行和替换模型适配器。
 
@@ -157,7 +159,7 @@ LangChain 并没有改变这条基本数据流。它把 Message、Prompt、Model
 
 ## Message：有角色、有类型，也可能携带工具协议
 
-### 为什么不用普通字符串
+### Message 保留角色与类型信息
 
 聊天模型需要区分规则、用户输入、模型回复和工具结果。把所有内容拼成一段字符串，会失去角色边界，也难以保证 ToolCall 与 ToolMessage 正确配对。
 
@@ -250,7 +252,7 @@ Prompt 输入字典变成 PromptValue，ChatModel 把 PromptValue/Message 转成
 
 Python 类型提示和 `input_schema`/`output_schema` 能帮助检查与生成文档，但不意味着所有运行时业务规则自动执行。空白字符串、越权字段和 Deadline 仍需要显式函数校验。
 
-### RunnableConfig 是运行配置，不是业务载荷
+### RunnableConfig 与业务载荷的边界
 
 调用时可以提供 `run_name`、`tags`、`metadata`、callbacks 和并发设置，用于 Trace 与执行配置。不要把密钥、完整用户原文或大段证据塞进 metadata；Trace 后端可能持久化这些字段。
 
@@ -494,7 +496,7 @@ pytest -q
 
 同步 Web 框架、CLI 或短脚本可以使用 `invoke`。在异步 FastAPI Handler 中直接调用阻塞的 `invoke` 可能占住事件循环线程，应优先使用供应商原生异步实现与 `ainvoke`。
 
-### `batch`：多个独立输入，不是一个长上下文
+### `batch`：多个独立输入的批量执行
 
 `batch([a, b, c])` 表示三个独立调用。它适合离线 Eval 和批量抽取，不应被理解为把三个问题合成一个 Prompt。`max_concurrency` 要根据供应商速率限制和连接池配置，不是越大越快。
 

@@ -1,12 +1,9 @@
 ---
 title: MCP 协议：现代无状态请求、Legacy 握手与两种传输
-description: >-
-  以 2026-07-28 规范为主线，拆开
-  Host/Client/Server、每请求元数据、server/discover、JSON-RPC、MRTR、订阅、stdio 与 Streamable
-  HTTP，并解释旧 initialize 示例为何仍会出现。
+description: 以 2026-07-28 规范为主线，拆开 Host/Client/Server、每请求元数据、server/discover、JSON-RPC、MRTR、订阅、stdio 与 Streamable HTTP，并解释旧 initialize 示例为何仍会出现。
 category: ai-agent
-part: Tool、MCP、Skill 与 SubAgent
-chapter: 52
+part: 工具与能力扩展
+chapter: 9
 tags:
   - MCP
   - JSON-RPC
@@ -29,6 +26,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # MCP 协议：现代无状态请求、Legacy 握手与两种传输
+
+## MCP 协议定义什么
 
 MCP 协议规定 Client 与 Server 怎样描述版本、交换 JSON-RPC 消息、发现能力和返回结果。它位于 Host 的 Agent Runtime 与外部 Server 之间。协议能让不同语言的实现互通，但不负责模型规划、用户授权或业务事务。
 
@@ -131,7 +130,7 @@ Client -> Server: tools/list、tools/call ...
 
 Dual-era Server 可以同时支持两种语义：收到带现代 `_meta` 的请求时按现代协议处理；收到 `initialize` 开场时进入 Legacy 行为。Dual-era Client 则需要先判断对方属于哪个时代，再选择现代请求或旧握手。
 
-## 自动探测并不等于随意回退
+## 自动探测的回退条件
 
 不同传输有不同兼容探测规则。以 stdio 为例，Dual-era Client 先对一次临时或当前连接发送 `server/discover`：
 

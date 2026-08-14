@@ -2,7 +2,7 @@
 title: 什么是 Agent 循环
 description: 从用户输入到最终回答推演有限 Agent 循环，再用 Python 实现模型决策、工具执行、状态更新、终止条件与异常处理。
 category: ai-agent
-part: 认识与第一次运行
+part: Agent 的最小闭环
 chapter: 6
 tags:
   - Agent Loop

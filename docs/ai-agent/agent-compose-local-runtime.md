@@ -2,7 +2,7 @@
 title: 本地 Compose 部署：FastAPI、PostgreSQL/pgvector、Redis、Celery、MinIO 与 SSE
 description: 把此前的模型、图、检索和 Runtime 适配器连接到本地基础设施，解释容器、网络、健康检查、迁移和清理。
 category: ai-agent
-part: 可信运行与完整系统
+part: Runtime、异步执行与交付
 chapter: 69
 tags:
   - Docker Compose
@@ -27,6 +27,8 @@ updated: 2026-08-12
 lastUpdated: false
 ---
 # 本地 Compose 部署：FastAPI、PostgreSQL/pgvector、Redis、Celery、MinIO 与 SSE
+
+## Compose 部署解决什么问题
 
 这篇搭建的是一套单机多容器的 Agent 验证环境。Docker Compose 负责声明 API、数据库、Broker/Worker、对象存储和网络关系，让此前的 Runtime 契约能跨进程验证；它不替应用实现权限、幂等、Lease、终态或引用。
 
@@ -186,7 +188,7 @@ Compose 先启动三个有状态依赖，健康后再启动 API 和 Worker。`de
 
 端口只把 API 绑定到本机回环地址。PostgreSQL、Redis 和 MinIO 不发布到宿主公网，应用通过 Compose 网络服务名访问。生产凭证、备份、TLS 和资源限制不在这份开发配置中，不能直接拿它上线。
 
-## 启动前先验证配置，不要直接拉起
+## 启动前验证配置与依赖
 
 ```bash
 # 展开变量和合并配置；失败时不会创建容器。
@@ -248,13 +250,13 @@ def create_turn(payload: CreateTurnRequest, idempotency_key: str = Header()) -> 
 
 Pydantic 只验证用户问题与幂等 Header 的请求形状；可信身份应由认证依赖注入。`TurnService` 内部使用数据库唯一约束去重，不能只靠 Redis 锁。返回 202 表示任务已接受，不表示回答完成。
 
-## Redis 唤醒与数据库事件谁是真相
+## Redis 协调与数据库事实的边界
 
 Worker 产生事件时，先在 PostgreSQL 事务中写入 `(turn_id, seq)` 唯一事件和状态，再向 Redis 发布轻量唤醒。SSE API 收到唤醒后仍按数据库游标读取。
 
 如果 Redis 短暂不可用，事件已经保存，SSE 可以轮询数据库；如果先 publish 后写库，客户端会被唤醒却查不到事件。Celery Broker 的 ACK 也不能替代业务终态：消息已确认不代表 `turn.completed` 已原子提交。
 
-## 跑一条真正的端到端请求
+## 运行一条端到端请求
 
 有模型 Key 时，在 `.env` 注入 `OPENAI_API_KEY`。没有 Key 时可以验证基础设施、Fake Adapter 和错误路径，但最终端到端模型运行必须明确标记未执行。
 

@@ -2,8 +2,8 @@
 title: Agent 图和 Runtime 测试：状态快照比最终文本更重要
 description: 用单元、图级和运行级测试验证路由、Reducer、Checkpoint、取消和终态，而不是只断言最后一句话。
 category: ai-agent
-part: LangGraph：状态图和执行语义
-chapter: 24
+part: LangGraph 与状态执行
+chapter: 31
 tags:
   - Testing
   - LangGraph
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Agent 图和 Runtime 测试：状态快照比最终文本更重要
+
+## Agent 图和 Runtime 测试是什么
 
 Agent 图和 Runtime 测试，是围绕状态、事件、权限和终态验证执行系统的测试方法。它位于单元测试与页面端到端测试之间：既检查节点和边的逻辑，也检查队列、数据库、Checkpoint、SSE 与取消的交互。它解决的是“答案文字偶尔变化时，怎样仍然发现路径和副作用回归”。
 
@@ -261,7 +263,7 @@ def test_retrieve_node_marks_empty_as_a_state() -> None:
 
 Checkpoint 测试应模拟“节点已执行、进程在下一节点前退出”，恢复后确认已执行节点不会重复调用工具；如果节点有外部副作用，测试必须检查幂等键，而不是只看图返回值。
 
-## Eval 不是普通单元测试的替代品
+## Eval 与单元测试覆盖不同风险
 
 单元测试可以证明引用 ID 不为空，却不能证明证据真的支持 Claim；Eval 可以判断支持度，却不擅长证明并发取消绝不被 completed 覆盖。两者关注不同失败面。
 

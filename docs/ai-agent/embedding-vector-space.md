@@ -2,8 +2,8 @@
 title: Embedding 是什么：从文本向量到语义检索
 description: 解释 Embedding 的定义与向量空间，再沿文档解析、切片、批量写入、索引和召回评估讲清完整检索链路。
 category: ai-agent
-part: 知识怎样进入 Agent
-chapter: 40
+part: RAG 知识工程
+chapter: 47
 tags:
   - Embedding
   - Vector Database
@@ -28,6 +28,8 @@ updated: 2026-08-07T00:00:00.000Z
 lastUpdated: false
 ---
 # Embedding 是什么：从文本向量到语义检索
+
+## Embedding 是什么
 
 Embedding 是把一段文本映射成固定维度的数值向量，用于比较语义接近程度。它位于文档切片之后、向量存储和检索之前：模型只负责投影，不负责回答问题、判断权限或证明引用正确。查询文本和知识片段使用同一模型与版本投影后，程序才可以用距离函数做语义召回。
 
@@ -67,7 +69,7 @@ flowchart LR
 
 ## 从不同文件得到统一结构块
 
-### PDF：先判断是不是扫描件
+### PDF 的文本层与扫描页
 
 普通 PDF 往往包含可复制文字，可以直接读取页面文本块和坐标。扫描 PDF 只有图片，需要把指定页面渲染成图片，再进入 OCR。OCR 是 Optical Character Recognition，用来从图片中识别字符，但它可能错字、漏字或破坏表格结构。
 
@@ -117,7 +119,7 @@ Code(language="bash", text="curl https://example.invalid/status")
 
 ## 从文本得到 Embedding 向量
 
-### Tokenizer 不是按字数切分
+### Tokenizer 按模型词表编码
 
 **Tokenizer** 把字符串转换成模型训练时使用的 Token 序列。一个中文汉字、英文单词、标点或子词都可能对应一个或多个 Token。模型的输入上限按 Token 计算，不按 JavaScript 的 `length` 计算。
 
@@ -181,7 +183,7 @@ print(cosine_similarity([0.8, 0.6], [0.75, 0.66]))
 
 文档向量和查询向量必须来自兼容的模型版本、维度和预处理规则。有些模型要求给查询和文档加不同的任务前缀，漏掉前缀会让两个向量不在预期分布中。向量表至少保存 `model_id`、`model_revision`、`dimension`、`normalized`、`distance` 和 `content_hash`，否则升级后很难判断旧数据能否继续比较。
 
-### 主流模型怎样进入候选，而不是直接抄一个榜单
+### 用任务约束筛选候选模型
 
 截至本文更新时，常见候选可以按运行方式分组。托管 API 中可以关注 OpenAI `text-embedding-3-small` / `text-embedding-3-large`、Cohere Embed 系列和云平台提供的区域化 Embedding 服务；可下载或自部署模型中，经常进入多语言/中文候选的有 BGE-M3、multilingual-e5 系列、Jina Embeddings 系列与 Qwen Embedding 系列。具体模型名、维度、输入上限、许可和服务状态会更新，接入时必须以锁定版本的官方模型卡或供应商文档复核，不能把这张候选表当长期不变的接口清单。
 

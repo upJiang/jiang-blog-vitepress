@@ -2,8 +2,8 @@
 title: RAG 数据导入：从文件准入到可发布知识版本
 description: 先建立可重放的导入状态机，再处理文件准入、解析、OCR、清洗、切片、向量化、质量验证与安全发布。
 category: ai-agent
-part: 知识怎样进入 Agent
-chapter: 34
+part: RAG 知识工程
+chapter: 41
 tags:
   - RAG
   - Ingestion
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # RAG 数据导入：从文件准入到可发布知识版本
+
+## RAG 数据导入是什么
 
 RAG 数据导入是把原始文件转换成在线检索可使用的知识 Release 的离线流水线。它位于上传接口、对象存储、解析/切片、Embedding 和向量索引之间，负责保留来源、版本、任务状态和发布门禁。上传成功只表示系统收到文件，不表示知识已经可检索。
 
@@ -303,7 +305,7 @@ def test_duplicate_completion_is_rejected() -> None:
 
 新 Turn 在创建时读取 active Release 并固定下来；已经运行的 Turn 继续读旧 Release。这样激活发生在回答中途，也不会让一次回答混用两个版本。候选过期或 CAS 冲突时创建新的候选，不覆盖已经上线的更新。
 
-### Release 不是一个模糊的 version 字段
+### Release 是可验证的知识版本
 
 导入链里至少有四种版本，它们解决的问题不同：
 
@@ -338,7 +340,7 @@ flowchart LR
 
 回滚也是一次受控的指针切换，不是删除新索引。旧 Release 按保留策略继续可读，因为运行中的 Turn 和审计记录仍可能引用它；清理任务只处理超过保留期、没有运行引用且不再作为回滚点的版本。
 
-## 失败恢复和清理不是同一动作
+## 失败恢复与数据清理的边界
 
 可重试错误在同一绝对 Deadline 内有限重试；永久输入错误直接失败；人工修复后创建新 attempt。失败候选的数据可以晚些清理，但先保留诊断所需元数据和错误证据。清理任务按明确 Release ID 删除对象、Block、Chunk、向量和缓存，不能用宽泛条件碰到 active/retained 版本。
 

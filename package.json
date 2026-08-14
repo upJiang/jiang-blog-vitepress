@@ -35,6 +35,8 @@
     "typecheck": "vue-tsc --noEmit",
     "content:check": "tsx scripts/check-content.ts",
     "content:quality": "tsx scripts/check-content-quality.ts",
+    "ai-agent:check": "tsx scripts/check-ai-agent-content.ts",
+    "ai-agent:examples": "PYTHONPATH=examples/ai-agent python3 -m unittest discover -s examples/ai-agent/tests -p 'test_*.py'",
     "backend:check": "tsx scripts/check-backend-content.ts",
     "onnx:check": "node scripts/check-onnx-resources.mjs",
     "build:check": "tsx scripts/check-build.ts",

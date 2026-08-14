@@ -2,8 +2,8 @@
 title: 查询改写、问题分解与检索计划
 description: 把口语问题变成可搜索查询，同时保护用户范围、时间、实体和否定条件，并把多目标问题拆成有依赖的计划。
 category: ai-agent
-part: RAG 与知识工程：查询理解
-chapter: 44
+part: RAG 知识工程
+chapter: 51
 tags:
   - Query Rewrite
   - Decomposition
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # 查询改写、问题分解与检索计划
+
+## 查询改写、问题分解与检索计划分别是什么
 
 查询改写是一种把用户表达转换成等价检索查询的语义变换；问题分解是把多目标问题拆成有依赖的子查询；SearchPlan 则是由这些查询、通道和停止条件组成的执行协议。它们位于用户问题和检索器之间，用于降低口语表达与知识文本之间的差异，只能解释或收窄目标，不能改写服务端的租户、Release、ACL 和 Deadline。
 

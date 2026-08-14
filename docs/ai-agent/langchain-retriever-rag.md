@@ -1,11 +1,9 @@
 ---
 title: LangChain Retriever 与 2-Step RAG：从 Document 到 Evidence
-description: >-
-  实现绑定 Scope 与 Release 的 BaseRetriever，用 LCEL
-  串起查询、Document、Evidence、上下文和拒答，解释向量库边界、错误语义、缓存隔离及升级 LangGraph 的条件。
+description: 实现绑定 Scope 与 Release 的 BaseRetriever，用 LCEL 串起查询、Document、Evidence、上下文和拒答，解释向量库边界、错误语义、缓存隔离及升级 LangGraph 的条件。
 category: ai-agent
-part: LangChain：从函数到 Agent
-chapter: 15
+part: LangChain 组件组合
+chapter: 24
 tags:
   - LangChain
   - Retriever
@@ -31,6 +29,8 @@ lastUpdated: false
 ---
 # LangChain Retriever 与 2-Step RAG：从 Document 到 Evidence
 
+## Retriever 与 2-Step RAG 分别负责什么
+
 Retriever 是应用层的检索接口：接收查询，返回候选 `Document`；2-Step RAG 是把检索固定放在生成之前的流程。它位于用户问题与模型上下文之间，用来控制召回、范围过滤和 Evidence 装配，不等于某一种向量数据库。
 
 用户问“访问申请在哪里提交？”如果系统每次都应该先查内部知识，再根据当前可见资料回答，最简单的实现不是 Agent 自由循环，而是一条固定链：
@@ -50,7 +50,7 @@ LangChain `BaseRetriever` 接收查询并返回 **Document**，Document 再转�
 
 [Streaming、Callback 与 Middleware](/docs/ai-agent/langchain-streaming-middleware-retry) 已经定义检索开始、候选数量和无证据终态怎样成为公开事件。Retriever 沿用这套事件，不另造进度协议。固定链出现条件路由、并行研究和恢复需求后，再把相同 Retriever 放进 LangGraph 节点。
 
-## RAG 解决的不是“模型不会背资料”这么简单
+## 2-Step RAG 连接外部证据与回答
 
 把全部文档复制进 Prompt 有三个直接限制：
 
@@ -73,7 +73,7 @@ RAG 在查询时选择少量相关片段，让生成阶段只看到当前问题�
 
 实践代码用确定性模板代替生成模型，让检索和 Evidence 契约可以离线测试。接入真实 ChatModel 后，前四步和验证仍然保留。
 
-## Retriever 不是向量库
+## Retriever 与向量库的职责区别
 
 ### 向量库负责存储和近邻查询
 
@@ -92,7 +92,7 @@ LangChain **Retriever** 接收非结构化 query，返回 `list[Document]`。它
 
 业务链依赖 Retriever 接口后，可以替换底层检索实现，而不用重写 Prompt 与答案验证。反过来，如果业务代码直接依赖某个数据库的距离算子，权限、测试和迁移会与存储细节绑在一起。
 
-### Retriever 也不是 Agent Tool
+### Retriever 与 Agent Tool 的调用方式
 
 Retriever 是 `query → Documents` 的 Runnable。把它包装成 Tool 后，模型可以决定何时调用并生成 query；那属于 Agentic RAG。固定 2-Step RAG 由程序每次调用 Retriever，不需要模型选择。
 
@@ -179,7 +179,7 @@ flowchart LR
 
 图中查询前过滤是主要授权边界，Document 后复核是纵深防御。后者发现越权 Document 时，应报告检索契约错误并阻断整次上下文装配，不能只静默删掉后继续假装检索正常，因为底层过滤已经失效。
 
-## 相似度分数不是答案置信度
+## 相似度分数与答案置信度的区别
 
 全文分数、余弦相似度、RRF 排名和 Rerank 分数只描述“候选与查询在某个模型或算法下有多相关”。它们不证明：
 

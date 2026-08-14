@@ -1,3 +1,5 @@
+import { aiAgentCurriculum, aiAgentStages } from './ai-agent-curriculum'
+
 export type Category =
   | 'ai-agent'
   | 'seo'
@@ -22,8 +24,6 @@ export type EvidenceType =
   | 'official-guided-operation'
   | 'existing-content'
 
-export type ArticleTrack = 'mainline' | 'special'
-export type ArticleMilestone = 'local-agent' | 'runtime'
 
 export interface ChapterMeta {
   title: string
@@ -34,21 +34,18 @@ export interface ChapterMeta {
   chapter: number
   slug: string
   tags: string[]
-  prerequisites: string[]
-  outcomes: string[]
-  practice: {
+  prerequisites?: string[]
+  outcomes?: string[]
+  practice?: {
     type: PracticeType
     result: string
     verify: string[]
   }
-  evidence: EvidenceType
+  evidence?: EvidenceType
+  sourceKey?: string
   contentLocked?: true
-  track?: ArticleTrack
   sequence?: number
   dependsOn?: string[]
-  artifactIn?: string[]
-  artifactOut?: string[]
-  milestone?: ArticleMilestone
 }
 
 export interface SectionMeta {
@@ -64,16 +61,7 @@ export interface SectionStageMeta {
 }
 
 export const sectionStages: Record<Category, SectionStageMeta[]> = {
-  'ai-agent': [
-    { key: 'model-foundations', label: '模型基础' },
-    { key: 'model-api', label: '模型调用' },
-    { key: 'agent-loop', label: 'Tool Calling 与 Agent' },
-    { key: 'agent-frameworks', label: 'LangChain 与 LangGraph' },
-    { key: 'context-memory', label: '上下文与记忆' },
-    { key: 'rag-knowledge', label: 'RAG 与知识库' },
-    { key: 'mcp-skills', label: 'MCP、Skill 与多 Agent' },
-    { key: 'quality-runtime', label: '评测与运行' }
-  ],
+  'ai-agent': aiAgentStages,
   seo: [
     { key: 'growth', label: '搜索增长与项目判断' },
     { key: 'search-system', label: '搜索系统与页面规划' },
@@ -131,20 +119,15 @@ export const sectionStages: Record<Category, SectionStageMeta[]> = {
   ]
 }
 
+const aiAgentSpecBySlug = new Map(aiAgentCurriculum.map((article) => [article.slug, article]))
+
 function oneOf(value: string, values: readonly string[]): boolean {
   return values.includes(value)
 }
 
 export function stageKeyFor(category: Category, slug: string, part: string): string {
   if (category === 'ai-agent') {
-    if (slug === 'python-openai-responses-first-call') return 'model-api'
-    if (oneOf(slug, ['tool-calling-contracts', 'python-agent-loop-from-scratch', 'agent-framework-selection'])) return 'agent-loop'
-    if (part.startsWith('LangChain') || part.startsWith('LangGraph')) return 'agent-frameworks'
-    if (part.startsWith('上下文工程')) return 'context-memory'
-    if (part === '知识怎样进入 Agent' || part.startsWith('RAG 与知识工程')) return 'rag-knowledge'
-    if (part.includes('MCP') || part.startsWith('Skill')) return 'mcp-skills'
-    if (part === '答案质量与运行' || part.startsWith('可信运行')) return 'quality-runtime'
-    return 'model-foundations'
+    return aiAgentSpecBySlug.get(slug)?.stageKey ?? 'foundations'
   }
 
   if (category === 'seo') {
@@ -247,7 +230,7 @@ const course = (category: Category, items: ChapterInput[]): ChapterMeta[] =>
     ...item,
     category,
     stageKey: stageKeyFor(category, item.slug, item.part),
-    chapter: index + 1
+    chapter: index + 1,
   }))
 
 const item = (
@@ -276,222 +259,15 @@ const item = (
   ...(contentLocked ? { contentLocked } : {})
 })
 
-const aiAgentArticlePool = course('ai-agent', [
-  item('认识 AI 应用', 'llm-workflow-rag-agent', 'LLM、工作流、RAG 和 Agent 到底是什么，有什么区别', '从同一个知识查询任务出发，拆开模型生成、固定流程、外部检索和动态决策，建立后续 Agent 开发需要的第一张系统地图。', ['LLM', 'Workflow', 'RAG', 'Agent'], ['会运行简单脚本', '知道 HTTP 请求和 JSON'], ['能从输入、状态、控制者和输出解释四种系统', '能为一个需求选择最小可行实现'], '完成一张 AI 功能选型表和四种执行轨迹', ['能画出四种方案的完整执行路径', '能说明为什么一个任务不需要 Agent'], 'official', 'decision'),
-  item('模型怎样接收与返回', 'messages-tokens-context', '消息、Token、上下文窗口与模型输入输出', '从一条真实模型请求开始，拆开消息角色、Token 计量、输入输出预算、工具结果和停止原因。', ['Token', 'Context', 'Message'], ['读过 LLM、工作流、RAG 和 Agent 的区别', '会运行简单脚本'], ['能拆分一次请求的消息和上下文预算', '能识别超限、截断和工具消息配对问题'], '完成一份聊天请求的 Token 预算和裁剪记录', ['能标出系统消息、历史、工具结果和当前问题', '能解释输入过长时为什么先裁剪可选内容'], 'official', 'diagnosis'),
-  item('模型怎样接收与返回', 'structured-output-model-boundaries', '结构化输出是什么：从模型 JSON 到可信业务命令', '先区分 JSON、Schema 和结构化输出，再用 Pydantic 校验模型候选，并由服务端装配权限、版本与 Deadline。', ['Structured Output', 'JSON Schema', 'Pydantic', 'Trust Boundary'], ['读过消息、Token、上下文窗口与模型输入输出', '会运行脚本并能阅读 JSON'], ['能区分 JSON 模式、Schema 约束和业务语义校验', '能设计模型字段与服务端可信字段的所有权边界', '能用 Pydantic 实现结构、跨字段和可信上下文校验'], '实现并测试一个不会接受模型越权字段的知识查询契约', ['正常结果能生成受控 SearchCommand', '缺字段、错误类型、额外权限字段和非法字段组合都会被拒绝'], 'anonymized-practice', 'implementation'),
-  item('Agent 怎样行动', 'agent-framework-selection', 'Agent 怎样决策：Router、ReAct、Planner、Reflection 与框架选型', '用同一个只读知识查询拆开四种 Agent 控制模式的状态、循环和停止条件，再从控制权、恢复、评测、部署与团队约束选择实现框架。', ['Agent Pattern', 'ReAct', 'Planner', 'LangGraph'], ['理解 Agent 从输入到终态的完整生命周期', '理解结构化输出与可信字段边界'], ['能解释 Router、ReAct、Planner 和 Reflection 的输入、状态与停止条件', '能根据任务复杂度选择普通函数、LangChain、LangGraph 或其他框架', '能设计包含正常、超时、工具失败和循环上限的选型实验'], '运行一个可观察的四模式 Runtime，并完成框架选型评分卡', ['单步问题不会被过度设计成多 Agent', '循环、计划和修复都有确定上限与失败终态'], 'official', 'decision'),
-  item('LangGraph：状态图和执行语义', 'langgraph-state-runtime', 'LangGraph 是什么：用 State、Node 和 Edge 运行第一个状态图', '先解释状态图在 Agent 中的位置，再从普通函数推导 StateGraph，并观察分支、super-step、Reducer 和 Checkpoint 边界。', ['LangGraph', 'State', 'Node', 'Edge', 'Reducer', 'Checkpoint'], ['会读函数和类型提示', '理解 Agent 生命周期'], ['能按输入、状态更新和输出推演最小状态图', '能解释 super-step、并发更新和 Checkpoint 的职责边界'], '运行一张覆盖检索、寒暄、输入不足和无证据终态的只读问答图', ['四条路径都能到达可解释终态', '原问题、查询词和证据不会在节点间丢失'], 'anonymized-practice', 'implementation'),
-  item('认识与第一次运行', 'tool-calling-contracts', '不用框架实现 Tool Calling：模型候选、程序执行与结果回传', '从一次只读知识查询拆开 Tool Schema、模型候选、可信上下文、执行器、错误联合类型、取消和结果校验，避免把模型输出当命令。', ['Tool Calling', 'JSON Schema', 'Trust Boundary'], ['理解结构化输出与可信字段边界', '会读类型提示、JSON 和异常'], ['能解释工具定义、ToolCall、执行器和 ToolResult 的输入输出关系', '能实现不会接受模型越权字段的只读工具注册表与执行门禁'], '实现并测试一个带白名单、参数校验、Scope 和稳定错误语义的 search_notes 执行器', ['模型只能提供 query 和 limit，身份与 Scope 由服务端注入', '正常、空结果、参数错误、未知工具、越权、超时和取消能被区分'], 'anonymized-practice', 'implementation'),
-  item('Tool、MCP、Skill 与 SubAgent', 'mcp-protocol-lifecycle', 'MCP 协议：现代无状态请求、Legacy 握手与两种传输', '以 2026-07-28 规范为主线，拆开 Host/Client/Server、每请求元数据、server/discover、JSON-RPC、MRTR、订阅、stdio 与 Streamable HTTP，并解释旧 initialize 示例为何仍会出现。', ['MCP', 'JSON-RPC', 'stdio', 'Streamable HTTP'], ['会读 JSON，理解请求、响应、进程和 HTTP', '已理解 Tool Calling 的候选与执行边界'], ['能推演现代 MCP 请求、版本发现、能力调用、补充输入、订阅、取消和关闭', '能区分 2026-07-28 现代协议与 initialize 型 Legacy 协议，并选择 stdio 或 Streamable HTTP'], '手工推演一次现代 search_notes 调用和一次 Legacy 兼容探测', ['能区分连接、版本、能力、业务调用和传输五层失败', '不会把 SDK 主版本、协议日期、HTTP Session 和对话 Thread 混为一谈'], 'official', 'walkthrough'),
-  item('Tool、MCP、Skill 与 SubAgent', 'mcp-node-search-notes-server', 'Node.js 实战：实现一个只读 search_notes MCP Server', '使用 TypeScript MCP SDK v2 分包和 Zod 4 建立现代 stdio Server，注册输入输出 Schema，并验证工具发现、参数拒绝与结构化结果。', ['MCP', 'Node.js', 'JavaScript', 'Zod'], ['Node.js 20+', '会读 JavaScript async 函数', '理解 MCP Tool 契约'], ['能实现并运行 Node MCP Server', '能解释 SDK 版本与协议版本的区别'], '完成一个有单元测试和协议契约测试的 Node Server', ['合法与空查询返回结构化结果', '越界参数在查询函数前被拒绝'], 'official-guided-operation', 'implementation'),
-  item('Tool、MCP、Skill 与 SubAgent', 'mcp-python-search-notes-server', 'Python 实战：实现同一份 search_notes MCP Server', '使用 Python、MCP 2.0、Annotated 约束和进程内 Client 实现同一工具契约。', ['MCP', 'Python', 'Pydantic'], ['Python', '会读函数和类型提示', '理解 MCP Tool 契约'], ['能实现 Python MCP Server', '能保持 Node 与 Python 行为一致'], '完成并验证 Python 版只读 MCP Server', ['同一输入得到同结构输出', '参数错误和无结果具有稳定语义'], 'official-guided-operation', 'implementation'),
-  item('MCP：连接外部能力', 'mcp-client-security-testing', 'MCP 客户端、测试、认证与安全边界', '从 listTools 和 callTool 走到超时、取消、OAuth、权限、返回值校验、日志审计与远程部署检查。', ['MCP Client', 'OAuth', 'Security'], ['理解 MCP 生命周期', '完成任一 MCP Server 示例'], ['能实现最小 MCP Client', '能设计远程 MCP 的权限与审计边界'], '用客户端调用并验证 search_notes', ['连接会正确关闭', '不可信返回值不会直接变成系统指令'], 'official', 'implementation'),
-  item('Skill：沉淀任务方法', 'skill-system-progressive-disclosure', 'Skill 的本质：触发、目录结构与渐进式披露', '从一条任务说明扩展到 SKILL.md、references、scripts、templates 和 assets，解释 Agent 何时读取什么。', ['Skill', 'Progressive Disclosure'], ['会读 Markdown', '知道 Agent 会使用工具'], ['能判断任务是否适合 Skill', '能设计不浪费上下文的 Skill 目录'], '为一个重复任务设计 Skill 信息架构', ['入口只保留路由信息', '详细资料按任务需要加载'], 'official', 'decision'),
-  item('Skill：沉淀任务方法', 'skill-authoring-practice', 'Skill 实战：从空目录写出可验证的任务能力', '从一个页面审计任务开始，创建 SKILL.md、参考资料、结构化采集器和模板，理解触发、渐进读取与失败验证。', ['Skill', 'Codex', 'Claude Code', 'Progressive Disclosure'], ['会读 Markdown 和 Python', '了解 Agent 会按任务读取说明'], ['能创建一个公开 Skill', '能验证 Skill 的触发条件和输出质量'], '完成一个匿名页面审计 Skill 的目录与最小实现', ['触发条件与任务匹配', '脚本失败时能给出可定位错误'], 'official-guided-operation', 'implementation'),
-  item('Skill：沉淀任务方法', 'subagent-context-contracts', 'SubAgent：上下文隔离、任务契约与并行协作', '把资料检索、代码验证和内容审查拆成独立任务，处理权限继承、结果契约、冲突、成本和停止条件。', ['SubAgent', 'Context Isolation', 'Parallelism'], ['理解 Agent 生命周期', '知道工具权限需要显式授予'], ['能判断任务是否值得委派', '能设计可合并的子任务结果'], '写出一份可并行执行的 SubAgent 任务契约', ['子任务边界互不重叠', '失败和冲突有明确处理方式'], 'official', 'decision'),
-  item('知识怎样进入 Agent', 'rag-ingestion-pipeline', 'RAG 数据导入：从文件准入到可发布知识版本', '先建立可重放的导入状态机，再处理文件准入、解析、OCR、清洗、切片、向量化、质量验证与安全发布。', ['RAG', 'Ingestion', 'Knowledge Version'], ['理解文件和文本编码', '知道 RAG 会先检索再生成'], ['设计可重建的数据导入链', '用候选版本避免半成品进入检索'], '完成一份文档导入状态表', ['失败可以定位到具体阶段', '旧知识在新版本验证前保持可用'], 'anonymized-practice', 'implementation'),
-  item('知识怎样进入 Agent', 'document-format-parsing-ocr', 'PDF、Word、PPT、Excel、HTML 与 Markdown 怎样解析入库', '逐种文件拆开原生文本、版面结构、表格、图片、扫描页与 OCR，最后统一成可追溯的 Block。', ['Document Parsing', 'OCR', 'Block'], ['知道文件和文本的区别', '了解 RAG 数据导入流程'], ['为不同文件选择解析器与 OCR 条件', '检查解析覆盖率和原文定位'], '完成一张多格式文档解析决策表', ['扫描 PDF 不会被当成空文档', '表格和标题层级可以追溯'], 'anonymized-practice', 'diagnosis'),
-  item('知识怎样进入 Agent', 'semantic-chunking-structure', '语义切片：标题、表格、代码、父子片段与稳定 ID', '从检索问题反推切片边界，保留章节路径、相邻关系、表头、代码块、父子片段和可重建标识。', ['Chunking', 'Parent-Child Retrieval', 'Stable ID'], ['了解文档 Block', '知道 Embedding 会处理文本片段'], ['设计语义切片规则', '验证切片完整性和可追溯性'], '把一份混合文档切成可检索片段', ['表格行保留表头语义', '同一版本重复导入得到稳定标识'], 'anonymized-practice', 'implementation'),
-  item('知识怎样进入 Agent', 'embedding-vector-space', 'Embedding 是什么：从文本向量到语义检索', '解释 Embedding 的定义与向量空间，再沿文档解析、切片、批量写入、索引和召回评估讲清完整检索链路。', ['Embedding', 'Vector Database', 'pgvector', 'RAG'], ['理解数组和函数', '知道数据库表和索引的基本概念', '了解文档解析与语义切片'], ['把多种文档转换为可向量化片段', '选择向量库和索引', '设计批量向量写入与召回评估'], '完成一张从文件到向量检索的设计表', ['能解释每种文件如何解析', '能用精确扫描作为索引召回基线'], 'official', 'implementation'),
-  item('知识怎样进入 Agent', 'pgvector-index-recall', 'pgvector、索引结构、召回率与向量写入', '从精确扫描推进到 HNSW/IVFFlat，理解距离算子、过滤顺序、索引参数、批量写入和召回评测。', ['PostgreSQL', 'pgvector'], ['SQL 基础', '理解 Embedding 与距离函数'], ['为向量列选择距离与索引', '建立 Recall@K 检查'], '设计一张可版本化的向量表与查询', ['查询使用兼容算子', '候选结果能与精确基线比较'], 'official-guided-operation', 'implementation'),
-  item('知识怎样进入 Agent', 'hybrid-retrieval-rerank', '精确、全文、向量、结构化检索与重排', '用专有名词、同义表达和表格问题解释多路召回、RRF 融合、重排、缓存和降级。', ['Retrieval', 'Rerank', 'RRF'], ['理解 Embedding 与向量索引', '了解全文检索'], ['为不同查询选择召回通道', '解释融合与重排的职责'], '手工合并三路候选列表', ['融合不会因分数尺度不同失真', '降级后仍保留可解释证据'], 'anonymized-practice', 'implementation'),
-  item('上下文工程：预算和记忆', 'context-memory-compression', '短期记忆、长期记忆与滚动摘要：Agent 怎样记住而不越权', '从一次环境和偏好对话出发，区分运行状态、短期上下文、会话摘要与长期事实，并实现授权、冲突、TTL 和撤回状态机。', ['Context Engineering', 'Memory'], ['理解 Message、Turn、Checkpoint、上下文预算和压缩策略', '理解用户 Scope、来源与版本'], ['能区分运行状态、短期记忆、会话摘要和长期记忆的生命周期', '能实现带来源、授权、冲突、过期和撤回的记忆写入门禁'], '保存一个长期回答偏好，同时阻止临时环境和敏感内容跨会话传播', ['只有 active 且仍在 Scope/TTL 内的事实进入未来上下文', '撤回事实不会从旧历史或旧摘要静默复活'], 'anonymized-practice', 'implementation'),
-  item('答案质量与运行', 'claims-evidence-citations', 'Claim、Evidence、引用生成与答案验证', '把答案拆成可验证 Claim，让每个事实绑定用户可见证据，并对缺证据结论做有限修复。', ['Claim', 'Evidence', 'Citation'], ['理解混合检索与重排', '知道回答会引用检索证据'], ['建立 Claim 与证据的对应关系', '区分回答生成和事实验证'], '审核一份带引用的答案', ['所有事实 Claim 有可见证据', '引用范围和原文位置一致'], 'anonymized-practice', 'diagnosis'),
-  item('答案质量与运行', 'agent-security-eval-observability', 'Agent 安全：权限、提示注入与不可信内容边界', '从一段恶意文档进入检索结果开始，逐层处理身份、范围、工具权限、间接提示注入、敏感输出与审计。', ['Security', 'Prompt Injection', 'ACL'], ['理解 Agent、工具、检索与证据链', '知道认证与授权的区别'], ['画出 Agent 信任边界', '为权限与注入建立回归用例'], '完成一份只读知识 Agent 威胁检查表', ['指定范围无结果时不会越界回退', '外部内容不能扩大工具权限'], 'anonymized-practice', 'diagnosis'),
-  item('答案质量与运行', 'agent-evaluation-regression', 'Agent Eval：从样本集、评分器到版本回归门禁', '把“看起来回答不错”变成可重复比较的评测：固定样本、运行版本、检索指标、Claim 支持、引用、工具轨迹与人工复核。', ['Agent Eval', 'Regression', 'Dataset'], ['理解检索、Claim、Evidence 与 Agent 终态', '会读 JSON 和测试结果'], ['建立分层 Agent 评测集', '比较基线与候选版本'], '实现一个调用真实 Runtime 的最小评测运行器', ['同一样本可重复运行', '严重安全回归能单独阻断'], 'anonymized-practice', 'implementation'),
-  item('答案质量与运行', 'agent-trace-observability', 'Agent Trace：日志、指标与一次运行怎样关联', '从一次慢回答出发，用 Trace 还原模型、检索、工具、队列和验证阶段，并设计低基数指标与隐私安全日志。', ['OpenTelemetry', 'Trace', 'Metrics'], ['理解 Agent 生命周期', '了解日志和 HTTP 请求'], ['设计 Agent Span 树', '用 Trace 定位慢、错和卡住的位置'], '为一次 Agent 运行设计 Trace 与指标字典', ['请求、回合和任务能够关联', '原始问题与证据不会进入指标标签'], 'anonymized-practice', 'diagnosis'),
-  item('答案质量与运行', 'knowledge-agent-capstone', '知识 Agent 工程实践：从文档进入系统到可审计回答', '把导入、版本、权限、检索、工具、证据、事件、取消、恢复、评测和观测串成一条匿名工程实现。', ['Agent', 'RAG', 'State Machine', 'Evidence'], ['理解 Agent 生命周期', '了解文档导入、检索与证据验证'], ['画出知识 Agent 完整执行链', '区分当前实现、设计建议与可选演进'], '完成一份知识 Agent 架构图、状态表和验收清单', ['正常、无证据、无权限、取消和恢复均有终态', '每个事实结论能追溯到可见证据'], 'anonymized-practice', 'implementation'),
-  item('LangChain：从函数到 Agent', 'langchain-core-abstractions', 'LangChain 核心抽象：Message、Prompt、Model、Parser 与 Runnable', '从一次无框架模型调用开始，逐层映射 LangChain 的消息、提示模板、聊天模型、输出解析器和统一执行协议，并实际运行同步、批量与异步链路。', ['LangChain', 'Message', 'Prompt', 'Runnable'], ['会写 函数和类型提示', '理解消息、Token 与结构化输出边界'], ['能沿数据流解释 LangChain 五个核心对象的输入与输出', '能使用 invoke、ainvoke、batch 和 LCEL 组合可测试链路', '能判断普通 Python、LangChain 与 LangGraph 的适用边界'], '把纯 Python 只读 Agent 的模型节点改造成可同步与异步验证的 LangChain Runnable', ['输入清洗、Prompt 装配、模型输出和边界校验可以独立测试', '空输入与空模型输出会在明确节点失败'], 'official', 'implementation'),
-  item('LangChain：从函数到 Agent', 'langchain-messages-prompts', 'LangChain Message 与 Prompt：装配历史、证据和当前问题', '从消息角色和 PromptValue 开始，逐步装配系统规则、最近历史、可见证据与当前问题，并测试角色注入、缺失变量和不可信资料边界。', ['LangChain', 'Message', 'ChatPromptTemplate', 'Context Assembly'], ['理解 LangChain 的 Message、PromptValue 和上下文窗口', '理解可信字段与不可信证据边界'], ['能解释不同 Message 类型和 PromptValue 的数据流', '能用 MessagesPlaceholder 保留历史角色并控制装配顺序', '能把外部证据标成不可信数据且拒绝历史角色注入'], '实现并测试一个 System、History、Evidence、Question 四层 Prompt 装配器', ['最终消息角色、顺序和内容边界可直接检查', '历史 SystemMessage、超长证据和空问题会在模型调用前失败'], 'official', 'implementation'),
-  item('LangChain：从函数到 Agent', 'langchain-runnable-lcel', 'Runnable 与 LCEL：串行、并行、分支和异常怎样传播', '用一个知识问题路由器逐步运行 RunnableSequence、RunnableParallel、RunnableBranch 与 Passthrough.assign，追踪每个节点的数据形状、并发和失败边界。', ['LangChain', 'LCEL', 'Runnable', 'Concurrency'], ['理解 LangChain Message、Prompt 和 Runnable 的基本输入输出', '会阅读 字典、函数和异常'], ['能推演 Sequence、Parallel、Branch 和 Passthrough 的数据形状', '能解释并行完成、分支选择与异常传播的运行顺序', '能判断 LCEL 线性组合何时应升级为 LangGraph 状态图'], '实现并测试一个包含并行派生字段和三路分支的知识问题管道', ['direct、reject 和 search 三条路径只有一条执行', '并行节点保留原始输入，任一关键节点失败时不会返回伪成功'], 'official', 'implementation'),
-  item('LangChain：从函数到 Agent', 'langchain-pydantic-output', 'LangChain 结构化输出：原生约束、Pydantic 解析与有限修复', '区分模型原生 Structured Outputs、Tool Calling 和文本后置解析，使用 PydanticOutputParser 实现嵌套 SearchPlan 校验、错误分类与最多一次修复。', ['LangChain', 'Pydantic', 'Structured Output', 'SearchPlan'], ['理解 JSON Schema、Pydantic 和可信字段边界', '会使用 Runnable 与 LCEL'], ['能选择原生结构化输出、Tool Calling 或 Pydantic 后置解析', '能为嵌套 SearchPlan 设计字段、组合与额外字段校验', '能区分生成、解析、领域拒绝和有限修复失败'], '实现并测试一个拒绝重复分支和越权字段的 SearchPlan 解析器', ['合法计划转换为 Pydantic 对象', '非法枚举、重复 ID、额外 Scope 和二次修复失败被明确阻断'], 'official', 'implementation'),
-  item('LangChain：从函数到 Agent', 'langchain-tool-design', 'LangChain Tool：Schema、ToolRuntime 与受控执行边界', '从一次 search_notes 调用拆开工具描述、参数 Schema、ToolCall、可信 ToolRuntime、ToolMessage、返回值校验和错误终态，并用七个测试验证权限与失败语义。', ['LangChain', 'Tool Calling', 'ToolRuntime', 'Trust Boundary'], ['理解结构化输出、Pydantic 和可信字段边界', '会阅读 函数、类型提示和异常'], ['能解释 Tool、ToolCall、ToolRuntime 与 ToolMessage 的输入输出关系', '能把模型可控参数和服务端可信上下文分开', '能为参数错误、无结果、超时和未知工具设计稳定语义'], '实现并测试一个不会接受模型越权范围的只读 search_notes Tool', ['模型可见 Schema 只有 query 和 limit', '合法、越权、未知工具、空结果和超时路径得到可观察结果'], 'official', 'implementation'),
-  item('LangChain：从函数到 Agent', 'langchain-simple-agent', 'LangChain create_agent：模型、工具与消息循环怎样闭合', '使用当前 create_agent 和离线 ScriptedChatModel 跑通 HumanMessage、ToolCall、ToolMessage 与最终 AIMessage，拆解 Harness、停止条件、递归上限和企业 Runtime 边界。', ['LangChain', 'create_agent', 'Agent Loop', 'ToolMessage'], ['完成 LangChain Tool 与受控执行边界', '理解 Message、ToolCall、ToolRuntime 和 ToolMessage'], ['能沿消息状态解释 create_agent 的模型与工具循环', '能区分正常结束、空证据、工具失败和循环耗尽', '能判断简单 Agent 何时足够、何时需要显式 LangGraph Runtime'], '实现一个无需 API Key、最多受图递归上限约束的只读知识 Agent', ['正常运行产生 Human、AI ToolCall、Tool、最终 AI 四段消息', '直接回答、空证据、范围过滤和无限循环分支均有测试'], 'official', 'implementation'),
-  item('LangChain：从函数到 Agent', 'langchain-streaming-middleware-retry', 'LangChain Streaming、Callback、Middleware 与有限重试', '从同一 create_agent 运行拆开 updates、messages、custom 三类流、Callback 生命周期和 Middleware 包装点，实现稳定公开事件、共享 Deadline 的有限重试与取消传播。', ['LangChain', 'Streaming', 'Middleware', 'Callback', 'Retry'], ['已运行 LangChain create_agent 消息循环', '理解 asyncio、异常和绝对 Deadline'], ['能选择 updates、messages 和 custom 流并解释事件来源', '能区分面向调用方的 Streaming、面向观测的 Callback 和控制执行的 Middleware', '能实现不吞取消、共享整轮 Deadline 的有限模型重试'], '为只读知识 Agent 增加公开事件适配器、Callback 记录和 DeadlineRetryMiddleware', ['工具请求、工具进度、工具完成和答案完成按单调序号输出', '短暂错误有限恢复，重试耗尽、Deadline 和取消保持不同语义'], 'official', 'implementation'),
-  item('LangChain：从函数到 Agent', 'langchain-retriever-rag', 'LangChain Retriever 与 2-Step RAG：从 Document 到 Evidence', '实现绑定 Scope 与 Release 的 BaseRetriever，用 LCEL 串起查询、Document、Evidence、上下文和拒答，解释向量库边界、错误语义、缓存隔离及升级 LangGraph 的条件。', ['LangChain', 'Retriever', 'RAG', 'Evidence', 'LCEL'], ['理解 Runnable 与 LCEL 的串行和并行组合', '理解 ToolRuntime、Scope、Release 和只读 Agent 消息循环'], ['能区分 Retriever、向量库、Document 与 Evidence', '能实现检索前权限和版本过滤的 2-Step RAG', '能根据分支、验证和恢复需求判断是否升级 LangGraph'], '实现并测试一个带稳定引用、空证据拒答和隔离缓存键的固定 RAG 链', ['私有范围与旧知识版本不会进入候选和上下文', '正常、空结果、元数据错误、重复证据和批量查询均可验证'], 'official', 'implementation'),
-  item('LangGraph：状态图和执行语义', 'langgraph-conditional-reducers', 'LangGraph 条件路由与 Reducer：分支为什么不会互相覆盖', '在最小 StateGraph 上加入问题分类、条件边和并行列表合并，逐步观察状态快照。', ['LangGraph', 'Reducer', 'Conditional Edge'], ['理解 State、Node、Edge', '会读 TypedDict'], ['能写条件路由', '能选择覆盖、追加和自定义 Reducer'], '完成普通问题、寒暄和拒答三条路径', ['每条路径都有终态', '并行结果按 Reducer 合并'], 'official', 'implementation'),
-  item('LangGraph：状态图和执行语义', 'langgraph-parallel-fanout', 'LangGraph 并行扇出与融合：同时查多种知识源', '用 Send 把一个问题分给全文、向量和结构化检索分支，再在融合节点去重和排序。', ['LangGraph', 'Send', 'Parallelism'], ['理解条件边和 Reducer', '了解多路检索'], ['能推演扇出和扇入', '能处理一个分支失败而其他分支成功'], '完成三路检索的状态图推演', ['分支结果带来源标识', '失败分支不会丢弃可用证据'], 'official', 'implementation'),
-  item('LangGraph：状态图和执行语义', 'langgraph-checkpoint-threads', 'LangGraph Checkpoint、Thread 与恢复：进程重启后如何继续', '从一次中断的图执行开始，区分 thread、checkpoint、业务 Turn 和事件，并验证恢复不会重复副作用。', ['LangGraph', 'Checkpoint', 'Thread'], ['理解状态图和异步任务', '了解数据库持久化'], ['能为图选择恢复点', '能设计幂等工具边界'], '实现一个可暂停和恢复的只读图', ['恢复从最近快照继续', '不可重放副作用有幂等保护'], 'official-guided-operation', 'implementation'),
-  item('LangGraph：状态图和执行语义', 'agent-runtime-domain-model', 'Agent Runtime 状态是什么：Conversation、Turn、Message、Event 与 Task', '先区分最小聊天数据和异步运行数据，再实现 Turn 状态机、事件序号、幂等约束与 PostgreSQL 表关系。', ['Runtime', 'Turn', 'Event'], ['理解 HTTP 请求生命周期', '了解数据库主键'], ['能设计 Agent 业务实体', '能区分状态和事件'], '运行 Turn 状态机与事件重放测试，并得到一份 PostgreSQL 最小迁移', ['同一作用域的幂等键有数据库唯一约束', '终态不可覆盖，事件可以按序号重放'], 'anonymized-practice', 'implementation'),
-  item('LangGraph：状态图和执行语义', 'agent-request-lifecycle-runtime', '一次 Agent 请求的完整 Runtime 生命周期', '从入口准入、版本快照、Worker 所有权、图执行到终态事件，逐阶段列出输入、写入和停止条件。', ['Runtime', 'Admission', 'Snapshot'], ['理解 Turn 和 Checkpoint', '知道队列 Worker 的基本职责'], ['能画出请求时序图', '能定位一个请求在运行链的阶段'], '完成一份可审计的 Runtime 时序表', ['每阶段有可观测状态', '取消、过期和失败均有终态'], 'anonymized-practice', 'walkthrough'),
-  item('LangGraph：状态图和执行语义', 'agent-parallel-preprocess', 'Agent 并行预处理：安全、上下文、记忆与快速检索怎样合并', '把互不依赖的预处理拆成并行节点，说明共享输入、结果 Reducer、失败隔离和预算扣减。', ['LangGraph', 'Preprocess', 'Concurrency'], ['理解并行扇出', '了解提示注入和上下文预算'], ['能识别可并行阶段', '能设计局部失败和合并策略'], '完成四路预处理的状态表', ['分支不修改共享可变对象', '合并结果可复现'], 'anonymized-practice', 'implementation'),
-  item('LangGraph：状态图和执行语义', 'agent-planner-search-plan', 'Planner、SearchPlan 与停止条件：Agent 怎样决定查到哪里', '把自然语言问题转换成有预算的研究计划，解释查询任务、证据目标、优先级和停止条件。', ['Planner', 'SearchPlan', 'Budget'], ['理解结构化输出和检索', '了解 Deadline'], ['能设计有限 SearchPlan', '能判断证据足够还是需要补搜'], '为三个问题类型写研究计划 Schema', ['计划可被程序校验', '不会因模型反复改写而无限循环'], 'anonymized-practice', 'implementation'),
-  item('LangGraph：状态图和执行语义', 'agent-graph-runtime-testing', 'Agent 图和 Runtime 测试：状态快照比最终文本更重要', '用单元、图级和运行级测试验证路由、Reducer、Checkpoint、取消和终态，而不是只断言最后一句话。', ['Testing', 'LangGraph', 'Runtime'], ['会使用 pytest', '理解状态和事件'], ['能为 Agent 写状态断言', '能构造失败和恢复测试'], '建立一个最小 Runtime 回归集', ['非法状态不可达', '终态和事件序列一致'], 'anonymized-practice', 'implementation'),
-  item('上下文工程：预算和记忆', 'context-assembly-budget', '上下文由什么组成：按预算装配消息、证据和工具结果', '从一次真实问答出发，把规则、问题、历史、工具定义、证据和输出空间装进有限窗口，并实现可解释的装配器。', ['Context', 'Token Budget'], ['理解消息、Token 和 RAG', '会读 dataclass 与列表处理'], ['能从模型窗口推导硬预算和分区软预算', '能实现不破坏权限、消息顺序和工具协议的上下文装配器'], '实现一个会解释保留与丢弃原因的确定性上下文装配器', ['每一段都有来源、优先级、信任级别和选择结果', '总 Token 不超限且始终保留输出余量'], 'official', 'implementation'),
-  item('上下文工程：预算和记忆', 'prompt-cache-prefix-design', 'Prompt Cache：GPT 与 Claude 如何复用输入前缀、计算费用并诊断命中', '从 Transformer 的 Prefill 与注意力状态出发，拆解 GPT 和 Claude 的精确前缀缓存、断点、usage、费用、盈亏平衡与多租户隔离。', ['Prompt Cache', 'Prefill', 'Cost', 'Context'], ['理解消息、Token 与上下文窗口', '知道 Agent 会装配规则、工具、历史与检索证据'], ['能解释 Prompt Cache 省掉的计算以及它与 KV Cache、结果缓存和上下文压缩的边界', '能设计 GPT 与 Claude 的稳定前缀、缓存断点、费用统计和多租户隔离'], '完成一套可复算费用、验证前缀指纹并定位缓存未命中的诊断方案', ['能从两家 usage 字段还原普通输入、缓存写入、缓存读取与输出费用', '规则、工具顺序、可信 Scope 或知识 Release 改变时稳定前缀指纹同步变化'], 'official', 'diagnosis'),
-  item('上下文工程：预算和记忆', 'codex-context-compaction', 'Codex 的手动与自动上下文压缩：从机制到 Agent 设计启示', '用 Codex 当前公开的 /compact、自动阈值、Hook 和 App Server 事件解释压缩生命周期，并实现不覆盖原始历史的审计记录。', ['Codex', 'Compaction', 'Context'], ['理解上下文窗口、消息历史和 Token 预算', '会读 TOML、JSON 与事件日志'], ['能准确解释 Codex 手动与自动压缩的触发、配置和可观察结果', '能把压缩设计成可验证、可回滚的 Agent 状态迁移'], '实现一条保留目标、约束、证据和未完成事项的压缩记录', ['压缩前后保留任务目标、硬约束和未完成事项', '压缩失败或质量不合格时继续使用原始状态'], 'official', 'walkthrough'),
-  item('上下文工程：预算和记忆', 'context-window-strategies', '上下文压缩策略：滑动窗口、抽取、滚动摘要、分层摘要与语义选择', '用同一段发布讨论推演五种上下文策略的输入、状态、输出和信息损失，并实现可运行的组合选择实验。', ['Context', 'Summary', 'Selection'], ['已理解上下文预算和压缩状态迁移', '会读 函数、集合与简单测试'], ['能解释并实现滑动窗口、确定性抽取、滚动摘要、分层摘要和语义选择', '能按信息类型、风险和任务跨度组合策略，而不是只选一种'], '对同一段会话运行五种策略并比较保留与丢失字段', ['关键约束、当前决定和来源范围可以自动检查', '敏感字段不会因为摘要或语义召回进入错误范围'], 'official', 'implementation'),
-  item('上下文工程：预算和记忆', 'tool-result-compression', '工具结果压缩：表格、日志和长文档怎样进入上下文', '区分原始工具结果与模型视图，为日志、表格、搜索和长文档设计结构化压缩、脱敏、分页与可追溯错误。', ['Tool Result', 'Compression'], ['理解 Tool Calling、上下文预算和证据对象', '会读 dataclass 与 JSON 数据'], ['能为不同类型工具设计不会丢失语义的模型结果 Schema', '能保留原始结果指针、截断状态、错误状态和隐私边界'], '把一批日志压缩为错误聚合、代表样本和可回查游标', ['模型能看到完成当前判断所需的字段和截断状态', '原始结果可按 ID 复查，工具失败不会伪装成空成功'], 'anonymized-practice', 'implementation'),
-  item('上下文工程：预算和记忆', 'context-pollution-injection', '上下文污染与间接提示注入：外部内容怎样保持不可信', '从恶意文档进入 RAG 开始，追踪它如何影响候选工具调用，并用信任标记、能力白名单、参数校验和安全 Eval 阻断副作用。', ['Prompt Injection', 'Context Isolation'], ['理解 Tool Calling、RAG、上下文装配和 ACL', '知道读操作与写操作的副作用差异'], ['能画出系统规则、用户输入、外部资料和工具执行的信任边界', '能实现不因文档内容扩大权限的动作验证器与回归样例'], '构造恶意文档并证明它不能触发未授权导出或写操作', ['外部文本无法改变服务端工具白名单、用户 Scope 和审批要求', 'Trace 能定位污染来源、候选动作、阻断层和实际副作用数'], 'official', 'diagnosis'),
-  item('上下文工程：预算和记忆', 'memory-quality-evaluation', '短期记忆、长期记忆与压缩质量评测', '把“模型好像记住了”拆成字段覆盖、来源忠实、冲突、过期、隐私和下游任务指标，并建立候选策略发布门禁。', ['Memory', 'Evaluation', 'Privacy'], ['已理解上下文策略、记忆生命周期和用户授权', '会读集合运算、比例指标和 pytest'], ['能设计同时覆盖保留、忠实、冲突、过期和隐私的记忆 Eval 数据集', '能用硬失败与趋势指标决定压缩或记忆策略是否可以发布'], '比较基线和候选策略，输出可回溯的逐样本评测结果与发布决定', ['未授权、撤回和过期事实进入未来上下文时立即硬失败', '摘要新增事实、丢失硬约束和错误解决冲突都能定位到来源样本'], 'anonymized-practice', 'implementation'),
-  item('RAG 与知识工程：策略', 'rag-strategy-map', 'RAG 策略地图：Naive、Advanced、Adaptive、Corrective 与 Agentic RAG', '用同一知识问答分别运行固定检索、查询改写、纠错检索和 Agentic 研究，说明复杂度增加换来了什么。', ['RAG', 'Adaptive RAG', 'Agentic RAG'], ['理解 RAG 基本链路', '理解 Agent 生命周期'], ['能为问题选择 RAG 策略', '能写出升级条件而不是盲目堆组件'], '制作一张 RAG 策略决策树', ['策略差异落到输入输出和停止条件', '简单问题不走过度复杂路径'], 'official', 'decision'),
-  item('RAG 与知识工程：导入和版本', 'rag-object-storage-lifecycle', 'RAG 的对象存储：文件、对象键、校验和与生命周期', '把上传文件和解析片段分开管理，讲清对象键、Multipart、预签名、校验和、孤立对象和删除边界。', ['Object Storage', 'RAG'], ['了解 HTTP 上传', '理解导入状态'], ['能设计文件存储与数据库对账', '能处理不完整上传'], '画出文件上传到解析的时序图', ['客户端不持有永久密钥', '清理任务不会误删激活版本'], 'official-guided-operation', 'implementation'),
-  item('RAG 与知识工程：导入和版本', 'rag-external-content-security', '外部内容进入 RAG 前的安全准入', '从 URL、压缩包和网页内容开始，检查协议、DNS、重定向、MIME、Magic、压缩炸弹和提示注入。', ['RAG', 'SSRF', 'Content Security'], ['了解 HTTP 和文件类型', '知道外部内容不可信'], ['能设计多层准入检查', '能把安全标记带入审计'], '完成一份外部文件准入 Runbook', ['被拒内容不会进入索引', '日志不泄露原始敏感内容'], 'anonymized-practice', 'diagnosis'),
-  item('RAG 与知识工程：Embedding 和写入', 'embedding-batch-idempotency', 'Embedding 批处理、限流、部分失败与幂等写入', '把片段分批发送给 Embedding 服务，处理 Token 上限、速率限制、重试、死信和重复写入。', ['Embedding', 'Batching', 'Idempotency'], ['理解 Embedding 和片段 ID', '了解异步任务'], ['能设计批处理状态表', '能让失败批次单独重跑'], '实现一个可重试的匿名批处理器', ['部分成功不会重复写入', '失败原因和片段范围可查询'], 'anonymized-practice', 'implementation'),
-  item('RAG 与知识工程：Embedding 和写入', 'vector-store-selection', '向量库怎样选：pgvector、Qdrant、Milvus、Weaviate 与 Pinecone', '从数据所有权、过滤、事务、规模、运维和供应商依赖比较向量存储，而不是只看名称。', ['Vector Database', 'Architecture'], ['理解向量检索', '了解 PostgreSQL 和服务部署'], ['能完成向量库选择表', '能解释迁移与回滚成本'], '为一个多租户知识库写选型决策', ['权限过滤路径明确', '实验指标和运维责任分开'], 'official', 'decision'),
-  item('RAG 与知识工程：查询理解', 'rag-query-rewrite-decomposition', '查询改写、问题分解与检索计划', '把口语问题变成可搜索查询，同时保护用户范围、时间、实体和否定条件，并把多目标问题拆成有依赖的计划。', ['Query Rewrite', 'Decomposition', 'Search Plan'], ['理解混合检索输入', '理解结构化输出'], ['能区分改写与分解', '能校验检索计划'], '实现一个有约束的 SearchPlan', ['改写不改变用户范围', '子问题依赖和停止条件明确'], 'anonymized-practice', 'implementation'),
-  item('RAG 与知识工程：查询与召回', 'rag-multi-query-hyde-step-back', 'Multi-Query、HyDE 与 Step-back：三种查询扩展怎样取舍', '用同一召回集比较多查询、假设文档和抽象问题，说明它们改善的召回缺口和引入的噪声。', ['RAG', 'HyDE', 'Multi-Query'], ['理解 Embedding 和查询改写', '会读 Top-K 结果'], ['能选择查询扩展策略', '能用评测集验证而不是凭感觉'], '完成三种策略的召回对照表', ['记录查询版本和额外成本', '噪声增加时有停止条件'], 'official', 'diagnosis'),
-  item('RAG 与知识工程：高级检索', 'rag-adaptive-corrective-agentic', 'Adaptive、Corrective、多跳与 Agentic RAG 的执行链', '用证据质量作为路由信号，分别处理补搜、外部校验、多跳关系和动态研究，并定义终止条件。', ['Adaptive RAG', 'Corrective RAG', 'Multi-hop'], ['理解策略地图和查询分解', '理解 Agent 图和 Evidence'], ['能画出纠错检索状态机', '能限制多跳成本和权限范围'], '为一个多跳问题设计有限研究图', ['每一跳有证据目标', '无法补齐时安全拒答'], 'official', 'implementation'),
-  item('RAG 与知识工程：知识组织和评测', 'knowledge-graph-wiki-alias-acl', '知识图谱、Wiki、别名、ACL 与 Release 怎样和 RAG 配合', '把实体关系、人工维护页面、别名和权限放进同一知识版本，解释图谱不是向量库的替代品。', ['Knowledge Graph', 'Wiki', 'ACL'], ['理解知识版本和混合检索', '了解关系数据'], ['能判断图谱适合的问题', '能保持图谱和文本版本一致'], '为一个实体问答设计文本与图谱双通道', ['别名冲突可审计', '图谱越权不会绕过正文 ACL'], 'anonymized-practice', 'decision'),
-  item('RAG 与知识工程：知识组织和评测', 'rag-evaluation-recall-mrr-ndcg', 'RAG 评测：Recall@K、MRR、nDCG、答案支持率与延迟', '从标注问题和相关片段开始，计算召回、排序、证据覆盖和系统时间，建立可复现对照。', ['RAG Eval', 'Recall', 'MRR', 'nDCG'], ['理解多路检索和 Claim', '会读 CSV 或 JSON'], ['能建立检索评测集', '能区分召回问题和生成问题'], '实现一个精确基线与候选索引对照', ['指标定义和 K 明确', '没有数据时不虚构提升数字'], 'official', 'implementation'),
-  item('RAG 与知识工程：知识组织和评测', 'rag-evidence-budget-cache', '融合、Rerank、缓存与证据预算', '从多路候选进入上下文开始，解释分数融合、重排、缓存键、权限复核和 Evidence 数量限制。', ['RAG', 'Rerank', 'Cache'], ['理解混合检索和上下文预算', '了解 ACL'], ['能设计可失效缓存', '能为证据选择设置预算'], '手工推演一次候选融合和缓存命中', ['缓存不绕过权限', '失效后能回到精确检索'], 'anonymized-practice', 'implementation'),
-  item('可信运行：证据和回答', 'validation-repair-refusal', '验证器、有限修复与安全拒答：答案不可信时怎么办', '把事实、引用、ACL、隐私和注入验证拆开，定义可修复问题、不可修复问题和终态。', ['Validation', 'Repair', 'Refusal'], ['理解 Claim、Evidence 和安全边界', '了解有限预算'], ['能设计验证结果结构', '能让拒答成为可解释终态'], '实现一个不调用模型的引用覆盖修复', ['修复次数有限', '修复后仍无证据则拒答'], 'anonymized-practice', 'implementation'),
-  item('可信运行：状态和资源', 'turn-idempotency-version-snapshot', 'Turn 幂等、准入与版本快照：一次请求怎样获得稳定边界', '从重复点击和知识发布并发开始，设计幂等键、状态锁、资源准入和版本快照。', ['Turn', 'Idempotency', 'Snapshot'], ['理解 Runtime 生命周期', '了解数据库唯一约束和 Redis'], ['能区分请求 ID 与 Turn ID', '能写出快照建立时机'], '完成一次重复请求的状态推演', ['只创建一个执行单元', '版本变化不影响已开始 Turn'], 'anonymized-practice', 'implementation'),
-  item('可信运行：异步和恢复', 'celery-worker-ack-lease', 'Celery Worker、ACK、任务所有权与 Lease', '沿消息投递、预取、执行、ACK、重投和租约续期解释 Worker 重启后的行为。', ['Celery', 'Worker', 'Lease'], ['理解队列和 Turn', '会读 async/sync 区别'], ['能设计任务所有权', '能处理 ACK 前崩溃和重复执行'], '推演一条任务在 Worker 故障下的生命周期', ['副作用有幂等键', '失去租约的 Worker 停止写状态'], 'official-guided-operation', 'implementation'),
-  item('可信运行：异步和恢复', 'deadline-cancel-checkpoint-recovery', 'Deadline、取消、Checkpoint 与停滞恢复', '把用户取消、绝对截止时间、图快照和停滞扫描放进同一状态机，明确谁能改变终态。', ['Deadline', 'Cancellation', 'Recovery'], ['理解 Checkpoint、Lease 和事件', '了解 asyncio cancellation'], ['能设计取消传播链', '能区分过期、取消和失败'], '完成正常、取消、过期和停滞恢复四条路径', ['取消不会被后续节点覆盖', '恢复不会重复已确认副作用'], 'anonymized-practice', 'implementation'),
-  item('可信运行：异步和恢复', 'sse-events-replay-fallback', 'SSE 事件、序号、断线重放与轮询降级', '从浏览器断开开始，说明事件持久化、Last-Event-ID、心跳、重放窗口和轮询兜底。', ['SSE', 'Event Replay', 'Fallback'], ['了解 HTTP 流式响应', '理解 Event 和 Turn 终态'], ['能设计可重放事件流', '能处理慢客户端和断线'], '实现一个匿名事件重放状态表', ['事件序号单调递增', '终态后仍可查询最终结果'], 'anonymized-practice', 'implementation')
-  ,item('认识与第一次运行', 'python-openai-responses-first-call', 'Responses API 与第一次 Python 模型调用', '使用 OpenAI Responses API 完成第一次真实请求，读懂响应和 usage，并用同一接口的 Fake Adapter 覆盖无密钥测试。', ['OpenAI', 'Responses API', 'Streaming', 'Usage'], ['会运行 Python 脚本', '理解环境变量和 HTTP 请求'], ['能运行同步和流式 Responses 请求', '能区分认证、限流、超时、空响应与测试替身'], '得到可替换的 ModelGateway、真实调用入口和无密钥测试', ['有密钥时读取真实 output_text 与 usage', '无密钥时 Fake Adapter 测试不会伪装在线结果'], 'official', 'implementation')
-  ,item('认识与第一次运行', 'python-agent-loop-from-scratch', '什么是 Agent 循环', '从用户输入到最终回答推演有限 Agent 循环，再用 Python 实现模型决策、工具执行、状态更新、终止条件与异常处理。', ['Agent Loop', 'Tool Calling', 'Stop Condition'], ['完成无框架 Tool Calling', '理解模型网关与结构化结果'], ['能复述 ToolCall 到 ToolResult 再到最终回答的循环', '能处理未知工具、参数错误、空结果和循环耗尽'], '得到可测试的有限循环核心，并覆盖正常、空结果、重复、工具错误和步数耗尽路径', ['正常问题产生有证据回答', '重复调用和达到上限时确定停止'], 'anonymized-practice', 'implementation')
-  ,item('RAG 与知识工程：导入和版本', 'rag-unified-block-model', '统一 Block：标题、段落、表格、代码和原文定位', '把不同解析器输出统一为可追溯 Block，保留层级、版面、表头、代码语言和原文坐标。', ['RAG', 'Block', 'Document Parsing'], ['理解多格式解析和 OCR', '知道切片需要结构信息'], ['能定义跨格式 Block 契约', '能验证结构覆盖和原文定位'], '得到 ingestion.py 中的 Block 模型与覆盖率检查', ['标题、表格和代码不退化成无来源纯文本', '每个 Block 都能定位到原文件'], 'anonymized-practice', 'implementation')
-  ,item('MCP、Skill 与 SubAgent 专题', 'mcp-foundations-boundaries', 'MCP 是什么：与 HTTP API、Tool Calling 和插件的边界', '从 Host 为什么需要统一连接外部能力讲起，区分协议、模型候选、业务 API 和能力打包方式。', ['MCP', 'HTTP API', 'Tool Calling', 'Plugin'], ['理解 Tool Calling 和执行器边界', '知道 Client、Server 和进程'], ['能解释 MCP 解决的互操作问题', '能判断何时使用 MCP、普通函数或 HTTP API'], '得到一张 MCP 系统位置图和能力边界表', ['不会把 MCP 说成模型直接执行工具', '能说明 Host、Client 和 Server 各自状态'], 'official', 'decision')
-  ,item('MCP、Skill 与 SubAgent 专题', 'mcp-transports-discovery-cancellation', 'MCP 传输与生命周期：stdio、Streamable HTTP、Legacy SSE、发现、取消和重连', '沿一次连接拆开传输、会话、能力发现、调用、取消、断开和重连，并说明旧 SSE 的兼容边界。', ['MCP', 'stdio', 'Streamable HTTP', 'Cancellation'], ['理解 MCP 角色与 JSON-RPC', '了解进程标准输入输出和 HTTP'], ['能选择本地或远程传输', '能推演发现、调用、取消和重连状态'], '得到一份传输选择表和失败分层 Runbook', ['stdio 不把日志写入协议 stdout', 'HTTP 重连不会盲目重放有副作用调用'], 'official', 'walkthrough')
-  ,item('可信运行与完整系统', 'agent-compose-local-runtime', '本地 Compose 部署：FastAPI、PostgreSQL/pgvector、Redis、Celery、MinIO 与 SSE', '把此前的模型、图、检索和 Runtime 适配器连接到本地基础设施，解释容器、网络、健康检查、迁移和清理。', ['Docker Compose', 'FastAPI', 'pgvector', 'Celery', 'SSE'], ['理解完整 Agent Runtime', '会使用 Docker 和环境变量'], ['能启动并检查本地 Agent 基础设施', '能沿 API、队列、数据库和事件定位启动失败'], '得到可校验的 compose.yaml 和端到端健康检查', ['docker compose config 通过', '服务健康、任务执行和 SSE 可观察'], 'official-guided-operation', 'implementation')
-])
+const aiAgentStageLabelByKey = new Map(aiAgentStages.map((stage) => [stage.key, stage.label]))
 
-const aiAgentArticleOrder = [
-  'llm-workflow-rag-agent',
-  'python-openai-responses-first-call',
-  'messages-tokens-context',
-  'structured-output-model-boundaries',
-  'tool-calling-contracts',
-  'python-agent-loop-from-scratch',
-  'agent-framework-selection',
-  'langchain-core-abstractions',
-  'langchain-messages-prompts',
-  'langchain-runnable-lcel',
-  'langchain-pydantic-output',
-  'langchain-tool-design',
-  'langchain-simple-agent',
-  'langchain-streaming-middleware-retry',
-  'langchain-retriever-rag',
-  'langgraph-state-runtime',
-  'langgraph-conditional-reducers',
-  'langgraph-parallel-fanout',
-  'langgraph-checkpoint-threads',
-  'agent-runtime-domain-model',
-  'agent-planner-search-plan',
-  'agent-request-lifecycle-runtime',
-  'agent-parallel-preprocess',
-  'agent-graph-runtime-testing',
-  'context-assembly-budget',
-  'context-window-strategies',
-  'codex-context-compaction',
-  'prompt-cache-prefix-design',
-  'tool-result-compression',
-  'context-pollution-injection',
-  'context-memory-compression',
-  'memory-quality-evaluation',
-  'rag-strategy-map',
-  'rag-ingestion-pipeline',
-  'rag-object-storage-lifecycle',
-  'rag-external-content-security',
-  'document-format-parsing-ocr',
-  'rag-unified-block-model',
-  'semantic-chunking-structure',
-  'embedding-vector-space',
-  'embedding-batch-idempotency',
-  'vector-store-selection',
-  'pgvector-index-recall',
-  'rag-query-rewrite-decomposition',
-  'rag-multi-query-hyde-step-back',
-  'hybrid-retrieval-rerank',
-  'rag-evidence-budget-cache',
-  'rag-adaptive-corrective-agentic',
-  'knowledge-graph-wiki-alias-acl',
-  'rag-evaluation-recall-mrr-ndcg',
-  'mcp-foundations-boundaries',
-  'mcp-protocol-lifecycle',
-  'mcp-transports-discovery-cancellation',
-  'mcp-python-search-notes-server',
-  'mcp-node-search-notes-server',
-  'mcp-client-security-testing',
-  'skill-system-progressive-disclosure',
-  'skill-authoring-practice',
-  'subagent-context-contracts',
-  'claims-evidence-citations',
-  'validation-repair-refusal',
-  'turn-idempotency-version-snapshot',
-  'celery-worker-ack-lease',
-  'deadline-cancel-checkpoint-recovery',
-  'sse-events-replay-fallback',
-  'agent-security-eval-observability',
-  'agent-evaluation-regression',
-  'agent-trace-observability',
-  'agent-compose-local-runtime',
-  'knowledge-agent-capstone'
-] as const
-
-const aiAgentSpecialOrder = [
-  'mcp-foundations-boundaries',
-  'mcp-protocol-lifecycle',
-  'mcp-transports-discovery-cancellation',
-  'mcp-python-search-notes-server',
-  'mcp-node-search-notes-server',
-  'mcp-client-security-testing',
-  'skill-system-progressive-disclosure',
-  'skill-authoring-practice',
-  'subagent-context-contracts'
-] as const
-
-const aiAgentSpecialSlugs = new Set<string>(aiAgentSpecialOrder)
-const aiAgentMainlineOrder = aiAgentArticleOrder.filter((slug) => !aiAgentSpecialSlugs.has(slug))
-
-function aiArtifactDelta(slug: string, chapter: number): string[] {
-  if (slug === 'knowledge-agent-capstone') return ['tests/test_end_to_end.py']
-  if (slug === 'subagent-context-contracts') return ['app/subagents.py']
-  if (chapter === 1) return ['system-map.json']
-  if (chapter === 2) return ['app/model_gateway.py']
-  if (chapter === 3) return ['app/messages.py']
-  if (chapter === 4) return ['app/schemas.py']
-  if (chapter === 5) return ['app/tools.py']
-  if (chapter === 6) return ['app/agent_loop.py']
-  if (chapter === 7) return ['app/decision_policy.py']
-  if (chapter <= 15) return ['app/langchain_agent.py']
-  if (chapter <= 21) return ['app/graph.py']
-  if (chapter <= 24) return ['app/runtime.py']
-  if (chapter <= 32) return ['app/context.py']
-  if (chapter <= 39) return ['app/ingestion.py']
-  if (chapter <= 49) return ['app/retriever.py']
-  if (chapter === 50) return ['tests/rag_eval.json']
-  if (chapter <= 56) return ['mcp/search_notes']
-  if (chapter <= 58) return ['skills/page-audit']
-  if (chapter <= 61) return ['app/validation.py']
-  if (chapter <= 65) return ['app/runtime.py']
-  if (chapter === 66) return ['app/security.py']
-  if (chapter === 67) return ['tests/agent_eval.json']
-  if (chapter === 68) return ['app/observability.py']
-  if (chapter === 69) return ['compose.yaml']
-  return ['agent-demo']
-}
-
-const aiAgentBySlug = new Map(aiAgentArticlePool.map((article) => [article.slug, article]))
-const aiArtifactSnapshots = new Map<string, string[]>()
-const aiAgentArticles: ChapterMeta[] = aiAgentArticleOrder.map((slug, index) => {
-  const article = aiAgentBySlug.get(slug)
-  if (!article) throw new Error(`AI article is missing from pool: ${slug}`)
-  const chapter = index + 1
-  const track = aiAgentSpecialSlugs.has(slug) ? 'special' : 'mainline'
-  const trackOrder = track === 'special' ? [...aiAgentSpecialOrder] : aiAgentMainlineOrder
-  const sequence = trackOrder.indexOf(slug) + 1
-  const previousSlug = track === 'special'
-    ? (sequence === 1 ? 'tool-calling-contracts' : trackOrder[sequence - 2])
-    : trackOrder[sequence - 2]
-  const artifactIn = previousSlug ? [...(aiArtifactSnapshots.get(previousSlug) ?? [])] : []
-  const artifactOut = [...new Set([...artifactIn, ...aiArtifactDelta(slug, chapter)])]
-  const result: ChapterMeta = {
-    ...article,
-    chapter,
-    track,
-    sequence,
-    dependsOn: previousSlug ? [previousSlug] : [],
-    artifactIn,
-    artifactOut,
-    milestone: chapter < 22 || track === 'special' ? 'local-agent' : 'runtime'
-  }
-  aiArtifactSnapshots.set(slug, artifactOut)
-  return result
-})
+const aiAgentArticles: ChapterMeta[] = aiAgentCurriculum.map((article, index) => ({
+  ...article,
+  category: 'ai-agent',
+  part: aiAgentStageLabelByKey.get(article.stageKey) ?? article.stageKey,
+  chapter: index + 1,
+  sequence: index + 1,
+}))
 
 const seoArticles = course('seo', [
   item('搜索增长与项目判断', 'search-growth-model', 'SEO、SEM、GEO 与搜索增长全景', '沿需求、页面、发现、抓取、索引、排名、点击、转化和收入，分清自然搜索、搜索广告与生成式搜索各自能证明什么。', ['SEO', 'SEM', 'GEO'], ['了解网站基本组成'], ['画出搜索增长漏斗', '区分流量指标与业务结果'], '建立一张从需求到收入的诊断表', ['每一层都有证据字段', '数据缺口被明确记录'], 'official', 'decision'),

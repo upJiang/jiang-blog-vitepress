@@ -2,8 +2,8 @@
 title: LangGraph Checkpoint、Thread 与恢复：进程重启后如何继续
 description: 从一次中断的图执行开始，区分 thread、checkpoint、业务 Turn 和事件，并验证恢复不会重复副作用。
 category: ai-agent
-part: LangGraph：状态图和执行语义
-chapter: 19
+part: LangGraph 与状态执行
+chapter: 28
 tags:
   - LangGraph
   - Checkpoint
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangGraph Checkpoint、Thread 与恢复：进程重启后如何继续
+
+## Checkpoint、Thread 与恢复分别是什么
 
 Checkpoint 是 LangGraph 在节点边界保存的 State 快照，Thread 是把这些快照串成一条图执行历史的标识。它们位于图运行时的恢复层：Checkpoint 记录“停在哪里、下一步是什么”，Thread 负责找到哪条历史；业务 Turn 仍然负责用户权限、取消和最终状态。
 
@@ -102,7 +104,7 @@ LangGraph 按图执行步骤推进。一个步骤里可以有一个或多个可�
 
 例如 `evidence_ids=["e-1", "e-2"]` 适合放进快照，但恢复时必须用快照里的 `release_id` 和 ACL 范围重新读取，不能用“当前最新版本”替换。否则同一 checkpoint 会在不同时间得到不同证据，失去可复现性。
 
-## 可恢复不等于可以重放所有代码
+## 恢复边界与副作用重放
 
 纯计算节点通常可以重放：分类、格式化、排序。外部**副作用**必须有幂等边界：发送邮件、写入任务、扣费、发布事件、创建对象都需要稳定幂等键，或者在 Checkpoint 前后记录已经完成的事实。
 
@@ -261,7 +263,7 @@ def test_resume_reuses_completed_research_checkpoint() -> None:
 
 恢复成功后记录 `resumed_from_checkpoint`、恢复原因、旧 Worker、当前 Lease owner 和重放节点。这样出现重复模型调用或迟到事件时，可以从 Trace 还原“为什么这一步又执行了一次”。
 
-## Checkpoint 保存什么、不保存什么
+## Checkpoint 的保存范围
 
 保存适合恢复的结构化状态：问题、计划、候选 ID、已验证证据、下一节点、重试次数和版本快照。不要把未脱敏密钥、整段敏感原文或无法序列化的连接对象放进状态。大文本应存对象或证据表，状态只放引用。
 

@@ -1,11 +1,9 @@
 ---
 title: LangChain Streaming、Callback、Middleware 与有限重试
-description: >-
-  从同一 create_agent 运行拆开 updates、messages、custom 三类流、Callback 生命周期和 Middleware
-  包装点，实现稳定公开事件、共享 Deadline 的有限重试与取消传播。
+description: 从同一 create_agent 运行拆开 updates、messages、custom 三类流、Callback 生命周期和 Middleware 包装点，实现稳定公开事件、共享 Deadline 的有限重试与取消传播。
 category: ai-agent
-part: LangChain：从函数到 Agent
-chapter: 14
+part: LangChain 组件组合
+chapter: 23
 tags:
   - LangChain
   - Streaming
@@ -30,6 +28,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangChain Streaming、Callback、Middleware 与有限重试
+
+## Streaming、Callback 与 Middleware 分别负责什么
 
 Streaming、Callback 和 Middleware 是 LangChain Runtime 的三种不同扩展点。Streaming 把运行数据送给调用方，Callback 旁路记录生命周期，Middleware 进入执行路径并包裹模型或工具调用。三者都围绕同一次 Agent 运行，但只有 Middleware 会改变是否继续、重试或终止。
 
@@ -96,7 +96,7 @@ flowchart LR
 
 可以一次订阅多个模式。使用 v2 事件封装时，每项包含 `type`、命名空间 `ns` 和 `data`。例如 `updates` 的 `data` 可能是 `{"tools": {"messages": [...]}}`，`custom` 的 `data` 则是工具写入的普通字典。
 
-### updates 是状态变化，不是文字动画
+### updates 承载状态变化事件
 
 对最小 Agent，updates 通常依次出现：
 
@@ -131,7 +131,7 @@ Callback 中不要把原始问题、完整 Prompt、证据正文、密钥或用�
 
 Callback 原则上不改变业务结果。需要阻止调用、修改请求或重试时，应使用 Middleware 或显式 Runtime 节点。否则一个看似“日志回调”的异常会让业务行为难以推演。
 
-## Middleware 位于真正的执行路径
+## Middleware 介入模型与工具执行路径
 
 Middleware 有两类常见 Hook：
 

@@ -2,8 +2,8 @@
 title: Claim、Evidence、引用生成与答案验证
 description: 把答案拆成可验证 Claim，让每个事实绑定用户可见证据，并对缺证据结论做有限修复。
 category: ai-agent
-part: 答案质量与运行
-chapter: 60
+part: 答案可信、安全与质量
+chapter: 58
 tags:
   - Claim
   - Evidence
@@ -25,6 +25,8 @@ updated: 2026-08-06T00:00:00.000Z
 lastUpdated: false
 ---
 # Claim、Evidence、引用生成与答案验证
+
+## Claim、Evidence 与引用分别是什么
 
 Claim 是答案中需要外部事实支持的最小结论，Evidence 是当前用户可见、带来源版本和原文位置的证据对象，Citation 是把两者关系展示给读者的引用。它们位于检索结果和最终回答之间，用来检查模型有没有把“相关资料”扩写成资料并未支持的事实。
 
@@ -61,7 +63,7 @@ contentHash：防止引用内容被静默替换
 
 Evidence 不是把任意 URL 贴上去。它要能证明“这段原文在这个版本和位置存在”，并在展示时继续检查用户权限。
 
-### Evidence、Reference 和 Citation 不要混成一个字符串
+### Evidence、Reference 与 Citation 的职责区别
 
 这三个词在产品界面里可能都显示成“引用”，在系统里却承担不同职责：
 
@@ -79,7 +81,7 @@ Evidence 可以被多个 Claim 复用；一个 Claim 也可能需要多条 Evide
 
 原子 Claim 的输入是候选答案句子和语法/模型拆分结果，输出至少包含 `claim_id`、规范文本、类型和在答案中的字符范围。拆分不能改变否定、数字和条件。过度拆分也有代价：“只有在生产环境中”与“需要审批”分开后，条件可能丢失；所以原子化的标准是“可以用同一组 Evidence 独立判真，同时保留必要条件”。
 
-### 支持关系不是简单的布尔值
+### 支持关系需要表达强度与冲突
 
 Reference 可以保存 `full`、`partial`、`contradicted`、`unverified` 等状态：
 
@@ -304,7 +306,7 @@ E1 原文只写“提交后由直属负责人审批”。审核结果：
 
 合格修复是删除后两项，只保留“提交后由直属负责人审批 [E1]”。如果系统有其他证据，再分别引用。
 
-## Claim 验证不是只靠另一个模型
+## Claim 验证结合程序规则与模型判断
 
 验证可以组合：
 

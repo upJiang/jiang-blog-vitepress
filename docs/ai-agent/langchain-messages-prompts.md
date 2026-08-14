@@ -2,8 +2,8 @@
 title: LangChain Message 与 Prompt：装配历史、证据和当前问题
 description: 从消息角色和 PromptValue 开始，逐步装配系统规则、最近历史、可见证据与当前问题，并测试角色注入、缺失变量和不可信资料边界。
 category: ai-agent
-part: LangChain：从函数到 Agent
-chapter: 9
+part: LangChain 组件组合
+chapter: 18
 tags:
   - LangChain
   - Message
@@ -27,6 +27,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # LangChain Message 与 Prompt：装配历史、证据和当前问题
+
+## Message 与 Prompt 分别负责什么
 
 LangChain Message 是带角色和内容类型的模型输入对象，Prompt 是把变量、历史和资料转换成 Message 列表的装配规则。它们位于业务上下文和 ChatModel 之间：Prompt 决定哪些内容以什么顺序进入，Message 保留模型协议需要的角色和数据形状。
 
@@ -72,7 +74,7 @@ flowchart LR
 
 `ChatPromptValue` 是格式化后的中间对象。它能转换成 Message 列表，但还没有发起模型请求，因此很适合做快照测试：检查角色顺序、变量替换、证据标签和当前问题是否正确。
 
-## Message 不是只有 role 和字符串
+## Message 的类型与附加字段
 
 ### 四种常见消息类型
 
@@ -155,7 +157,7 @@ PromptValue 把“模板定义”和“本次请求的具体消息”分开。�
 
 当前问题是本轮目标，放在历史和证据之后让模型更容易关联最近指令。系统规则仍在最前。若证据非常长，当前问题也可以在系统规则后重复简短目标，但要避免产生两个不一致的用户问题。
 
-### 为什么证据不直接拼进 SystemMessage
+### 证据与 SystemMessage 的信任边界
 
 SystemMessage 应保持应用控制的规则。把外部网页或文档正文拼进系统消息，会让不可信数据获得更高语义权重，也让审计无法区分规则与资料。
 
@@ -489,7 +491,7 @@ pytest -q
 
 “模型在答案里写了 `[source-a]`”只是引用候选。程序验证通过后，它才成为可展示 Reference。
 
-## 分隔符能做什么，不能做什么
+## 分隔符的作用与安全边界
 
 XML 风格标签、Markdown 围栏或 JSON 字段都能让结构清晰，帮助模型区分规则和资料。转义能防止数据闭合标签或破坏 JSON 语法。
 

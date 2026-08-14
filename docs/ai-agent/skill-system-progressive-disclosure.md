@@ -2,8 +2,8 @@
 title: Skill 的本质：触发、目录结构与渐进式披露
 description: 从一条任务说明扩展到 SKILL.md、references、scripts、templates 和 assets，解释 Agent 何时读取什么。
 category: ai-agent
-part: Skill：沉淀任务方法
-chapter: 57
+part: 工具与能力扩展
+chapter: 14
 tags:
   - Skill
   - Progressive Disclosure
@@ -24,6 +24,8 @@ updated: 2026-08-07T00:00:00.000Z
 lastUpdated: false
 ---
 # Skill 的本质：触发、目录结构与渐进式披露
+
+## Skill 是什么
 
 Skill 是 Agent 可以发现并按需读取的任务方法包。入口文件说明什么请求应触发、执行顺序和边界，其他文件保存详细规则、确定性脚本或交付模板。它位于通用 Agent 与具体任务之间：模型仍负责理解当前请求，Skill 提供已经整理和验证的方法。
 
@@ -167,7 +169,7 @@ description: 当用户明确授权检查一个 HTTP 页面，并要求核对状�
 
 一个 Skill 可以运行普通脚本，也可以调用 MCP Tool。MCP 连接能力，Skill 编排方法；都不能覆盖更高优先级权限与项目规则。SubAgent 只有在任务可以独立分工、权限和回传契约明确时才有价值，不是每个 Skill 的必需组件。
 
-## 验证的是行为，不是文件存在
+## 用行为回归验证 Skill
 
 `SKILL.md` 能被读取，只证明安装结构基本正确。质量验证还要覆盖：
 

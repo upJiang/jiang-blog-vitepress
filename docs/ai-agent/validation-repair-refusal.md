@@ -2,8 +2,8 @@
 title: 验证器、有限修复与安全拒答：答案不可信时怎么办
 description: 把事实、引用、ACL、隐私和注入验证拆开，定义可修复问题、不可修复问题和终态。
 category: ai-agent
-part: 可信运行：证据和回答
-chapter: 61
+part: 答案可信、安全与质量
+chapter: 59
 tags:
   - Validation
   - Repair
@@ -25,6 +25,8 @@ updated: 2026-08-10T00:00:00.000Z
 lastUpdated: false
 ---
 # 验证器、有限修复与安全拒答：答案不可信时怎么办
+
+## 验证、修复与拒答分别负责什么
 
 **验证器**是模型生成之后、答案发送之前的一组程序检查。它用来核对结构、引用、权限、事实支持和完整性，并把结果交给 Runtime 决定是批准、有限修复还是拒答。这里的**有限修复**是带次数和范围上限的补证据或重新生成；**安全拒答**则是在越权、隐私风险或证据始终不足时停止输出。
 
@@ -229,7 +231,7 @@ def test_valid_answer_is_approved() -> None:
 
 运行 `python -m pytest -q`，预期三条通过。第一条证明信息缺口最多进入一次修复，第二条证明 ACL 不会被当作可重试错误，第三条锁住正常终态。完整测试还要覆盖未知引用、旧 Release、冲突 Evidence、验证模型超时和修复后 Claim ID 变化。
 
-## 有限修复怎样执行，而不偷偷改变问题
+## 有限修复保持原问题与证据边界
 
 修复任务只携带失败 Claim、允许 Evidence ID、稳定错误码和剩余一次预算。允许动作应枚举为 `remove_claim`、`narrow_claim`、`bind_existing_evidence`、`retrieve_missing_slot`；禁止修改 Scope、Release、用户问题和已通过 Claim。
 

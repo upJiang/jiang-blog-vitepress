@@ -2,8 +2,8 @@
 title: Celery Worker、ACK、任务所有权与 Lease
 description: 沿消息投递、预取、执行、ACK、重投和租约续期解释 Worker 重启后的行为。
 category: ai-agent
-part: 可信运行：异步和恢复
-chapter: 63
+part: Runtime、异步执行与交付
+chapter: 66
 tags:
   - Celery
   - Worker
@@ -25,6 +25,8 @@ updated: 2026-08-10T00:00:00.000Z
 lastUpdated: false
 ---
 # Celery Worker、ACK、任务所有权与 Lease
+
+## Worker、ACK 与 Lease 分别是什么
 
 Celery Worker 是消费并执行队列任务的进程，ACK 是 Worker 告诉 Broker“这条消息已处理”的确认，Lease 则是一份带期限的任务所有权。它们位于 Broker 投递和业务状态写入之间，用于在至少一次投递下判断谁可以继续执行、何时确认消息，以及崩溃后谁能接管。
 

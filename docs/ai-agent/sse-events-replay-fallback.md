@@ -2,8 +2,8 @@
 title: SSE 事件、序号、断线重放与轮询降级
 description: 从浏览器断开开始，说明事件持久化、Last-Event-ID、心跳、重放窗口和轮询兜底。
 category: ai-agent
-part: 可信运行：异步和恢复
-chapter: 65
+part: Runtime、异步执行与交付
+chapter: 68
 tags:
   - SSE
   - Event Replay
@@ -25,6 +25,8 @@ updated: 2026-08-10T00:00:00.000Z
 lastUpdated: false
 ---
 # SSE 事件、序号、断线重放与轮询降级
+
+## SSE 在 Agent Runtime 中的位置
 
 SSE（Server-Sent Events）是一种服务端通过单向 HTTP 长连接持续向浏览器发送文本事件的协议。它位于 Agent Runtime 的事件存储与前端页面之间，适合传输检索进度、引用和最终答案；它不保存业务状态，也不保证断线期间的事件自动补发。
 
@@ -54,7 +56,7 @@ sequenceDiagram
 
 事件序号属于一个 Turn，必须单调递增并在持久化时分配。客户端收到事件后才推进本地游标；连接断开不会推进游标。重连时服务端读取 `seq > Last-Event-ID` 的事件，客户端按序去重。**终态**事件之后，服务端返回 `204` 或关闭连接，不能继续发送“处理中”。
 
-## 为什么需要事件而不是直接返回字段
+## 事件流与最终状态查询的职责区别
 
 一个 Agent Turn 的状态会连续变化：accepted、retrieving、evidence_ready、generating、completed。只保存当前 JSON，客户端断线后只能看到最终状态，无法知道是否已经展示过引用，也无法判断进度条是否倒退。事件提供可重放的历史，当前状态则是事件折叠后的快照，两者职责不同。
 

@@ -2,8 +2,8 @@
 title: Adaptive、Corrective、多跳与 Agentic RAG 的执行链
 description: 用证据质量作为路由信号，分别处理补搜、外部校验、多跳关系和动态研究，并定义终止条件。
 category: ai-agent
-part: RAG 与知识工程：高级检索
-chapter: 48
+part: RAG 知识工程
+chapter: 55
 tags:
   - Adaptive RAG
   - Corrective RAG
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # Adaptive、Corrective、多跳与 Agentic RAG 的执行链
+
+## 四种 RAG 控制方式解决什么问题
 
 固定 RAG 常见的流程是“问题 -> 检索一次 -> 生成答案”。它适合边界清楚、知识完整的简单问答，但遇到四类问题就会吃力：问题类型不同却使用同一检索器，首次召回质量差，答案需要沿实体关系查两次，或者研究步骤必须根据中间证据动态决定。
 

@@ -2,8 +2,8 @@
 title: 一次 Agent 请求的完整 Runtime 生命周期
 description: 从入口准入、版本快照、Worker 所有权、图执行到终态事件，逐阶段列出输入、写入和停止条件。
 category: ai-agent
-part: LangGraph：状态图和执行语义
-chapter: 22
+part: Runtime、异步执行与交付
+chapter: 65
 tags:
   - Runtime
   - Admission
@@ -25,6 +25,8 @@ updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
 # 一次 Agent 请求的完整 Runtime 生命周期
+
+## Runtime 生命周期是什么
 
 Runtime 生命周期是一次 Agent Turn 从准入、排队、执行到终态交付所经过的业务状态链。它位于 API、队列、Worker、图编排、工具/检索和事件流的交界处，负责保存谁拥有执行权、使用哪个版本、已经产生哪些事实以及何时停止；模型调用只是其中一个步骤。
 
@@ -158,7 +160,7 @@ Lease 不是普通的 `locked=true`。它至少包含 owner token 和过期时�
 
 SSE 连接断开不等于用户取消。浏览器切换网络时，Worker 仍可完成任务；客户端重连后用最后序号补齐事件。只有显式取消 API 或服务端 Deadline 才改变 Turn 的执行意图。
 
-## Worker 内部不是一次模型调用，而是四段受控执行
+## Worker 内部的四段受控执行
 
 前面的时序图把 LangGraph 画成一个节点，是为了先看清 API、队列和所有权。现在把 Worker 内部展开。它不是“检索后生成”四个字，而是预处理、理解与计划、检索与证据、生成与验证四段执行；每一段都有明确输入、状态和停止条件。
 

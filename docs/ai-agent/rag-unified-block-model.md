@@ -2,8 +2,8 @@
 title: 统一 Block：标题、段落、表格、代码和原文定位
 description: 把不同解析器输出统一为可追溯 Block，保留层级、版面、表头、代码语言和原文坐标。
 category: ai-agent
-part: RAG 与知识工程：导入和版本
-chapter: 38
+part: RAG 知识工程
+chapter: 45
 tags:
   - RAG
   - Block
@@ -25,6 +25,8 @@ updated: 2026-08-12
 lastUpdated: false
 ---
 # 统一 Block：标题、段落、表格、代码和原文定位
+
+## 统一 Block 是什么
 
 Block 是一种位于解析器与知识处理之间的稳定中间表示。它用于把 PDF 页、Word 段落、PPT 形状和 Excel 单元格收敛为共同字段，同时保留标题层级、版面坐标、表头和代码语言。上游解析器生成 Block，下游切片器消费 Block，引用服务再根据 locator 回到原文件。
 
