@@ -3,46 +3,25 @@ import { computed, ref } from 'vue'
 import {
   articlesByCategory,
   articlePath,
-  frontendTracks,
   sections,
-  type FrontendTrackKey
+  sectionTrackGroups
 } from '../content'
 import SectionTrackTabs from './SectionTrackTabs.vue'
 import { useTrackSelection } from './useTrackSelection'
 
 const section = sections.find((item) => item.key === 'frontend')
-const tabs = frontendTracks.map((track) => ({ ...track }))
+const trackGroups = sectionTrackGroups('frontend')
+const tabs = [{ key: 'all', label: '全部' }, ...trackGroups.map(({ key, label }) => ({ key, label }))]
 const { activeTrack, selectTrack } = useTrackSelection(() => tabs.map((track) => track.key))
 const tabsRef = ref<InstanceType<typeof SectionTrackTabs> | null>(null)
-
-function trackFor(slug: string, part: string): Exclude<FrontendTrackKey, 'all'> {
-  if (slug.startsWith('relearn/') || part === '基础与手写') return 'fundamentals'
-  if (part === 'TypeScript' || slug === 'typescript-type-system-engineering') return 'typescript'
-  if (part === 'React' || slug === 'react-fiber-concurrent-rendering' || slug === 'nextjs-rendering-cache-invalidation') return 'react'
-  if (part === 'Vue' || slug === 'vue-reactivity-scheduler') return 'vue'
-  if (part === '构建工具' || part === '现代前端：构建工具') return 'tooling'
-  return 'engineering'
-}
-
-const visibleArticles = computed(() => {
-  const articles = articlesByCategory('frontend')
-  if (activeTrack.value === 'all') return articles
-  return articles.filter((item) => trackFor(item.slug, item.part) === activeTrack.value)
-})
-
 const groups = computed(() => {
-  const grouped = new Map<string, typeof visibleArticles.value>()
-  for (const item of visibleArticles.value) {
-    const group = grouped.get(item.part) ?? []
-    group.push(item)
-    grouped.set(item.part, group)
-  }
-  return [...grouped.entries()]
+  const selected = activeTrack.value === 'all'
+    ? trackGroups
+    : trackGroups.filter(({ key }) => key === activeTrack.value)
+  return selected.flatMap((track) =>
+    track.groups.map((group) => [`${track.key}:${group.key}`, group.label, group.items] as const)
+  )
 })
-
-function displayGroup(group: string): string {
-  return group.replace(/^第[一二三四五六七八九十]+部分[：:]?\s*/, '')
-}
 
 </script>
 
@@ -73,8 +52,8 @@ function displayGroup(group: string): string {
       tabindex="0"
       @keydown.esc="tabsRef?.focusActiveTab()"
     >
-      <section v-for="[group, items] in groups" :key="group" class="article-group">
-        <h2>{{ displayGroup(group) }}</h2>
+      <section v-for="[groupKey, group, items] in groups" :key="groupKey" class="article-group">
+        <h2>{{ group }}</h2>
         <div class="article-index-list">
           <a v-for="item in items" :key="item.slug" :href="articlePath(item)">
             <span class="article-index-copy">

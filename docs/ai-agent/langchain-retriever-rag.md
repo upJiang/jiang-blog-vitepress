@@ -31,6 +31,8 @@ lastUpdated: false
 ---
 # LangChain Retriever 与 2-Step RAG：从 Document 到 Evidence
 
+Retriever 是应用层的检索接口：接收查询，返回候选 `Document`；2-Step RAG 是把检索固定放在生成之前的流程。它位于用户问题与模型上下文之间，用来控制召回、范围过滤和 Evidence 装配，不等于某一种向量数据库。
+
 用户问“访问申请在哪里提交？”如果系统每次都应该先查内部知识，再根据当前可见资料回答，最简单的实现不是 Agent 自由循环，而是一条固定链：
 
 ```text
@@ -44,9 +46,9 @@ question
 
 这叫 **2-Step RAG**：检索一定发生在生成之前，路径和最多调用次数在写代码时已经确定。它解决模型上下文有限、训练知识静态的问题，同时比“让 Agent 自己决定查不查”更容易控制延迟、权限和测试。
 
-本篇不会用一个向量库类名替代 RAG 全流程。我们会实现 LangChain `BaseRetriever`，明确它的查询输入和 **Document** 输出；再把 Document 转成带稳定 ID、位置、版本和内容哈希的 Evidence；最后用 LCEL 串成离线可运行的固定链。Embedding 与向量索引会在后续专门展开，这里先把应用接口和信任边界固定下来。
+LangChain `BaseRetriever` 接收查询并返回 **Document**，Document 再转换成带稳定 ID、位置、版本和内容哈希的 Evidence，最后由 LCEL 组成可离线运行的固定链。向量库只是 Retriever 的一种实现，不能替代 RAG 的应用接口和信任边界。
 
-[Streaming、Callback 与 Middleware](/docs/ai-agent/langchain-streaming-middleware-retry) 已经定义检索开始、候选数量和无证据终态怎样成为公开事件。本篇沿用这套事件，不为 Retriever 另造一套进度协议。固定链出现条件路由、并行研究和恢复需求后，再把相同 Retriever 放进 LangGraph 节点。
+[Streaming、Callback 与 Middleware](/docs/ai-agent/langchain-streaming-middleware-retry) 已经定义检索开始、候选数量和无证据终态怎样成为公开事件。Retriever 沿用这套事件，不另造进度协议。固定链出现条件路由、并行研究和恢复需求后，再把相同 Retriever 放进 LangGraph 节点。
 
 ## RAG 解决的不是“模型不会背资料”这么简单
 
@@ -69,7 +71,7 @@ RAG 在查询时选择少量相关片段，让生成阶段只看到当前问题�
 | Generate | 问题与上下文 | 模型、Prompt、Schema | 候选答案与引用 |
 | Validate | 候选答案与 Evidence | Claim 支持、引用、敏感信息 | 完成、修复或拒答 |
 
-本篇实践用确定性模板代替生成模型，目的是让检索和 Evidence 契约可离线测试。接入真实 ChatModel 后，前四步和验证仍然保留。
+实践代码用确定性模板代替生成模型，让检索和 Evidence 契约可以离线测试。接入真实 ChatModel 后，前四步和验证仍然保留。
 
 ## Retriever 不是向量库
 
@@ -194,7 +196,6 @@ flowchart LR
 
 安装 LangChain Core、Pydantic 和 pytest。程序不调用远程模型或数据库：
 
-下面的命令接收本节“环境、输入与预期产物”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装 Retriever、向量与测试依赖，示例使用固定匿名文档和当前 Scope 作为输入。
 python3 -m venv .venv
@@ -450,8 +451,6 @@ if __name__ == "__main__":
     demo()
 ```
 
-代码从 `ScopeSnapshot`、`Evidence`、`RagResult` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
-
 ### Retriever 怎样绑定可信 Scope
 
 `ScopedMemoryRetriever` 继承 `BaseRetriever`。它把 `documents`、`scope` 和 `k` 作为构造状态；调用方只向 `invoke` 传 query，用户文本无法覆盖绑定的 Scope 与 Release。
@@ -484,7 +483,6 @@ if __name__ == "__main__":
 
 ### 运行并观察结果
 
-下面的命令接收本节“运行并观察结果”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 运行命中、无结果和受限范围查询，观察候选、Evidence 与最终终态，而不是只看答案文本。
 python scoped_rag.py
@@ -657,7 +655,7 @@ Retriever 作为 Tool，模型决定何时查、查哪个来源和是否继续�
 - 任务跨请求，需要 Checkpoint、取消和恢复；
 - 每个阶段要写事件、持久状态和独立指标。
 
-迁移时不要丢掉本篇 Retriever。把它作为 LangGraph 节点或 Tool 使用，继续复用 ScopeSnapshot、Document→Evidence 和错误语义。否则“升级框架”反而会产生两套权限与检索逻辑。
+迁移时保留现有 Retriever，把它作为 LangGraph 节点或 Tool 使用，继续复用 ScopeSnapshot、Document→Evidence 和错误语义。重新实现会产生两套权限与检索逻辑。
 
 ## 接入真实全文或向量检索时的顺序
 
@@ -699,30 +697,29 @@ Retriever 作为 Tool，模型决定何时查、查哪个来源和是否继续�
 7. 两路任一失败时明确选择整体失败还是可解释降级；
 8. 若 Evidence 不足允许补搜，画出升级 LangGraph 后的状态和停止条件。
 
-你会把本篇的 question、ScopeSnapshot、Documents、Evidence 与 RagResult 放进显式状态，不再让动态分支藏在一个 RunnableLambda 中。
+question、ScopeSnapshot、Documents、Evidence 与 RagResult 都应进入显式状态，动态分支不再藏在一个 RunnableLambda 中。
 
-## 常见问题
 
-### Retriever 与 VectorStore 有什么区别？
+**Retriever 与 VectorStore 有什么区别？**
 
 VectorStore 负责向量保存、过滤和相似度查询，Retriever 是面向问题返回 Document 的检索接口，可以在内部组合向量、全文、查询改写、压缩或其他数据源。把调用方依赖在 Retriever 上，后续能替换检索策略而不改生成链；但 Retriever 的统一接口不会抹平各后端的过滤、分数和一致性差异，这些仍要通过元数据与测试表达。
 
-### Document 的 metadata 为什么和正文同样重要？
+**Document 的 metadata 为什么和正文同样重要？**
 
 正文用于模型理解，metadata 保存 document ID、chunk ID、标题路径、来源位置、Scope、Release、内容哈希和检索通道。没有这些字段，候选无法去重、过滤、引用或在版本切换后回放。metadata 也不能由模型补猜，必须从导入与权限系统继承；进入 Prompt 前只暴露回答所需字段，完整内部元数据留在 Evidence 记录。
 
-### 固定 2-Step RAG 什么时候比 Agentic RAG 更合适？
+**固定 2-Step RAG 什么时候比 Agentic RAG 更合适？**
 
 问题能用一次查询或确定的查询改写召回，生成前不需要根据观察选择不同工具时，固定的检索、生成、验证路径更便宜，也更容易稳定评测。Agentic RAG 适合多跳、动态通道和有限补搜，但会增加循环与停止条件。应先用固定 RAG 测出 Recall 与答案基线，确认失败来自动态研究后再引入 Planner，不要用 Agent 掩盖切片或索引问题。
 
-### Scope 与 Release 应该在哪个阶段过滤？
+**Scope 与 Release 应该在哪个阶段过滤？**
 
 它们应进入实际查询条件，让不可见或错误版本的片段根本不成为候选，而不是检索全库后再让模型选择。缓存键也要包含权限与版本语义，Rerank 和 Evidence 选择继续保留这些字段；最终输出前再复核当前权限。前置过滤降低泄露面，末端复核处理执行期间撤权，两者解决不同时间点的问题。
 
-### Retriever 返回的 Document 为什么还不是 Evidence？
+**Retriever 返回的 Document 为什么还不是 Evidence？**
 
 Document 只是召回候选，可能相关性不足、重复、版本冲突或无法支撑具体 Claim。Evidence 需要经过权限与 Release 过滤、融合、Rerank、内容安全和预算选择，并保存可回溯位置。生成阶段绑定 Claim 与 Evidence，验证器才能指出哪条事实缺支撑。直接把 Top K Documents 全部塞进 Prompt，会把检索分数误当成事实证明。
 
-### 怎样测试一个 Retriever RAG，而不是只看回答顺不顺？
+**怎样测试一个 Retriever RAG，而不是只看回答顺不顺？**
 
 先用标注查询检查正确 chunk 是否进入 Top K、无权内容是否始终缺席、空结果与依赖失败是否分开，再测试 Document metadata 和引用回溯。随后用脚本化模型验证 Prompt 只收到允许证据，最后才做答案忠实度评测。固定查询、Release、Embedding 与索引版本，并记录候选列表；否则最终答案变化时无法判断是召回、生成还是模型随机性造成。

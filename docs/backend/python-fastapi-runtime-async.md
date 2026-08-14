@@ -25,7 +25,9 @@ updated: 2026-08-12
 
 # Python 与 FastAPI：ASGI、依赖注入和异步边界
 
-`async def` 路由中直接调用同步 PDF 解析，解析 2 秒期间同一事件循环无法处理其他 socket。FastAPI 基于 ASGI 支持异步请求，但 Python 只有在代码 await 一个真正可挂起操作时才让出；同步 IO 与 CPU 工作必须有明确隔离。
+ASGI 是 Python Web 应用与服务器之间的异步协议，FastAPI 是在 ASGI 之上组织路由、依赖和响应的框架；它们位于 HTTP 连接与业务 Service 之间。`async def` 只有在等待真正可挂起的操作时才让出事件循环，同步 IO 和 CPU 工作仍需要线程池、进程或持久 Worker 的边界。
+
+`async def` 路由中直接调用同步 PDF 解析，解析 2 秒期间同一事件循环无法处理其他 socket。FastAPI 基于 ASGI 支持异步请求，但不会自动把同步库变成异步。
 
 ## ASGI 用 scope、receive、send 表示一次连接
 
@@ -98,20 +100,20 @@ Validation Error、领域错误和基础设施错误统一转换 Problem；日�
 
 lifespan 启动共享 Client/Engine，关闭时先 readiness=false、停止 Worker/新请求，再 dispose Engine、关闭 Redis/HTTP 与 flush Telemetry。测试用 lifespan 实际启动，避免只调用函数错过资源问题。
 
-## FastAPI 异步边界继续追问
+## FastAPI 异步执行边界
 
-### 多 Uvicorn Worker 能解决所有阻塞吗？
+**多 Uvicorn Worker 能解决所有阻塞吗？**
 
 它减少单个事件循环阻塞的影响并利用多核，但每进程都有连接池和内存，阻塞仍降低容量。先移除/隔离阻塞，再按全局数据库预算设置进程数。
 
-### BackgroundTasks 适合发邮件吗？
+**BackgroundTasks 适合发邮件吗？**
 
 短、失败可接受的通知可以；进程重启会丢任务，也没有 ACK/重试。重要邮件先写任务/Outbox，由 Celery 等持久 Worker 处理。
 
-### 为什么不要捕获所有 Exception 后返回 200？
+**为什么不要捕获所有 Exception 后返回 200？**
 
 会把失败伪装成功，事务和监控无法判断。只捕获可分类错误，映射稳定状态；未知错误 rollback、记录并返回 500。
 
-### AsyncSession 能否跨并发 Task 共用？
+**AsyncSession 能否跨并发 Task 共用？**
 
 它是有状态事务会话，不适合多个并发 Task 共享。每个独立事务使用自己的 Session；同一事务内通常顺序执行 SQL。

@@ -6,7 +6,8 @@ import {
   articles,
   articleFile,
   articlePath,
-  frontendTracks,
+  sectionStages,
+  sectionTrackGroups,
   sections
 } from '../.vitepress/content.ts'
 import { removedBackendRoutes } from '../.vitepress/removed-backend-routes.ts'
@@ -43,6 +44,7 @@ const representativeRoutes = [
   '/docs/frontend/react-fiber-concurrent-rendering',
   '/docs/frontend/vue-vdom-renderer-diff',
   '/docs/frontend/vite-dev-server-plugin-system',
+  '/docs/onnx-practice/squeezenet-browser-inference',
   '/docs/algorithms/binary-search-boundaries',
   '/docs/backend/backend-learning-roadmap',
   '/docs/backend/transaction-acid-isolation-mvcc',
@@ -53,45 +55,16 @@ function assert(condition, message) {
   if (!condition) errors.push(message)
 }
 
-function frontendTrackFor(article) {
-  if (article.slug.startsWith('relearn/') || article.part === '基础与手写') return 'fundamentals'
-  if (article.part === 'TypeScript' || article.slug === 'typescript-type-system-engineering') return 'typescript'
-  if (
-    article.part === 'React' ||
-    article.slug === 'react-fiber-concurrent-rendering' ||
-    article.slug === 'nextjs-rendering-cache-invalidation'
-  ) return 'react'
-  if (article.part === 'Vue' || article.slug === 'vue-reactivity-scheduler') return 'vue'
-  if (article.part === '构建工具' || article.part === '现代前端：构建工具') return 'tooling'
-  return 'engineering'
-}
-
 function sectionExpectation(category) {
   const categoryArticles = articles.filter((article) => article.category === category)
-  if (category === 'frontend') {
-    return {
-      tabCount: frontendTracks.length,
-      secondKey: frontendTracks[1].key,
-      thirdKey: frontendTracks[2].key,
-      secondCount: categoryArticles.filter(
-        (article) => frontendTrackFor(article) === frontendTracks[1].key
-      ).length
-    }
-  }
-  if (category === 'ai-agent') {
-    return {
-      tabCount: 3,
-      secondKey: 'mainline',
-      thirdKey: 'special',
-      secondCount: categoryArticles.filter((article) => article.track === 'mainline').length
-    }
-  }
-  const parts = [...new Set(categoryArticles.map((article) => article.part))]
+  const stages = sectionStages[category]
+  const second = stages[0]
+  const third = stages[1] ?? { key: 'all', label: '全部' }
   return {
-    tabCount: parts.length + 1,
-    secondKey: 'part-1',
-    thirdKey: 'part-2',
-    secondCount: categoryArticles.filter((article) => article.part === parts[0]).length
+    tabCount: stages.length + 1,
+    secondKey: second.key,
+    thirdKey: third.key,
+    secondCount: categoryArticles.filter((article) => article.stageKey === second.key).length
   }
 }
 
@@ -114,7 +87,7 @@ try {
     await page.goto(baseURL, { waitUntil: 'networkidle' })
     await page.locator('.knowledge-home').waitFor()
     assert((await page.locator('h1').textContent())?.trim() === '小江AI', `${viewport.width}px 首页标题错误`)
-    assert((await page.locator('.topic-grid a').count()) === 7, `${viewport.width}px 知识地图不是 7 个栏目`)
+    assert((await page.locator('.topic-grid a').count()) === 8, `${viewport.width}px 知识地图不是 8 个栏目`)
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -138,16 +111,22 @@ try {
       const route = articlePath(article)
       await page.goto(`${baseURL}${route}`, { waitUntil: 'domcontentloaded' })
       await page.locator('.VPDoc').waitFor()
-      if (!article.preserved) {
+      if (!article.contentLocked) {
         assert((await page.locator('h1').count()) === 1, `${width}px 文章缺少唯一一级标题：${route}`)
       }
-      assert((await page.locator('.VPLastUpdated').count()) === 0, `${width}px 文章仍展示更新时间：${route}`)
-      const templateHeadings = await page.locator('.VPDoc h2').evaluateAll((headings) =>
-        headings
-          .map((heading) => heading.textContent?.trim() ?? '')
-          .filter((heading) => /^参考资料|(?:本篇|本文)产物/.test(heading))
+      assert(
+        (await page.locator('.chapter-guide').count()) === 0,
+        `${width}px 文章仍展示“开始前可以了解/读完可以带走”模板卡：${route}`
       )
-      assert(templateHeadings.length === 0, `${width}px 文章仍展示模板章节：${route}`)
+      assert((await page.locator('.VPLastUpdated').count()) === 0, `${width}px 文章仍展示更新时间：${route}`)
+      if (!article.contentLocked) {
+        const templateHeadings = await page.locator('.VPDoc h2').evaluateAll((headings) =>
+          headings
+            .map((heading) => heading.textContent?.trim() ?? '')
+            .filter((heading) => /^参考资料|(?:本篇|本文)产物/.test(heading))
+        )
+        assert(templateHeadings.length === 0, `${width}px 文章仍展示模板章节：${route}`)
+      }
       if (article.category === 'backend') {
         assert(
           (await page.locator('h1').textContent())?.replace(/\u200b/g, '').trim() === article.title,
@@ -156,10 +135,6 @@ try {
         assert(
           (await page.locator('.NotFound, .not-found, [data-not-found]').count()) === 0,
           `${width}px 后端文章误入 404 页面：${route}`
-        )
-        assert(
-          (await page.locator('.chapter-guide').count()) === 0,
-          `${width}px 后端文章仍展示固定阅读信息模板：${route}`
         )
         // 只有正文确实包含 Mermaid 时才等待 SVG；没有图的文章不应被测试脚本误判。
         if (await page.locator('.mermaid').count() > 0) {
@@ -171,7 +146,7 @@ try {
         }
       }
       if (
-        (!article.preserved && article.category === 'algorithms') ||
+        (!article.contentLocked && article.category === 'algorithms') ||
         (article.category === 'frontend' && article.chapter >= 19 && !article.slug.startsWith('relearn/'))
       ) {
         assert(
@@ -266,6 +241,15 @@ try {
       const categoryArticles = articles.filter((article) => article.category === section.key)
       await sectionPage.goto(`${baseURL}${section.path}`, { waitUntil: 'networkidle' })
 
+      assert(
+        (await sectionPage.locator('.VPSidebar').count()) === 0,
+        `${viewport.width}px ${section.title} 栏目索引不应显示左侧目录`
+      )
+      assert(
+        (await sectionPage.locator('.VPDocAside').count()) === 0,
+        `${viewport.width}px ${section.title} 栏目索引不应显示右侧目录`
+      )
+
       const tabs = sectionPage.locator('.frontend-track-tabs [role="tab"]')
       assert(
         (await tabs.count()) === expectation.tabCount,
@@ -283,6 +267,35 @@ try {
         (await sectionPage.locator('.article-index-list a').count()) === categoryArticles.length,
         `${viewport.width}px ${section.title} 默认没有展示全部文章`
       )
+
+      if (section.key === 'ai-agent') {
+        const tabLabels = await tabs.allTextContents()
+        const expectedAiTabs = [{ key: 'all', label: '全部' }, ...sectionStages['ai-agent']]
+        assert(
+          tabLabels.map((label) => label.trim()).join('|') === expectedAiTabs.map((track) => track.label).join('|'),
+          `${viewport.width}px AI 与 Agent 主题 Tab 文案或顺序错误`
+        )
+        assert(
+          (await sectionPage.getByText('推荐阅读顺序', { exact: true }).count()) === 0,
+          `${viewport.width}px AI 与 Agent 仍展示推荐阅读顺序`
+        )
+        assert(
+          (await sectionPage.getByText('专题阅读', { exact: true }).count()) === 0,
+          `${viewport.width}px AI 与 Agent 仍展示专题阅读`
+        )
+
+        for (const track of sectionStages['ai-agent']) {
+          await sectionPage.locator(`#${idPrefix}-tab-${track.key}`).click()
+          const expectedCount = categoryArticles.filter(
+            (article) => article.stageKey === track.key
+          ).length
+          assert(
+            (await sectionPage.locator('.frontend-track-panel .article-index-list a').count()) === expectedCount,
+            `${viewport.width}px AI 与 Agent 的「${track.label}」文章数量错误`
+          )
+        }
+        await sectionPage.locator(`#${idPrefix}-tab-all`).click()
+      }
 
       const controlledPanels = await tabs.evaluateAll((elements) =>
         elements.every((element) => {
@@ -374,11 +387,32 @@ try {
   assert((await page.locator('.article-index-list a').count()) === 21, '算法栏目应展示 21 篇文章')
   assert((await page.locator('a[href="/docs/algorithms/"]').count()) > 0, '顶部导航缺少算法入口')
 
+  await page.goto(`${baseURL}/docs/ai-agent/context-window-strategies`, { waitUntil: 'networkidle' })
+  const aiSidebarGroupLabels = await page.locator('.VPSidebarItem.level-0 > .item .text').allTextContents()
+  assert(
+    aiSidebarGroupLabels.map((label) => label.trim()).join('|') === sectionStages['ai-agent'].map((track) => track.label).join('|'),
+    'AI 与 Agent 左侧一级目录没有与栏目 Tab 保持一致'
+  )
+  const contextTrack = sectionTrackGroups('ai-agent').find((track) => track.key === 'context-memory')
+  const contextSidebarGroup = page.locator('.VPSidebarItem.level-0').filter({ hasText: '上下文与记忆' }).first()
+  assert(
+    (await contextSidebarGroup.locator('a[href^="/docs/ai-agent/"]').count()) ===
+      (contextTrack?.groups.flatMap((group) => group.items).length ?? 0),
+    'AI 与 Agent 左侧专题没有包含外层专题中的全部文章'
+  )
+  assert(
+    (await page.locator('.VPSidebarItem.is-active a[href="/docs/ai-agent/context-window-strategies"]').count()) === 1,
+    'AI 与 Agent 左侧目录没有高亮当前文章'
+  )
+
   await page.goto(`${baseURL}/docs/seo/`, { waitUntil: 'networkidle' })
-  assert((await page.locator('.article-index-list a').count()) === 12, 'SEO 栏目应展示 12 篇文章')
-  assert((await page.getByText('需求、抓取与页面', { exact: true }).count()) > 0, 'SEO 栏目缺少需求、抓取与页面分组')
-  assert((await page.getByText('技术审计与排障', { exact: true }).count()) > 0, 'SEO 栏目缺少技术审计与排障分组')
-  assert((await page.getByText('站外、数据与投放', { exact: true }).count()) > 0, 'SEO 栏目缺少站外、数据与投放分组')
+  assert((await page.locator('.article-index-list a').count()) === 25, 'SEO 栏目应展示 25 篇文章')
+  for (const track of sectionStages.seo) {
+    assert(
+      (await page.getByText(track.label, { exact: true }).count()) > 0,
+      `SEO 栏目缺少「${track.label}」分组`
+    )
+  }
 
   await page.goto(`${baseURL}/docs/backend/`, { waitUntil: 'networkidle' })
   assert((await page.locator('.article-index-list a').count()) === 68, '后端栏目应展示 68 篇文章')
@@ -391,6 +425,129 @@ try {
   assert((await page.getByText('能力扩展', { exact: true }).count()) > 0, 'AI 实践栏目缺少能力扩展分组')
   assert((await page.getByText('研发系统', { exact: true }).count()) > 0, 'AI 实践栏目缺少研发系统分组')
   assert((await page.getByText('个人工作系统', { exact: true }).count()) > 0, 'AI 实践栏目缺少个人工作系统分组')
+
+  await page.goto(`${baseURL}/docs/onnx-practice/`, { waitUntil: 'networkidle' })
+  assert((await page.locator('.article-index-list a').count()) === 1, 'ONNX 实践栏目应展示 1 篇文章')
+  assert((await page.getByText('浏览器推理', { exact: true }).count()) > 0, 'ONNX 实践栏目缺少浏览器推理分组')
+
+  await page.goto(`${baseURL}/docs/onnx-practice/squeezenet-browser-inference`, { waitUntil: 'networkidle' })
+  const onnxLab = page.locator('.onnx-lab')
+  await onnxLab.waitFor()
+  assert((await onnxLab.locator('img').count()) === 1, 'ONNX 实验缺少内置样例图片')
+  await onnxLab.getByRole('button', { name: 'WASM' }).click()
+  await onnxLab.getByRole('button', { name: '运行整图分类' }).click()
+  await onnxLab.locator('.onnx-lab__results li').first().waitFor({ timeout: 120_000 })
+  assert((await onnxLab.locator('.onnx-lab__results li').count()) === 5, 'WASM 推理没有返回 5 个候选类别')
+  assert((await onnxLab.getByText('模型认为整张图片最像什么', { exact: true }).count()) === 1, 'ONNX 实验缺少整图分类的中文问题')
+  assert((await onnxLab.getByText('这是同一个问题的五个备选答案，不是图片中的五个物体。', { exact: true }).count()) === 1, 'ONNX 实验没有解释五项结果不是五个物体')
+  assert((await onnxLab.locator('.onnx-lab__metrics dd').nth(1).textContent())?.trim() === 'WASM', '强制 WASM 没有使用 WASM 后端')
+  assert(!((await onnxLab.locator('.onnx-lab__metrics dd').nth(3).textContent())?.includes('—')), 'ONNX 实验没有记录预处理耗时')
+  assert(!((await onnxLab.locator('.onnx-lab__metrics dd').nth(4).textContent())?.includes('—')), 'ONNX 实验没有记录推理耗时')
+  const wasmResults = await onnxLab.locator('.onnx-lab__results li').allTextContents()
+  const wasmProbabilities = wasmResults.map((item) => Number(item.match(/([\d.]+)%/)?.[1] ?? 0))
+  assert(wasmResults.every((item) => item.trim().length > 4), 'WASM 候选类别存在空标签')
+  assert(
+    wasmProbabilities.every((value, index) => value > 0 && value <= 100 && (index === 0 || value <= wasmProbabilities[index - 1])),
+    'WASM 候选类别的概率无效或没有按降序排列'
+  )
+  await onnxLab.getByRole('button', { name: '分析模型关注区域' }).click()
+  await onnxLab.locator('.onnx-lab__attention-map span').first().waitFor({ timeout: 180_000 })
+  assert((await onnxLab.locator('.onnx-lab__attention-map span').count()) === 25, '关注区域分析没有生成 25 个热力格')
+  assert(!((await onnxLab.locator('.onnx-lab__metrics dd').nth(5).textContent())?.includes('—')), 'ONNX 实验没有记录关注分析耗时')
+  assert(
+    (await onnxLab.getByText('这只能说明模型依赖哪个区域，不能证明模型明确识别出了耳朵、毛发等具名特征。', { exact: true }).count()) === 1,
+    'ONNX 实验没有说明关注区域的解释边界'
+  )
+
+  await onnxLab.getByRole('tab', { name: '目标检测' }).click()
+  await onnxLab.getByRole('button', { name: '运行目标检测' }).click()
+  await Promise.race([
+    onnxLab.locator('.onnx-lab__detections').waitFor({ timeout: 120_000 }),
+    onnxLab.locator('.onnx-lab__error').waitFor({ timeout: 120_000 })
+  ])
+  assert((await onnxLab.locator('.onnx-lab__error').count()) === 0, 'WASM 目标检测运行失败')
+  const detectionCount = await onnxLab.locator('.onnx-lab__detection-item').count()
+  assert(detectionCount >= 2, '内置猫图在默认阈值下没有返回预期的候选目标')
+  assert((await onnxLab.locator('.onnx-lab__detection-item').filter({ hasText: '猫' }).count()) >= 1, '目标检测没有返回中文“猫”')
+  assert((await onnxLab.locator('.onnx-lab__detection-overlay .onnx-lab__detection-box').count()) === detectionCount, '检测框数量与文字结果不一致')
+  assert((await onnxLab.locator('.onnx-lab__detection-summary').textContent())?.includes('猫'), '目标检测中文总结没有说明识别到猫')
+  const detectionInferenceMs = (await onnxLab.locator('.onnx-lab__metrics dd').nth(4).textContent())?.trim()
+  await onnxLab.locator('#onnx-detection-threshold').fill('0.4')
+  await onnxLab.getByText('没有重复运行模型', { exact: false }).waitFor({ timeout: 10_000 })
+  assert((await onnxLab.locator('.onnx-lab__detection-item').count()) < detectionCount, '调高置信度阈值后检测结果没有减少')
+  assert((await onnxLab.locator('.onnx-lab__metrics dd').nth(4).textContent())?.trim() === detectionInferenceMs, '调整阈值后重复执行了模型推理')
+
+  await onnxLab.getByRole('tab', { name: '整图分类' }).focus()
+  await page.keyboard.press('End')
+  assert(
+    await onnxLab.getByRole('tab', { name: '目标检测' }).evaluate((element) => document.activeElement === element),
+    'ONNX 模式控件不支持 End 键'
+  )
+  await page.keyboard.press('Home')
+  assert(
+    await onnxLab.getByRole('tab', { name: '整图分类' }).evaluate((element) => document.activeElement === element),
+    'ONNX 模式控件不支持 Home 键'
+  )
+
+  await onnxLab.getByRole('button', { name: '自动' }).click()
+  await onnxLab.getByRole('button', { name: '运行整图分类' }).click()
+  await onnxLab.locator('.onnx-lab__results li').first().waitFor({ timeout: 120_000 })
+  const automaticBackend = (await onnxLab.locator('.onnx-lab__metrics dd').nth(1).textContent())?.trim()
+  assert(['WEBGPU', 'WASM'].includes(automaticBackend ?? ''), '自动模式没有选择 WebGPU 或 WASM')
+  if (automaticBackend === 'WASM') {
+    assert(
+      (await onnxLab.locator('.onnx-lab__notice').textContent())?.includes('自动模式已回退到 WASM'),
+      'WebGPU 不可用时没有显示明确的 WASM 回退状态'
+    )
+  }
+
+  await onnxLab.getByRole('button', { name: 'WebGPU' }).click()
+  await onnxLab.getByRole('button', { name: '运行整图分类' }).click()
+  await Promise.race([
+    onnxLab.locator('.onnx-lab__results li').first().waitFor({ timeout: 120_000 }),
+    onnxLab.locator('.onnx-lab__error').waitFor({ timeout: 120_000 })
+  ])
+  const webGpuState = await onnxLab.locator('.onnx-lab__results li').count() > 0
+    ? 'success'
+    : (await onnxLab.locator('.onnx-lab__error').getAttribute('data-error-code')) === 'webgpu_unavailable'
+      ? 'unavailable'
+      : 'unexpected_error'
+  assert(webGpuState !== 'unexpected_error', '显式 WebGPU 失败没有返回 webgpu_unavailable 错误码')
+
+  await onnxLab.getByRole('button', { name: 'WASM' }).click()
+  const fileInput = onnxLab.locator('input[type="file"]')
+  await fileInput.setInputFiles(path.join(process.cwd(), 'public/images/onnx/domestic-cat-2011-g02-960.jpg'))
+  assert((await onnxLab.getByRole('button', { name: '恢复内置猫图' }).count()) === 1, '上传图片后没有显示恢复内置猫图按钮')
+  await onnxLab.getByRole('button', { name: '运行整图分类' }).click()
+  await onnxLab.locator('.onnx-lab__results li').first().waitFor({ timeout: 120_000 })
+  assert((await onnxLab.locator('.onnx-lab__results li').count()) === 5, '上传图片后没有重新返回 5 个候选类别')
+  await onnxLab.getByRole('tab', { name: '目标检测' }).click()
+  await onnxLab.getByRole('button', { name: '运行目标检测' }).click()
+  await onnxLab.locator('.onnx-lab__detections').waitFor({ timeout: 120_000 })
+  assert((await onnxLab.locator('.onnx-lab__detection-item').filter({ hasText: '猫' }).count()) >= 1, '上传图片后没有重新检测到中文“猫”')
+  await onnxLab.getByRole('button', { name: '恢复内置猫图' }).click()
+  assert((await onnxLab.getByRole('button', { name: '恢复内置猫图' }).count()) === 0, '恢复内置猫图后上传状态没有清除')
+
+  await onnxLab.getByRole('button', { name: '自动' }).focus()
+  await page.keyboard.press('End')
+  assert(
+    await onnxLab.getByRole('button', { name: 'WASM' }).evaluate((element) => document.activeElement === element),
+    'ONNX 后端控件不支持 End 键'
+  )
+  await page.keyboard.press('Home')
+  assert(
+    await onnxLab.getByRole('button', { name: '自动' }).evaluate((element) => document.activeElement === element),
+    'ONNX 后端控件不支持 Home 键'
+  )
+  await page.keyboard.press('ArrowRight')
+  assert(
+    await onnxLab.getByRole('button', { name: 'WebGPU' }).evaluate((element) => document.activeElement === element),
+    'ONNX 后端控件不支持方向键切换'
+  )
+  const modelResponse = await page.request.get(`${baseURL}/models/onnx/squeezenet1.0-12.onnx`)
+  assert(modelResponse.status() === 200, 'ONNX 模型静态资源不可访问')
+  const detectionModelResponse = await page.request.get(`${baseURL}/models/onnx/yolox-nano-416.onnx`)
+  assert(detectionModelResponse.status() === 200, 'YOLOX-Nano 模型静态资源不可访问')
 
   for (const removedRoute of ['/docs/architecture/ai-system-seven-layers', '/docs/engineering/systematic-debugging', '/docs/ai-practice/codex-claude-code-rules']) {
     const removedPage = await browser.newPage({ viewport: { width: 1440, height: 900 } })
@@ -470,6 +627,56 @@ try {
   assert(await mermaidPreview.evaluate((element) => document.activeElement === element), '关闭流程图后焦点没有返回预览')
   assert((await page.locator('.VPSidebar').count()) === 1, '文章页缺少左侧导航')
   assert((await page.locator('.VPDocAside').count()) === 1, '文章页缺少右侧目录')
+  const aiSidebar = page.locator('.VPSidebar')
+  const aiSidebarGroups = aiSidebar.locator('.VPSidebarItem.level-0.collapsible')
+  assert((await aiSidebarGroups.count()) === sectionStages['ai-agent'].length, 'AI 文章侧栏主题数量与栏目 Tab 不一致')
+  const aiSidebarLabels = await aiSidebarGroups.locator(':scope > .item > .text').allTextContents()
+  assert(
+    aiSidebarLabels.map((label) => label.trim()).join('|') ===
+      sectionStages['ai-agent'].map((track) => track.label).join('|'),
+    'AI 文章侧栏主题文案或顺序与栏目 Tab 不一致'
+  )
+  assert(
+    (await aiSidebar.getByText('推荐阅读顺序', { exact: true }).count()) === 0 &&
+      (await aiSidebar.getByText('专题阅读', { exact: true }).count()) === 0,
+    'AI 文章侧栏仍展示旧阅读路径分组'
+  )
+  assert(
+    (await aiSidebar.locator('a[href^="/docs/ai-agent/"]').count()) ===
+      articles.filter((article) => article.category === 'ai-agent').length + 1,
+    'AI 文章侧栏没有包含栏目入口和全部文章'
+  )
+  const activeAiSidebarGroup = aiSidebar.locator('.VPSidebarItem.level-0.has-active')
+  const runtimeArticle = articles.find((article) => article.slug === 'agent-request-lifecycle-runtime')
+  const expectedRuntimeTrack = sectionStages['ai-agent'].find(
+    (track) => track.key === runtimeArticle?.stageKey
+  )
+  assert(
+    (await activeAiSidebarGroup.locator(':scope > .item > .text').textContent())?.trim() === expectedRuntimeTrack?.label &&
+      !(await activeAiSidebarGroup.getAttribute('class'))?.includes('collapsed'),
+    'AI 文章当前主题没有自动展开'
+  )
+
+  for (const section of sections) {
+    const article = articles.find((entry) => entry.category === section.key)
+    if (!article) continue
+    await page.goto(`${baseURL}${articlePath(article)}`, { waitUntil: 'domcontentloaded' })
+    const sidebarGroups = page.locator('.VPSidebar .VPSidebarItem.level-0.collapsible')
+    const sidebarLabels = await sidebarGroups.locator(':scope > .item > .text').allTextContents()
+    const expectedLabels = sectionTrackGroups(section.key).map((track) => track.label)
+    assert(
+      sidebarLabels.map((label) => label.trim()).join('|') === expectedLabels.join('|'),
+      `${section.title} 左侧目录与栏目 Tab 的分组或顺序不一致`
+    )
+    assert(
+      (await sidebarGroups.locator('.VPSidebarItem.collapsible').count()) === 0,
+      `${section.title} 左侧目录不应在栏目 Tab 分组下重复嵌套小节`
+    )
+    assert(
+      (await page.locator('.VPSidebarItem.level-0.has-active').count()) === 1,
+      `${section.title} 左侧目录没有只展开当前一级分组`
+    )
+  }
 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   assert(

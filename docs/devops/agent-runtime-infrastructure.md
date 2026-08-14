@@ -20,14 +20,17 @@ practice:
     - 模型不能决定权限和业务终态
     - 取消、超时和工具失败可区分
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
+# Agent Runtime 基础设施：LangGraph、MCP、工具与恢复
 
-# Agent Runtime：模型决定下一步，系统决定能不能执行
+Agent Runtime 是保存一轮 Agent 状态、校验模型候选、调用工具并推进终态的应用运行层。LangGraph 可表达状态图，MCP 连接外部能力，但权限、预算、幂等和恢复仍由 Runtime 持有。它位于模型输出与真实副作用之间，用来把“建议下一步”转换成受控执行。
 
 模型输出一个删除工具调用，参数格式完全正确。Runtime 仍然必须拒绝，因为当前用户只有读取权限。结构正确只说明候选能被解析，不说明动作被授权、资源属于当前租户，也不说明副作用可以重试。
 
 Agent Runtime 是长任务的执行内核。它把一次用户请求表示为 Turn，维护状态和事件，通过图或循环选择节点，调用受控模型与工具，保存 Checkpoint，并在完成、拒答、失败、取消或过期时产生唯一终态。
+
+它位于 API 和模型/工具之间：API 负责接收请求与身份，Runtime 负责一次 Turn 的状态、所有权、预算和终态，模型只提出候选动作，工具执行器才接触外部副作用。每个运行对象都遵守这条边界，不能把“模型生成了 JSON”写成“动作已经执行”。
 
 ## 一次 Turn 的对象边界
 
@@ -106,5 +109,19 @@ Runtime 记录每步模型、工具、输入摘要、输出引用、耗时、Tok
 ## 验收 Runtime
 
 测试不只断言最终一句话。应覆盖重复提交只创建一个 Turn、无权限工具被阻断、空证据安全拒答、循环达到上限、并行分支局部失败、模型超时、用户取消、Worker 丢 Lease、Checkpoint 恢复和副作用不重复。
+
+可以用一条可恢复 Turn 作为验收主线：
+
+```text
+turn=t-17 state=queued version=policy-9
+turn=t-17 worker=w-2 lease=f-31 state=running node=plan
+turn=t-17 node=tool_call tool=delete_note decision=deny reason=scope_read_only
+turn=t-17 checkpoint=cp-04 event_seq=7 state=waiting_user
+worker=w-2 lost_lease; worker=w-3 acquired lease=f-32
+turn=t-17 resume=cp-04 state=waiting_user
+turn=t-17 terminal=refused event_seq=8 side_effects=0
+```
+
+这条 Trace 同时证明拒绝发生在哪一层、租约是否能转移、恢复从哪个 Checkpoint 开始，以及终态之后没有迟到写入。真实系统应把这些字段写入结构化日志，而不是只保留最终回答。
 
 一个可交付 Runtime 的核心不是“Agent 更自主”，而是每次自主选择都在确定性权限、资源、版本和终态边界内执行，并能从状态与事件还原整条路径。

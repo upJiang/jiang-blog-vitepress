@@ -24,7 +24,9 @@ evidence: anonymized-practice
 updated: 2026-08-10T00:00:00.000Z
 lastUpdated: false
 ---
-# Deadline、取消、Checkpoint 与停滞恢复：长任务怎样可控地结束
+# Deadline、取消、Checkpoint 与停滞恢复
+
+Deadline 是整个 Turn 允许运行到的绝对时刻，取消是一种主动停止信号，Checkpoint 是可恢复的状态快照，停滞恢复则负责接管失去进展的任务。四者位于 Agent Runtime 的资源与恢复层，用于让长任务在超时、用户离开或 Worker 故障后得到明确终态，而不是继续占用资源或从头重复副作用。
 
 一个知识 Agent 可能要做查询改写、三路检索、Rerank、生成和引用验证。用户在第一个结果返回前关闭页面，或者供应商在生成阶段卡住，系统不能继续无限占用 Worker。`timeout` 只描述某一段代码等了多久；`Deadline` 是整个 Turn 的终止时刻；`cancel` 是主动停止信号；`Checkpoint` 则保存可以安全**恢复**的状态边界。
 
@@ -178,28 +180,27 @@ Deadline 是绝对时刻，局部 Timeout 是某一次等待允许使用的时�
 
 排障演练要覆盖三种停止：客户端主动取消、总 Deadline 到期、Worker 无心跳。它们分别产生 cancelled、expired 和 recoverable/stalled 事件，不能共用一个 `failed`，否则自动恢复会把用户取消的任务重新执行。
 
-## 常见问题
 
-### Deadline 与 Timeout 为什么必须区分？
+**Deadline 与 Timeout 为什么必须区分？**
 
 Deadline 是整轮请求不能超过的绝对时刻，跨队列、检索、模型、工具和重试共享；Timeout 是某一次局部等待的最长时长。节点开始前计算剩余时间，再取局部上限与 remaining 的较小值。若每次重试都获得新的 10 秒 Timeout，总请求会无限延长。绝对 Deadline 还能在 Worker 重启后继续生效，不依赖某个进程的计时器。
 
-### 用户关闭浏览器是否等于取消 Agent 任务？
+**用户关闭浏览器是否等于取消 Agent 任务？**
 
 不一定。网络断开可能只是暂时失联，任务是否取消取决于产品语义。若用户显式发送取消，服务端把 Turn 标为 cancelling/cancelled 并传播信号；单纯 SSE 断线通常保留后台执行，让用户重连重放。无论哪种，HTTP 协程停止都不能自动代表数据库和 Worker 已终止。前端、API 与 Runtime 应有明确取消接口和可查询终态，避免误杀或浪费资源。
 
-### Checkpoint 应该在副作用前还是后写？
+**Checkpoint 应该在副作用前还是后写？**
 
 纯计算可在完成后直接快照；外部副作用需要幂等边界。只在前面写“准备执行”无法证明是否已发生，只在后面写又存在“副作用完成、Checkpoint 未提交”的崩溃窗口。常用做法是先记录操作 ID/意图，执行带幂等键的副作用，再原子保存结果指针与 Checkpoint。恢复时先查询目标系统最终状态，已完成则补写快照，未知则按契约处理，不能直接重做。
 
-### 取消为什么不能捕获后当普通异常返回？
+**取消为什么不能捕获后当普通异常返回？**
 
 `CancelledError` 是控制信号，吞掉后上层会把任务标为 failed 或继续执行后续节点，甚至覆盖 cancelled 终态。代码只在需要清理资源时捕获取消，并在 `finally` 释放槽、连接和 Lease，随后重新抛出。业务错误再映射为稳定 error code。测试应取消正在持槽和正在等待的任务，确认信号传播、资源释放、事件终态和迟到结果阻断都成立。
 
-### 停滞扫描发现 Worker 无心跳后可以立即重跑吗？
+**停滞扫描发现 Worker 无心跳后可以立即重跑吗？**
 
 先检查 Turn 仍为 running、未取消、未过 Deadline 且 Lease 确实过期，再用条件更新取得新 owner token。随后读取最后安全 Checkpoint 和副作用状态，决定继续、补提交或失败。旧 Worker 醒来后必须因 fencing token 被拒。无条件重跑会重复模型调用或外部写入，也可能复活用户已取消任务。恢复本身也产生 attempt 与审计事件，便于区分原执行和接管。
 
-### Checkpoint Schema 升级后旧任务怎样恢复？
+**Checkpoint Schema 升级后旧任务怎样恢复？**
 
 Checkpoint 保存 graph/runtime version 与 schema version。兼容变更可以通过显式迁移函数转换，迁移结果校验后再执行；破坏性变化或缺少必要字段时应拒绝自动恢复，保留旧 Runtime 完成任务或进入人工处理。不能用默认值猜安全字段，例如 Scope、Release 和已完成副作用。发布前用旧版本快照回放候选代码，验证状态迁移、终态和幂等边界。

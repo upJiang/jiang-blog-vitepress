@@ -27,9 +27,9 @@ lastUpdated: false
 
 用户问知识 Agent：“测试环境的发布窗口和回滚负责人是谁？”系统找到了两份制度、一段旧对话和一次工具查询结果。最直接的写法是把这些文本全部拼进 Prompt，但只要继续聊十几轮，模型就可能遇到三类问题：请求超过**上下文**窗口、真正有用的证据被闲聊挤掉、无权或不可信内容混入控制指令。
 
-本篇接着 [Agent 图和 Runtime 测试](/docs/ai-agent/agent-graph-runtime-testing) 中的 State 快照，把“模型节点到底读取什么”收敛成同一个 `ContextSnapshot`。我们会从模型窗口推导预算，给每段输入建立带来源和信任级别的数据结构，再实现确定性装配器。运行后不仅能得到最终上下文，还能回答：为什么选了这段、为什么丢了那段、还剩多少输出空间、失败发生在哪一层。
+[Agent 图和 Runtime 测试](/docs/ai-agent/agent-graph-runtime-testing) 已经保存 State 快照，模型节点读取的内容进一步收敛为 `ContextSnapshot`。窗口预算决定各类输入的容量，Block 记录来源与信任级别，确定性装配器输出最终上下文、丢弃原因、剩余输出空间和失败层级。
 
-## 先看一次完整装配会产生什么
+## 上下文装配的输入与输出
 
 假设模型窗口上限为 1,000 Token，回答最多使用 180 Token，SDK 消息包装和估算误差预留 70 Token。模型输入真正能用的预算只有：
 
@@ -191,6 +191,8 @@ class ContextBlock:
     order: int
     required: bool = False
     group_id: str | None = None
+    # covers 记录这段证据支持哪些结构化目标；空集合表示普通上下文块。
+    covers: frozenset[str] = frozenset()
 
 @dataclass(frozen=True)
 class ContextSnapshot:
@@ -203,6 +205,8 @@ class ContextSnapshot:
     dropped: tuple[tuple[str, str], ...]
     used_tokens: int
     remaining_tokens: int
+    # 未覆盖目标交给上游继续检索、缩短证据或安全拒答。
+    uncovered_targets: frozenset[str] = frozenset()
 
 def _groups(blocks: list[ContextBlock]) -> list[tuple[ContextBlock, ...]]:
     grouped: dict[str, list[ContextBlock]] = {}
@@ -217,6 +221,7 @@ def assemble(
     blocks: list[ContextBlock],
     input_budget: int,
     *,
+    target_covers: frozenset[str] = frozenset(),
     turn_id: str = "turn-demo",
     scope_hash: str = "scope-public",
     release_id: str = "release-1",
@@ -240,11 +245,37 @@ def assemble(
     dropped: list[tuple[str, str]] = []
 
     optional_groups.sort(
-        key=lambda group: (-max(b.priority for b in group), min(b.block_id for b in group))
+        key=lambda group: (
+            -len(set().union(*(b.covers for b in group)) & target_covers),
+            -max(b.priority for b in group),
+            min(b.block_id for b in group),
+        )
     )
+    covered_targets = set().union(*(block.covers for group in selected_groups for block in group))
+    coverage_considered: set[str] = set()
+    # 第一轮优先补齐尚未覆盖的目标，避免高分重复证据占满预算。
     for group in optional_groups:
         group_tokens = sum(block.tokens for block in group)
-        # 外部调用前检查整轮剩余时间；超时后停止继续消耗模型、工具和数据库资源。
+        group_covers = set().union(*(block.covers for block in group))
+        group_key = min(block.block_id for block in group)
+        if not group_covers & (target_covers - covered_targets):
+            continue
+        coverage_considered.add(group_key)
+        if group_tokens <= remaining:
+            selected_groups.append(group)
+            remaining -= group_tokens
+            covered_targets.update(group_covers)
+        else:
+            dropped.extend((block.block_id, "group_does_not_fit") for block in group)
+
+    # 第二轮才用剩余预算补充普通上下文；不改变第一轮已经形成的覆盖结果。
+    for group in optional_groups:
+        if group in selected_groups:
+            continue
+        group_key = min(block.block_id for block in group)
+        if group_key in coverage_considered:
+            continue
+        group_tokens = sum(block.tokens for block in group)
         if group_tokens <= remaining:
             selected_groups.append(group)
             remaining -= group_tokens
@@ -267,20 +298,21 @@ def assemble(
         dropped=tuple(dropped),
         used_tokens=used,
         remaining_tokens=remaining,
+        uncovered_targets=frozenset(target_covers - covered_targets),
     )
 
 blocks = [
     ContextBlock("system", "system", "policy:v3", "只根据可见证据回答", 80, 100, 0, True),
     ContextBlock("question", "user", "message:9", "发布窗口和负责人是谁", 20, 100, 10, True),
     ContextBlock("call", "tool_call", "call:7", "search_notes", 20, 70, 20, group_id="tool:7"),
-    ContextBlock("result", "tool_result", "result:7", "负责人证据", 110, 70, 21, group_id="tool:7"),
+    ContextBlock("result", "tool_result", "result:7", "负责人证据", 110, 70, 21, group_id="tool:7", covers=frozenset({"owner"})),
     ContextBlock("old-chat", "history", "message:2", "更早的闲聊", 120, 10, 5),
 ]
 
 # 执行当前算法或装配函数，下面用确定性字段核对结果而不是比较自然语言。
-result = assemble(blocks, input_budget=250)
+result = assemble(blocks, input_budget=250, target_covers=frozenset({"owner"}))
 print([block.block_id for block in result.selected])
-print(result.dropped, result.remaining_tokens)
+print(result.dropped, result.remaining_tokens, result.uncovered_targets)
 ```
 
 代码按以下顺序执行：
@@ -292,18 +324,18 @@ print(result.dropped, result.remaining_tokens)
 5. 可选组按最高优先级降序和稳定 ID 升序排列。整个组放得下才选择，否则每个成员都记录 `group_does_not_fit`。
 6. 最后按 `order` 恢复模型协议顺序，而不是保持预算选择顺序。
 
-示例预算为 250。System 和问题共占 100，工具组共占 130，因此它们全部选中；旧闲聊需要 120，但只剩 20，于是被丢弃。预期输出类似：
+示例预算为 250。System 和问题共占 100，工具组共占 130，因此它们全部选中；旧闲聊需要 120，但只剩 20，于是被丢弃。`owner` 已由工具结果覆盖，预期输出类似：
 
 ```text
 ['system', 'question', 'call', 'result']
-(('old-chat', 'group_does_not_fit'),) 20
+(("old-chat", "group_does_not_fit"),) 20 frozenset()
 ```
 
-这段实现故意省略 tokenizer、ACL 和目标覆盖选择：它们在装配前产生可信候选，或作为独立选择器注入。后续文章不会另造一套模型输入。滑动窗口和摘要改变 history Block；工具压缩改变 tool_result Block；记忆读取增加经过授权的 memory Block；Prompt Cache 根据最终顺序划分稳定前缀和动态后缀。它们最终都返回新的 `ContextSnapshot`，并保留同一个 Turn、Scope、Release 与 Policy。
+这段实现仍不调用 tokenizer，也不在装配器内执行 ACL；二者要在候选进入前完成。目标覆盖已经作为 `covers` 和 `target_covers` 进入选择阶段，未覆盖目标会返回给上游决定继续检索、缩短证据或拒答。滑动窗口和摘要改变 history Block，工具压缩改变 tool_result Block，记忆读取增加经过授权的 memory Block，Prompt Cache 根据最终顺序划分稳定前缀和动态后缀。它们都返回新的 `ContextSnapshot`，并保留同一个 Turn、Scope、Release 与 Policy。
 
 ## 用 pytest 固定成功和失败语义
 
-把上面的类和函数放进 `context_assembler.py`。下面测试使用 pytest，输入分别是超预算必需块、可拆散风险和顺序打乱的可选块；目标是证明装配器不会静默削弱规则，也不会因输入列表顺序改变结果。
+把上面的类和函数放进 `context_assembler.py`。下面测试使用 pytest，输入分别是超预算必需块、可拆散风险、顺序打乱和目标覆盖；目标是证明装配器不会静默削弱规则，也不会让重复高分证据挤掉另一个必需目标。
 
 ```python
 # 测试证明硬规则与当前问题始终保留，证据不足和总预算超限会进入不同失败状态。
@@ -337,6 +369,16 @@ def test_priority_tie_uses_stable_id_then_restores_order() -> None:
     ]
     result = assemble(blocks, input_budget=10)
     assert [block.block_id for block in result.selected] == ["a"]
+
+def test_target_coverage_beats_repeated_high_score() -> None:
+    blocks = [
+        ContextBlock("window-a", "evidence", "e:a", "窗口", 40, 90, 1, covers=frozenset({"window"})),
+        ContextBlock("window-b", "evidence", "e:b", "窗口补充", 40, 80, 2, covers=frozenset({"window"})),
+        ContextBlock("owner", "evidence", "e:c", "负责人", 40, 20, 3, covers=frozenset({"owner"})),
+    ]
+    result = assemble(blocks, input_budget=80, target_covers=frozenset({"window", "owner"}))
+    assert [block.block_id for block in result.selected] == ["window-a", "owner"]
+    assert result.uncovered_targets == frozenset()
 ```
 
 第一条测试把 System 设为 120 Token、预算设为 100，必须看到明确异常。第二条预算只能放 100 Token，而工具组共 110，断言两个成员一起被丢弃。第三条故意把 `b` 放在前面，相同优先级仍按稳定 ID 选择 `a`；选中后再按 `order` 输出。测试没有声称覆盖 ACL，因为当前示例没有权限字段。
@@ -389,28 +431,27 @@ python3 -m pytest -q
 
 完成后，你得到的不是“会截断字符串”的函数，而是一次模型调用的输入控制面：它清楚区分事实与投影、权限与优先级、选择与排序、正常裁剪与真正失败。
 
-## 常见问题
 
-### 上下文预算为什么不能只用“窗口减当前字数”计算？
+**上下文预算为什么不能只用“窗口减当前字数”计算？**
 
 模型按 Token 而非字符计量，输入与输出共享窗口，消息角色、工具 Schema 和协议包装也会占用空间。装配前要先预留输出，再用目标 tokenizer 计算各区段；调用后记录实际 usage 校正估算。字符数可以做早期粗筛，不能作为最终门禁，否则中文、代码和不同模型切换时都会出现偏差。
 
-### System 规则是否应该永远排在最高优先级？
+**System 规则是否应该永远排在最高优先级？**
 
 安全与任务硬约束通常属于必需块，但“System”这个角色本身不等于所有内容都永久保留。工具说明、过期示例和与当前任务无关的系统扩展也应按能力裁剪。装配器要按来源、职责和是否可重建标记必需性；必需块自身超出预算时应明确失败或拆任务，不能静默删除一半规则继续调用。
 
-### 为什么选择上下文和排列上下文要分两步？
+**为什么选择上下文和排列上下文要分两步？**
 
 选择阶段决定哪些块进入预算，依据优先级、Scope、Release、Claim 覆盖和 Token；排列阶段再按消息角色、时间、ToolCall 配对和证据位置生成合法模型输入。若边选边按输入顺序追加，列表顺序会影响结果，同优先级候选也难以复现。分开后可以保存选中与丢弃原因，并用稳定 tie-breaker 重放。
 
-### 证据相关性高就一定应该进入上下文吗？
+**证据相关性高就一定应该进入上下文吗？**
 
 不一定。候选还要满足当前用户权限、固定 Release、来源多样性、Claim 覆盖和内容安全；多个高度相似片段可能浪费预算，却没有补充新事实。证据预算应优先覆盖不同子问题和直接来源，再考虑分数。进入上下文后仍保留 **Evidence** ID 与原文位置，生成与验证才能区分“语义相近”和“确实支持”。
 
-### 必需上下文本身超过预算时怎么办？
+**必需上下文本身超过预算时怎么办？**
 
 这属于不可通过普通裁剪解决的硬失败。先检查是否重复注入规则、是否暴露了不需要的工具 Schema，再考虑把任务拆成多次调用或选用符合需求的窗口。不要截断 System、当前问题或未闭合工具组，也不要把错误伪装成模型拒答。Trace 应记录 required_tokens、window、output_reserve 和失败块，方便定位是谁让基线输入失控。
 
-### 怎样验证装配器在输入顺序变化时仍然稳定？
+**怎样验证装配器在输入顺序变化时仍然稳定？**
 
 准备相同 block 集合，以不同顺序多次传入，断言选中的稳定 ID、最终**消息顺序**和丢弃原因一致；同优先级使用稳定 ID 或明确业务键决胜。再覆盖 Scope 过滤、工具配对、必需块超限和证据重复。若结果随列表顺序变化，线上并行检索完成时间就可能改变模型输入，评测也无法复现。

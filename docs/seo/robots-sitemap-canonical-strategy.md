@@ -1,15 +1,15 @@
 ---
 title: Robots、Sitemap、Canonical 与索引治理
-description: 区分抓取控制、索引控制和规范网址，建立非代码层面的页面治理策略。
+description: 区分抓取控制、索引控制和规范网址，并让 robots、Sitemap、Canonical、内链与页面目标保持一致。
 category: seo
-part: 第四部分：索引、渲染与性能
-chapter: 10
+part: 技术交付与站点审计
+chapter: 12
 tags:
   - Robots
   - Sitemap
   - Canonical
 prerequisites:
-  - 读过第 4、6 章
+  - 理解发现、抓取与索引的区别
 outcomes:
   - 决定哪些 URL 应被抓取和索引
   - 消除 Sitemap 与页面信号冲突
@@ -20,16 +20,15 @@ practice:
     - 每类 URL 有明确目标
     - 抽查结果与矩阵一致
 evidence: official-guided-operation
-updated: 2026-08-11
+updated: '2026-08-11'
 ---
-
-# robots.txt 已经禁止了页面，为什么搜索结果里还有 URL
+# Robots、Sitemap、Canonical 与索引治理
 
 一家 SaaS 不想让站内搜索页进入结果，于是在 `robots.txt` 禁止 `/search/`。几周后，搜索结果里仍出现部分搜索 URL，只是没有摘要。团队又把这些 URL 放进 Sitemap，希望搜索引擎“重新处理”。
 
 三个信号此时互相冲突：robots.txt 不让爬虫读取页面，页面里的 noindex 因此可能看不到，Sitemap 却主动声明这些 URL 值得发现。问题不是少写一条规则，而是团队没有先决定每类页面的目标。
 
-上一篇的[媒体资源表](/docs/seo/media-video-structured-data)与第 6 章页面树共同构成本篇输入。本篇由创业者、SEO 和内容负责人先做页面治理决策，开发只负责把决策稳定输出。最终产物不是一份孤立 robots.txt，而是一张 URL 类型、抓取、索引、Canonical、内链和 Sitemap 一致的矩阵。
+[媒体资源表](/docs/seo/media-video-structured-data)与页面树共同构成索引治理的输入。创业者、SEO 和内容负责人先做页面治理决策，开发负责把决策稳定输出。结果不是一份孤立的 robots.txt，而是一张 URL 类型、抓取、索引、Canonical、内链和 Sitemap 保持一致的矩阵。
 
 ## 四个概念分别解决什么问题
 
@@ -152,10 +151,4 @@ meta/X-Robots-Tag｜Canonical 目标｜内链入口｜Sitemap｜
 
 SEO 负责人定义公开搜索目标，产品/创业者确认用户任务与风险，内容负责人保证页面价值，开发负责人输出规则和生成 Sitemap，运维保证响应稳定，数据负责人观察索引与日志。技术实现不能替代前面的业务决策。
 
-验收时随机抽每类至少一个正常、边界和失败样本，最终信号必须与矩阵一致。下一篇会继续检查服务器和 JavaScript 实际向匿名请求交付了什么。
-
-## 继续学习
-
-- 上一篇：[图片、视频与媒体 SEO](/docs/seo/media-video-structured-data)
-- 下一篇：[HTTP、JavaScript 渲染与搜索可访问性](/docs/seo/http-javascript-rendering-seo)
-- 全站复核：[全站抓取、重复页面与索引异常排查](/docs/seo/crawl-index-duplicate-troubleshooting)
+验收时随机抽每类至少一个正常、边界和失败样本，最终信号必须与矩阵一致。随后还要检查服务器和 JavaScript 是否真的向匿名请求交付了这些信号。

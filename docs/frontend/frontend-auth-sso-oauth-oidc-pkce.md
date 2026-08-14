@@ -26,7 +26,7 @@ updated: 2026-08-11
 
 # SSO、OAuth 2.0、OIDC、PKCE 与 Token 生命周期
 
-OAuth 解决委托授权，OIDC 在其上增加身份层，SSO 描述一次登录访问多个系统的体验。把三者都叫“单点登录协议”，容易把 Access Token 当用户资料、把 ID Token 发给业务 API。
+OAuth 2.0 是委托授权框架，OIDC 在其上增加身份认证层，SSO 描述一次登录访问多个系统的体验，PKCE 为授权码交换增加客户端证明。它们位于浏览器、身份提供商和业务 API 的认证链上，分别处理授权、身份、登录体验和授权码窃取风险。把四者都叫“单点登录协议”，容易把 Access Token 当用户资料，或把 ID Token 发给业务 API。
 
 ## Authorization Code + PKCE
 
@@ -62,7 +62,7 @@ ID Token 面向客户端，声明认证结果和用户身份；Access Token 面�
 
 测试 state/nonce 错误、code 重放、回调刷新、并发 401、时钟偏差、第三方 Cookie 受限和开放重定向。日志过滤 code、Token 和 verifier。
 
-面试追问时，应能说清各参与者、每种 Token 的 audience、PKCE 不能替代 state，以及 SSO 体验如何建立在认证服务会话上。
+认证流程需要明确各参与者、每种 Token 的 Audience、PKCE 与 State 的不同职责，以及 SSO 如何复用认证服务会话。
 
 ## Authorization Code + PKCE 的状态机
 

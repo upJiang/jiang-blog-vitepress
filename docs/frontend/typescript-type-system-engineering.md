@@ -23,7 +23,9 @@ updated: 2026-08-11
 
 # TypeScript 类型系统、配置与运行时边界
 
-接口声明 `status: 'draft' | 'published'`，线上却返回 `null`。项目通过 TypeScript 编译，页面仍然崩溃，因为编译器只检查代码中的类型关系，无法验证运行时收到的 JSON。成熟的类型工程要同时管理静态模型、外部数据边界和编译配置。
+TypeScript 是带静态类型检查的 JavaScript 开发语言。它位于源码与 JavaScript 运行时之间：编译器在构建前检查赋值、调用和控制流，浏览器或 Node 最终执行的仍是 JavaScript。它能提前发现代码内部的类型矛盾，却不会自动验证接口、本地存储或 `postMessage` 送来的数据。
+
+接口声明 `status: 'draft' | 'published'`，线上却返回 `null`，就是这条边界最常见的表现。项目可以顺利通过 TypeScript 编译，页面仍然会崩溃。要让类型真正服务于工程，需要同时管理静态模型、外部数据校验和编译配置。
 
 ## 类型在编译后去了哪里
 
@@ -114,7 +116,7 @@ PageState 把 loading、ready 和 failed 限制为互斥输入，assertNever 的
 
 为正常和错误 JSON 写运行时测试；用 `tsc --noEmit` 验证非法状态和字段访问确实失败；构建后检查输出不存在类型语法；用 package consumer fixture 验证声明和 exports 能被真实调用方解析。
 
-排查“编辑器不报错但构建报错”时比较编辑器 TypeScript 版本、项目 tsconfig、include/exclude、moduleResolution 和构建命令。面试追问时，应能清晰区分类型注解、推断、收窄、断言、Schema 校验与运行时对象。
+排查“编辑器不报错但构建报错”时，先比较编辑器 TypeScript 版本、项目 tsconfig、`include/exclude`、`moduleResolution` 和构建命令。类型注解、推断、收窄和断言都发生在静态检查阶段；Schema 校验处理的才是运行时对象。
 
 ## 从不可信响应到组件 Props 的完整轨迹
 
@@ -136,11 +138,21 @@ async function loadOrder(id: OrderId): Promise<LoadOrder> {
 
 输入是 `unknown`，状态变化是“未验证值 -> DTO -> 领域对象 -> 判别联合”，输出才允许进入 UI。TypeScript 负责证明分支使用正确，Schema 负责证明运行时形状，适配函数负责业务语义；三者缺一都会留下空洞。测试应分别伪造字段缺失、枚举新增、金额溢出和 `404`，并用 `assertNever` 保证新增终态会迫使所有视图更新。
 
-## tsconfig 不是风格文件
+## 用最小项目验证静态边界
 
-`strict` 只是入口。浏览器应用通常还要明确 `target` 与 `lib` 的运行环境、`module` 与 `moduleResolution` 的打包器契约、`verbatimModuleSyntax` 的导入保留语义，以及 `noUncheckedIndexedAccess`、`exactOptionalPropertyTypes` 对数据边界的影响。`paths` 只改变 TypeScript 查找，不会自动改写浏览器或 Node 的运行时解析；别名必须由 Bundler、测试器和编辑器共同理解。
+文章里的守卫只有在编译器和测试真的执行时才有价值。最小练习可以保持四个文件，不需要先搭一个完整后台：
 
-Monorepo 中 `composite`、`declaration` 和 References 形成有向构建图。叶子包公开 `.d.ts` 与真实 JS 入口，上层包只消费公开出口。验证不是只跑一次 `tsc`：应删除产物做冷构建，再修改叶子声明跑 `tsc -b --verbose`，确认只重建受影响节点，最后用打包后的 consumer fixture 检查 `exports`、类型与运行时代码落在同一路径。
+```text
+type-boundary/
+├── src/article.ts       # Article、isArticle、loadArticle
+├── test/article.test.ts # 正常值、null、缺字段和未知枚举
+├── test/type-errors.ts  # 用 @ts-expect-error 固定非法状态
+└── tsconfig.json
+```
+
+`tsconfig.json` 至少打开 `strict`，并根据项目决定是否启用 `noUncheckedIndexedAccess` 和 `exactOptionalPropertyTypes`。先执行项目锁定版本的 `tsc --noEmit`，再运行测试；不要用全局最新版编译器代替仓库依赖。`type-errors.ts` 中的负向断言同样重要：如果某次类型改动让错误代码不再报错，`@ts-expect-error` 会反过来提示这条约束失效。
+
+Monorepo 再增加一层验证：删除旧产物做冷构建，修改叶子包公开类型后运行 `tsc -b --verbose`，确认受影响节点被重建；最后用消费方 fixture 同时导入 JS 和 `.d.ts`，检查 `exports`、类型声明与运行时代码是否指向同一入口。这样才能区分“编辑器看起来正常”和“发布包真的可用”。
 
 ## 官方依据与版本边界
 

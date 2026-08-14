@@ -20,10 +20,9 @@ practice:
     - 模型路由有确定性输入
     - 未知结果不会被盲目重试或重复计费
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# LLM Gateway：统一入口不等于转发 JSON
+# LLM Gateway：API Key、路由、限流、Token 与成本
 
 业务请求模型 `analysis-large`，网关把它路由到供应商 A。A 超时后，网关自动重试供应商 B，最终返回成功，但两边都产生了用量。若系统只保存最终 200，就无法解释成本、重复生成和超时期间发生了什么。
 
@@ -47,6 +46,10 @@ flowchart LR
 ```
 
 外部 API Key 映射为服务端主体、租户、允许模型和预算。客户端可以请求公开模型标识，却不能直接选择供应商凭证、内部 endpoint 或计费分组。路由输出的是具体 Deployment 与 Attempt 配置，并留下规则版本。
+
+## LLM Gateway 的定义与职责
+
+LLM Gateway 是业务应用调用模型时经过的统一协议层。它位于应用与多个模型 Deployment 之间，拥有身份、Scope、能力路由、预算、限流、Attempt 记录和供应商错误映射；它不拥有 Agent 对话状态，也不替业务服务执行工具。把这层边界写清楚，才能知道哪些字段由客户端提供，哪些字段必须由服务端补齐。
 
 ## API Key 与租户 Scope
 
@@ -125,6 +128,15 @@ def select_deployment(
 网关必须逐事件转发并处理背压，不能把整段输出缓存在内存。客户端断开后向下游取消，仍等待最终用量或将 Attempt 标为未知。不同供应商的完成、拒绝、工具调用和错误事件要映射到内部联合类型，再转换为对外协议。
 
 未知模型、权限拒绝和输入超限不重试；连接前失败或明确未接受可能有限重试；已接受且结果未知时默认不盲目重试。Failover 只有在数据策略、能力、剩余 Deadline 和幂等边界都满足时才允许。
+
+一次请求至少有两层状态：
+
+| 层级 | 关键状态 | 结算责任 |
+| --- | --- | --- |
+| Request | `accepted`、`completed`、`failed`、`cancelled` | 用户一次意图的最终对外结果 |
+| Attempt | `started`、`accepted`、`streaming`、`succeeded`、`unknown` | 某个 Deployment 的用量、供应商 ID 和重试边界 |
+
+例如 Attempt A 已收到供应商确认但连接断开，只能标为 `unknown`，不能当成“未调用”再无条件重试 B。验收时固定一个供应商返回未知结果的 Fake Adapter，断言只产生一条计费记录，并能从 Request/Attempt 关系解释为什么没有自动 Failover。
 
 ## 网关不应该承担什么
 

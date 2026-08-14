@@ -107,20 +107,20 @@ MinIO Go SDK 最终通过 HTTP Transport 工作。每次请求接受 Context，�
 
 故障测试不仅断开服务端口，还要记录恢复后的连接数、goroutine 数和业务状态。Redis 恢复时缓存允许丢失但 MySQL 不受影响；RabbitMQ 恢复后未确认消息重投；MinIO 超时后任务保持可重试而数据库不能指向半成品。三种依赖的降级语义不同，不能统一成一个“重连成功”断言。
 
-## Go 外部依赖继续追问
+## 外部依赖的并发与资源释放
 
-### errgroup 任一任务失败就取消全部是否总正确？
+**errgroup 任一任务失败就取消全部是否总正确？**
 
 只适合同一请求内必须共同成功的子任务。独立消息不应因一个坏 payload 停止所有消费，先在 handle 中分类并终结该消息。
 
-### Context 能否存进 Worker struct？
+**Context 能否存进 Worker struct？**
 
 不应长期保存请求 Context。Run 接收生命周期 Context，handle 派生子 Context；配置和客户端存 struct，Context 沿调用参数传递。
 
-### 关闭 Redis Client 会等待所有命令吗？
+**关闭 Redis Client 会等待所有命令吗？**
 
 具体库行为需验证，不能把 Close 当 drain。先取消新工作和等待在途 goroutine，最后关闭客户端；每条命令自身有 deadline。
 
-### 为什么 race test 通过仍可能泄漏？
+**为什么 race test 通过仍可能泄漏？**
 
 race detector 查数据竞态，不查 goroutine 永久等待或连接未关。结合 goroutine 数、pprof、超时停机和 open connection 指标。

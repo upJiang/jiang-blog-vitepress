@@ -1,6 +1,6 @@
 ---
-title: LangGraph State、Node、Edge、Reducer 与 Checkpoint：从零看懂一张图
-description: 从普通函数推导 StateGraph，逐步解释 State channel、节点局部更新、边、super-step、并发合并和恢复边界。
+title: LangGraph 是什么：用 State、Node 和 Edge 运行第一个状态图
+description: 先解释状态图在 Agent 中的位置，再从普通函数推导 StateGraph，并观察分支、super-step、Reducer 和 Checkpoint 边界。
 category: ai-agent
 part: LangGraph：状态图和执行语义
 chapter: 16
@@ -19,23 +19,27 @@ outcomes:
   - 能解释 super-step、并发更新和 Checkpoint 的职责边界
 practice:
   type: implementation
-  result: 实现并测试一张包含知识问题、寒暄和输入不足终态的只读问答图
+  result: 运行一张覆盖检索、寒暄、输入不足和无证据终态的只读问答图
   verify:
-    - 三条路径都能到达可解释终态
+    - 四条路径都能到达可解释终态
     - 原问题、查询词和证据不会在节点间丢失
 evidence: anonymized-practice
 updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
-# LangGraph State、Node、Edge、Reducer 与 Checkpoint：从零看懂一张图
+# LangGraph 是什么：用 State、Node 和 Edge 运行第一个状态图
 
-很多人第一次看到 LangGraph，先看到的是一段 `add_edge` 代码，然后被 `State`、`Reducer` 和 `Checkpoint` 一起淹没。阅读顺序应该反过来：先理解一次请求要经过哪些步骤，再用**状态图**表达这些步骤。
+LangGraph 是一个用共享状态和有向图组织长流程的运行库。State 保存节点之间要传递的数据，Node 完成一次计算并返回局部更新，Edge 决定下一步。Reducer 处理同一轮的多份更新，Checkpoint 保存可恢复的执行快照。
+
+它的用途是把有分支、并行或需要恢复的 Agent 流程写成可观测的状态图；它位于 Agent Runtime 的编排层，负责状态传递和执行顺序，不负责模型权限或业务数据库事务。
+
+如果一上来只看 `add_edge`，这几个概念很容易搅在一起。先看一次请求经过哪些步骤，再把步骤画成图，顺序会自然很多。
 
 本文把 [LangChain Retriever 与固定 RAG](/docs/ai-agent/langchain-retriever-rag) 中已经存在的只读问答流程改成一张小图。它仍处理知识问题、寒暄和无法判断的问题，Retriever 与 Evidence 契约不变；变化的是控制流从嵌套函数变成显式 State、Node、Edge、条件分支、Reducer 和 **Checkpoint**。
 
-读完后，你不只会照着示例调用 `add_node`。你还应该能回答四个工程问题：一个节点到底能看见哪些数据，两个节点同时更新字段时发生什么，图为什么要先编译，以及 `END` 与“回答成功”为什么不是一回事。
+读完后应能回答四个问题：节点能看见哪些数据，并行更新怎样合并，图为什么要编译，以及 `END` 为什么不等于“回答成功”。
 
-## 先把 LangGraph 放回 Agent 系统里
+## LangGraph 的作用与核心组件
 
 LangGraph 是一个用“共享状态 + 执行图”组织长流程的运行库。它解决的不是“让模型更聪明”，而是让程序明确记录：现在走到了哪一步、下一步由什么条件决定、多个结果怎样合并、暂停后从哪里继续。
 
@@ -58,7 +62,7 @@ LangGraph 是一个用“共享状态 + 执行图”组织长流程的运行库�
 | **Reducer** | 同一 State 字段收到多份更新时的合并函数 | 不是数据库事务 |
 | Checkpoint | 某个执行步骤后的状态快照 | 不是业务终态或外部副作用记录 |
 
-## 先画执行结果
+## 状态图的目标执行路径
 
 ```mermaid
 flowchart TD
@@ -74,27 +78,9 @@ flowchart TD
 
 这张图的数据流也要读出来：入口提供 `question`；`understand` 增加 `intent`，知识问题还会增加 `queries`；`retrieve` 增加 `evidence`；`compose` 最后增加 `answer` 和终态 `status`。Edge 只决定谁先运行，真正的数据始终通过 State 传递。
 
-## 环境准备：让示例可以真正运行
-
-以下示例使用 LangGraph 0.6 系列。在隔离的实践目录中执行：
-
-下面的命令接收本节“环境准备：让示例可以真正运行”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
-```bash
-# 安装 LangGraph 与测试依赖，示例从普通函数开始，逐步加入 State、Node、Edge 与 Reducer。
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install "langgraph>=0.6,<0.7" "pytest>=8,<9"
-```
-
-第一行创建隔离环境，第二行让当前终端使用这个环境，第三行安装图运行库和测试工具。运行 `python --version` 应看到 `Python.x`；运行 `python -c "import langgraph; print('langgraph ready')"` 应输出 `langgraph ready`。Windows PowerShell 需要把激活命令换成 `.venv\\Scripts\\Activate.ps1`。
-
-如果 `python3` 不存在，先安装对应解释器，不要直接用系统中未知版本继续。`pip install` 失败时先检查虚拟环境是否已激活、Python 版本和网络代理；不要把依赖安装到全局环境。完成本文后可以直接删除练习目录，虚拟环境和示例状态都会一起清理。
-
-## 第一步：先写没有框架的函数
+## 用普通函数固定业务边界
 
 先用普通函数验证业务顺序，可以避免把框架语法误认为业务逻辑。
-
-为了验证“第一步：先写没有框架的函数”，下面的测试把“纯函数先定义问题分类、检索和回答的输入输出，便于验证业务逻辑不依赖图框架”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
 # 纯函数先定义问题分类、检索和回答的输入输出，便于验证业务逻辑不依赖图框架。
@@ -118,13 +104,11 @@ def compose(question: str, evidence: list[str]) -> str:
     return f"问题：{question}\n依据：{'；'.join(evidence)}"
 ```
 
-`understand` 的输入是字符串，输出是意图和可能的查询词；`retrieve` 接收查询词，真实版本应访问带权限过滤的检索器；`compose` 接收原问题和证据，输出答案文本。这里的关键词判断只是为了让读者看见三条路径，不代表生产 Agent 的意图理解方式。先分别调用三个函数，可以确认每个函数的输入输出，再进入图编排。
+`understand` 的输入是字符串，输出意图和可能的查询词；`retrieve` 接收查询词，真实版本应访问带权限过滤的检索器；`compose` 使用原问题和证据生成答案。这里的关键词判断只负责稳定触发测试路径，不代表生产 Agent 的意图理解方式。
 
-## 第二步：把共享数据写成 State
+## 用 State 声明共享数据
 
 State 是图运行期间共享的数据契约。它不等于数据库所有字段，而是节点之间需要传递的最小状态。
-
-下面把“第二步：把共享数据写成 State”落成最小实现。代码关注“State 只保存节点间需要共享的业务字段；每个字段的更新方式和终态含义显式声明”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
 # State 只保存节点间需要共享的业务字段；每个字段的更新方式和终态含义显式声明。
@@ -160,11 +144,9 @@ class AgentState(TypedDict, total=False):
 
 `total=False` 只表示类型层面允许字段暂时不存在，不表示任何读取都安全。`retrieve_node` 直接访问 `state["queries"]`，因此图结构必须保证它只会在理解节点成功产出查询词后执行。若这个前置关系可能被外部恢复或版本升级破坏，就应在节点入口显式校验并返回稳定错误。
 
-## 第三步：把函数变成 Node
+## 用 Node 提交局部状态更新
 
 Node 是一个读取当前 State、返回局部更新的函数。它不应该偷偷修改全局对象，否则日志和重试很难解释。
-
-下面把“第三步：把函数变成 Node”落成最小实现。代码关注“Node 从完整 State 读取所需字段，只返回本次更新，不在函数外修改共享可变对象”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
 # Node 从完整 State 读取所需字段，只返回本次更新，不在函数外修改共享可变对象。
@@ -202,11 +184,9 @@ def unsafe_node(state: AgentState) -> AgentState:
 
 `unsafe_node` 同时读取并修改同一个可变列表。如果节点被重试两次，证据可能追加两次；并行分支共享引用时，结果还会取决于执行时序。更容易测试的写法是创建新列表并只返回本节点拥有的字段：`return {"evidence": [*state.get("evidence", []), "新增证据"]}`。进入并行阶段后，则把旧值和新值的合并交给明确的 Reducer。
 
-## 第四步：连接普通边和条件边
+## 用 Edge 连接固定路径与条件分支
 
 现在才引入图 API。普通边描述固定顺序，条件边根据 State 返回下一节点名称。
-
-下面把“第四步：连接普通边和条件边”落成最小实现。代码关注“普通边表达固定顺序，条件边只返回有限路由名；未知路由会在编译或运行时被拒绝”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
 
 ```python
 # 普通边表达固定顺序，条件边只返回有限路由名；未知路由会在编译或运行时被拒绝。
@@ -229,7 +209,7 @@ builder.add_conditional_edges(
 )
 builder.add_edge("retrieve", "compose")
 builder.add_edge("compose", END)
-# 编译阶段检查图结构，并把 Checkpointer 注入可恢复的运行时。
+# 编译阶段检查图结构，并生成可调用对象；本例尚未配置 Checkpointer。
 app = builder.compile()
 ```
 
@@ -249,20 +229,35 @@ Builder 是图的声明阶段：注册节点、入口、出口和边。`compile(
 
 因此，`compile()` 更像“图结构可执行”，不是“Agent 已经可靠”。
 
-## 第五步：运行三条路径
+## 编译并运行状态图
 
 编译后的 `app` 接收一个初始 State，返回最终 State。下面的输入分别覆盖正常问题、寒暄和不清楚问题。
 
-下面把“第五步：运行三条路径”落成最小实现。代码关注“三个输入分别触发普通回答、无结果和拒答，最终 State 用于核对节点轨迹与终态”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
-
 ```python
-# 三个输入分别触发普通回答、无结果和拒答，最终 State 用于核对节点轨迹与终态。
+# 三个输入分别触发知识查询、寒暄和输入不足。
 for question in ["如何申请远程访问", "你好", "嗯"]:
     result = app.invoke({"question": question})
     print(question, "=>", result["status"], result.get("answer"))
 ```
 
 循环每次创建一份只包含 `question` 的新状态；`invoke` 从 `START` 开始，按边执行节点并合并局部更新；打印 `status` 和 `answer`，可以验证三条终态是否符合预期。正常问题应经过检索和组织答案，寒暄应直接得到问候，不清楚的问题应得到补充提示。生产服务还要把运行 ID、终态原因和错误保存到事件表，而不是只打印文本。
+
+### 运行伴随示例
+
+完整代码位于 `examples/ai-agent-runtime/`。示例使用 LangGraph 0.6 系列，不连接在线模型和数据库。在博客仓库根目录执行：
+
+```bash
+# 进入伴随工程并创建隔离环境，避免依赖污染博客仓库的其他工具。
+cd examples/ai-agent-runtime
+python3 -m venv .venv
+source .venv/bin/activate
+# 安装锁定范围内的运行与测试依赖，再分别验证测试路径和命令行输出。
+python -m pip install -e '.[test]'
+pytest tests/test_langgraph_basics.py
+python -m ai_agent_runtime.langgraph_basics
+```
+
+本文在 Python 3.13.2、LangGraph 0.6.11 下实际运行。定向测试输出 `5 passed`；入口打印四条路径：`answer_ready`、`greeting`、`need_more_input` 和 `no_evidence`。内置 Retriever 只是一组确定性测试数据，不能证明真实检索质量。
 
 ## 图不是按代码行运行，而是按 super-step 推进
 
@@ -323,7 +318,7 @@ def no_evidence_node(_state: AgentState) -> AgentState:
 
 连接图时，用 `add_conditional_edges("retrieve", route_after_retrieve, {"compose": "compose", "no_evidence": "no_evidence"})` 替换原来的 `retrieve -> compose` 普通边。这样，是否生成答案由程序读取证据状态后决定，而不是由 Prompt 请求模型自律。
 
-## 第六步：Reducer 解决并行结果覆盖
+## Reducer 处理并行状态更新
 
 当只有一条检索链时，后一次更新覆盖前一次并不明显。现在假设我们同时查全文和向量两个通道，它们都返回 `evidence`。如果最后完成的节点直接覆盖字段，先返回的证据会丢失。
 
@@ -343,7 +338,7 @@ class ParallelState(TypedDict, total=False):
 
 Reducer 属于字段级 channel 语义。`evidence` 使用追加，不代表 `answer`、`intent` 也自动追加。每个 State 字段都要单独决定：覆盖、追加、取最大值、自定义去重，还是禁止并发写入。把所有列表一律写成 `operator.add` 会隐藏重复事件和重试问题。
 
-## 第七步：Checkpoint 只解决可恢复状态
+## Checkpoint 保存可恢复状态
 
 Checkpoint 是图运行过程中的状态快照和执行位置。进程中断后，运行时可以从快照恢复，但它不是数据库事务，也不会撤销已经发出的外部副作用。
 
@@ -398,7 +393,7 @@ def test_search_path_keeps_original_question_and_evidence() -> None:
 
 参数化测试依次覆盖知识问题、寒暄和输入不足。第一组断言 `intent` 与 `status`，能发现路由走错但答案文本碰巧相似的问题；第二个测试检查完整的数据传递链：入口问题、查询词、检索证据都没有在节点间丢失。
 
-执行 `pytest -q`，预期看到 `4 passed`。如果把 `route_after_understand` 的 greeting 映射误改为 `retrieve`，结构化断言会直接指出路径错误。真实项目还应注入假的 Retriever 和假的模型适配器，避免单元测试访问网络。
+仓库内测试比上面的推导多覆盖一条无证据路径。执行 `pytest tests/test_langgraph_basics.py`，应看到 `5 passed`。如果把 greeting 错接到 retrieve，路由断言会失败；如果空检索仍进入 compose，`no_evidence` 的 Trace 会失败。
 
 ## 从输入手工推演一次状态变化
 
@@ -425,28 +420,27 @@ def test_search_path_keeps_original_question_and_evidence() -> None:
 
 可以把本文方法迁移到审核 Agent：把 `question` 换成待审核内容，把 `intent` 换成风险分类，把 `retrieve` 换成规则和历史案例查询。迁移时先画状态字段所有权表，再写节点；不要先复制 `add_edge` 代码。
 
-## 常见问题
 
-### LangGraph State 与聊天消息历史是一回事吗？
+**LangGraph State 与聊天消息历史是一回事吗？**
 
 不是。State 是整张图在一次执行中的共享数据契约，可以包含问题、版本快照、候选、证据、错误和预算；Messages 只是其中一种 channel。把所有状态塞进消息会让权限、计数和错误只能靠模型读文本推断。State 字段应有明确所有者和更新规则，敏感字段也不必发送给模型，节点只读取完成职责所需的子集。
 
-### Node 为什么返回局部更新，而不是直接修改全局对象？
+**Node 为什么返回局部更新，而不是直接修改全局对象？**
 
 节点返回局部更新后，运行时可以记录本次写了哪些 channel，并在同一 super-step 的并行结果到达时按 Reducer 合并。原地修改共享字典会让执行顺序影响结果，Checkpoint 也难以重建变化。节点的输入是当前状态快照，输出应是可序列化更新；外部副作用需要单独幂等，不能因为返回了状态就假设事务已经完成。
 
-### Edge 是否会执行代码？
+**Edge 是否会执行代码？**
 
 普通 Edge 只描述一个节点完成后允许进入哪个节点，不承担业务计算；条件边会调用路由函数，根据当前 State 返回有限目标。真正改变状态的是节点。把检索或权限逻辑藏进路由函数，会让 Trace 看不到一次重要执行，也难以重试和测试。路由应尽量纯粹，只读取已验证字段，并为未知值提供显式失败方向。
 
-### super-step 对并行更新意味着什么？
+**super-step 对并行更新意味着什么？**
 
 同一 super-step 中可运行节点读取的是同一逻辑状态快照，各自完成后再合并更新，而不是谁先完成就让另一个看到新值。因此两个分支同时写单值字段会冲突；列表、计数或最大轮次要声明相应 Reducer。理解这一点才能解释为什么并行检索不应互相修改候选，也不能依赖完成时间决定最终排序。
 
-### Checkpoint 能替代业务数据库吗？
+**Checkpoint 能替代业务数据库吗？**
 
 不能。Checkpoint 保存图执行状态和下一步位置，适合中断恢复与调试；Conversation、Turn、权限、最终答案和审计事件仍应由业务数据库管理。Checkpoint 里的大文档可保存引用，不必复制原文；执行外部副作用后还要用业务幂等键确认事实。否则删除 Checkpoint 就会丢业务记录，恢复图也可能重复已经提交的操作。
 
-### 怎样判断一张图是否拆得过细？
+**怎样判断一张图是否拆得过细？**
 
 一个节点应对应可命名的状态转换、独立失败语义或需要观测/恢复的边界。只是给变量改名、没有独立输入输出和错误处理的步骤，拆成节点只会增加 Trace 噪声。反过来，把规划、检索、融合和生成都塞进一个节点又失去中间状态。可用测试问题判断：是否需要单独重试、并行、设超时、检查权限或保存 Checkpoint；都不需要时通常保留普通函数。

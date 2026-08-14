@@ -4,6 +4,7 @@ import DefaultTheme from 'vitepress/theme'
 import Layout from './Layout.vue'
 import HomePage from './HomePage.vue'
 import MermaidDiagram from './MermaidDiagram.vue'
+import OnnxVisionLab from './OnnxVisionLab.vue'
 import SectionIndex from './SectionIndex.vue'
 import FrontendSectionIndex from './FrontendSectionIndex.vue'
 import './style.css'
@@ -14,6 +15,7 @@ export default {
   enhanceApp({ app }) {
     app.component('HomePage', HomePage)
     app.component('MermaidDiagram', MermaidDiagram)
+    app.component('OnnxVisionLab', OnnxVisionLab)
     app.component('SectionIndex', SectionIndex)
     app.component('FrontendSectionIndex', FrontendSectionIndex)
   }

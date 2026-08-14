@@ -27,305 +27,262 @@ lastUpdated: false
 ---
 # Python 实战：实现同一份 search_notes MCP Server
 
-这一篇不用换业务题目。我们仍然实现 `search_notes(query, limit)`：输入查询词，输出可见笔记列表。这样可以专注比较 Python 与 Node.js 的 SDK 写法，而不是被两套业务规则干扰。
+MCP Server 是把业务能力适配为 MCP Tool、Resource 或 Prompt 的程序。它位于 Client 与真实数据源之间：对外声明 Schema、校验协议输入、调用业务层并编码结果；对内仍要依赖 Repository、认证和权限策略。Server 不是数据库，也不能把模型传来的 `user_id` 当成可信身份。
 
-Python 版会使用类型提示和 Pydantic 约束生成工具 Schema，使用普通函数完成内存查询，再用官方 CLI 和一个进程内 Client 验证。最终行为要与 Node 版一致：正常查询返回列表、没有命中返回空数组、越界参数在查询前被拒绝。
+这里用 Python SDK 2.0 实现只读 `search_notes`，观察工具注册、参数校验、结构化结果和协议测试怎样落到同一个 Server。完整工程在 `examples/mcp-search-notes/python/`，并与 Node Server 共用 `contracts/search-notes.json` 和 `fixtures/notes.json`。共享的是业务语义，不要求两套 SDK 生成字节完全相同的 JSON Schema。
 
-## 先确认契约没有偷偷变化
+## 语言无关的 Tool 契约
 
-| 项目 | Node 版 | Python 版 |
-| --- | --- | --- |
-| 工具名 | `search_notes` | `search_notes` |
-| `query` | 去空格后 1～100 字符 | 去空格后 1～100 字符 |
-| `limit` | 整数 1～10，默认 5 | 整数 1～10，默认 5 |
-| 无结果 | `items: []` | `items: []` |
-| 数据权限 | 示例只有匿名内存数据 | 示例只有匿名内存数据 |
-| 写操作 | 无 | 无 |
+`search_notes` 只有两个模型可控参数：
 
-跨语言实现最容易出现的错误是只对齐工具名。若一边把空结果当成功，另一边抛异常；一边限制 10 条，另一边不限制，Host 和模型就无法稳定处理。**工具契约**应有独立版本和契约测试。
-
-## 创建隔离环境
-
-示例固定 Python、`mcp==2.0.0`，并使用 `uv` 管理虚拟环境。固定版本是为了让导入路径、结构化结果字段和现代/Legacy 协议行为可以被复现；以后升级时先跑契约测试，再改文章和生产依赖。
-
-```bash
-# 虚拟环境隔离示例依赖；锁定 MCP SDK 版本后，工具 Schema 和测试结果才可复现。
-mkdir mcp-notes-python
-cd mcp-notes-python
-uv init --python 3
-uv add "mcp[cli]==2.0.0" "pydantic>=2.13,<3"
-```
-
-第一行创建目录，第二行进入目录；`uv init` 建立 Python 项目和隔离环境；`uv add` 安装 MCP 2.0 SDK、调试 CLI 和 Pydantic 2。`mcp[cli]` 的 extra 提供 `mcp dev` 等命令，若部署环境只运行 `server.py`，可以评估是否移除 CLI extra。
-
-运行 `uv run python --version` 应输出 `Python.x`，`uv run python -c "from importlib.metadata import version; print(version('mcp'))"` 应输出 `2.0.0`。项目会生成 `pyproject.toml` 和锁文件。真实项目要提交锁文件；SDK v1 与 v2 API 和协议支持范围不同，不能让环境在无审查时自动跨主版本升级。
-
-## 用类型定义公开数据
-
-创建对应测试文件。`Note` 表示内部数据，`NoteResult` 表示工具允许返回的数据。将两者分开，能防止未来给内部模型增加敏感字段时被自动序列化出去。
-
-下面把“用类型定义公开数据”落成最小实现。代码关注“Note 表示内部记录，NoteResult 只保留允许通过工具返回的公开字段”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
-
-```python
-# Note 表示内部记录，NoteResult 只保留允许通过工具返回的公开字段。
-from typing import TypedDict
-
-class Note(TypedDict):
-    id: str
-    title: str
-    body: str
-    source_location: str
-
-class NoteResult(TypedDict):
-    id: str
-    title: str
-    snippet: str
-    location: str
-
-NOTES: list[Note] = [
-    {"id": "note-1", "title": "访问申请", "body": "在账号中心提交申请。", "source_location": "guide/2"},
-    {"id": "note-2", "title": "密码重置", "body": "验证邮箱后设置新密码。", "source_location": "guide/5"},
-]
-
-# 查询函数只接收业务查询参数；可信 Scope、版本和上限由调用侧一并传入。
-def search_visible_notes(query: str, limit: int) -> list[NoteResult]:
-    # 去除首尾空白并统一大小写，标题和正文使用同一种匹配规则。
-    keyword = query.strip().casefold()
-    # 先在标题与正文中完成不区分大小写的匹配，空命中保留为空列表。
-    matched = [
-        note
-        for note in NOTES
-        if keyword in f"{note['title']} {note['body']}".casefold()
-    ]
-
-    # 只返回 Tool 契约允许的字段，并限制正文摘要长度；内部 body 不直接暴露。
-    return [
-        {
-            "id": note["id"],
-            "title": note["title"],
-            "snippet": note["body"][:120],
-            "location": note["source_location"],
-        }
-        for note in matched[:limit]
-    ]
-```
-
-`TypedDict` 只描述字典形状，不会在运行时创建 ORM 或数据库表。`search_visible_notes` 先用 `strip` 去掉首尾空白，再用 `casefold` 做更稳妥的大小写归一；第一段列表推导找出命中标题或正文的内部对象；第二段只取前 `limit` 条，并映射为公开字段。
-
-输入校验还没有发生在这个函数里，因为它属于协议边界。这个函数假设调用方已经保证 query 非空、limit 合法，因此可以直接单元测试。真实 Repository 应在 SQL 或搜索服务中完成范围过滤，而不是先把所有数据读入内存再用 Python 过滤。
-
-## 用 MCPServer 暴露工具
-
-创建对应测试文件。当前 Python SDK v2 使用 `MCPServer`，装饰器会读取函数名称、Docstring、参数类型和约束，生成工具描述与输入 Schema。
-
-下面把“用 MCPServer 暴露工具”落成最小实现。代码关注“Annotated 约束先生成输入 Schema；参数通过校验后，工具函数才调用**只读**查询”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
-
-```python
-# Annotated 约束先生成输入 Schema；参数通过校验后，工具函数才调用只读查询。
-from typing import Annotated, TypedDict
-
-from mcp.server.mcpserver import MCPServer
-from pydantic import Field, StringConstraints
-
-from notes import NoteResult, search_visible_notes
-
-Query = Annotated[
-    str,
-    # SDK 会把这些约束写入 Tool 输入 Schema，调用函数前先完成校验。
-    StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
-]
-Limit = Annotated[int, Field(ge=1, le=10)]
-
-class SearchResult(TypedDict):
-    items: list[NoteResult]
-
-# Server 名称会出现在初始化信息中，Host 可以据此识别当前实现。
-mcp = MCPServer("notes-readonly")
-
-# 装饰器把普通函数注册为 MCP Tool，并从 Annotated 类型生成参数 Schema。
-@mcp.tool(structured_output=True)
-def search_notes(query: Query, limit: Limit = 5) -> SearchResult:
-    """Search visible read-only notes by title and body."""
-    # 只读查询返回公开结果列表，结构化输出不会包含内部记录对象。
-    items = search_visible_notes(query, limit)
-    return {"items": items}
-
-if __name__ == "__main__":
-    # stdio 模式从标准输入读取 JSON-RPC，并把协议响应写回标准输出。
-    mcp.run(transport="stdio")
-```
-
-模块加载时先创建两个带约束的类型别名，再创建 `MCPServer`。装饰器注册 `search_notes`，函数名成为工具名，Docstring 成为描述，`Query` 和 `Limit` 生成参数 Schema，`SearchResult` 描述返回形状；`structured_output=True` 要求 SDK提供机器可读结果。最后的主程序保护只在直接执行文件时占用 **stdio**，测试导入模块时不会启动阻塞服务。
-
-调用链是 Client 参数 -> Pydantic/类型约束 -> `search_visible_notes` -> `SearchResult` -> MCP 内容与结构化结果。每一层只做一件事，读者可以单独替换内存数据而不改协议契约。
-
-Client 调用时，SDK 先验证并清理参数。`query` 的首尾空格会被移除，空字符串和超过 100 字符的输入被拒绝；`limit` 必须是 1～10。校验通过后才执行函数，函数调用业务查询并返回 `{ "items": ... }`。
-
-当前实现是同步函数，因为内存查询不会等待 I/O。连接异步数据库或 HTTP 服务时可以把它改成 `async def` 并 `await repository.search(...)`，但不要在异步函数里直接运行耗时 OCR 或同步网络库；那会阻塞事件循环，应改用异步客户端或受控线程池。
-
-## 用 Inspector 启动和调用
-
-官方 CLI 可以加载 `server.py` 中的 MCPServer，并启动 Inspector：
-
-下面的命令接收本节“用 Inspector 启动和调用”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
-```bash
-# 开发命令加载 server.py，并启动 Inspector 观察工具 Schema 与结构化返回值。
-uv run mcp dev server.py
-```
-
-这些命令从 `uv` 开始按顺序运行，输出用于确认“用 Inspector 启动和调用”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
-CLI 会启动开发连接和 Inspector。进入 Tools 后，应看到 `search_notes`，以及从类型约束生成的 `query`、`limit` Schema。调用：
-
-```jsonc
+```json
 {
-  // query 是需要检索的业务文本，协议层会先检查非空与长度限制。
-  "query": "访问",
-  // limit 控制本次最多返回多少条，不能依赖查询函数事后截断非法值。
-  "limit": 3
+  "query": "release",
+  "limit": 5
 }
 ```
 
-Inspector 把这两个 JSON 字段作为 `search_notes` 的参数发送。SDK 先确认 `query` 和 `limit` 满足生成的 Schema，再调用 Python 函数。预期结构化结果包含一条 `note-1`；若参数不合法，查询函数不会执行。工具的 MCP 内容表示可能由 SDK 包装，业务字段仍应能还原为：
+`query` 不能为空，`limit` 是 1 到 20 的整数，默认 5。成功结果始终使用同一外形：
 
-```jsonc
+```json
 {
-  // items 只包含公开结果字段；内部权限、存储路径和原始对象不会透出。
   "items": [
     {
-      // id 是公开记录的稳定标识，客户端可用它去重并回查来源。
-      "id": "note-1",
-      "title": "访问申请",
-      "snippet": "在账号中心提交申请。",
-      "location": "guide/2"
+      "id": "n-1",
+      "title": "Release checklist",
+      "excerpt": "Confirm migration and rollback before release."
     }
   ]
 }
 ```
 
-结果中的 `items` 对应 `SearchResult`，数组元素对应 `NoteResult`；`location` 是可回查位置，`snippet` 是允许公开的正文摘要。SDK 负责协议内容块和结构化结果的编码，业务函数只返回有类型的 Python 对象。Host 侧应读取 SDK 提供的结构化字段，不要依赖调试界面里某段展示文本的排版。若结果缺少字段或类型错误，应将它视为 Server 契约故障，不让未知对象直接进入模型上下文。
+没有命中时返回 `{ "items": [] }`。这仍是成功查询，不是异常。用户身份、租户 Scope、Release 和 Deadline 不在 Tool 参数里，它们应由 Server 从可信调用上下文注入。否则模型只要改一个参数就可能越权。
 
-## 用进程内 Client 做契约验证
+## 创建可复现的 Python 环境
 
-Inspector 适合人工观察，自动测试可以绕过 stdio，直接把 Server 对象交给 Client。这类测试仍会经过 MCP 的工具注册、Schema 和结果编码，但不受子进程和 PATH 干扰。
+伴随工程要求 Python 3.10 或更高版本，锁定 `mcp==2.0.0`：
 
-创建对应测试文件：
-
-为了验证“用进程内 Client 做契约验证”，下面的测试把“进程内 Client 仍经过工具注册、**参数校验**和结果编码，但排除了 PATH 与子进程干扰”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
-
-```python
-# 进程内 Client 仍经过工具注册、参数校验和结果编码，但排除了 PATH 与子进程干扰。
-import asyncio
-
-from mcp.client.client import Client
-
-from server import mcp
-
-# 进程内 Client 先发现工具再调用同一 Server，用于验证注册、Schema 和结构化结果。
-async def main() -> None:
-    async with Client(mcp) as client:
-        # 先读取对端实际公开的能力，部署版本不一致会在真正调用前暴露。
-        tools = await client.list_tools()
-        print([tool.name for tool in tools.tools])
-
-        # 通过协议边界发起调用；返回值还要检查错误标记和结构化字段。
-        result = await client.call_tool(
-            "search_notes",
-            {"query": "访问", "limit": 3},
-        )
-        print(result.structured_content)
-
-asyncio.run(main())
+```bash
+# 进入已锁定 Python 依赖的伴随工程，再按 uv.lock 创建环境。
+cd examples/mcp-search-notes/python
+uv sync --frozen
 ```
 
-`Client(mcp)` 创建进程内连接；进入 `async with` 时把 Client 直接接到 Server dispatcher，不启动子进程，也不经过网络 JSON-RPC 帧或 `initialize`。`list_tools` 仍会经过工具注册处理器，`call_tool` 仍会执行输入 Schema、工具回调和输出编码；离开上下文时自动关闭连接。命令 `uv run python check_client.py` 应先打印包含 `search_notes` 的工具名列表，再打印结构化结果。
+`uv.lock` 固定 SDK 与间接依赖。这里的 2.0.0 是 Python 包版本，协议主线是 `2026-07-28`，两者不能互换。升级依赖后先跑契约测试，再更新文章中涉及的导入与行为说明。
 
-这个测试证明“Server 契约和处理器正确”，不能证明 stdio 命令、PATH 或远程 HTTP/TLS 正确。前者用进程内 Client 快速回归，后者再用 Inspector 或独立进程冒烟测试；两者不是重复测试同一层。
+## 用 Pydantic 表达公开数据
 
-如果 `call_tool` 方法或结果字段因 SDK 小版本变化而不同，应以锁定版本的 API 文档和类型提示为准，不要用 `getattr` 静默兼容未知形状。迁移应让测试明确失败，才能发现契约变化。调试时先确认 `list_tools()` 能列出工具，再确认 `call_tool()` 是否发送参数，最后查看 `structured_content`；若工具列表为空，问题在注册或初始化；若列表正常而调用失败，才进入 Schema、业务函数和 Repository。
+输入边界和输出模型放在 `src/search_notes/models.py`：
 
-## 三种结果必须分别测试
+```python
+from typing import Annotated
 
-### 正常命中
+from pydantic import BaseModel, Field
 
-`query="访问", limit=3` 应返回一条结果，字段与 Node 版一致。测试重点是公开字段和稳定 ID，不要把整段序列化文本做快照，否则空格变化也会造成无意义失败。
 
-### 无结果
+# 输入约束会同时生成 Tool Schema，并在函数执行前拒绝非法值。
+Query = Annotated[str, Field(min_length=1)]
+Limit = Annotated[int, Field(ge=1, le=20)]
 
-`query="不存在"` 应返回 `items: []`。这证明业务查询完成，只是没有证据。Host 可以据此回答“未找到”，不应自动重试同一请求。
 
-### 参数拒绝
+class NoteResult(BaseModel):
+    # 公开结果只包含 Client 可以看到的字段，不直接暴露存储记录。
+    id: str
+    title: str
+    excerpt: str
 
-`limit=20` 或 `query="   "` 应被 Schema 拒绝，`search_visible_notes` 不执行。错误属于可修正调用错误。若 Repository 超时，则应该返回工具执行错误或抛出被 SDK转换的异常，并在服务端日志中保留关联 ID。
 
-## 为什么不能只依赖类型提示
+class SearchNotesResult(BaseModel):
+    # 命中与空结果都复用同一个输出对象。
+    items: list[NoteResult]
+```
 
-类型提示和 Pydantic 约束解决的是外部输入形状，解决不了：
+`Annotated` 约束会进入 Tool 输入 Schema，也会在函数执行前参与参数校验。返回 `SearchNotesResult` 让 SDK 生成输出 Schema，并将结果放进 `structured_content`。
 
-- 当前用户能看哪些数据；
-- 一次调用最多消耗多少数据库与模型资源；
-- 返回片段是否包含敏感字段；
-- 下游服务超时后是否重试；
-- 日志是否泄露查询内容；
-- 工具结果是否含提示注入。
+公开结果只有 `id`、`title` 和摘要。fixture 内部仍保存完整 `body`，Repository 显式映射成 `excerpt`，避免不小心把内部记录所有字段透传给 Client。真实项目还应在 Repository 查询层限制可见范围，而不是先读取全部数据再在 Tool 函数里过滤。
 
-这些仍要在认证中间件、Repository、Deadline、结果映射和审计中实现。类型正确的 `tenant_id: str` 仍然可能是攻击者伪造的，因此身份不能来自模型参数。
+## Repository 不需要知道 MCP
 
-## Node 和 Python 怎样选择
+Repository 接收已经收窄的业务参数，返回公开结果模型：
 
-| 考量 | Node.js | Python |
+```python
+class NoteRepository(Protocol):
+    # Repository 只接收通过 Tool 校验的业务参数，不依赖 MCP 类型。
+    def search(self, query: str, limit: int) -> SearchNotesResult: ...
+
+
+class FixtureNoteRepository:
+    def search(self, query: str, limit: int) -> SearchNotesResult:
+        # casefold 统一本示例两端的大小写匹配语义。
+        term = query.casefold()
+        visible = [
+            NoteResult(
+                id=note["id"],
+                title=note["title"],
+                excerpt=note["body"],
+            )
+            for note in self._notes
+            if term in f'{note["title"]} {note["body"]}'.casefold()
+        ]
+        # 只把裁剪后的公开模型返回给协议适配层。
+        return SearchNotesResult(items=visible[:limit])
+```
+
+这层没有 MCP 类型、JSON-RPC ID 或 Client 生命周期，因此可以单独替换为 PostgreSQL、搜索引擎或 HTTP Adapter。fixture 只用于说明契约，不能证明真实数据库权限、索引或并发行为。
+
+若将来改成异步数据库驱动，Protocol 和实现可以改为 `async def search(...)`，Tool 再 `await`。不要为了让示例看起来“现代”而把纯内存计算机械改成异步；异步的价值来自真实 I/O 和并发等待。
+
+## 注册 Tool 的代码应该很薄
+
+`src/search_notes/app.py` 负责把业务函数适配为 MCP Tool：
+
+```python
+from mcp.server import MCPServer
+
+from .models import Limit, Query, SearchNotesResult
+from .repository import NoteRepository
+
+
+def create_server(repository: NoteRepository) -> MCPServer:
+    # factory 让测试替换 Repository，生产入口再注入真实数据源。
+    server = MCPServer("search-notes-python", version="1.0.0")
+
+    @server.tool(name="search_notes")
+    def search_notes(query: Query, limit: Limit = 5) -> SearchNotesResult:
+        """Search notes visible to the authenticated caller."""
+        # 参数通过 Pydantic 校验后，业务函数才会进入 Repository。
+        return repository.search(query, limit)
+
+    # 调用方拿到已经完成 Tool 注册的 Server。
+    return server
+```
+
+调用顺序是“SDK 解析请求 -> 校验 `query` 与 `limit` -> 执行 Tool 函数 -> Repository 查询 -> 校验并编码结构化结果”。Tool Adapter 不复制搜索逻辑，也不把错误都吞成空数组。
+
+真实 Server 还会在这一边界取得认证上下文，并构造带 Scope 的 Repository。模型看见的 Schema 仍只有查询词和数量上限。认证失败、权限拒绝和无结果是三种不同状态，不能统一返回 `items: []`，否则 Host 无法判断用户到底没有数据还是没有权限。
+
+## stdio 入口只负责运行
+
+入口文件组装 Repository 并启动 stdio：
+
+```python
+from .app import create_server
+from .repository import FixtureNoteRepository
+
+
+def main() -> None:
+    # stdio 入口只组装依赖并交给 SDK 运行，不承载搜索逻辑。
+    create_server(FixtureNoteRepository()).run("stdio")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+直接运行后进程会等待 Client 从 stdin 发来协议消息，因此终端没有业务输出是正常现象：
+
+```bash
+# 直接启动后进程等待 stdin；使用 Ctrl+C 结束人工观察。
+cd examples/mcp-search-notes/python
+uv run python -m search_notes.server
+```
+
+不要在 stdout 打启动 banner。stdio 的 stdout 是协议通道，诊断日志应写 stderr。若要让其他 Host 通过命令启动，还需要把模块入口写进包配置并测试安装后的命令；源码目录中能运行不等于 wheel 分发可用。
+
+## 进程内测试证明 Tool 契约
+
+Python v2 的高层 `Client` 可以直接连接 `MCPServer` 对象：
+
+```python
+async def test_python_server_contract_in_process() -> None:
+    # 计数 Repository 让测试同时观察业务函数是否执行。
+    repository = CountingRepository()
+
+    async with Client(create_server(repository)) as client:
+        # 先验证 Client 实际发现到的公开 Tool。
+        tools = await client.list_tools()
+        assert [tool.name for tool in tools.tools] == ["search_notes"]
+
+        hit = await client.call_tool(
+            "search_notes",
+            {"query": "release", "limit": 2},
+        )
+        assert hit.is_error is False
+        assert hit.structured_content["items"][0]["id"] == "n-1"
+
+        # 合法但未命中时仍返回稳定的成功 Schema。
+        empty = await client.call_tool(
+            "search_notes",
+            {"query": "missing", "limit": 5},
+        )
+        assert empty.structured_content == {"items": []}
+```
+
+这条路径走 Tool 注册、参数模型、业务函数和结果编码。Python v2 对进程内 Server 使用直接 dispatcher，不经过 JSON-RPC framing，也不启动子进程。因此它适合快速契约测试，却不能证明 stdio、PATH、工作目录或关闭行为。
+
+测试还用共享 `outputSchema` 校验 `structured_content`。Python SDK 生成的 Schema 可能带 `title` 与 `$defs`，Node SDK 可能使用内联对象；字段、必填项、数值范围和结果行为必须一致，序列化细节不需要逐字相同。
+
+## 参数拒绝必须发生在 Repository 之前
+
+只断言“返回了错误”还不够。测试注入带计数器的 Repository：
+
+```python
+async def test_invalid_limit_never_reaches_repository() -> None:
+    # 初始调用次数为 0，非法 limit 应在 SDK 边界被拒绝。
+    repository = CountingRepository()
+
+    async with Client(create_server(repository)) as client:
+        invalid = await client.call_tool(
+            "search_notes",
+            {"query": "release", "limit": 21},
+        )
+
+        # Tool Error 可读，但 Repository 仍然没有执行。
+        assert invalid.is_error is True
+        assert repository.calls == 0
+```
+
+这个断言证明上限在 Tool 边界生效，不会先执行昂贵查询再报告参数错误。它仍不能证明认证发生在查询前，因为示例没有接入真实认证中间件。生产测试要另外覆盖缺少身份、Scope 越界和跨租户查询。
+
+## 运行测试并理解证据范围
+
+```bash
+# 运行 Python Server 契约和 Python Client -> Node stdio 三条测试。
+cd examples/mcp-search-notes/python
+uv run pytest -q
+```
+
+当前工程有三条测试：两条验证 Python Server，一条由 Python Client 启动 Node v2 Server 并通过 stdio 调用同一 Tool。后者验证跨语言传输，不属于 Python Tool 本身的单元边界。
+
+| 测试 | 可以证明 | 不能证明 |
 | --- | --- | --- |
-| 现有服务栈 | TypeScript 服务可直接复用类型和 Repository | AI、数据和 Python 服务更容易复用 |
-| Schema | Zod 等 Standard Schema | 类型提示与 Pydantic |
-| 异步 I/O | Promise、AbortSignal | asyncio、取消与超时上下文 |
-| 阻塞风险 | 同步 CPU 工作阻塞事件循环 | 同步 CPU/I/O 同样会阻塞事件循环 |
-| 协议能力 | 取决于 SDK 与锁定版本 | 取决于 SDK 与锁定版本 |
+| Repository 单元行为 | 过滤、limit、公开字段 | MCP 注册与传输 |
+| Python 进程内 Client | Tool 发现、参数拒绝、结构化结果 | stdio 命令和子进程关闭 |
+| Python Client -> Node stdio | 现代探测、跨语言调用、关闭 | 远程 HTTP、OAuth、真实数据库 |
 
-不要因为“AI 常用 Python”就复制一套新的权限逻辑。最稳妥的选择通常是复用已有业务服务与测试。若 Node 和 Python 都需要暴露同一工具，应共享契约样例和期望结果，而不是共享无法跨语言运行的内部实现。
+把这三层分开后，失败位置会清楚许多。进程内用例失败先查 Schema 或业务代码；只有 stdio 用例失败才查命令、标准流和版本探测。
 
-## 完成后的检查表
 
-- `search_notes` 的名称、参数、默认值、字段和失败语义与 Node 版一致；
-- 能说明类型约束在业务函数之前执行；
-- 能区分同步纯函数和异步数据访问；
-- Inspector 能看到工具 Schema，进程内 Client 能列出并调用工具；
-- 无结果返回空数组，参数错误不会进入 Repository；
-- 知道类型提示不承担认证、权限、超时和审计。
+**类型提示能替代业务校验吗？**
 
-## 从脚本运行到 uvx 分发
+不能。它们适合检查字符串长度、整数范围和输出形状。用户是否可见某条笔记、当前 Release 是否允许读取、查询是否超过租户预算，仍要由可信业务数据判断。测试时分别准备类型错误与跨 Scope 对象：前者应在 Tool 函数前拒绝，后者应在 Repository 查询或授权策略中拒绝，不能用一条 Pydantic 用例代替两层边界。
 
-本地 `uv run mcp dev server.py` 适合开发和 Inspector 调试；如果要让别人安装后直接运行，Python 项目还需要明确入口、构建产物和包元数据。`uvx` 只是从包索引创建隔离环境并执行命令，不会替你检查工具权限。
+**为什么不让模型传 `user_id` 或 `scope`？**
 
-分发前先做一次不依赖源码目录的验证：构建 wheel，在临时目录创建全新环境，安装 wheel，再使用 CLI 启动。验证结果应包含工具列表、正常查询和参数错误三类用例。不要在个人机器上直接把带密钥的开发目录打包。
+因为 Tool 参数是模型候选，不是认证事实。Server 应从请求认证上下文取得身份，再构造最小 Scope；模型只填写 `query` 和 `limit`。即使 Host 已做过滤，直接 Client 仍可能绕过它，所以 Server 每次调用都要重新授权，并用跨租户用例确认越权对象不会进入 Repository 结果。
 
-Python 版与 Node 版的发布差异主要在运行时入口和依赖管理，工具契约不应该因此变化。用户最终看到的仍然是 `search_notes(query, limit)`，而不是某个语言内部的函数名。
+**空结果为什么不是错误？**
 
-## 常见问题
+合法查询可能确实没有命中。返回 `items: []` 让 Client 继续按成功 Schema 处理，Host 可以决定换查询词或结束；依赖故障、权限拒绝和参数错误应使用各自失败语义。若所有失败都伪装为空数组，排障时既看不到数据库故障，也无法区分用户没有数据和用户没有权限。
 
-### 类型提示会在运行时自动保护工具吗？
+**进程内 Client 能替代 Inspector 吗？**
 
-普通类型提示主要服务静态分析，是否生成运行时校验取决于 SDK 如何读取 `Annotated`、Pydantic 约束和返回类型。本文使用带长度与范围的类型生成输入 Schema，Client 参数先通过校验才进入工具函数。但认证、租户 Scope、知识版本和资源预算不属于类型系统，仍需服务端注入并在 Repository 执行。最可靠的证据是契约测试证明非法输入没有调用查询函数，而不是只看编辑器没有报错。
+不能完全替代。进程内测试适合自动回归，Inspector 适合人工观察目录和调用；二者都绕过或简化一部分真实 Host 配置。最终还要让 stdio Client 从目标命令、工作目录和环境启动 Server，完成发现、调用与关闭，并检查 stdout 没有普通日志、退出后没有残留进程。
 
-### 为什么业务查询函数使用同步 `def`，工具以后能改成 `async def` 吗？
+**Python 和 Node 怎样判断契约一致？**
 
-内存列表没有等待操作，使用同步函数更直接。接入异步数据库或 HTTP 客户端后，工具可以改为 `async def` 并等待 Repository；但同步 OCR、CPU 密集解析或阻塞网络库不能直接塞进事件循环，否则一个调用会拖住所有连接。此类工作应放到受控线程池、进程池或后台任务，并传播 Deadline 与取消。函数是否异步取决于依赖行为，不取决于“Agent 项目都应该 async”。
+共用语言无关 Schema 与 fixture，分别验证 Client 实际看到的核心字段、合法结果、空结果和越界参数，再由一个语言的 Client 调另一个语言的 Server。SDK 生成 Schema 的 `title`、`$defs` 或方言标记可以不同；字段、必填项、范围和错误行为若不同，跨语言测试就应失败并阻止发布。
 
-### 进程内 Client 测试能替代 Inspector 和 stdio 冒烟吗？
+**什么时候优先选择 Python Server？**
 
-不能。进程内 Client 覆盖工具注册、参数 Schema、处理函数和结果编码，运行快且失败容易定位；它绕过了子进程启动、工作目录、PATH、stdin/stdout framing 和进程关闭。Inspector 适合观察真实工具列表和手工错误，独立进程冒烟则证明 Host 能按配置启动 Server。三者覆盖不同层，至少保留契约测试和一个真实 transport 测试，避免出现“函数正确但配置无法启动”的假通过。
-
-### Python 与 Node 实现如何证明契约一致？
-
-不要比较源码长短，应共享一组语言无关的输入输出样例：正常命中、空结果、空白 query、limit 越界、未知工具、结果缺字段和依赖超时。两边都断言工具名、默认值、字段类型、最大数量和错误类别。若某个 SDK 用异常表示参数错误，另一个用 `isError`，Host 适配层可以归一化，但业务语义必须一致。契约变化应有独立版本，不依赖语言包的内部版本号推断。
-
-### 为什么空结果应返回 `items: []` 而不是抛异常？
-
-查询成功但当前范围没有匹配项是正常业务状态，Host 可以选择改写查询、继续其他检索或说明证据不足。异常表示参数、权限、依赖或执行过程没有正常完成，需要不同的恢复策略。若把空结果抛成错误，重试器可能反复查询同一内容；若把超时伪装成空数组，模型又会错误断言资料不存在。测试中应分别制造无匹配数据与 Repository 超时，确保两条路径不会合并。
-
-### `uvx` 能让一个脚本自动变成可分发 MCP 吗？
-
-不能。`uvx` 负责在隔离环境安装包并运行它声明的命令，项目仍需要正确的包元数据、入口、依赖、许可证和构建产物。分发前要构建 wheel，在不含源码的临时目录安装，再验证工具发现与调用；同时扫描包内容，避免带入密钥、绝对路径或测试数据。若只在源码目录用 `uv run` 成功，尚未证明其他用户能通过包入口启动。
-
-### 什么时候应该选择 Python 版而不是 Node 版？
-
-优先复用已有业务栈、Repository 和测试。AI 数据处理、Python 服务或 Pydantic 契约已经成熟时，Python 能减少跨语言适配；工具本来就在 TypeScript 服务中时，Node 更自然。不要为了语言偏好复制一套认证与权限逻辑。若团队确实维护双实现，应把工具契约样例和行为测试设为共同边界，让语言差异只停留在 SDK 与部署层。
+业务实现、数据处理或模型工具链已经在 Python 中时，Python Adapter 通常更薄。若能力紧邻 Node 服务或前端工具链，Node 可能更自然。选择语言先看现有业务边界、部署和维护者，不看哪段示例更短。

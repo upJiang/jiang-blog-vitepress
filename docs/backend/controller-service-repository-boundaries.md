@@ -93,20 +93,20 @@ Repository 仍要让调用方知道是否返回一项、列表、游标或影响
 
 测试也按责任分层：Service 单测验证状态转换与事务调用，Repository 集成测试连接隔离 MySQL 验证 SQL、约束和租户范围，HTTP 契约测试验证状态码与 JSON。
 
-## 分层不是教条，继续判断
+## 分层职责的适用边界
 
-### 简单 CRUD 是否也需要三层？
+**简单 CRUD 是否也需要三层？**
 
 不必为每条读取制造空转抽象，但认证范围、错误结构和数据访问仍要有清楚位置。可以让薄 Service 很短；当事务和规则增长时，它提供稳定扩展点。
 
-### Service 能否调用多个 Repository？
+**Service 能否调用多个 Repository？**
 
 可以，这正是它拥有用例事务的原因。所有 Repository 接收同一事务上下文；若属于不同数据库，则不能假装原子事务，需要 Outbox/Saga。
 
-### Repository 是否应该返回 ORM Model？
+**Repository 是否应该返回 ORM Model？**
 
 领域层需要行为且能控制加载时可返回实体；跨层序列化更适合明确 DTO。关键是不能让 lazy IO 和 ORM Session 生命周期泄漏到协议层。
 
-### 权限检查放 Guard 还是 Service？
+**权限检查放 Guard 还是 Service？**
 
 Guard 适合“是否已登录、是否拥有粗粒度权限”。依赖资源当前状态、租户和数据范围的授权必须在 Service/查询中再次执行，避免只靠路由元数据。

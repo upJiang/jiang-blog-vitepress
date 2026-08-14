@@ -26,6 +26,8 @@ updated: 2026-08-12
 
 # GORM、MySQL 与 Go 认证授权
 
+GORM 是 Go 的 ORM，负责把 Struct 和查询表达式转换为 SQL；MySQL 保存业务事实；认证与授权确定请求主体以及它能操作的资源。三者横跨数据访问和服务端安全边界，用来让每次查询同时带上事务、租户和权限条件。ORM 不会自动推断这些业务范围。
+
 `db.First(&project, id)` 生成只按主键过滤的 SQL，知道 UUID 的用户便可能读到其他租户项目。GORM 帮助构造 SQL 和映射 Struct，不会推断租户、权限或乐观版本；这些条件必须进入每次查询和事务。
 
 ## Model Tag 映射列，但共享 Schema 由迁移拥有
@@ -104,20 +106,20 @@ Repository 包装底层错误用 `%w`，Service 返回领域 sentinel/typed erro
 
 GORM 底层仍是 `database/sql` 池，要同时观察 InUse、Idle、WaitCount 与 WaitDuration，不能只调 ORM 参数。
 
-## GORM 与认证继续追问
+## GORM 数据访问与认证边界
 
-### GORM Hook 适合写审计吗？
+**GORM Hook 适合写审计吗？**
 
 通用 created_at 等可用 Hook，但审计需要 actor、用例、before/after 和事务语义，隐式 Hook 难获得完整上下文。通常由 Service 显式写审计。
 
-### Save 为什么可能覆盖不该改的列？
+**Save 为什么可能覆盖不该改的列？**
 
 Save 常更新所有字段，零值语义也复杂。使用明确 Updates map/struct 和版本条件，只允许白名单字段；检查 RowsAffected。
 
-### Prepared Statement 缓存是否总开启？
+**Prepared Statement 缓存是否总开启？**
 
 它减少解析但占服务端/客户端资源，并与连接池相关。按驱动/GORM 配置和实际重复查询测量，不把它当 SQL 注入防线；参数绑定本身更基础。
 
-### Go 密码哈希为什么不能每请求启动无限 goroutine？
+**Go 密码哈希为什么不能每请求启动无限 goroutine？**
 
 Argon2id 故意耗内存/CPU，无限并发可耗尽进程。登录限速并使用 semaphore/Worker 限制哈希并发，按目标硬件参数化。

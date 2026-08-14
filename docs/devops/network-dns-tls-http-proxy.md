@@ -21,10 +21,9 @@ practice:
     - DNS、TCP、TLS、HTTP 证据分开
     - 代理状态与源站状态可以核对
 evidence: official-guided-operation
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# DNS、TCP、TLS、HTTP 与代理：一次模型请求到底卡在哪里
+# DNS、TCP、TLS、HTTP 与代理请求链
 
 浏览器显示 504，应用日志却没有这次请求。这个现象已经排除了很多“模型太慢”的猜测：请求可能没有到达应用，504 也可能由反向代理或上游网关生成。网络排障要沿层次向前走，不能从最终状态码直接跳到业务代码。
 

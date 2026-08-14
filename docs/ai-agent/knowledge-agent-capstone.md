@@ -27,6 +27,8 @@ lastUpdated: false
 ---
 # 知识 Agent 工程实践：从文档进入系统到可审计回答
 
+知识 Agent 是一套在受控范围内导入资料、检索 Evidence、调用模型和工具，并保存可恢复 Turn 的应用系统。它位于知识源和最终问答界面之间，把资料版本、权限、检索、生成与运行状态连成可审计链路。集成输入是一份文档和用户问题，输出是带 Evidence、引用、usage、事件和唯一终态的回答；所有组件继续遵守同一套公开协议。
+
 现在把一份匿名 Markdown 放进 `documents/`，然后提交问题：“访问申请需要满足什么条件？”
 
 这次不再创建新的 `DemoRuntime`，也不把固定字符串当模型回答。前文逐步得到的文件会在这里连接起来：
@@ -83,7 +85,7 @@ agent-demo/
 
 这里有两个容易踩的坑。第一，文件多不代表职责清楚；`api.py` 如果自己检索和调用模型，前面的 Runtime 仍然没有被复用。第二，复用不等于循环导入所有模块。领域对象放在 `schemas.py`，外部依赖通过 Protocol 注入，`runtime.py` 只编排状态和所有权。
 
-## 先跑导入，得到可发布的知识快照
+## 从文档导入到可发布知识快照
 
 准备一份不含敏感信息的本地文档：
 
@@ -314,52 +316,51 @@ docker compose down --volumes
 
 第二条会删除本地 Release、Turn、事件、对象和向量，属于破坏性操作。执行前用 `docker compose ls` 和 `docker volume ls` 确认项目名，不运行影响其他工程的全局 prune。
 
-## 常见问题
 
-### 为什么完整实践不能只用 Fake Model？
+**为什么完整实践不能只用 Fake Model？**
 
 Fake Model 能固定输出和错误，适合测试循环、状态、引用校验与恢复，却不会经过真实鉴权、网络、供应商事件和 usage。完整 Gate 要证明 `OpenAIResponsesGateway` 收到 ContextSnapshot、返回真实 Response，并让计量进入 Turn。没有 Key 时应该明确标记在线 Gate 未执行；把固定字符串包装成 ModelReply 只能说明测试替身契约正确。
 
-### 为什么终章还保留纯 Python Agent 和 LangChain 代码？
+**为什么终章还保留纯 Python Agent 和 LangChain 代码？**
 
 纯 Python 版本让 ToolCall、ToolResult 和停止条件可直接推演；LangChain 版本提供 Message、Runnable、Tool 和 Retriever 适配；LangGraph 负责显式状态、分支、回边与 Checkpoint。最终 Runtime 运行 LangGraph，但前两个版本仍是理解与回归对照。它们共享 schemas 和外部适配器，不是三套各自维护的产品实现。
 
 维护时只让一个组合根选择实现：测试可以注入纯 Python/Fake 适配器，在线路径注入真实 ModelGateway、Retriever 和 LangGraph。若三个版本各自复制权限、错误码或消息结构，它们很快就会产生不同语义；共享领域契约和契约测试正是保留对照版本的前提。
 
-### LangGraph Checkpoint 能否替代 Turn 数据库？
+**LangGraph Checkpoint 能否替代 Turn 数据库？**
 
 Checkpoint 保存图执行状态，回答“哪些节点完成、恢复时从哪继续”。Turn 数据库保存业务身份、幂等、Scope/Release 快照、所有权、终态、答案和事件。更换图版本或清理 Checkpoint 后，业务记录仍要可查询。两者通过 turn_id/thread_id 关联，但生命周期和事务责任不同。
 
-### Prompt Cache 命中后为什么还要重新检索和鉴权？
+**Prompt Cache 命中后为什么还要重新检索和鉴权？**
 
 Prompt Cache 复用相同输入前缀的模型处理状态，不缓存当前答案，也不是 ACL。当前问题、RAG Evidence、用户 Scope 和 Release 位于动态区域；权限收紧或知识版本变化还要产生新的缓存范围。即使 usage 显示 cached tokens，本轮 Retriever、Validator 和 Finalize 仍照常执行。
 
 排查时同时记录 `scope_hash`、`release_id`、Prompt/Tool Schema 版本与 cached tokens。若权限或 Release 已变化却仍共用旧缓存范围，应先修正缓存键和前缀边界；但即便缓存键错误，Retriever 的前置 ACL 与 Finalize 权限复核也必须阻止越权结果成为终态。
 
-### 有引用就能说明回答正确吗？
+**有引用就能说明回答正确吗？**
 
 引用存在只证明文本挂了一个 ID。Validator 还要确认 ID 属于本轮 Evidence、位置可回查、内容直接支持 Claim、Scope/Release 正确，并检查回答有没有加入原文不存在的限定词。检索分数高也不等于事实可信。RAG Eval、Claim 支持验证和人工抽样分别覆盖召回、生成与业务判断。
 
-### 为什么 Redis 不保存最终事件，速度不是更快吗？
+**为什么 Redis 不保存最终事件，速度不是更快吗？**
 
 Redis Pub/Sub 很适合低延迟唤醒，但订阅者断线会错过消息，缓存键也可能过期。PostgreSQL 中的 `(turn_id, sequence)` 事件是重放事实；SSE 收到 Redis 通知后仍按数据库游标读取。这样 Redis 故障只影响实时性，不会让终态或引用消失。
 
 可以用断线实验验证：记住客户端最后序号，关闭连接，让 Worker 继续产生事件，再携带该序号重连。若缺失事件能从 PostgreSQL 补齐，说明 Redis 只是唤醒层；若只能等待下一条 Pub/Sub 消息，事件协议还没有真正支持重放。
 
-### 真实模型已经返回，为什么 Turn 还可能不完成？
+**真实模型已经返回，为什么 Turn 还可能不完成？**
 
 模型返回的是候选。此后还要检查 Claim、引用、权限、隐私和注入，Worker 也可能已经失去 Lease、收到取消或超过 Deadline。Finalize 的条件更新决定当前 attempt 是否仍有提交权。迟到候选被记录为 attempt 结果，但不能覆盖其他终态。
 
 定位时查看候选生成事件之后的 Validator 结果、当前 attempt/Lease、取消时间和 Finalize 条件更新影响行数。影响 0 行通常表示所有权或状态已变化，不应盲目重试提交；验证器硬失败则应保留具体原因，进入拒答或失败终态。
 
-### 怎样判断问题出在解析、召回还是生成？
+**怎样判断问题出在解析、召回还是生成？**
 
 先沿数据链找最早偏差。原文没有 Block 是解析问题；Block 正确但 Chunk 丢字段是切片问题；精确扫描能命中而 ANN 漏掉是索引召回问题；Evidence 正确但 Claim 无支持是生成或验证问题。Trace 关联 release、processor、embedding、retriever、prompt 和 model 版本，让同一问题可以在各阶段重放。
 
-### 什么时候可以同步返回 200，不使用队列和 SSE？
+**什么时候可以同步返回 200，不使用队列和 SSE？**
 
 固定步骤少、没有长工具、可在严格 Deadline 内完成的小请求可以同步优化。它仍应创建同一 Turn、使用同一 Retriever/Validator，并写相同终态；否则同步和异步会形成两套权限与质量语义。请求一旦需要多路检索、恢复或较长生成，202 + Turn + SSE 更容易处理断线和重试。
 
-### 达到这些检查后就算企业级了吗？
+**达到这些检查后就算企业级了吗？**
 
 没有一个永久的标签。这里建立的是可继续验证的工程边界：真实模型和基础设施可运行，权限与版本不由模型控制，失败有终态，运行可恢复，答案可追溯，Eval 与 Trace 使用同一 Runtime。上线前仍需按实际数据、模型、容量、合规和故障目标做隔离测试、压测、候选验证和回滚演练；未执行的检查继续标记为未验证。

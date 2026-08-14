@@ -20,10 +20,9 @@ practice:
     - 权限过滤进入 SQL
     - 应用池、PgBouncer 和数据库上限一致
 evidence: official-guided-operation
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# PostgreSQL 在 AI 系统中保存什么
+# PostgreSQL、JSONB、pgvector、索引与连接池
 
 Agent 回答引用了已经下线的文档。向量相似度没有错，问题是查询没有固定知识版本；文档元数据已经更新，旧向量仍在索引中。AI 数据库设计必须同时表达业务实体、版本、权限、异步状态和向量来源，不能只加一列 `embedding`。
 

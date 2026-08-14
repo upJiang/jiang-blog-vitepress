@@ -9,16 +9,28 @@ const errors: string[] = []
 const fail = (message: string): void => errors.push(message)
 const expectedCounts: Record<string, number> = {
   "ai-agent": 70,
-  seo: 12,
+  seo: 25,
   frontend: 104,
   algorithms: 21,
   backend: 68,
   devops: 37,
-  "ai-practice": 10
+  "ai-practice": 10,
+  "onnx-practice": 1
 }
 const categorySet = new Set(sections.map((section) => section.key))
 const articleFiles = new Set<string>()
 const articleRoutes = new Set<string>()
+const contentLockedFiles = new Set([
+  'docs/algorithms/index.md',
+  ...articles.filter((article) => article.contentLocked).map(articleFile)
+])
+const forbiddenVisibleTemplates = [
+  { pattern: /^##\s+参考资料(?:\s|$)/m, reason: "独立参考资料章节" },
+  { pattern: /^##\s+.*(?:本文|本篇)产物/m, reason: "本文/本篇产物模板标题" },
+  { pattern: /(?:本文|本篇)产物(?:是|为|：|:)/, reason: "本文/本篇产物模板句" },
+  { pattern: /(?:开始前可以了解|读完可以带走)/, reason: "顶部阅读卡文案" },
+  { pattern: /更新于\s*[：:]/, reason: "可见更新时间" }
+] as const
 
 function walk(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -31,7 +43,7 @@ function dateText(value: unknown): string {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? "")
 }
 
-if (articles.length !== 322) fail(`当前全站完整重建应登记 322 篇文章，实际为 ${articles.length} 篇。`)
+if (articles.length !== 336) fail(`当前全站完整重建应登记 336 篇文章，实际为 ${articles.length} 篇。`)
 
 for (const [category, expected] of Object.entries(expectedCounts)) {
   const actual = articles.filter((article) => article.category === category).length
@@ -40,7 +52,20 @@ for (const [category, expected] of Object.entries(expectedCounts)) {
 
 for (const section of sections) {
   const indexFile = path.join(root, "docs", section.key, "index.md")
-  if (!fs.existsSync(indexFile)) fail(`栏目索引不存在：${indexFile}`)
+  if (!fs.existsSync(indexFile)) {
+    fail(`栏目索引不存在：${indexFile}`)
+    continue
+  }
+
+  const indexFrontmatter = matter(fs.readFileSync(indexFile, "utf8")).data
+  if (
+    indexFrontmatter.layout !== "page" ||
+    indexFrontmatter.sidebar !== false ||
+    indexFrontmatter.aside !== false ||
+    indexFrontmatter.footer !== false
+  ) {
+    fail(`栏目索引必须使用无侧栏、无右侧目录、无页脚的 page 布局：${indexFile}`)
+  }
 }
 
 for (const article of articles) {
@@ -57,10 +82,11 @@ for (const article of articles) {
     continue
   }
 
+  if (article.contentLocked) continue
+
   const source = fs.readFileSync(absolute, "utf8")
   const parsed = matter(source)
   if (!parsed.content.trim()) fail(`文章正文为空：${relative}`)
-  if (article.preserved) continue
 
   const expectedFields: Record<string, unknown> = {
     title: article.title,
@@ -106,7 +132,34 @@ for (const file of draftFiles) {
   if (!markdownFiles.includes(file)) fail(`草稿登记文件缺失：${file}`)
   if (expectedFiles.has(file)) fail(`草稿不能同时登记为正式文章：${file}`)
 }
-if (expectedFiles.size !== 329) fail(`docs 完整重建应发布 329 个 Markdown，实际登记为 ${expectedFiles.size} 个。`)
+if (expectedFiles.size !== 344) fail(`docs 完整重建应发布 344 个 Markdown，实际登记为 ${expectedFiles.size} 个。`)
+
+for (const file of markdownFiles) {
+  if (contentLockedFiles.has(file)) continue
+  const body = matter(fs.readFileSync(path.join(root, file), "utf8")).content
+  for (const { pattern, reason } of forbiddenVisibleTemplates) {
+    if (pattern.test(body)) fail(`${file} 仍包含${reason}。`)
+  }
+}
+
+const themeRoot = path.join(root, ".vitepress", "theme")
+const themeFiles = walk(themeRoot).filter((file) => /\.(?:vue|ts|css)$/.test(file))
+const forbiddenThemeFragments = [
+  "ChapterGuide",
+  "chapter-guide",
+  "开始前可以了解",
+  "读完可以带走",
+  "本文产物",
+  "本篇产物"
+]
+for (const file of themeFiles) {
+  const source = fs.readFileSync(file, "utf8")
+  for (const fragment of forbiddenThemeFragments) {
+    if (source.includes(fragment)) {
+      fail(`${path.relative(root, file)} 重新引入已删除的顶部阅读卡或产物模板：${fragment}`)
+    }
+  }
+}
 
 const aiArticles = articles.filter((article) => article.category === "ai-agent")
 const aiBySlug = new Map(aiArticles.map((article) => [article.slug, article]))
@@ -155,6 +208,7 @@ for (const track of ["mainline", "special"] as const) {
 }
 
 for (const file of markdownFiles) {
+  if (contentLockedFiles.has(file)) continue
   const source = fs.readFileSync(path.join(root, file), "utf8")
   for (const match of source.matchAll(/\]\((\/docs\/[^)#\s]+)(?:#[^)]*)?\)/g)) {
     const target = match[1].replace(/\/$/, "/index").replace(/\.html$/, "") + ".md"

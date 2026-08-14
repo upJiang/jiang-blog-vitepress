@@ -2,13 +2,13 @@
 title: 广告创意、落地页与转化追踪
 description: 连接创意承诺、页面任务、主要转化、有效线索、收入、退款和毛利。
 category: seo
-part: 第七部分：SEM 与协同增长
-chapter: 20
+part: SEM 与协同增长
+chapter: 23
 tags:
   - Landing Page
   - Conversion Tracking
 prerequisites:
-  - 读过第 18、19 章
+  - 理解搜索词与预算治理
 outcomes:
   - 区分平台转化与有效业务
   - 评估归因数据的可信度
@@ -19,16 +19,15 @@ practice:
     - 主要和观察转化分开
     - 结果可关联到点击或受控归因键
 evidence: official-guided-operation
-updated: 2026-08-11
+updated: '2026-08-11'
 ---
-
-# 平台 CPA 50 元，为什么销售说每条有效线索要 500 元
+# 广告创意、落地页与转化追踪
 
 广告平台记录了 20 次“转化”，成本 1,000 元，因此平台 CPA 是 50 元。业务系统里只有 2 条通过资格审核的咨询，其中 1 条后来退款。两个团队都没有算错，只是“转化”定义不同。
 
 如果自动出价优化的是任意表单成功，它会寻找更容易提交的人；若重复提交、垃圾线索和测试数据也被计入，算法会越来越擅长购买无效结果。SEM 的真实链路必须从搜索词和创意一直连接到有效业务、退款与毛利。
 
-上一篇的[搜索词治理表](/docs/seo/sem-search-terms-bidding-budget)给出哪些查询值得保留。本篇把这些查询的广告承诺、实际落地页、事件和业务结果逐层对账，输出一份可供投手、开发、数据和销售共同验收的追踪表。
+[搜索词治理](/docs/seo/sem-search-terms-bidding-budget)给出哪些查询值得保留。创意与落地页验收把这些查询的广告承诺、实际页面、事件和业务结果逐层对账，形成投手、开发、数据和销售可以共同检查的追踪表。
 
 ## 创意不是写得热闹，而是减少错误点击
 
@@ -196,10 +195,4 @@ lead/order ID｜有效状态｜收入｜退款｜毛利｜转化延迟｜
 
 SEM 投手维护创意和平台目标，开发实现页面与幂等事件，数据负责人做关联、去重和回传，销售/业务确认有效性、退款和毛利，创业者决定可承受成本。SEO 负责人可复用页面证据，但自然与付费归因要分开。
 
-验收必须能计算平台 CPA、有效 CPA、退款后 ROAS 和毛利回报，并说明关联率与缺口。下一篇会在这套可信数据上诊断 Google、Bing 和百度的自动化功能。
-
-## 继续学习
-
-- 上一篇：[搜索词、匹配方式、出价与预算](/docs/seo/sem-search-terms-bidding-budget)
-- 下一篇：[Google、Bing 与百度投放诊断](/docs/seo/sem-platform-diagnostics)
-- 性能保护：[Core Web Vitals 与网站性能指标](/docs/seo/technical-seo-rendering-performance)
+验收必须能计算平台 CPA、有效 CPA、退款后 ROAS 和毛利回报，并说明关联率与缺口。只有这套数据可信，Google、Bing 和百度的自动化功能才具备可诊断的输入。

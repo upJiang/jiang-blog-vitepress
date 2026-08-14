@@ -31,6 +31,10 @@ lastUpdated: false
 ---
 # LangChain Streaming、Callback、Middleware 与有限重试
 
+Streaming、Callback 和 Middleware 是 LangChain Runtime 的三种不同扩展点。Streaming 把运行数据送给调用方，Callback 旁路记录生命周期，Middleware 进入执行路径并包裹模型或工具调用。三者都围绕同一次 Agent 运行，但只有 Middleware 会改变是否继续、重试或终止。
+
+它们分别用于构造进度 UI、记录 Trace，以及在共享 Deadline 内控制错误恢复。三者都位于 Agent Runtime 的执行扩展层；区分数据路径后，才能知道哪些事件可以公开、哪些逻辑可以重试。
+
 直接调用 `create_agent` 并等待 `result["messages"]` 时，调用方只能在最后看到结果。一次真实知识查询可能在检索、工具和模型阶段停留数秒；页面需要知道“正在查资料”，运维需要知道“哪次模型调用**重试**了”，Runtime 还要在客户端取消后停止下游工作。
 
 这三个需求看起来都在“观察过程”，却对应不同机制：
@@ -39,11 +43,11 @@ lastUpdated: false
 - **Callback** 旁路观察框架生命周期，常用于 Trace、日志、Token 统计和测试；
 - **Middleware** 位于 Agent 执行路径中，可以在模型或工具调用前后检查、包装、重试或终止。
 
-如果把它们写成一个 `print()`，页面协议会依赖框架内部对象，日志可能泄露原始证据，重试也无法共享 Deadline。本篇继续使用同一个只读 `search_notes` Agent：工具发出自定义进度，Streaming 转成稳定公开事件，Callback 只记录生命周期名称，**Middleware** 对短暂模型连接错误最多重试一次。
+如果把它们写成一个 `print()`，页面协议会依赖框架内部对象，日志可能泄露原始证据，重试也无法共享 Deadline。同一个只读 `search_notes` Agent 可以分离这些职责：工具发出自定义进度，Streaming 转成稳定公开事件，Callback 只记录生命周期名称，**Middleware** 对短暂模型连接错误最多重试一次。
 
-System、Human、AI 与 Tool 四类消息是本篇输入；这里产出的事件、Deadline 和**取消**语义还会进入 SSE 序列、断线重放和任务终态。
+System、Human、AI 与 Tool 四类消息构成输入；产出的事件、Deadline 和**取消**语义还会进入 SSE 序列、断线重放和任务终态。
 
-## 先分清三条数据路径
+## 同步、流式与事件数据路径
 
 ```mermaid
 flowchart LR
@@ -162,7 +166,6 @@ Middleware 不是独立于 Agent 的另一套运行时。`create_agent` 会把 H
 
 安装 LangChain 1.x 与 pytest：
 
-下面的命令接收本节“环境和观察目标”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装流式、Callback 与测试依赖，Fake 适配器会产生可控 token、错误和取消信号。
 python3 -m venv .venv
@@ -459,8 +462,6 @@ if __name__ == "__main__":
     asyncio.run(demo())
 ```
 
-代码从 `Note`、`RequestContext`、`PublicEvent` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
-
 ### 工具怎样产生 custom 进度
 
 `search_notes` 在真正查询前调用 `runtime.stream_writer`。写出的字典只包含阶段名，不包含查询原文和证据内容。随后它检查 Deadline、按 Scope 过滤并返回 ToolMessage 数据。进度事件先到并不保证工具成功，调用方必须等待 `tool_completed` 或失败终态。
@@ -491,7 +492,6 @@ if __name__ == "__main__":
 
 ### 运行并观察两条轨迹
 
-下面的命令接收本节“运行并观察两条轨迹”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 分别运行成功流与一次暂时失败，核对 token 顺序、attempt、Deadline 和最终关闭事件。
 python streaming_agent.py
@@ -678,28 +678,27 @@ ToolCall 参数流也有同样问题。半截 JSON 只能展示，不能执行�
 
 固定 Retriever 接进 Agent 后仍沿用这里的事件边界，同时还要处理 Document、Scope、Release、Evidence，以及何时从固定 2-Step RAG 升级到 LangGraph。
 
-## 常见问题
 
-### Token 流、Message 流和状态事件有什么区别？
+**Token 流、Message 流和状态事件有什么区别？**
 
 Token 流适合逐字展示模型输出，Message 流表示完整消息或工具调用块，状态事件则表达 `retrieving`、`tool.completed`、`validated` 等业务阶段。只有 Token 无法说明工具为何停住，只有状态又不能提供打字体验。应用可以同时保留展示流和持久化事件，但最终成功应以数据库终态为准，不能把最后一个 Token 当作已提交答案。
 
-### Middleware 与 Callback 分别适合做什么？
+**Middleware 与 Callback 分别适合做什么？**
 
 Middleware 位于执行链上，可以在调用前后改变受控输入、拒绝请求或映射错误，适合预算、模型路由和策略；Callback 主要观察已发生的模型、工具和链事件，适合 Trace、指标与调试。若在 Callback 中偷偷修改权限或重试业务，会让控制流不可见；若 Middleware 记录完整敏感内容，又会扩大日志风险。两者都不能替代数据库事务。
 
-### 模型调用失败时为什么不能无限自动重试？
+**模型调用失败时为什么不能无限自动重试？**
 
 重试只适合短暂网络错误、限流等明确可恢复失败，并且要服从整轮 Deadline、最大 attempt 和幂等边界。Schema 拒绝、权限不足、无证据和取消不会因重复调用自然恢复。每次重试应记录原因、退避和剩余时间；工具或写操作还要确认上一次是否已经提交。无限重试会放大供应商故障、消耗预算并拖住 Worker。
 
-### 用户点击停止后，取消信号应该传播到哪里？
+**用户点击停止后，取消信号应该传播到哪里？**
 
 入口先记录 cancel_requested，Runtime 在节点边界检查，再取消尚未完成的模型流、工具请求和并行 Task。已经提交的终态不可被迟到取消覆盖，已经产生外部副作用也要按幂等事实处理。仅关闭浏览器连接不一定等于取消后台任务，因此产品要明确断线语义；服务端应把 cancelled、client_disconnected 和 timeout 分开记录。
 
-### 慢客户端为什么会造成背压问题？
+**慢客户端为什么会造成背压问题？**
 
 模型或工具生成速度可能快于网络发送和浏览器消费，若服务端无界缓存所有 chunk，单个慢连接就会持续占用内存。可使用有界队列、批量合并低价值 token、心跳和写超时，并让终态与完整答案持久化。丢弃展示型增量时不能丢业务事件；客户端重连后应从持久化事件或最终快照恢复，而不是要求模型重跑。
 
-### Streaming 事件里哪些内容不应该直接发送？
+**Streaming 事件里哪些内容不应该直接发送？**
 
 完整 Prompt、工具密钥、不可见候选、原始文档、内部异常栈和模型隐藏推理都不适合进入前端流。事件只携带 turn ID、序号、阶段、可公开进度和稳定错误码；答案片段也要服从当前用户 Scope。详细诊断留在受控 Trace，并做脱敏和访问控制。这样即使浏览器日志或代理被查看，也不会泄露执行内部数据。

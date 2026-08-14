@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitepress'
-import { articlePath, articles } from './content'
+import { articleFile, articlePath, articles, articlesInStageOrder } from './content'
 import { createSidebar, sectionNavigation } from './sidebar'
 import { draftArticleFiles } from './drafts'
 
@@ -7,18 +7,15 @@ const draftRoutes = draftArticleFiles.map((file) => `/${file.replace(/\.md$/, ''
 
 export default defineConfig({
     transformPageData(pageData) {
-      if (!pageData.relativePath.startsWith('docs/ai-agent/') || pageData.relativePath.endsWith('/index.md')) return
+      if (!pageData.relativePath.startsWith('docs/') || pageData.relativePath.endsWith('/index.md')) return
 
-      const slug = pageData.relativePath.replace(/^docs\/ai-agent\//, '').replace(/\.md$/, '')
-      const current = articles.find((article) => article.category === 'ai-agent' && article.slug === slug)
-      if (!current?.track) return
+      const current = articles.find((article) => articleFile(article) === pageData.relativePath)
+      if (!current) return
 
-      const trackArticles = articles
-        .filter((article) => article.category === 'ai-agent' && article.track === current.track)
-        .sort((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0))
-      const index = trackArticles.findIndex((article) => article.slug === current.slug)
-      const previous = trackArticles[index - 1]
-      const next = trackArticles[index + 1]
+      const orderedArticles = articlesInStageOrder(current.category)
+      const index = orderedArticles.findIndex((article) => article.slug === current.slug)
+      const previous = orderedArticles[index - 1]
+      const next = orderedArticles[index + 1]
 
       return {
         frontmatter: {
@@ -33,12 +30,16 @@ export default defineConfig({
       'CLAUDE.md',
       'AI_Infra_工程入门学习路线.md',
       '后端开发入门体系教程.md',
+      'content-reviews/**/*.md',
       'examples/**/*.md',
       ...draftArticleFiles
     ],
     ignoreDeadLinks: draftRoutes,
     vite: {
       cacheDir: 'node_modules/.vitepress-cache',
+      worker: {
+        format: 'es'
+      },
       plugins: [
         {
           name: 'legacy-algorithm-redirect',

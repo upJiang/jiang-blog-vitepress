@@ -22,199 +22,213 @@ practice:
     - stdio 不把日志写入协议 stdout
     - HTTP 重连不会盲目重放有副作用调用
 evidence: official
-updated: 2026-08-12
+updated: 2026-08-12T00:00:00.000Z
 lastUpdated: false
 ---
 # MCP 传输与生命周期：stdio、Streamable HTTP、Legacy SSE、发现、取消和重连
 
-MCP Client 调用 `search_notes` 时，业务参数可能完全相同，底层却有两条不同路径：本地 Host 启动子进程，通过 stdin/stdout 交换协议消息；远程 Host 向 HTTPS 端点发送请求，响应可能是普通 JSON，也可能是 SSE 流。
+MCP 传输负责在 Client 与 Server 之间搬运协议消息。stdio 使用父子进程的标准输入输出，适合同机能力；Streamable HTTP 使用远程 HTTP 端点，适合共享服务。它们不改变 `search_notes` 的输入输出 Schema，却决定进程怎样启动、日志写到哪里、取消怎样送达，以及连接中断后还能确认哪些事实。
 
-传输只负责搬运消息，不改变 Tool 契约。真正容易出错的是把传输、协议和业务状态混成一层：stdio Server 在 stdout 打日志会破坏协议；HTTP 连接断开后盲目重发调用可能重复副作用；旧 SSE 示例的 GET 端点也不应该被当成当前 Streamable HTTP 的默认结构。
+最常见的误判，是把“传输已连接”当成“工具已成功”。一次调用至少有四层状态：
 
-## 一次调用同时经历四层状态
-
-| 层 | 典型状态 | 失败示例 |
+| 层 | 可观察证据 | 典型失败 |
 | --- | --- | --- |
-| 进程/网络 | starting、connected、closed | 子进程退出、DNS/TLS 失败 |
-| 传输 | stdin/stdout、HTTP request、SSE stream | 非协议输出、代理缓冲、连接中断 |
-| 协议 | discovered、request pending、response received | JSON-RPC ID 不匹配、未知 method |
-| 业务 | searching、ok、empty、denied | 参数错误、无结果、权限拒绝 |
+| 进程或网络 | 子进程 PID、DNS、TLS、HTTP 状态 | 命令不存在、证书失败、Server 退出 |
+| 传输 | stdin/stdout 帧、Content-Type、响应流 | stdout 污染、代理缓冲、连接中断 |
+| 协议 | 版本、method、JSON-RPC ID、Tool 目录 | 版本不兼容、未知工具、ID 不匹配 |
+| 业务 | 参数、Scope、结果与副作用终态 | 参数拒绝、空结果、权限拒绝、终态未知 |
 
-“连接成功”只证明前两层基本可用，不代表 tools/list 成功，更不代表 `search_notes` 有权限返回数据。排障要沿层向下，不要把 HTTP 502 映射成“没有搜索结果”。
+HTTP 502 不能映射成“搜索没有结果”，`tools/list` 成功也不能证明当前用户有权读取笔记。排障必须保留这四层。
 
-## stdio：一对父子进程的协议管道
+## stdio 是谁启动谁
 
-stdio 模式通常由 Client 启动 Server 子进程。Client 写 Server 的 stdin，读取 Server 的 stdout；Server 日志写 stderr。
+stdio 模式通常由 Client 启动 Server 子进程。Client 把 JSON-RPC 消息写入子进程 stdin，从 stdout 读取响应；Server 的诊断日志只能写 stderr。
 
 ```mermaid
 sequenceDiagram
   participant H as Host
   participant C as MCP Client
   participant S as Server 子进程
-  H->>C: 启动本地 Server 配置
-  C->>S: spawn(command, args, env)
-  C->>S: stdin 写入协议请求
+  H->>C: command、args、cwd、最小环境变量
+  C->>S: spawn
+  C->>S: stdin 写协议请求
   S-->>C: stdout 返回协议响应
-  S-->>C: stderr 输出诊断日志
-  C-->>H: 结构化调用结果
+  S-->>C: stderr 输出诊断
+  C-->>H: 校验后的 Tool result
+  H->>C: 关闭
+  C->>S: 关闭管道并回收子进程
 ```
 
-stdout 是协议通道。`print("server started")` 若默认写 stdout，Client 可能把它当协议消息解析并报错；Python 日志应配置到 stderr。环境变量也要最小化传递，不能把 Host 的全部凭证交给不相关 Server。
+伴随工程中的 Client 配置把命令、参数和工作目录写明：
 
-stdio 的优点是无需监听端口、适合本机工具、进程权限容易跟随当前用户；限制是 Server 和 Host 必须在同机，多个 Host 往往各自启动进程，升级和资源占用由本地管理。
+```ts
+const transport = new StdioClientTransport({
+  command: process.execPath,
+  args: ['--import', 'tsx', 'src/server.ts'],
+  cwd: nodeProject,
+  stderr: 'inherit',
+})
+```
 
-## Streamable HTTP：请求和可选流式响应
+从博客根目录运行：
 
-远程连接使用 HTTP 端点。短请求可以返回单个 JSON 响应；长请求可以用 SSE 逐步发送属于该请求的消息。具体 Session、版本发现和恢复能力随协议版本与 SDK 实现变化，Client 必须按协商结果执行，不能用旧示例猜当前行为。
+```bash
+# 从仓库根目录启动 Client；它会创建 Server 子进程并查询 release。
+yarn --cwd examples/mcp-search-notes/node tsx src/client.ts release
+```
+
+Client 先完成现代版本探测，再列出 Tools，最后调用 `search_notes`。正常输出包含两条 fixture 记录。`finally` 中的 `client.close()` 会关闭 transport 并回收它启动的子进程；测试在关闭后确认 PID 已清空。若命令能返回结果却一直不退出，问题通常在 Client 生命周期，而不是 Tool 业务函数。
+
+## stdout 污染为什么会让协议随机失败
+
+stdio 按行读取协议帧。若 Server 写出：
+
+```ts
+console.log('server started')
+```
+
+这行普通文本会混入 stdout。Client 可能在启动探测、工具发现或某次调用时才读到它，于是错误看起来并不总发生在日志打印的位置。Server 应使用 `console.error`；Python logging 也要明确输出到 stderr。
+
+诊断时不要只看“Server 进程还在”：
+
+1. 捕获隔离测试中的 stdout 原始行，确认每一行都是协议消息；
+2. 检查运行时和依赖是否输出 banner；
+3. 分别记录进程启动、版本探测、`tools/list` 和 `tools/call`；
+4. 修复后从真实 Client 再跑一次，而不是只调用进程内 Server。
+
+进程内测试没有 PATH、stdin/stdout 和子进程退出，因此无法证明 stdio 配置正确。
+
+## Streamable HTTP 是按请求工作的远程传输
+
+现代 Streamable HTTP 向同一个 MCP 端点发送 POST。短请求可以返回单个 JSON；长请求可以返回仅属于该请求的 SSE 流。`2026-07-28` 不使用旧式协议 Session，也没有单独的 GET 事件端点。
 
 ```mermaid
 sequenceDiagram
   participant C as MCP Client
   participant P as HTTPS 代理
   participant S as MCP Server
-  C->>P: POST /mcp + JSON-RPC 请求
-  P->>S: 转发认证与协议头
-  alt 短请求
-    S-->>C: application/json 响应
-  else 长请求
+  C->>P: POST /mcp + 协议头 + JSON-RPC
+  P->>S: 保留认证、版本和内容头
+  alt 短响应
+    S-->>C: application/json
+  else 请求内流式响应
     S-->>C: text/event-stream
-    S-->>C: 进度或协议消息
-    S-->>C: 最终 Response 后关闭流
+    S-->>C: 本请求的消息
+    S-->>C: 最终响应后结束流
   end
 ```
 
-代理需要保留必要 Header、合理设置请求体与读超时，并避免缓冲需要实时到达的 SSE。HTTP 层认证通常使用 OAuth 或其他明确机制；`prompt_cache_key`、JSON-RPC ID 或 MCP Session 都不是用户身份。
+远程部署多了明确的网络边界：HTTPS、认证、CORS 或来源校验、反向代理超时、请求体上限、SSE 缓冲和限流。JSON-RPC ID、Tool call ID 与任意缓存键都不是用户身份；Server 必须从可信认证通道取得调用者，再计算 Scope。
 
-## Legacy SSE 为什么仍会出现在配置里
+用普通 `curl` 看到 `/mcp` 返回 200，只能证明 HTTP 入口可达。完整验证必须由 MCP Client 携带协议版本、Client 信息和能力元数据，执行 `server/discover`、`tools/list` 与受控调用。
 
-早期 HTTP+SSE 传输常用一个 GET SSE 端点接收 Server 消息，再通过另一个 HTTP 端点提交 Client 消息。Streamable HTTP 后来将交互收敛到 MCP HTTP 端点和请求级响应流。
+## Legacy SSE 不是“所有 SSE 响应”
 
-旧 Server 可能仍在运行，SDK 也可能保留兼容能力，所以文档和配置中还能见到 `sse`。兼容策略应显式记录：优先尝试的传输、允许回退的旧协议、弃用时间和测试矩阵。不要看到 HTTP 中出现 SSE 就断言它一定是 Legacy SSE；Streamable HTTP 的长响应同样可以使用 SSE 编码。
+早期 HTTP+SSE 传输通常用一个 GET SSE 端点接收 Server 消息，再用另一个端点提交 Client 消息。Streamable HTTP 后来把交互收敛为 MCP POST 端点，但某次 POST 的响应仍可以使用 `text/event-stream`。
 
-## 发现不是启动时只做一次的魔法
+判断依据是端点结构与协议生命周期，不是 Content-Type：
 
-Client 需要知道 Server 提供哪些能力及 Schema。以 Tool 为例，发现结果至少包含名称、描述和输入 Schema；Host 再执行本地过滤，决定当前用户和任务能看到哪些 Tool。
+| 形态 | 请求入口 | SSE 的职责 |
+| --- | --- | --- |
+| Legacy HTTP+SSE | GET 事件端点 + 消息提交端点 | 长期 Server 消息通道 |
+| 现代 Streamable HTTP | 每条消息 POST 到 MCP 端点 | 可选的请求级流式响应 |
 
-```text
-连接可用
-→ 协议版本与能力关系建立
-→ Client 请求工具目录
-→ Server 返回分页或完整目录
-→ Client 校验名称与 Schema
-→ Host 按策略生成当前工具视图
-→ 模型只能在当前视图中提出 ToolCall
-```
+旧 Server 仍可能需要兼容。配置中应写清协议日期、允许的回退路径、停止支持时间和契约测试，不能看到 `sse` 三个字就自动切换模式。
 
-目录可能变化。Client 应按协议通知或重新发现策略刷新，但进行中的 Run 要固定工具版本或 Schema 指纹，避免第一步按旧 Schema 计划，第二步突然按新 Schema 执行。
+## 取消在两种传输中不是同一个动作
 
-## JSON-RPC ID、Tool call ID 与业务幂等键不同
+在 `2026-07-28` 现代协议中：
 
-这三个 ID 经常被误用：
+- stdio Client 发送 `notifications/cancelled`，关联要停止的请求；
+- Streamable HTTP Client 关闭当前响应流，表示不再等待这次请求。
 
-- JSON-RPC `id` 配对一条协议请求与响应；
-- Tool call ID 配对模型提出的动作与返回给模型的结果；
-- 业务幂等键防止外部副作用被重复执行。
-
-连接断开后，Client 换一个 JSON-RPC ID 重新请求，不代表业务操作可以安全重做。只读搜索通常可以重试，但发送消息、创建工单等 Tool 必须使用业务幂等键，并先查询前一次结果。
-
-## 取消是请求停止信号，不是“删除历史”
-
-用户取消后，Host 先将当前 Run 标为取消请求，再通知 Client 停止进行中调用。Client 通过协议/传输取消 Server 工作；Server 将信号传播到底层 HTTP、数据库或子进程，并返回或记录取消终态。
+这两个动作都只表达“调用方希望停止”。Server 仍要把取消传播到底层 HTTP、数据库查询或子进程，并释放资源。若底层写操作已经提交，取消不会倒转事实。
 
 ```mermaid
 flowchart LR
-  U[用户取消] --> H[Host 标记 cancel_requested]
-  H --> C[Client 取消进行中请求]
-  C --> S[Server 停止工具工作]
-  S --> D{底层操作可取消吗}
-  D -->|可取消| X[cancelled<br/>释放资源]
-  D -->|已提交| R[查询幂等结果<br/>记录真实终态]
+  U[用户取消] --> H[Host 锁定 Run 终态]
+  H --> C[Client 发出传输相关取消]
+  C --> S[Server 收到停止信号]
+  S --> D{底层操作能否中止}
+  D -->|能| X[停止并释放资源]
+  D -->|已提交或未知| Q[按业务操作 ID 查询终态]
 ```
 
-关闭 HTTP 流或结束 stdio 进程可能中断传输，但业务操作是否已完成仍要查询。不能因为 Client 没收到响应就断言 Server 没有写入。只读 `search_notes` 可以丢弃迟到结果；写 Tool 必须记录操作 ID 和最终状态。
+只读 `search_notes` 的迟到结果可以记录后丢弃。创建工单、发送消息等写 Tool 必须携带业务幂等键，并保留 `succeeded`、`failed` 与 `outcome_unknown` 的区别。Host 的取消标记不能抹掉已经发生的副作用。
 
-## 重连要先判断“丢了连接”还是“丢了事实”
+## 三种 ID 负责三件事
 
-stdio 子进程退出后，Client 可以按策略重新启动并重新发现能力；进行中的请求通常已经失败。远程 HTTP 短请求断开时，Server 可能仍在执行。恢复顺序应是：
+- JSON-RPC `id`：配对一条协议请求和响应；
+- Tool call ID：配对模型提出的动作和返回给模型的结果；
+- 业务幂等键：识别一次可能产生副作用的业务操作。
 
-1. 记录原请求、Tool call 与业务幂等键；
-2. 判断操作是否只读或可安全重放；
-3. 若有状态查询接口，先查询原操作；
-4. 重新建立连接并确认协议/能力版本；
-5. 只在剩余 Deadline 内有限重试；
-6. 把“原请求未知”与“明确失败”分成不同状态。
+连接断开后换一个 JSON-RPC ID 重试，不代表业务可以安全重做。只读查询通常允许在剩余 Deadline 内有限重试；写操作应先按幂等键查询原状态。没有状态查询能力时，返回 `outcome_unknown` 比猜测“未执行”更诚实。
 
-指数退避可以降低故障放大，但不替代幂等。多个 Client 同时重连还要加入抖动，避免 Server 恢复瞬间被请求峰值再次压垮。
+## 重连前先回答两个问题
 
-## 两种传输怎样选
+第一个问题是“连接丢了，还是 Server 进程也没了？”stdio 子进程退出后，内存状态随进程消失；远程 HTTP 连接断开时，Server 可能还在执行。第二个问题是“这次调用能否安全重放？”
+
+| 已知事实 | 动作 |
+| --- | --- |
+| 只读调用，Server 明确失败 | 在剩余 Deadline 内有限重试 |
+| 写调用，有幂等键和状态查询 | 先查询原操作，再决定重试 |
+| 写调用，响应丢失且无状态查询 | 标记 `outcome_unknown`，不要自动重放 |
+| Server 重启或 origin 配置变化 | 重新探测版本并刷新能力目录 |
+| Schema 已改变 | 当前 Run 停止，新 Run 使用新目录 |
+
+指数退避和抖动可以减少恢复时的请求峰值，但解决不了重复副作用。它们是流量策略，不是幂等策略。
+
+## 怎样选择传输
 
 | 约束 | stdio | Streamable HTTP |
 | --- | --- | --- |
 | 运行位置 | 与 Host 同机 | 可远程部署 |
-| 分发 | 本地命令、包管理器 | URL 与服务发布 |
-| 身份 | 进程用户、显式环境配置 | HTTPS 与明确认证 |
-| 多客户端 | 通常各自进程 | 服务端可统一承载 |
-| 网络治理 | 不需要公网端口 | 代理、TLS、限流、负载均衡 |
-| 日志风险 | stdout 污染协议 | 代理缓冲和 Header 丢失 |
-| 适合 | 本地文件、个人开发工具 | 团队共享、集中数据与审计 |
+| 分发入口 | 本地命令与包 | HTTPS URL 与服务发布 |
+| 身份边界 | 进程用户 + 显式最小环境 | TLS + 明确认证与授权 |
+| 多 Client | 常见做法是各自子进程 | 服务端集中承载 |
+| 主要风险 | stdout 污染、环境变量泄露、进程残留 | 代理头丢失、SSE 缓冲、网络暴露 |
+| 典型能力 | 本地文件、个人开发工具 | 团队数据、集中审计服务 |
 
-本地访问用户文件通常优先 stdio，权限随用户进程控制；集中数据查询通常更适合 HTTPS，因为认证、审计和版本可以统一管理。远程并不天然更“生产级”，本地也不天然更安全，关键看最小权限、更新链和可观测性。
+本地文件工具通常从 stdio 开始，集中数据查询通常选择 HTTPS。远程并不自动等于生产级，本地也不自动等于安全；最终仍看最小权限、更新链、认证和可观测性。
 
-## 一份分层 Runbook
-
-遇到调用失败，按以下顺序检查：
+## 排障时按层收集证据
 
 ```text
-1. 进程/网络：Server 是否存活，DNS/TLS/代理是否可达
-2. 传输：stdout 是否混入日志，Content-Type 与流是否被缓冲
-3. 协议：版本、method、ID、Schema 与分页是否正确
-4. Host 策略：Tool 是否被当前用户和任务允许
-5. 业务：参数、Scope、Release、Deadline 与依赖是否通过
-6. 终态：失败、取消、超时、未知结果是否被正确区分
+1. 进程/网络：命令、PID、退出码，或 DNS/TLS/代理状态
+2. 传输：stdout/stderr、Content-Type、响应流和关闭事件
+3. 协议：探测结果、协议版本、method、JSON-RPC ID 和 Tool 目录
+4. Host 策略：当前用户与任务能看到哪些 Tool
+5. 业务：参数、Scope、Deadline、依赖和结构化结果
+6. 终态：成功、失败、取消、超时和未知结果是否分开
 ```
 
-`tools/list` 成功只能覆盖前面几层的一部分。还要测试合法调用、参数错误、空结果、超时、取消、Server 重启和能力变化。
+`tools/list` 只覆盖其中一部分。发布前还要跑正常调用、空结果、参数拒绝、Server 退出、取消、关闭与能力变化；写 Tool 再补断线后的幂等测试。
 
-## 常见问题
 
-### stdio 是单向通信吗？
+**stdio 是单向通信吗？**
 
-不是。Client 写 Server stdin，Server 从 stdout 返回消息，组成双向请求/响应关系。stdin 和 stdout 每条管道本身有方向，但整体协议交互是双向的。stderr 留给诊断日志。
+不是。Client 写 Server stdin，Server 从 stdout 返回消息；每条管道有方向，整体交互是双向的，stderr 则只承载诊断。若调用一直等待，分别检查 stdin 是否仍打开、stdout 是否只含协议帧、JSON-RPC ID 是否收到配对响应；只看到子进程存活，不能证明协议已经连通。
 
-如果调用一直等待，先检查 Server 进程是否存活、stdin 是否仍打开、stdout 是否混入普通日志，再按 JSON-RPC ID 查响应是否配对。仅看到进程存在不足以证明协议已完成发现；Host 还要分别记录启动、能力发现和业务调用状态。
+**为什么进程内测试通过，Host 仍然连不上？**
 
-### Streamable HTTP 是否一直保持一个长连接？
+进程内测试绕过命令解析、PATH、工作目录、环境变量和标准流 framing。它能证明工具注册和 Schema，却不能证明 stdio。至少再由真实 Client 按目标配置启动一次子进程，完成版本探测、工具发现、调用和关闭；失败时再按命令、stderr、stdout 帧和退出码定位，而不是改业务函数碰运气。
 
-不能这样泛化。短请求可以是普通 HTTP 请求/响应，长请求可以使用 SSE 流；协议版本和实现还可能有会话或订阅能力。应按当前规范与 SDK 契约测试，不要把 WebSocket 或旧 SSE 心智模型直接套用。
+**Streamable HTTP 是否一直保持一个长连接？**
 
-### HTTP 200 是否代表 Tool 成功？
+不是。现代版本按请求 POST，短请求可以普通 JSON 返回；需要流式响应时，本次请求使用 SSE，最终响应结束后该流也随之结束。抓包时检查请求方法、端点和响应归属，不要把它等同于 WebSocket，也不要因为 Content-Type 是 SSE 就套用 Legacy 的长期 GET 事件通道。
 
-不代表。HTTP 200 只说明传输层返回了可处理响应；JSON-RPC 可能包含协议错误，Tool result 也可能是 `empty`、`denied` 或依赖失败。监控要分别记录 HTTP、协议和业务状态。
+**HTTP 200 是否代表 Tool 成功？**
 
-排查时先保存响应 Content-Type 和请求 ID，再解析 JSON-RPC 的 `result` 或 `error`，最后读取 Tool 自己的结构化状态。把三层状态压成一个布尔值，会让参数校验失败看起来像网络故障，也会让权限拒绝被误报成空结果。
+不代表。还要解析 JSON-RPC `error` 或 `result`，再检查 Tool result 的 `isError`、`structuredContent` 和业务状态。监控应分别记录 HTTP 状态、协议错误码和 Tool 终态；否则参数拒绝会被统计成网络故障，权限拒绝也可能被误报为搜索无结果。
 
-### 连接断开后为什么不能立刻重试？
+**为什么 `close()` 也要测试？**
 
-因为请求可能已经到达 Server 并产生副作用，只是响应丢失。先看 Tool 是否只读、是否有业务幂等键和状态查询；确认可安全重放后，才在剩余 Deadline 内有限重试。
+stdio Client 拥有它启动的子进程。只测返回值会漏掉管道、PID 和后台任务泄漏；长时间运行的 Host 最终会堆积残留进程。测试要把关闭放在 `finally`，等待 transport 完成回收后确认 PID 已清空，并在异常路径重复相同断言，不能只验证成功调用后的退出。
 
-日志至少关联 JSON-RPC ID、业务操作 ID、发送时间和断开阶段。若 Server 支持状态查询，先查询原操作；无法确认且操作有副作用时返回 `outcome_unknown`，交给人工或补偿流程。把网络断开直接映射成“未执行”会制造重复写入。
+**取消后 Server 仍返回结果怎么办？**
 
-### Legacy SSE 与响应里的 SSE 有什么区别？
+Host 先按本地 Run 终态决定是否接收迟到结果。只读结果可以记录耗时后丢弃；写操作要通过业务操作 ID 查询真实状态并保留审计，不能把取消当作回滚证明。若查询也无法确认，就返回 `outcome_unknown`，交给补偿或人工处理，而不是覆盖成 cancelled。
 
-Legacy SSE 指早期独立 GET 事件通道加消息提交端点的传输结构；Streamable HTTP 也可为某次请求返回 `text/event-stream`。判断依据是端点和协议生命周期，不是只看 Content-Type。
+**连接断开后为什么不能立刻重试？**
 
-接入旧 Server 时应先锁定其协议日期和 SDK 版本，再按旧生命周期测试；不要只因为响应是 SSE 就把现代 Client 配成 Legacy 模式。迁移时用同一份能力发现与工具契约测试两套传输，确认业务结果一致后再移除旧端点。
-
-### 为什么 Server 日志不能写 stdout？
-
-stdio 模式下 stdout 承载协议帧。普通日志会让 Client 解析到非法消息，表现为随机 JSON 错误或连接失败。日志写 stderr，并避免输出凭证和完整工具结果。
-
-遇到 `parse error` 时可以把 stdout 原始字节保存到隔离测试日志，确认每一帧是否都是协议消息；再检查依赖库是否在启动时打印 banner。修复后用进程内 Client 连跑发现与调用，确保 stderr 日志再多也不会改变响应帧。
-
-### 取消后 Server 仍返回结果怎么办？
-
-Host 以当前 Run 的取消/终态锁决定是否接受迟到结果。只读结果可以记录耗时后丢弃；已提交副作用要查询真实状态并审计，不能用取消标记抹掉事实。Client 还应释放本地 pending request。
-
-### 能力目录变化时，进行中的 Agent 应该立刻使用新 Schema 吗？
-
-通常不应。一次 Run 固定工具目录或 Schema 指纹，保证计划和执行一致。新连接或新 Run 再使用更新目录。安全紧急下线可以立即阻断调用，但要产生明确 `tool_unavailable`，不能静默换成相似工具。
+请求可能已经到达 Server，只是响应丢失。先判断 Tool 是否只读，再检查业务幂等键、Server 日志和状态查询接口；确认原操作未执行或可幂等重放后，才在剩余 Deadline 内有限重试。无法确认的写操作进入未知终态，自动重放会把一次网络故障变成重复副作用。

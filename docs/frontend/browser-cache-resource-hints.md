@@ -25,6 +25,8 @@ updated: 2026-08-11
 
 # HTTP 缓存、浏览器缓存与资源提示
 
+HTTP 缓存根据响应头保存并复用网络资源，浏览器还会在内存、磁盘和 Service Worker 等层决定直接返回、重新验证或发起请求；资源提示提前表达 preload、prefetch、preconnect 等加载意图。它们处在浏览器网络栈与页面资源之间，可以减少等待与重复传输，但不改变权限和新鲜度规则。
+
 Network 显示 200，不代表一定从网络下载；304 也不是“缓存没命中”。浏览器缓存决策包括是否可存、是否新鲜、是否需要验证、响应是否匹配 Vary，以及内存、磁盘、Service Worker 等不同来源。
 
 ## 新鲜度与验证
@@ -55,7 +57,7 @@ preconnect 提前 DNS/TCP/TLS，dns-prefetch 只解析域名；preload 高优先
 
 第一轮禁用缓存冷加载，第二轮普通刷新，第三轮跨页面回访。记录 status、size、transferred、from memory/disk/SW、Age 和 timing。修改资源内容验证哈希改变，修改 HTML 验证新引用，同时检查旧页面仍能加载旧资源。
 
-面试追问强缓存/协商缓存时，应说明完整决策、no-cache/no-store 区别、Vary、发布一致性和 Service Worker 层，而不只背两组 Header。
+缓存诊断要覆盖完整决策过程、`no-cache` 与 `no-store` 的区别、`Vary`、发布一致性和 Service Worker 层。只看两组 Header 容易漏掉实际命中路径。
 
 ## 一次请求怎样选择响应
 

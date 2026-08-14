@@ -20,16 +20,28 @@ practice:
     - 普通与流式响应结构明确
     - 兼容子集和官方 API 的差异被声明
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# FastAPI 构建 LLM 服务：兼容接口不等于复制一个路径
+# FastAPI 构建 OpenAI 兼容的 LLM 服务
 
 客户端把 Base URL 改到自建服务，普通对话能返回，开启 `stream=true` 后解析器却报错。原因往往不是模型，而是响应对象、SSE 分帧、终止标记或错误结构与客户端假设不同。所谓 OpenAI 兼容，必须先写清兼容哪些端点、字段和流事件。
 
-本篇实现一个教学用 Chat Completions 子集：`POST /v1/chat/completions` 接受模型、消息、输出上限和流式开关；模型注册表完成路由；普通响应返回 Choice 与 Usage；流式响应发送增量 Chunk 和 `[DONE]`。官方 OpenAI 文档当前建议新 OpenAI 项目优先评估 Responses API，本篇选择 Chat Completions 是为了演示常见兼容生态，不把它称为所有供应商共同标准。
+教学实现只覆盖 Chat Completions 子集：`POST /v1/chat/completions` 接受模型、消息、输出上限和流式开关；模型注册表完成路由；普通响应返回 Choice 与 Usage；流式响应发送增量 Chunk 和 `[DONE]`。官方 OpenAI 文档当前建议新 OpenAI 项目优先评估 Responses API，这里选择 Chat Completions 是为了演示常见兼容生态，不把它称为所有供应商共同标准。
 
-## 先定义兼容边界
+## OpenAI 兼容层的作用
+
+OpenAI 兼容服务是一个把既定 HTTP/JSON/SSE 契约映射到本地模型适配器的 Web 服务。它位于客户端 SDK 与模型推理进程之间，负责请求校验、模型路由、响应封装、流式事件和错误语义；它不等于复制供应商全部能力，也不自动包含鉴权、计费或工具执行。
+
+本文只承诺下表中的子集。读者先能判断客户端依赖什么，再看 FastAPI 代码怎样实现这些字段。
+
+| 能力 | 本文实现 | 明确不覆盖 |
+| --- | --- | --- |
+| `POST /v1/chat/completions` | `model`、`messages`、`max_tokens`、`stream` | tools、图像、音频、多 Choice |
+| 普通响应 | Choice、Finish Reason、Usage | 供应商全部扩展字段 |
+| SSE | 增量 Chunk、`[DONE]`、断开检测 | Responses API 事件类型 |
+| 模型选择 | 受控 Registry | 客户端直传供应商凭证 |
+
+## 协议兼容的边界
 
 ```mermaid
 sequenceDiagram
@@ -191,3 +203,5 @@ FastAPI BackgroundTasks 在响应发送后仍由同一应用进程执行，适�
 至少验证合法普通请求、合法流式请求、未知模型、空消息、超长输入、模型超时、客户端中断和并发上限。普通响应要检查对象、Choice、Finish Reason 与 Usage；流式响应要检查事件边界、增量顺序、完成标记和中断后资源释放。
 
 真正的兼容不是让某个 SDK 偶然跑通，而是公开支持矩阵、错误语义和版本策略，并用契约测试防止升级 FastAPI、模型引擎或适配器时悄悄改变响应。
+
+运行示例应固定 Python、FastAPI、Pydantic 与 Uvicorn 的版本范围，并在仓库中提供 `requirements.txt` 或 `pyproject.toml`、`uvicorn app:app --reload` 启动命令和两条 `curl`：一条检查普通 JSON 的 `usage`，另一条使用 `-N` 检查 SSE 的事件边界与 `[DONE]`。没有这三项，代码只能阅读，不能称为可验证的兼容服务。

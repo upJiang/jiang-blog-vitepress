@@ -39,6 +39,12 @@ async function moveFocus(currentIndex: number, offset: number): Promise<void> {
 }
 
 async function onKeydown(event: KeyboardEvent, index: number): Promise<void> {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    await selectAndFocus(props.tabs[index].key)
+    return
+  }
+
   if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
     event.preventDefault()
     await moveFocus(index, 1)
@@ -66,7 +72,7 @@ defineExpose({ focusActiveTab })
 </script>
 
 <template>
-  <div class="frontend-track-tabs" role="tablist" :aria-label="label">
+  <div class="frontend-track-tabs" role="tablist" aria-orientation="horizontal" :aria-label="label">
     <button
       v-for="(tab, index) in tabs"
       :id="tabId(tab.key)"

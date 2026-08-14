@@ -25,11 +25,22 @@ updated: 2026-08-11
 
 # 前端请求客户端：契约、取消、重试与一致性
 
-用户切换查询后旧响应覆盖新结果，支付请求超时后自动重试又创建两单。请求封装不能只统一 baseURL 和 Header，它要把解析、错误、取消、幂等和认证生命周期写成可判断契约。
+前端请求客户端是 UI 与服务端 API 之间的协议适配层。它负责发送 HTTP 请求、解析响应、统一错误和取消，并执行经过约束的重试、认证刷新与缓存策略。页面只消费领域结果，不需要反复猜测 `fetch`、状态码和未知 JSON 的含义。
+
+这层如果只统一 `baseURL` 和 Header，仍然解决不了真实故障：用户切换查询后旧响应覆盖新结果，支付请求超时后自动重试又创建两单。请求客户端要把数据解析、资源所有权和未知提交结果写成可判断的契约。
 
 ## 分层数据流
 
 传输层负责 URL、method、headers、body、AbortSignal 和原始 Response；协议层判断 HTTP、Content-Type 和错误结构；解析层把 unknown 校验成领域数据；业务层决定 loading、重试和用户提示。把 Toast 写进底层 fetch 会让批处理和 SSR 难以复用。
+
+```mermaid
+flowchart LR
+  U[页面或 Store] --> T[Transport: fetch 与 Signal]
+  T --> P[Protocol: HTTP 与 Content-Type]
+  P --> V[Validation: unknown 到领域类型]
+  V --> R[Domain Result]
+  T -. Policy .-> X[超时、重试、认证与去重]
+```
 
 ```ts
 type RequestError =
@@ -44,6 +55,54 @@ type RequestError =
 
 稳定错误联合让调用方按终态处理。网络错误没有 HTTP status，取消不应弹成系统故障，非法响应要进入观测而不是断言成成功。
 
+下面的最小实现把响应保持为 `unknown`，直到调用方提供的解析器验证成功。示例依赖现代浏览器的 `AbortSignal.timeout/any`；目标环境不支持时，应在同一适配层用 `AbortController` 组合信号，而不是让每个页面各写一份计时器。
+
+```ts
+type Parser<T> = (value: unknown) => T
+
+async function request<T>(
+  input: RequestInfo | URL,
+  parse: Parser<T>,
+  options: { signal?: AbortSignal; timeoutMs?: number } = {}
+): Promise<T> {
+  const timeout = AbortSignal.timeout(options.timeoutMs ?? 10_000)
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, timeout])
+    : timeout
+
+  let response: Response
+  try {
+    response = await fetch(input, { signal })
+  } catch (cause) {
+    if (options.signal?.aborted) {
+      throw { kind: 'cancelled' } satisfies RequestError
+    }
+    if (timeout.aborted) throw { kind: 'timeout' } satisfies RequestError
+    throw { kind: 'network', cause } satisfies RequestError
+  }
+
+  let body: unknown = null
+  try {
+    body = await response.json()
+  } catch {
+    // 空响应和非法 JSON 由状态码或解析器分类。
+  }
+
+  if (!response.ok) {
+    throw { kind: 'http', status: response.status, body } satisfies RequestError
+  }
+
+  try {
+    return parse(body)
+  } catch (error) {
+    throw {
+      kind: 'invalid-response',
+      issues: [error instanceof Error ? error.message : 'unknown_schema_error']
+    } satisfies RequestError
+  }
+}
+```
+
 ## 取消与超时
 
 AbortSignal 从页面/任务所有者传到 fetch 和解析步骤。超时通过组合 Signal 触发，并在 finally 清理 timer。取消旧请求防止浪费，但仍用 request sequence 或状态所有者检查，防止不支持取消的下游晚返回。
@@ -51,6 +110,15 @@ AbortSignal 从页面/任务所有者传到 fetch 和解析步骤。超时通过
 ## 重试判断
 
 GET 等幂等请求可对临时网络/特定 5xx 做有限指数退避加抖动；Retry-After 优先遵守。创建订单等非幂等命令只有服务端支持幂等键和结果查询时才可安全重试。超时代表结果未知，不等于失败。
+
+| 结果 | 默认动作 | 前提 |
+| --- | --- | --- |
+| 用户主动取消 | 不重试 | 请求所有者已经放弃结果 |
+| DNS/连接失败且未收到响应 | 有限重试查询 | 方法幂等，仍在 Deadline 内 |
+| `429` | 等待后重试 | 解析并限制 `Retry-After`，设置次数上限 |
+| `502/503/504` | 仅重试幂等操作 | 指数退避加抖动 |
+| `400/401/403/404/409/422` | 不做通用重试 | 交给认证或领域逻辑处理 |
+| 命令超时、连接中断 | 结果未知 | 用幂等键查询结果，不能直接再创建一次 |
 
 ## Token 刷新单飞
 
@@ -64,7 +132,7 @@ GET 等幂等请求可对临时网络/特定 5xx 做有限指数退避加抖动�
 
 用可控假服务器测试乱序、断网、超时、429、503、非法 JSON、并发 401、刷新失败、幂等重试和取消。断言请求次数、Signal、错误类型和最终 UI，不只断言 Promise reject。
 
-面试追问 axios/fetch 封装时，应从协议状态机、未知结果和资源所有权回答，而不是展示一串拦截器。
+评审 axios/fetch 封装时，先检查协议状态机、未知结果和资源所有权。拦截器只是承载机制，不是正确性的证明。
 
 ## 请求客户端是状态机
 

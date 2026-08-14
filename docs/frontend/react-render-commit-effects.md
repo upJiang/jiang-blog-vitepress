@@ -25,7 +25,9 @@ updated: 2026-08-11
 
 # React Render、Commit、Flags 与 Effect 执行
 
-组件函数已经运行，不代表用户看到了新页面。Render 阶段只计算下一棵 Fiber 树和待提交标记；只有完成整批目标工作后，Commit 才修改 DOM、Ref 和 Effect。区分两阶段，是理解并发重试、布局读取和副作用重复问题的基础。
+Render 根据状态和 props 计算下一棵 Fiber 工作树，Commit 把完成结果同步应用到 DOM、Ref 和 Effect 生命周期，Flags 是 Render 写在 Fiber 上的待提交标记。三者连接状态更新与浏览器显示，把可以暂停或重做的计算同不可逆的外部副作用分开，也避免半成品直接暴露给用户。
+
+因此，组件函数已经运行不代表用户看到了新页面。Render 可以暂停或放弃，Commit 则应用一批已经确认的宿主变更。布局读取、资源 cleanup 和 Strict Mode 下的重复检查，都要放回这条阶段线理解。
 
 ## Render 阶段产生什么
 
@@ -61,7 +63,7 @@ Commit：遍历 subtreeFlags/flags
         passive mask  -> 安排被动 Effect
 ```
 
-旧文章常把所有副作用串成 `nextEffect` 链。现代源码的 flags/subtreeFlags 遍历不应被旧字段覆盖。面试可说明演进，但不要混用成同一版本的数据结构。
+旧文章常把所有副作用串成 `nextEffect` 链。现代源码的 flags/subtreeFlags 遍历不应被旧字段覆盖；调试时先确认项目 React 版本，不把两套字段混成同一实现。
 
 ## Ref、Layout Effect 与 Passive Effect 的时序
 
@@ -104,7 +106,7 @@ function MeasureBox() {
 
 若页面闪烁，检查必须在绘制前完成的布局逻辑是否误放到 passive Effect；若交互卡顿，检查 mutation/layout 阶段是否过重；若重复请求，先判断请求是否属于用户事件或可取消同步，而不是禁用 Strict Mode。
 
-面试回答两阶段时，要明确 Render 可重做且不应产生外部副作用，Commit 同步应用已确认结果。只说“Render 生成虚拟 DOM、Commit 更新真实 DOM”还缺少 flags、Effect 时序和删除清理这些关键机制。
+完整的两阶段模型还包括 flags、Effect 时序和删除清理。只记“Render 生成虚拟 DOM、Commit 更新真实 DOM”，不足以解释布局闪烁、重复请求或卸载后的资源残留。
 
 ## 一次更新的阶段日志
 

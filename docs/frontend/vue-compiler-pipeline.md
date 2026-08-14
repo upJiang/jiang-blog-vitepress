@@ -25,7 +25,9 @@ updated: 2026-08-11
 
 # Vue 模板编译：Parse、Transform 与 Codegen
 
-模板 `<div class="fixed">{{ count }}</div>` 中，class 永远不变，文本会变。Vue 编译器把这类静态和动态信息写进渲染代码，让运行时不必每次遍历比较所有属性。
+Vue 模板编译器把模板字符串转换成 JavaScript 渲染函数。Parse 建立带源码位置的 AST，Transform 分析结构并加入运行时提示，Codegen 输出 helper、hoist 和 VNode 创建代码。整条流水线位于 `.vue` 模板与 Runtime Renderer 之间，把编译期已知的静态和动态信息交给更新阶段。
+
+例如 `<div class="fixed">{{ count }}</div>` 中，class 永远不变，文本会变。编译器可以把这种差异写进渲染代码，运行时不必每次比较所有属性。
 
 ## Parse 产生模板 AST
 
@@ -49,11 +51,9 @@ Codegen 根据转换后的 AST 生成 helper 导入、VNode 创建、条件和�
 
 运行时编译会把模板变成可执行函数，不能把不可信用户字符串直接当模板。服务端预编译减少客户端编译体积，也让 CSP 更容易保持严格。插值默认按文本处理，但 v-html 仍需要可信内容净化。
 
-面试回答 Vue 编译优化时，应从 Parse/Transform/Codegen 数据流解释静态提升、PatchFlag 和 Block Tree 怎样缩小 Runtime 工作，而不是只列三个名词。
+## 同一模板在三阶段怎样变化
 
-## AST 在三阶段怎样变化
-
-Parse 把模板字符流转换为 Root、Element、Text、Interpolation、Directive 等节点，并保留 source location 供错误和 Source Map 使用。Transform 深度优先遍历 AST：进入节点时收集上下文，退出时已有子节点结果，可计算 codegenNode、hoists、helpers 和 patch flags。Codegen 再把根节点、提升常量和 render 表达式写成 JavaScript。
+把前面三阶段落到同一模板上：Parse 产生 Root、Element、Text、Interpolation 等节点并保留 source location；Transform 深度优先遍历，计算 `codegenNode`、hoists、helpers 和 patch flags；Codegen 再把根节点、提升常量和 render 表达式写成 JavaScript。
 
 ```text
 模板：<div class="box">{{ count }}</div>
@@ -71,6 +71,10 @@ Runtime：更新时重点比较动态文本，而非完整静态结构
 静态提升把不会随 Render 改变的 VNode/props 移到函数外，减少重复创建。PatchFlag 是编译器给 Renderer 的正向提示，例如只更新 text、class 或特定动态 props；它不是运行时 diff 的最终结果。Block 收集本层动态子节点，更新时可以跳过大批静态后代。
 
 错误使用手写 render、运行时动态组件或不稳定结构时，编译器无法提供同等提示，Renderer 回退到更通用路径。性能分析先查看编译输出和组件更新原因，再决定是否值得改模板结构，不要手工硬编码内部 flag 常量。
+
+## 用编译输出验证，不手抄结果
+
+用项目锁定版本的 `@vue/compiler-dom` 或官方 Template Explorer 编译同一模板，保存生成代码、helpers、hoists 和 PatchFlag；再把 `count` 从 1 改为 2，确认页面只改变动态文本。手写 render 对照应验证行为，而不是复制某个版本的内部常量。文章没有绑定编译器版本时，只能解释职责，不能声称输出字符串永久不变。
 
 ## 官方依据
 

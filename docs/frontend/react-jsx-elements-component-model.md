@@ -46,11 +46,22 @@ const viewModel = jsx(Button, {
 
 输入是组件函数和 props，输出是描述对象。此时 `Button` 尚未因为这行 JSX 自动执行，也没有 DOM。React Element 的 `type` 是 Button 函数，`key` 用于同层身份，`props` 保存 tone 和 children。开发构建可能冻结对象帮助发现误修改，业务代码应始终把 Element 当不可变值。
 
-## 元素、组件、Fiber 与 DOM 四层关系
+## Element 从描述进入 Fiber 和 DOM
 
 组件是接收 props 并返回可渲染描述的函数。Element 是某次描述结果。Fiber 是 React 内部为组件工作和状态建立的节点。DOM 是 Commit 阶段交给浏览器的宿主对象。
 
-同一个组件函数可产生许多 Element；同一个 DOM 节点可在多次更新中被 Fiber 复用；函数组件本身没有“实例对象”供业务持有。Ref 指向什么取决于目标：宿主元素可得到 DOM，函数组件要通过公开机制暴露有限句柄。
+同一个组件函数可产生许多 Element；同一个 DOM 节点可在多次更新中被 Fiber 复用；函数组件本身没有“实例对象”供业务持有。Reconciler 会把 Element 与当前子 Fiber 的 type 和 key 比较，决定复用、创建或删除，再由 Host Config 把确定的变更交给 DOM。
+
+```text
+JSX 源码
+  -> jsx(type, props, key)
+  -> React Element（描述）
+  -> reconcileChildFibers（身份比较）
+  -> Fiber（工作与状态）
+  -> Host Config（DOM 操作）
+```
+
+Ref 指向什么取决于目标：宿主元素可得到 DOM，函数组件要通过公开机制暴露有限句柄。key 和 ref 也不是普通 props。业务组件需要相同业务 ID 时，应另外传入 id，不能读取 React 的内部身份字段。
 
 ## 组件调用与渲染纯度
 
@@ -73,9 +84,11 @@ ImpureRow 每次调用都会先修改模块变量再返回 Element，因此被�
 
 修复不是把变量藏进 `useMemo`，而是确定 ID 的所有者：数据 ID 由数据源提供，表单关联 ID 可用 `useId`，用户动作产生的业务 ID 在事件或服务端命令中创建。每种方案的生命周期不同。
 
-## Props、Children 与组件边界
+服务端渲染还要求客户端第一次输出与服务器 HTML 一致。当前时间、随机数、可变单例和浏览器专属值会让重试或 Hydration 得到不同结果；这类值应由稳定数据输入，或延后到 Effect 读取。
 
-`children` 只是 props 的一个字段，可能是字符串、Element、数组、空值或惰性结构，不能默认当作单个 DOM 子节点。组件应声明它接受的形状，并用组合表达布局槽位。随意克隆 children 并注入隐式 props 会增加耦合，Context 或显式 render prop 往往更可追踪。
+## Props 与 Children 定义组件边界
+
+`children` 只是 props 的一个字段，可能是字符串、Element、数组、空值、可迭代对象或 Fragment，不能默认当作单个 DOM 子节点。组件应声明它接受的形状，并用组合表达布局槽位。需要遍历或变换结构时，应使用 React 的 Children 工具并保留 key 语义。随意克隆 children 并注入隐式 props 会增加耦合，Context 或显式 render prop 往往更可追踪。
 
 组件边界应围绕状态所有权和变化频率，而不是按 JSX 行数拆分。若一个子树需要独立复用、独立加载、独立错误边界或能够通过稳定 props 跳过更新，它适合成为组件。只有为了缩短文件而拆出没有语义的包装层，会让树和调试更复杂。
 
@@ -85,28 +98,7 @@ ImpureRow 每次调用都会先修改模块变量再返回 Element，因此被�
 
 预期结果是：创建 Element 不修改 DOM；组件函数可能多次运行；事件只在用户操作后发生；Effect setup 在提交后运行，并在依赖变化或卸载前 cleanup。若日志顺序不符合，先检查代码运行环境和 Strict Mode，不要据此认为生产一定重复提交。
 
-面试追问 JSX 是否防 XSS 时，应区分默认文本转义与 `dangerouslySetInnerHTML`。JSX 不是模板安全沙箱；URL、样式、第三方 HTML 和组件 props 仍需各自的信任边界。
-
-## Element 对象怎样进入 Fiber
-
-`<Button tone="primary" />` 经 JSX Runtime 变成一个 React Element。它携带 `type`、`key`、`props`，开发构建还会保留调试来源；Element 是不可变描述，不保存 DOM、Hook 链或组件实例。Reconciler 读取它，与 current child 的 type/key 比较，决定复用、创建或删除 Fiber。函数组件随后以 props 作为输入执行，返回下一层 Element。
-
-```text
-JSX 源码
-  -> jsx(type, props, key)
-  -> React Element（描述）
-  -> reconcileChildFibers（身份比较）
-  -> Fiber（工作与状态）
-  -> Host Config（DOM 操作）
-```
-
-`key` 和特殊 `ref` 不作为普通 props 传入组件。若业务组件需要读取相同业务 ID，应显式再传 `id`。Children 也不是固定数组：可能是单值、可迭代对象、Fragment 或空节点；对它做结构转换应使用 React 提供的 Children 工具并保留 key 语义。
-
-## 纯组件的可观察边界
-
-渲染纯度指相同 props/state/context 在一次确定环境中产生相同描述，且执行过程不修改外部世界。读取当前时间、随机数、可变单例或在渲染中发请求，会让重试得到不同结果。事件处理器属于用户动作，Effect 属于提交后的外部同步，它们与 Render 的所有权不同。
-
-服务端渲染又增加确定性要求：首次客户端输出必须能匹配服务端 HTML。浏览器专用值应延后到 Effect，或通过显式服务器数据注入，不能靠全局 `typeof window` 分支随意改变首屏树。
+JSX 默认会转义作为文本插入的值，却不会把所有 props 变成可信输入。`dangerouslySetInnerHTML`、URL、样式和第三方组件仍需各自的校验与信任边界。
 
 ## 官方依据
 

@@ -107,7 +107,4 @@ JavaScript 的字符串索引按 UTF-16 code unit，不一定按用户看到的�
 
 空模式的返回契约要先定：原生 `indexOf('')` 返回 0，某些算法题要求 -1；Unicode 索引还要声明 code unit、code point 或 grapheme。用随机短串和 `indexOf` 对拍，再打印每次回退证明状态转移。
 
-## 参考与验证
-
-- [CP-Algorithms: Prefix Function](https://cp-algorithms.com/string/prefix-function.html)
-- [MDN: String.prototype.indexOf](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf)
+前缀函数的通用推导可对照 [CP-Algorithms 的 Prefix Function 说明](https://cp-algorithms.com/string/prefix-function.html)，空模式和返回位置可对照 [MDN 的 `indexOf` 参考](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf)。随机对拍和回退轨迹仍是本文实现的验证依据。

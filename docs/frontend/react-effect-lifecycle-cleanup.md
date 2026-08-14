@@ -24,7 +24,9 @@ updated: 2026-08-11
 
 # Effect 生命周期、依赖与资源清理
 
-快速从用户 A 切到用户 B，A 的慢请求最后返回并覆盖 B。问题不是 fetch “不支持 React”，而是组件没有把外部请求当作随依赖变化而创建、取消和替换的同步过程。
+Effect 是 React 在 Commit 后让已显示 UI 与外部系统保持同步的生命周期协议。它位于组件状态与网络连接、事件监听、定时器或第三方控件之间；setup 建立资源，cleanup 撤销同一资源，依赖数组决定何时替换这段同步关系。
+
+快速从用户 A 切到用户 B，A 的慢请求最后返回并覆盖 B，说明请求的资源所有权没有跟随依赖变化。问题不在 fetch 是否“支持 React”，而在旧同步过程没有被取消或禁止提交结果。
 
 ## Effect 的正确问题模型
 
@@ -77,7 +79,7 @@ function Profile({ userId }: { userId: string }) {
 
 使用可控延时让 A 比 B 晚返回，快速切换参数，确认页面只显示 B；卸载组件后检查 Network 的取消状态和监听器数量。用假时钟验证定时器 cleanup，用开发 Strict Mode 验证 setup/cleanup 对称。
 
-若 Effect 不断循环，先列出每次 setup 修改了哪些 state、这些 state 是否又改变依赖。若依赖对象不稳定，检查它是否真需成为外部协议的一部分。面试回答“空数组等于 componentDidMount”不够准确，它仍有 cleanup、闭包快照和开发检查语义。
+若 Effect 不断循环，先列出每次 setup 修改了哪些 state、这些 state 是否又改变依赖。若依赖对象不稳定，检查它是否真需成为外部协议的一部分。“空数组等于 componentDidMount”会漏掉 cleanup、闭包快照和开发环境检查。
 
 ## 依赖比较和提交时序
 
@@ -90,7 +92,7 @@ commit B: cleanup(query=A) -> setup(query=B)
 unmount: cleanup(query=B)
 ```
 
-开发 Strict Mode 的额外 setup -> cleanup -> setup 是压力测试，要求资源协议可重复建立和释放。修复方向是让 cleanup 对称、操作幂等，而不是用全局布尔值跳过第二次 setup；后者会掩盖真实的卸载/重连问题。
+这条提交时间线也解释了 Strict Mode 的压力测试：额外 setup -> cleanup -> setup 要求资源可以重复建立和释放。用全局布尔值跳过第二次 setup，只会掩盖真实的卸载和重连问题。
 
 ## 请求竞态的所有权
 

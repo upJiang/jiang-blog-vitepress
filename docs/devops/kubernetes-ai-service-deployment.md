@@ -20,10 +20,9 @@ practice:
     - 探针不会把加载中实例送入流量
     - 配置示例明确未在真实集群执行
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# Kubernetes 部署 AI 服务：GPU 是怎样进入 Pod 的
+# Kubernetes 部署 AI 服务：GPU Operator、模型卷与探针
 
 Pod 请求了 `nvidia.com/gpu: 1`，却一直 Pending。Deployment、镜像和模型都没有错误，真正缺失的是节点没有被 Device Plugin 注册成可分配 GPU，或现有 GPU 已被其他 Pod 占用。Kubernetes 只能调度 API Server 已知的资源。
 
@@ -133,4 +132,4 @@ Readiness 失败应从 Service Endpoint 移除实例，但不一定重启。过�
 
 Pending 先看调度事件、资源和节点标签；ContainerCreating 看镜像、Volume、Runtime 和设备注入；CrashLoopBackOff 看进程退出与显存；Startup Probe 失败看模型加载；Ready 但请求失败看 Service、Gateway 与接口契约。
 
-当前没有可用集群，本篇只对 YAML 结构和机制做静态说明。真实上线还需用目标 GPU 节点验证 Driver、Operator 版本、模型容量、Drain 和回滚。
+当前没有可用集群，只能对 YAML 结构和机制做静态说明。真实上线还需用目标 GPU 节点验证 Driver、Operator 版本、模型容量、Drain 和回滚。

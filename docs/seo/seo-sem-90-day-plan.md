@@ -1,34 +1,33 @@
 ---
-title: 创业公司的 SEO / SEM 90 天计划
-description: 把需求验证、技术修复、内容建设、广告实验和业务复盘安排到同一执行路线。
+title: SEO 与 SEM 的协同验证周期
+description: 把需求验证、技术修复、内容建设、广告实验和业务复盘放进同一依赖顺序，同时保留学习期、转化延迟和停止条件。
 category: seo
-part: 第七部分：SEM 与协同增长
-chapter: 22
+part: SEM 与协同增长
+chapter: 25
 tags:
   - SEO Operations
   - SEM Operations
 prerequisites:
-  - 完成前 21 章的核心实践
+  - 理解 SEO 与 SEM 的完整证据链
 outcomes:
-  - 按依赖和优先级排期
+  - 按依赖和证据安排工作
   - 建立负责人、观察周期和复盘机制
 practice:
   type: implementation
-  result: 完成 90 天搜索增长路线图
+  result: 完成搜索增长协同路线图
   verify:
     - 每阶段有停止条件和回滚
     - SEO 与 SEM 共享数据但不重复归因
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: '2026-08-11'
 ---
-
-# 为什么团队忙了 90 天，仍然不知道搜索增长是否有效
+# SEO 与 SEM 的协同验证周期
 
 一家刚上线的预约管理 SaaS 同时发布了 60 篇文章、重写首页、开启三种自动广告系列，还把“提交表单”设成主要转化。三个月后，自然流量上涨，广告平台报告 140 次转化，销售却只确认 9 条有效线索。因为技术、内容、投放和追踪同时变化，团队无法回答哪项工作创造了结果，也不知道下一季度该扩大什么。
 
 90 天计划的目标不是承诺排名或流量，而是建立一个可复查的搜索增长系统：用小规模实验确认需求，先解除技术与测量阻断，再让 SEO（Search Engine Optimization，搜索引擎优化）沉淀长期页面，让 SEM（Search Engine Marketing，搜索引擎营销）加快市场反馈，最后用有效业务和毛利决定去留。
 
-上一篇的[多平台诊断与止损表](/docs/seo/sem-platform-diagnostics)是最后一份输入。本篇不再引入新的“增长技巧”，而是把前 21 章的产物排进依赖、负责人、工作量、观察周期和回滚条件，形成一张创业团队真正能执行的路线图。
+[多平台诊断与止损](/docs/seo/sem-platform-diagnostics)补齐协同周期需要的广告输入。这里不再增加新的“增长技巧”，而是把已有结论排进依赖、负责人、工作量、观察周期和回滚条件，形成创业团队可以执行的路线图。
 
 ## 开工前先收齐 21 章留下的资产
 
@@ -222,9 +221,3 @@ SEM 的快速搜索词可以帮助 SEO 发现真实表达，但付费点击受�
 - SEO 与 SEM 是否共享了需求证据，又是否避免重复领取结果？
 
 能完整回答，路线图才是经营工具。只能回答“为了提高 SEO 分数”或“平台建议增加预算”，说明任务仍未连接到业务。
-
-## 继续学习
-
-- 下一篇：[用 SEO优化 插件完成页面检查](/docs/seo/seo-optimizer-chrome-extension)
-- 回看证据框架：[SEO 诊断的证据、评分与边界](/docs/seo/seo-evidence-scoring-boundaries)
-- 回看执行入口：[用浏览器完成一次单页 SEO 审计](/docs/seo/browser-page-seo-audit)

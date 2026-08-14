@@ -1,6 +1,6 @@
 ---
 title: Skill 实战：从空目录写出可验证的任务能力
-description: 从一个页面审计任务开始，创建 SKILL.md、参考资料、脚本和模板，理解触发、渐进读取与验证。
+description: 从一个页面审计任务开始，创建 SKILL.md、参考资料、结构化采集器和模板，理解触发、渐进读取与失败验证。
 category: ai-agent
 part: Skill：沉淀任务方法
 chapter: 58
@@ -10,7 +10,7 @@ tags:
   - Claude Code
   - Progressive Disclosure
 prerequisites:
-  - 会读 Markdown 和 Shell 命令
+  - 会读 Markdown 和 Python
   - 了解 Agent 会按任务读取说明
 outcomes:
   - 能创建一个公开 Skill
@@ -21,150 +21,245 @@ practice:
   verify:
     - 触发条件与任务匹配
     - 脚本失败时能给出可定位错误
-evidence: official
+evidence: official-guided-operation
 updated: 2026-08-07T00:00:00.000Z
 lastUpdated: false
 ---
 # Skill 实战：从空目录写出可验证的任务能力
 
-**Skill** 最容易被误解成一段更长的 Prompt。实际使用时，它更像一个“小型任务包”：入口文件告诉 Agent 什么时候使用、先做什么和不能做什么；详细资料按需读取；脚本负责重复检查；模板负责让输出稳定。
+页面审计 Skill 是一套让 Agent 重复执行只读网页检查的方法。它接收用户明确授权的 URL 与允许主机，采集 HTTP 状态、最终 URL、原始 HTML 中的 title、canonical 和 robots，再把已确认事实与数据缺口分开。Skill 位于用户任务与采集脚本之间：负责触发、顺序和解释边界，不负责修改网站。
 
-这篇文章不做抽象介绍，而是从空目录创建一个匿名的“页面审计 Skill”。它只检查页面是否能访问、是否包含标题和 Canonical，不连接私有服务，也不修改网站。
+完整实现位于 `examples/page-audit-skill/`。采集器使用 Python 标准库 `HTMLParser`，输出 JSON；测试使用假响应，不访问公网。相比用 `awk` 按行查 HTML，这种实现能处理跨行标签、属性顺序和 HTML 实体，也能把网络失败与字段缺失分开。
 
-## 先看最终目录
+## Skill 的输入、结果与职责边界
+
+这个 Skill 只接受两项输入：
+
+- 用户明确提供并允许检查的 `http` 或 `https` URL；
+- 精确的允许主机名，例如 `example.com`。
+
+成功结果是结构化事实：
+
+```json
+{
+  "ok": true,
+  "status": 200,
+  "final_url": "https://example.com/",
+  "title": "Example Domain",
+  "canonical": null,
+  "robots": null,
+  "evidence": "raw_html"
+}
+```
+
+`null` 只表示原始 HTML 没找到该字段。脚本不执行 JavaScript，因此不能据此断言渲染 DOM 也缺少；它也不连接搜索平台，不能判断页面是否被抓取、索引或获得排名。
+
+以下动作从一开始就排除：登录、发送 Cookie、修改网站、访问 localhost 或私网、跟随到允许列表外的重定向、保存完整 HTML、输出排名结论。安全边界不能留到文章最后才补一句“注意 SSRF”。
+
+## 目录按运行职责拆分
 
 ```text
-page-audit/
+page-audit-skill/
 ├── SKILL.md
 ├── references/
 │   └── checks.md
 ├── scripts/
-│   └── check-page.sh
-└── templates/
-    └── report.md
+│   └── audit_page.py
+├── templates/
+│   └── report.md
+└── tests/
+    └── test_audit_page.py
 ```
 
-`SKILL.md` 是触发入口；`references/checks.md` 放详细判断标准；`scripts/check-page.sh` 负责确定性 HTTP 检查；`templates/report.md` 规定结果格式。Agent 不需要每次都读取所有文件，先读入口，确定任务匹配后再按需要读取其他文件。
+`SKILL.md` 负责路由与执行顺序；`checks.md` 说明原始 HTML 证据口径；采集器只输出事实；模板约束报告字段；测试锁定解析和失败行为。没有图片或其他输入资产，因此无需为了目录整齐添加空 `assets/`。
 
-## 第一步：写清触发条件和边界
+## 入口描述要同时写触发和边界
 
-先创建目录：
-
-下面的命令接收本节“第一步：写清触发条件和边界”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
-```bash
-# 入口、参考资料、脚本和模板分目录保存，后续可以按任务阶段读取。
-mkdir -p page-audit/references page-audit/scripts page-audit/templates
-```
-
-这些命令从 `mkdir` 开始按顺序运行，输出用于确认“第一步：写清触发条件和边界”是否成立。任何命令返回非零退出码都表示当前步骤没有完成，应先检查路径、环境和参数；不要把后续输出当成成功证据。
-
-`mkdir -p` 会一次创建四层目录；目录已经存在时不会报错，因此可以重复执行。命令的输出通常为空，**验证**方式是运行 `find page-audit -maxdepth 2 -type d`，确认 `references`、`scripts` 和 `templates` 都存在。
-
-然后写 `SKILL.md`：
+伴随工程的 `SKILL.md` 从元数据开始：
 
 ```markdown
-<!-- description 决定何时触发；正文负责执行步骤、边界和失败处理。 -->
 ---
 name: page-audit
-description: 当用户要求检查网页可访问性、标题、Canonical 或 robots 时使用；只做只读检查，不修改线上页面。
+description: 当用户明确授权检查一个 HTTP 页面，并要求核对状态、最终 URL、原始 HTML 的 title、canonical 或 robots 时使用；只读，不修改网站。
 ---
+```
 
+这条描述包含任务对象、检查字段和只读范围。“分析整站 SEO 策略”不属于这个小 Skill；“登录后台修改 canonical”也不属于。安装到不同 Agent 产品时，目录位置与发现机制要按当前产品文档配置，但描述的语义可以保持不变。
+
+正文只保留所有路径共用的规则：
+
+```markdown
 # 页面审计
 
-## 任务目标
+## 输入
 
-收集真实 GET、响应状态、最终 URL、原始 HTML 中的 title、canonical 和 robots，并输出证据化报告。
+- 用户明确提供并允许检查的 URL。
+- 允许访问的精确主机名；缺失时先确认。
 
-## 执行顺序
+## 执行
 
-1. 先确认用户提供了 URL 和允许检查的范围。
-2. 读取 `references/checks.md`，按页面类型选择检查项。
-3. 运行 `scripts/check-page.sh` 获取响应和基础字段。
-4. 把脚本输出填入 `templates/report.md`。
-5. 把事实、假设、缺口和下一步分开。
+1. 读取 `references/checks.md`，确认当前检查只需要原始 HTML。
+2. 运行 `scripts/audit_page.py URL --allow-host HOST`。
+3. 脚本退出 0 时，把 JSON 事实填入 `templates/report.md`。
+4. 非零退出时保留错误类型，停止依赖页面正文的判断。
 
-## 不做什么
+## 边界
 
-- 不修改网页、广告账户或站点配置。
-- 不把工具评分当成排名结果。
-- 不在报告中写入 Cookie、Token 或完整页面敏感正文。
+- 不登录、不发送 Cookie、不修改页面或站点配置。
+- 不访问私网或允许列表之外的主机。
+- 不把原始 HTML 字段缺失扩大为渲染与索引结论。
 ```
 
-Agent 发现这份入口时，先用 Frontmatter 的 `name` 识别能力，用 `description` 判断“网页只读检查”是否与用户任务匹配；匹配后才读取正文。正文规定先确认 URL 和授权，再读规则、运行脚本、填模板。用户缺少 URL 时停在输入检查；脚本非零退出时进入失败报告；只有采集成功才填写事实字段。`references` 和 `scripts` 使用相对路径，Skill 搬到另一个环境后仍能定位资源；“不修改线上页面”则防止诊断任务越界成修复任务。
+入口不会重复 HTML 解析细节。Agent 进入字段解释时再读 reference，形成实际的渐进读取路径。
 
-## 第二步：把详细判断放进 references
+## URL 在发请求前先经过门槛
 
-`SKILL.md` 不应该塞进所有 HTTP 细节。把规则放进 `references/checks.md`：
+采集器先解析 URL：
 
-下面的代码把“第二步：把详细判断放进 **references**”落到可观察行为。输入沿上文契约进入，关键分支改变状态，返回值再交给调用方；阅读时同时留意失败怎样向外传播。
+```python
+def validate_url(
+    url: str,
+    allowed_hosts: set[str],
+    *,
+    resolve_dns: bool = True,
+) -> str:
+    # 输入先限制协议和 userinfo，避免把本地文件或凭证送入请求层。
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise AuditError("only http and https URLs are allowed")
+    if parsed.username or parsed.password:
+        raise AuditError("URL userinfo is not allowed")
+
+    # 主机必须精确命中本次授权的允许列表。
+    hostname = (parsed.hostname or "").rstrip(".").casefold()
+    if not hostname or hostname not in allowed_hosts:
+        raise AuditError(f"host is outside the allowlist: {hostname}")
+
+    if resolve_dns:
+        # 解析结果中出现任意非公网地址，就在建立连接前拒绝。
+        addresses = {
+            item[4][0]
+            for item in socket.getaddrinfo(
+                hostname,
+                parsed.port or (443 if parsed.scheme == "https" else 80),
+            )
+        }
+        for value in addresses:
+            if not ipaddress.ip_address(value).is_global:
+                raise AuditError(
+                    f"host resolves to a non-public address: {value}"
+                )
+    # 返回规范化主机，供调用方记录本次边界判断。
+    return hostname
+```
+
+它拒绝非 HTTP 协议、URL userinfo、未批准主机和非公网解析结果。重定向 handler 对每一个目标重新调用相同校验，防止公开 URL 跳到私网或其他域名。
+
+应用层校验仍不是绝对网络隔离。DNS 结果可能在校验和连接之间变化，代理也可能使用不同解析路径。处理不可信 URL 的高风险环境应把采集器放进无内网路由的网络沙箱，或只允许经过受控出口代理；不能因为代码检查了 `ipaddress` 就宣称 SSRF 已被彻底消除。
+
+## HTML 用解析器读取，不用正则猜标签
+
+`HeadFieldsParser` 继承标准库 `HTMLParser`，保存三个字段：
+
+```python
+class HeadFieldsParser(HTMLParser):
+    def __init__(self) -> None:
+        # 解析器只收集原始 head 字段，不执行脚本或构造浏览器 DOM。
+        super().__init__(convert_charrefs=True)
+        self.title: str | None = None
+        self.canonical: str | None = None
+        self.robots: str | None = None
+        self._inside_title = False
+        self._title_parts: list[str] = []
+
+    def handle_starttag(
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
+        # 属性名和标签统一大小写，属性顺序不会影响结果。
+        values = {key.casefold(): value for key, value in attrs}
+        lowered = tag.casefold()
+        if lowered == "title" and self.title is None:
+            self._inside_title = True
+            self._title_parts = []
+        elif lowered == "link" and self.canonical is None:
+            rel = (values.get("rel") or "").casefold().split()
+            href = values.get("href")
+            if "canonical" in rel and href:
+                self.canonical = href.strip()
+        elif lowered == "meta" and self.robots is None:
+            # 只保存第一条 robots，冲突值留给更高层诊断。
+            if (values.get("name") or "").casefold() == "robots":
+                content = values.get("content")
+                if content:
+                    self.robots = content.strip()
+```
+
+解析器不依赖标签刚好写在一行，也不依赖 `rel`、`href`、`name` 的属性顺序。它仍不是浏览器 DOM：损坏 HTML 的修复策略、脚本生成内容和 shadow DOM 都可能不同。结果字段因此明确标记 `evidence: "raw_html"`。
+
+## 网络采集有超时、类型和大小边界
+
+请求设置固定 User-Agent 与 10 秒超时，读取前确认最终 URL 仍在允许列表，正文只接受 `text/html`，最多读取 1 MiB：
+
+```python
+with client.open(request, timeout=10) as response:
+    # 每次重定向后的最终 URL 仍要经过相同允许列表和地址校验。
+    final_url = response.geturl()
+    validate_url(final_url, normalized_hosts)
+
+    # 非 HTML 响应交给其他解析器，不能硬套页面字段判断。
+    content_type = response.headers.get_content_type()
+    if content_type != "text/html":
+        raise AuditError(f"expected text/html, got {content_type}")
+
+    # 多读一个字节用于判断超限，正文不会无限写入内存。
+    body = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise AuditError(
+            f"response exceeds {MAX_RESPONSE_BYTES} bytes"
+        )
+
+    charset = response.headers.get_content_charset() or "utf-8"
+    # 解码后的字符串交给 HTMLParser，随后输出结构化事实。
+    html = body.decode(charset, errors="replace")
+```
+
+失败输出写 stderr，并返回非零退出码：
+
+```json
+{
+  "ok": false,
+  "error": "expected text/html, got application/json"
+}
+```
+
+Agent 看到失败后停止依赖 title、canonical 和 robots 的判断。它不能因为模板需要这些字段，就用空值补一份看似完整的报告。
+
+真实环境还可按风险增加总下载预算、重定向次数、证书策略、代理限制和出站审计。不要关闭 TLS 校验来“解决”证书错误；那会把可见失败改成更大的信任缺口。
+
+## reference 只保存判断口径
+
+`references/checks.md` 没有重复代码，只回答脚本字段怎样解释：
+
 ```markdown
-<!-- 主说明只保留导航，需要核对 HTTP 状态时再读取这份参考。 -->
-# 页面检查表
+# 原始 HTML 检查口径
 
-## 状态与跳转
-
-- 使用 GET，不用 HEAD 代替页面检查。
-- 记录最终状态、跳转链和响应时间。
-- 5xx 是服务故障线索，4xx 需要确认是否符合页面预期。
-
-## HTML 基础字段
-
-- title 应存在且与页面主题匹配。
-- canonical 应是绝对 URL，并检查是否指向预期页面。
-- robots 需要和页面是否允许抓取的意图一致。
-
-## 报告边界
-
-- 只截取必要字段，不保存完整 HTML。
-- 结论标记为事实、假设或数据缺口。
+- status 和 final_url 来自实际 GET 与重定向结果。
+- title 取第一个非空 title 的文本。
+- canonical 取第一个 rel 包含 canonical 的 link href。
+- robots 取第一个 name=robots 的 meta content。
+- 字段为 null 只说明原始 HTML 没找到。
+- HTTP 可访问不代表页面可索引；索引与排名需要搜索平台数据。
 ```
 
-这个文件的输入是已经确认的页面类型和检查目标，输出是当前任务要执行的字段清单与判断边界。Agent 只有进入页面字段检查时才读取它；若目标只是确认状态码，就不需要加载 HTML 规则。读取后，状态与跳转规则指导脚本采集，HTML 字段规则指导结果解释，报告边界限制保存内容。渐进式披露的目的不是隐藏规则，而是让入口保持短小，把细节按任务加载。
+当任务只要求确认 HTTP 状态时，Agent 不需要加载所有字段解释；当报告要解释 canonical 缺失，才使用这份口径。脚本返回事实，reference 限制推论，两者不会互相替代。
 
-## 第三步：脚本负责确定性检查
+## 模板分开事实、缺口与建议
 
-现在写一个最小 Shell 脚本。它只接收 URL，返回状态、最终 URL 和几个 HTML 字段；它不生成结论，也不修改远程资源。
+报告模板保留三个区：
 
-下面的命令接收本节“第三步：脚本负责确定性检查”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
-```bash
-#!/usr/bin/env bash
-# 严格模式让缺失参数和命令失败立即终止；临时 HTML 无论成功失败都会清理。
-set -euo pipefail
-
-url="${1:?usage: check-page.sh URL}"
-html_file="$(mktemp)"
-# 无论脚本正常结束还是中途失败，都删除临时响应文件。
-trap 'rm -f "$html_file"' EXIT
-
-# curl 只读取目标页面，并把状态、最终 URL 和 HTML 分开交给后续检查。
-curl --fail-with-body --silent --show-error --location --max-time 10 \
-  --output "$html_file" --write-out 'status=%{http_code}\nfinal_url=%{url_effective}\n' \
-  "$url"
-
-awk 'BEGIN{IGNORECASE=1} /<title[^>]*>/ { print "title=" $0; exit }' "$html_file"
-awk 'BEGIN{IGNORECASE=1} /rel=["'"'"']canonical["'"'"']/ { print "canonical=" $0; exit }' "$html_file"
-awk 'BEGIN{IGNORECASE=1} /name=["'"'"']robots["'"'"']/ { print "robots=" $0; exit }' "$html_file"
-```
-
-脚本按从上到下的顺序执行：`set -euo pipefail` 把未定义变量、管道失败和命令错误变成非零退出；`${1:?...}` 要求调用方传入 URL；`mktemp` 创建临时 HTML 文件；`trap` 无论成功或失败都清理它；`curl` 最多等待 10 秒、跟随跳转、把正文写入临时文件，同时把状态和最终 URL 输出到终端；三个 `awk` 依次读取文件并只打印第一处 title、canonical 和 robots 标签。输入是一个 URL，输出是可复查字段。连接失败、4xx/5xx 或超时会让 `curl` 非零退出，调用方应停止依赖 HTML 的判断并记录错误。脚本没有执行 JavaScript，也不等价于浏览器渲染审计。
-
-本地验证可以使用一个公开测试页或自己的开发服务器：
-
-```bash
-# 先赋予脚本执行权限，再用公开测试页验证状态、最终 URL 和 HTML 字段输出。
-chmod +x page-audit/scripts/check-page.sh
-page-audit/scripts/check-page.sh https://example.com
-```
-
-`chmod +x` 给当前用户增加执行权限；第二行把 URL 作为 `$1` 传给脚本。预期输出包含 `status=200`、`final_url=...`，以及存在时的三个 HTML 字段。没有某个字段时，对应 `awk` 不打印内容，这代表“原始 HTML 未找到”，还不能推出渲染后页面也没有。命令非零退出时先查看 curl 错误，不生成成功报告。示例 URL 只用于说明命令，实际审计使用用户明确提供且允许检查的地址。
-
-## 第四步：模板让报告可以复查
-
-报告模板只规定字段，不替 Agent 编造结论：
-
-下面的代码把“第四步：模板让报告可以复查”落到可观察行为。输入沿上文契约进入，关键分支改变状态，返回值再交给调用方；阅读时同时留意失败怎样向外传播。
 ```markdown
-<!-- 模板固定证据、影响、建议和复查字段，避免每次输出遗漏关键结论。 -->
 # 页面审计报告
 
 URL：
@@ -172,91 +267,83 @@ URL：
 
 ## 已确认事实
 
-- 状态与最终 URL：
-- title：
-- canonical：
-- robots：
+- HTTP 状态与最终 URL：
+- 原始 HTML title：
+- 原始 HTML canonical：
+- 原始 HTML robots：
 
-## 假设与缺口
+## 数据缺口
 
-- 需要额外证据的问题：
+- 渲染 DOM、搜索平台或业务意图中尚未确认的内容：
 
-## 下一步
+## 建议
 
-- 修复动作：
-- 复查命令：
+- 动作、依据与复查方法：
 ```
 
-Agent 先把脚本的状态、最终 URL 与 HTML 字段填入“已确认事实”，再把需要浏览器渲染或搜索平台才能确认的问题放入“假设与缺口”，最后为每个动作写复查命令。任何采集失败都保留在事实区，不能把空字段改写成“正常”。模板让多次运行使用同一结果契约，但不会宣称页面一定能收录，因为抓取、索引和排名还需要搜索平台数据。
+模板不是为了让报告长得一致，而是防止证据强度混在一起。状态码和原始字段来自脚本；“canonical 是否符合页面策略”需要业务意图；“是否已索引”需要搜索平台。建议必须说明依据与复查方法。
 
-## Codex 与 Claude Code 怎样使用
+## 四个单元测试锁定采集器边界
 
-把 Skill 放入对应工具能发现的 Skills 目录后，调用时直接描述任务：“检查这个 URL 的状态、title、canonical 和 robots，输出事实与缺口”。Agent 应先根据 `description` 判断是否触发，再读取 `SKILL.md`，随后按任务读取 `references/checks.md`，最后运行脚本并套用模板。
+测试不访问真实网络，而是给采集器注入假 opener：
 
-Codex 和 Claude Code 的具体发现目录、权限和命令以当前**版本**官方文档为准。Skill 本身不能绕过沙箱、网络权限或用户授权；脚本失败时应保留失败原因，不能用模型猜一个成功结果。
-
-## 如何验证 Skill 真的可用
-
-至少做四种输入：
-
-1. 用户提供完整 URL：应该触发并完成检查；
-2. 用户只说“帮我优化 SEO”：信息不足，应该询问范围或说明缺口；
-3. 用户要求修改页面：这个 Skill 应拒绝修改，只提供只读诊断；
-4. URL 返回 404 或超时：报告应记录真实状态，并停止依赖 HTML 字段的判断。
-
-验证的重点是触发是否准确、步骤是否完整、脚本输出是否被正确解释、失败是否可定位。只看到模型生成了一份格式漂亮的报告，不能证明 Skill 工作正确。
-
-## Skill、MCP 和 Tool 怎样组合
-
-这个页面审计 Skill 可以调用普通 Shell Tool，也可以把页面检查能力放进 MCP Server。MCP 负责连接和调用，Skill 负责告诉 Agent 先查什么、如何判断和如何写报告；两者边界清楚时，换成浏览器或远程 HTTP 实现也不会改变审计规则。
-
-不要为了一个固定脚本创建 SubAgent。只有当页面抓取、模板比较和转化数据核对可以独立并行，并且每个子任务都有明确结果字段时，拆分才有价值。
-
-## 用验收卡检查完整产物
-
-```text
-触发条件是否具体：
-输入和授权范围是否明确：
-SKILL.md 是否只保留入口规则：
-详细规则是否按 references 拆分：
-重复检查是否由脚本执行：
-输出是否有模板和证据字段：
-失败是否保留原始错误：
-是否说明当前能力和限制：
+```bash
+# 测试使用假 opener，不访问公网，稳定覆盖解析和拒绝分支。
+cd examples/page-audit-skill
+python3 -m unittest discover -s tests -v
 ```
 
-完成这张卡后，再把同样的方法用于日志排障、代码审查或文档导入。先把任务边界和验证写清楚，再增加参考资料和脚本，Skill 才会从“几段提示词”变成可重复使用的工程资产。
+当前用例覆盖：
 
-## 常见问题
+1. 跨行 title、属性顺序和大小写能够正确解析；
+2. 成功结果包含最终 URL、绝对 canonical 和 `raw_html` 证据标记；
+3. 非 HTML 与超过 1 MiB 的响应明确失败；
+4. `file:`、URL userinfo 和允许列表外主机在请求前被拒绝。
 
-### 把目录创建出来以后，怎样确认 Agent 真正触发了这个 Skill？
+还应在集成环境补充 DNS 解析到私网、跨主机重定向、超时、TLS 错误和真实 404。单元测试用假响应保证稳定，集成测试才验证网络栈；两者不能互相冒充。
 
-不要只看回答里是否提到 Skill 名称。准备一条明确匹配的页面审计请求，观察执行是否先检查 URL 与授权，再读取规则、运行脚本和使用模板；同时准备一条模糊请求和一条写操作请求，前者应指出信息不足，后者应遵守只读边界。若产品提供读取或工具调用日志，可以核对实际加载文件。最终证据是行为顺序和产物字段符合契约，而不是模型口头说“已使用”。
+## 用失败矩阵验证整个 Skill
 
-### 为什么示例脚本不用浏览器渲染 JavaScript？
+| 输入或事件 | 脚本结果 | Agent 结果 |
+| --- | --- | --- |
+| 合法 URL + HTML | JSON 事实，退出 0 | 填事实、缺口和建议 |
+| 缺少允许主机 | 不运行脚本 | 先确认范围 |
+| URL 指向私网 | `AuditError`，退出 2 | 报告安全拒绝 |
+| 重定向到其他主机 | 重定向前拒绝 | 不抓取目标正文 |
+| HTTP 404 | 明确 HTTP 错误 | 记录状态，不继续推断字段 |
+| 非 HTML | 明确 Content-Type 错误 | 转交适合该媒体类型的能力 |
+| 响应过大或超时 | 非零退出 | 记录数据缺口，不伪造成功 |
+| 用户要求修改页面 | Skill 边界阻止 | 转交获授权的写操作流程 |
 
-这份 Skill 的最小目标是检查 HTTP 状态、最终 URL 和原始 HTML 字段，`curl` 足以完成确定性采集。浏览器渲染会引入脚本执行、等待条件、Cookie 和更多安全边界，应在任务确实需要比较原始 HTML 与渲染 DOM 时再增加。报告必须明确当前证据来自原始响应，字段缺失只能说明原始 HTML 没找到，不能直接断言渲染后也没有，更不能推出页面未收录。
+触发测试同样需要正例、近似反例和写操作反例。最终证据是资源读取与行为顺序正确，不是回答里出现“我使用了 page-audit Skill”。
 
-### URL 返回 404 时，脚本没有 title，报告应该怎样写？
+## Skill 与 MCP 怎样组合
 
-先把 404 和最终 URL 记录为已确认事实，并保留 curl 的非零状态或错误信息；title、canonical 等依赖正文的字段标记为未检查或数据缺口，不要填“正常”或“空”。随后根据页面预期判断 404 是否故障：已删除页面可能符合设计，核心页面则需要排查路由。Skill 应停止基于不存在正文继续推断 SEO 结论，这能证明失败语义没有被漂亮模板掩盖。
+当前脚本适合单机、小批量只读检查。如果多个 Host 都要使用统一采集服务，可以把 `audit_page` 包装成 MCP Tool；网络沙箱、允许列表和响应大小仍留在 Server。Skill 继续负责“何时采集、怎样解释、如何报告”，MCP 只负责连接与调用。
 
-### Shell 脚本会不会被恶意 URL 注入命令？
+不要为了一个顺序脚本创建 SubAgent。只有当多个页面批次或不同数据源可以独立执行，每个分支都有范围、预算和回传 Schema 时，才考虑并行；总页数、并发、超时和失败汇总仍由主任务控制。
 
-示例把 URL 作为已经引用的单个参数传给 curl，没有使用 `eval` 或拼接 shell 命令，能减少命令注入风险。但真实使用还要限制协议、目标范围、重定向和内网地址，防止 SSRF；也要控制响应大小、超时和内容类型。用户提供的 URL 仍是不可信输入。脚本安全不只看引号，还要看它允许访问哪些网络资源以及下载内容会被怎样保存和解析。
 
-### 为什么模板里要分“已确认事实”和“假设与缺口”？
+**为什么不用 Shell、`curl` 和 `awk`？**
 
-Agent 容易把工具输出、经验判断和未来建议写成同等确定的结论。分区后，状态码和字段值必须有脚本证据；需要浏览器、搜索平台或业务确认的问题进入缺口；修复建议再说明验证方法。这样读者能复查每个结论的来源，脚本失败时也不会自动生成成功报告。模板不是为了排版统一，而是为了保持证据强度和决策边界。
+`curl` 适合采集，但按行 `awk` 不是 HTML 解析器，标签换行或属性顺序变化就容易漏字段。结构化解析器还能把请求约束、字段提取和 JSON 输出放在可测试函数中。Shell 可以作为启动入口，不应承担脆弱的 HTML 语法分析。
 
-### Skill 脚本是否应该把所有判断都输出成一个分数？
+**允许列表和公网 IP 检查能彻底防止 SSRF 吗？**
 
-通常不应该。总分会掩盖不同检查项的证据、严重度和适用条件，也容易被误解为搜索排名或业务结果。脚本更适合输出原始状态和结构化字段，Agent 再根据页面目标解释；确实需要评分时，要公开规则、权重、不可评估状态和置信度，并保留原始证据。任何缺少关键数据的项目不能默认为零或满分，否则分数看似精确，实际不可行动。
+不能。它们能拒绝明显危险输入，但仍有 DNS rebinding、代理解析差异和网络竞态。高风险执行环境要从网络层禁止访问内网与元数据服务，并控制出站代理。应用检查是其中一层。
 
-### 如何把这个 Skill 扩展到多个页面而不把入口写爆？
+**原始 HTML 没有 canonical，报告应该写什么？**
 
-保持 `SKILL.md` 只负责输入范围、批次上限、通用顺序和失败策略，把首页、详情页、列表页等规则拆到不同 references。脚本输出统一 Schema，增加页面类型和采集状态；批量执行设置并发、超时和总页数，单页失败不伪装成整批成功。报告模板加入页面级事实与站点级模式，避免复制完整 HTML。扩展前先保留单页回归样本，防止批处理改变原有语义。
+写“原始 HTML 未找到 canonical”，并保留 `evidence=raw_html`。如果页面使用客户端脚本注入，再用浏览器检查渲染 DOM；随后结合页面类型、预期规范 URL 和站点策略判断是否需要修复。缺一处标签不能直接推出“页面不会收录”，索引状态还需要搜索平台证据。
 
-### Skill 在 Codex 和 Claude Code 中的目录与行为完全一样吗？
+**404 时为什么不继续解析错误页 title？**
 
-不能假设完全一样。两者都可以使用以 `SKILL.md` 为入口的能力包，但发现目录、优先级、支持资源、权限模型和具体加载行为应以当前产品文档为准。可移植部分是清晰的名称、描述、相对路径、无私密依赖的脚本和可验证产物；产品差异放在安装说明或适配层。验证时分别运行触发与失败样本，不能在一个工具里成功就宣称另一边兼容。
+脚本把 404 作为失败，让 Agent 先判断这个状态是否符合页面意图。错误页的 title 可能存在，但它不能作为目标页面字段成功的证据。需要审计错误页本身时，应把它作为另一个明确目标。
+
+**为什么测试不直接请求 `example.com`？**
+
+单元测试要验证确定性逻辑，公网状态、DNS 和证书随时可能变化。假 opener 能稳定覆盖解析和门槛；另设获授权的集成测试验证真实网络，并把外部失败作为环境证据记录。
+
+**Codex 和 Claude Code 会完全一样地加载这份 Skill 吗？**
+
+不能假设。名称、描述、相对资源和可执行脚本容易复用，但发现目录、权限、工具调用和优先级由产品决定。分别安装后运行一条应触发请求、一条依赖失败和一条越界写请求，并核对实际读取文件、执行命令与退出状态；只有两边行为都满足同一契约，才能说明这份 Skill 可移植。

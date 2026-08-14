@@ -25,7 +25,9 @@ updated: 2026-08-12
 
 # Node.js 与 NestJS：运行时、模块和请求生命周期
 
-NestJS Controller 中加入一次 800 ms 的同步密码批处理后，同进程所有请求都开始排队。NestJS 的 Module、Decorator 和依赖注入不会改变 Node 运行模型：JavaScript 回调主要在事件循环线程执行，同步 CPU 工作会阻塞这一线程。
+Node.js 是运行 JavaScript 服务端代码的运行时，NestJS 是建立在它之上的模块化 HTTP 应用框架；二者位于请求入口和业务 Service 之间。事件循环负责推进异步回调，NestJS 的 Module、Guard、Pipe、Interceptor 和 Provider 负责组织应用边界，但不会替你消除同步 CPU 或资源生命周期问题。
+
+NestJS Controller 中加入一次 800 ms 的同步密码批处理后，同进程所有请求都开始排队。JavaScript 回调主要在事件循环线程执行，同步 CPU 工作会阻塞这一线程。
 
 ## 事件循环在回调之间推进请求
 
@@ -90,20 +92,20 @@ Microtask 也可能让事件循环饥饿。递归创建已解决 Promise 会连�
 
 不要在每个 Provider 的 destroy hook 各自无限等待。应用拥有总 shutdown deadline，每个组件得到子预算；测试在负载中发送 SIGTERM，证明未 ACK 消息重投且进程按时退出。
 
-## Node 与 NestJS 继续追问
+## Node 异步与 NestJS 生命周期边界
 
-### 把函数写成 async 是否一定不阻塞？
+**把函数写成 async 是否一定不阻塞？**
 
 不是。async 函数在第一个真正异步 await 前仍同步运行；JSON 大处理、循环、同步文件 IO 和密码哈希都能阻塞。用 Profile/event loop delay 观察并移入受限 Worker。
 
-### Guard 能否访问数据库？
+**Guard 能否访问数据库？**
 
 可以，但每请求查询权限会增加连接压力，并可能与 Service 重复。Guard 做粗权限或缓存版本，依赖资源状态的决策由 Service 的租户范围查询完成。
 
-### 为什么 Singleton Service 不能保存 currentUser？
+**为什么 Singleton Service 不能保存 currentUser？**
 
 同一实例服务并发请求，字段会被相互覆盖。Principal 显式作为参数或使用可靠请求上下文；Singleton 只保存不可变配置和线程安全客户端。
 
-### Unhandled Promise rejection 会怎样？
+**Unhandled Promise rejection 会怎样？**
 
 它表示异步错误失去所有者，进程行为随 Node 配置/版本变化。所有后台 Promise 都要被 await、进入任务系统或显式 catch 并上报，不能靠全局 handler 继续未知状态。

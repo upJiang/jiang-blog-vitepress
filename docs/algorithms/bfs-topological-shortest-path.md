@@ -124,8 +124,4 @@ Kahn 拓扑排序维护“已输出节点的所有前驱都完成”。每次取
 
 无权最短路遇到加权边就失效：0/1 权重可用 0-1 BFS，非负任意权重用 Dijkstra，负权需其他模型。先声明 V/E、边方向、权重和可达性，再谈复杂度。
 
-## 参考与验证
-
-- [CP-Algorithms: BFS](https://cp-algorithms.com/graph/breadth-first-search.html)
-- [CP-Algorithms: Topological Sort](https://cp-algorithms.com/graph/topological-sort.html)
-- [MDN: Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map)
+实现依据可以和 [CP-Algorithms 的 BFS 说明](https://cp-algorithms.com/graph/breadth-first-search.html)、[拓扑排序说明](https://cp-algorithms.com/graph/topological-sort.html) 以及 [MDN 的 `Map` 参考](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) 对照。验证仍应以本文的距离、入度和路径契约为准，而不是只检查输出数组看起来合理。

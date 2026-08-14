@@ -21,12 +21,13 @@ practice:
 evidence: official
 updated: 2026-08-06T00:00:00.000Z
 ---
+# Cookie、CORS、CSRF、XSS 与浏览器安全
 
-# 浏览器安全边界
+浏览器安全边界是一组由浏览器和服务端共同执行的访问规则，用来限制不同站点的脚本、请求、凭证和页面内容怎样相互影响。同源策略与 CORS 主要控制跨源读取，Cookie 属性与 CSRF 校验约束凭证请求，输出编码和 CSP 降低脚本注入风险。它们位于页面代码、浏览器网络栈和服务端授权之间，没有任何一项能单独替代身份与对象权限检查。
 
 用户已登录网站 A，又打开恶意网站 B。B 无法直接读取 A 的响应，却可能让浏览器向 A 发送自动携带 Cookie 的表单请求。这就是为什么“浏览器有同源策略”仍不足以阻止 CSRF。
 
-本篇从这次跨站请求开始，区分同源、CORS、Cookie、CSRF 和 XSS，再用 CSP 与安全输出降低脚本注入风险。安全控制需要服务端与浏览器协作，前端隐藏按钮不构成授权。
+这次跨站请求同时涉及同源、CORS、Cookie、CSRF 和 XSS，CSP 与安全输出再限制脚本注入风险。安全控制需要服务端与浏览器协作，前端隐藏按钮不构成授权。
 
 ## 同源策略保护什么
 
@@ -43,19 +44,19 @@ flowchart LR
 
 CORS 控制浏览器是否把跨源响应交给脚本，不是服务端认证，也不是完整 CSRF 防护。服务端仍要验证身份、动作和对象权限。
 
-## 步骤一：正确设置会话 Cookie
+## 会话 Cookie 的发送边界
 
 服务端通过 `Set-Cookie` 设置 `Secure`、`HttpOnly` 和合适 `SameSite`。前端 JavaScript 无法设置 HttpOnly。HttpOnly 降低脚本直接读取 Cookie 的风险，却不阻止浏览器自动发送，也不修复页面中的 XSS。
 
 Cookie Domain 与 Path 尽量缩小，敏感操作使用短会话、重新认证和 CSRF 保护。GET 与 POST 不是安全等级区别；GET 应无副作用，敏感数据也不要放进容易进入历史和日志的 URL。
 
-## 步骤二：阻止 CSRF
+## CSRF 的来源校验与令牌防护
 
 写请求检查 Origin/Referer，并使用同步 Token 或 double-submit 等合适方案。`SameSite=Lax/Strict` 是重要防线，但跨站业务、子域信任与浏览器行为需要单独评估。
 
 CSRF Token 绑定用户会话且不可被第三方站点读取。服务端用恒定时间比较，失败返回 403，不执行副作用。CORS 允许列表不使用反射任意 Origin 与 Credentials 的组合。
 
-## 步骤三：阻止 XSS
+## XSS 的输入输出边界
 
 XSS 让攻击者代码在你的 Origin 中执行。默认使用框架文本插值，避免 `innerHTML`；确需展示富文本时使用经过维护的 Sanitizer 和明确允许列表。URL、CSS、HTML 属性等上下文需要不同编码规则，不能用一个 replace 解决所有注入。
 
@@ -71,7 +72,7 @@ function renderMessage(container: HTMLElement, message: string) {
 
 `textContent` 使用文本节点表达内容。输入是任意用户字符串，关键逻辑是创建段落并写入文本节点，输出是不会被当作标签解析的可见文本；若业务需要 Markdown/HTML，先定义允许语法、清洗结果，并对链接协议、图片来源和新窗口关系继续验证。
 
-## 步骤四：用 CSP 限制脚本来源
+## CSP 与脚本来源限制
 
 CSP 通过响应头限制脚本、样式、连接、Frame 和其他资源。推荐基于 nonce/hash 的脚本策略，先用 Report-Only 收集违反项，再逐步收紧。`unsafe-inline` 和宽泛 `*` 会明显削弱保护。
 

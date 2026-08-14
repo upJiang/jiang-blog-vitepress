@@ -22,13 +22,15 @@ evidence: public-source
 updated: 2026-08-06T00:00:00.000Z
 ---
 
-# SSE 与 WebSocket 实时通信
+# SSE、WebSocket 与流式页面
 
-页面要展示后台任务进度，数据主要从服务端流向浏览器。此时 SSE 通常比 WebSocket 简单：它沿用 HTTP，以文本事件发送，并支持事件 ID 与自动重连。只有客户端也需要持续高频发送时，才需要全双工 WebSocket。
+SSE 是服务端通过一个持续的 HTTP 响应向浏览器发送文本事件的单向通道；WebSocket 是握手后由客户端和服务端双向发送消息的长连接协议。两者位于页面状态与后端事件服务之间，用来减少轮询延迟，但都不替业务保存任务状态、权限或幂等结果。
 
-本篇先连接一条 SSE，保存最后应用的序号，断线后继续。然后说明慢消费者、页面卸载与多 Tab 应怎样处理。
+页面只展示后台任务进度时，数据主要从服务端流向浏览器，SSE 通常更简单。它支持事件 ID 和自动重连。只有客户端也需要持续高频发送，或消息主要是二进制时，WebSocket 的全双工通道才更合适。
 
-## 先按方向选择协议
+最小客户端连接一条 SSE，保存最后应用的序号，并在断线后继续。慢消费者、页面卸载与多 Tab 还需要各自的资源和状态处理。
+
+## 按数据方向选择流式协议
 
 | 需求 | 首选 |
 | --- | --- |
@@ -49,7 +51,7 @@ sequenceDiagram
 
 连接只负责传输，任务状态和事件序列保存在服务端。连接关闭不等于任务失败。
 
-## 步骤一：只在应用成功后推进游标
+## 事件应用与游标推进
 
 事件包含 sequence、eventId、type 与 payload。浏览器解析并成功更新本地状态后，才保存最后 sequence。重复事件按 eventId 或 sequence 忽略，发现缺口则暂停应用并请求重放。
 
@@ -58,14 +60,29 @@ sequenceDiagram
 ```ts
 export function subscribeTask(
   url: string,
-  apply: (event: TaskEvent) => void
+  apply: (event: TaskEvent) => void,
+  onGap: (expected: number, received: number) => void
 ) {
-  const source = new EventSource(url, { withCredentials: true })
+  const endpoint = new URL(url, location.href)
+  endpoint.searchParams.delete('after')
+  const cursorKey = `sse:${endpoint.origin}${endpoint.pathname}${endpoint.search}:cursor`
+  const savedCursor = sessionStorage.getItem(cursorKey)
+  if (savedCursor) endpoint.searchParams.set('after', savedCursor)
+
+  const source = new EventSource(endpoint, { withCredentials: true })
+  let appliedSequence = Number(savedCursor ?? 0)
 
   source.onmessage = (message) => {
     const event = TaskEventSchema.parse(JSON.parse(message.data))
+    if (event.sequence <= appliedSequence) return
+    if (event.sequence !== appliedSequence + 1) {
+      source.close()
+      onGap(appliedSequence + 1, event.sequence)
+      return
+    }
     apply(event)
-    sessionStorage.setItem(`task:${event.taskId}:cursor`, String(event.sequence))
+    appliedSequence = event.sequence
+    sessionStorage.setItem(cursorKey, String(event.sequence))
   }
 
   source.onerror = () => {
@@ -76,39 +93,42 @@ export function subscribeTask(
 }
 ```
 
-代码使用运行时 Schema 校验不可信事件。执行顺序是创建 `EventSource`，收到消息后先解析和校验，再调用 `apply` 更新页面，只有更新成功才写入 `sessionStorage` 游标，组件销毁时执行返回的 cleanup。输入是事件 URL 和状态更新函数，输出是一个关闭连接的函数；JSON 解析失败、Schema 不匹配或 `apply` 抛错时都不能推进游标。真实实现还要把保存的游标送回服务端；原生 EventSource 会发送最近收到的 `Last-Event-ID`，自定义 fetch 流则显式构造查询或请求头。
+代码使用运行时 Schema 校验不可信事件。刷新页面后，新连接通过 `after` 查询参数恢复应用已经确认的游标；收到消息后先去重、检查缺口、更新页面，最后才写入 `sessionStorage`。序号跳跃时关闭连接并调用 `onGap`，页面据此读取新快照；JSON 解析失败、Schema 不匹配或 `apply` 抛错时也不会推进游标，生产实现还应把这些错误交给页面错误状态和观测系统。
 
-## 步骤二：处理快照和游标过期
+原生 EventSource 的自动重连还有另一套浏览器内机制：服务端在事件中发送 `id: 83` 后，浏览器会记住该 ID，并在同一个 EventSource 自动重连时发送 `Last-Event-ID: 83`。页面刷新会创建新对象，应用若要从持久游标恢复，仍需像示例一样显式传 `after`，或先读取快照。EventSource 不能让业务代码随意添加请求头；需要自定义 Authorization、POST 或二进制流时，要改用基于 `fetch` 的流式读取，并自行实现解析和重连。
+
+## 快照恢复与游标过期
 
 首次进入页面先获取任务快照及 sequence，再订阅后续事件。若游标早于服务端保留窗口，接口明确返回 cursor expired，页面重新获取快照。悄悄跳到最新会漏掉不可合并状态。
 
 终态到达后关闭连接。页面隐藏时是否保持连接取决于业务：短任务可以继续，长时间后台页可以关闭并在恢复时用快照重连。多 Tab 可以各自连接，也可以通过 BroadcastChannel 共享，但共享方案要处理 leader 退出与权限变化。
 
-## 步骤三：客户端也有背压
+## 客户端背压与渲染节流
 
 生成文本事件太密时，逐条触发 React/Vue 渲染会卡住主线程。接收层先合并可合并增量，再按动画帧或固定小批更新 UI；终态与错误立即处理。浏览器 WebSocket 的 `bufferedAmount` 只能反映发送缓冲，不能证明对端已经应用消息。
 
-重连使用指数退避与抖动，服务端给 Retry-After 时仍限制上限。网络恢复后不要让所有 Tab 同时冲击接口。
+自定义重连使用指数退避与抖动，并限制最大等待时间。原生 EventSource 主要接受事件流中的 `retry:` 字段控制重连间隔；普通 HTTP `Retry-After` 不能直接当成所有 EventSource 实现都会遵守的应用契约。网络恢复后还要避免所有 Tab 同时冲击接口。
 
 ## WebSocket 多了哪些工作
 
 WebSocket 需要应用消息协议、ACK、顺序、重放、心跳、入站限速和消息大小。握手时认证不代表每条写命令都有权限，服务端仍按当前用户与对象授权。页面发送队列有上限，断线时明确哪些命令可重试。
 
-| 场景 | 预期 |
-| --- | --- |
-| SSE 正常连接 | 事件按 sequence 应用 |
-| 网络中断 | 从最后成功游标补齐 |
-| 重复事件 | 不重复改变 UI |
-| 游标过期 | 获取新快照 |
-| 组件卸载 | 连接与 Timer 清理 |
-| 高频增量 | 批量渲染，主线程保持响应 |
-| 权限撤销 | 停止接收并清理本地敏感状态 |
+浏览器测试应穿过真实 Nginx/CDN，检查首事件延迟和分段到达。以 Nginx 为例，事件路由通常需要关闭代理缓冲并拉长读取超时；具体配置仍应由部署环境验证：
 
-浏览器测试应穿过真实 Nginx/CDN，检查首事件延迟和缓冲，并模拟睡眠唤醒、离线、切流和后台 Tab。localhost 能工作不能证明代理链正确。
+```nginx
+location /api/events/ {
+  proxy_pass http://event_service;
+  proxy_http_version 1.1;
+  proxy_buffering off;
+  proxy_read_timeout 1h;
+}
+```
+
+先用 `curl -N` 观察事件是否逐条到达，再到浏览器模拟睡眠唤醒、离线、切流和后台 Tab。localhost 能工作不能证明代理链没有缓冲。
 
 ## 做一次断线、重复和慢消费实验
 
-让测试服务每 200ms 发送递增序号事件，客户端成功应用事件后才保存游标。收到第 5 条后主动断网，服务端继续产生到第 9 条；恢复网络后从游标 5 回放 6–9，并故意重复发送第 8 条。
+让测试服务每 200ms 发送递增序号事件，客户端成功应用事件后才保存游标。收到第 5 条后主动断网，服务端继续产生到第 9 条；恢复网络后从游标 5 回放第 6 至 9 条，并故意重复发送第 8 条。
 
 | 观察 | 正确行为 |
 | --- | --- |

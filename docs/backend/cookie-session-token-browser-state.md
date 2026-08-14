@@ -95,20 +95,20 @@ XSS 与 CSRF 不应混为一谈。HttpOnly 减少 XSS 直接窃取 Cookie，无�
 
 同名 Cookie 还可能因 Domain、Path 不同同时存在，服务器收到的 Cookie Header 却不携带这些属性。认证 Cookie 应固定 Host、Path 与名称，退出时用相同属性删除；否则开发者看到一个 Cookie 已清除，旧路径下的值仍可能继续发送。
 
-## 浏览器状态继续推演
+## 浏览器会话状态的安全边界
 
-### 为什么 Cookie 已存在，开发环境请求仍不携带？
+**为什么 Cookie 已存在，开发环境请求仍不携带？**
 
 依次检查请求主机和 Path、Secure 与实际协议、SameSite 的站点关系、是否过期、fetch credentials 和 CORS 响应。还要检查是否存在同名但作用域不同的 Cookie。
 
-### Access Token 为什么适合放内存而不是 localStorage？
+**Access Token 为什么适合放内存而不是 localStorage？**
 
 localStorage 中的值可被同源脚本读取，XSS 能直接带走长期使用。内存 Token 刷新页面会丢失，因此应用启动时用 HttpOnly Refresh Cookie 换取短时 Access Token，并对并发 401 做单飞刷新。
 
-### SameSite=Lax 能保护所有写接口吗？
+**SameSite=Lax 能保护所有写接口吗？**
 
 它能限制部分跨站请求携带，但不是完整 CSRF 方案。顶级导航、站点边界、兼容需求和错误使用 GET 修改状态都会留下风险。关键写操作仍应校验请求来源或 CSRF Token。
 
-### 跨标签页怎样同步退出？
+**跨标签页怎样同步退出？**
 
 服务端撤销会话是最终保障。前端可用 BroadcastChannel 通知其他标签清理内存 Token 和查询缓存；标签错过通知后，下一次刷新或 API 401 也会回到未登录状态。

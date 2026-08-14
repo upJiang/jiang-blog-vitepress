@@ -25,7 +25,9 @@ updated: 2026-08-11
 
 # Hooks、状态更新队列与闭包快照
 
-点击一次执行三遍 `setCount(count + 1)`，结果通常只增加 1；换成三遍 `setCount(value => value + 1)`，结果增加 3。差异不在“异步 setState”这个模糊说法，而在每次 Render 拿到固定状态快照，更新值或更新函数随后进入队列归并。
+Hook 是函数组件在 Fiber 上声明状态和生命周期能力的调用协议；状态更新队列保存尚未归并的 action；闭包快照则是某次 Render 创建的局部变量和回调。它们位于事件与下一次 Render 之间，用来解释多次 `setState` 怎样合并，以及异步回调为什么仍会读到旧值。
+
+点击一次执行三遍 `setCount(count + 1)`，结果通常只增加 1；换成三遍 `setCount(value => value + 1)`，结果增加 3。差异不在“异步 setState”这个模糊说法，而在固定 Render 快照和队列归并。
 
 ## Hook 状态挂在哪里
 
@@ -73,11 +75,9 @@ Ref 是跨 Render 的可变容器，修改它不会触发渲染。它适合保�
 
 出现丢更新时先检查是否从闭包读取旧值、是否直接修改对象导致引用不变、key 是否重置组件，以及外部 store 是否绕过 React 契约。不要通过任意延时等待“setState 完成”。
 
-面试继续追问应能解释 Hook 链为何要求顺序、Update Queue 如何重放不同优先级更新，以及批处理为何改变提交次数却不改变事件闭包中的状态快照。
+## 不同优先级更新怎样重放
 
-## Hook 链和更新队列的数据结构
-
-函数组件 Fiber 的 `memoizedState` 指向第一个 Hook，Hook 通过 next 串成链。每次 Render 按调用顺序前进；条件调用会让“第 n 个 Hook”对应关系变化，因此规则要求顶层稳定顺序。`useState` Hook 还持有 queue，pending 更新常以环形链表暂存，便于 O(1) 拼接一批新更新。
+前文已经说明 Hook 按调用顺序挂在 Fiber 上。进一步看更新队列，pending 更新常以环形链表暂存，便于 O(1) 拼接新批次。每个 Update 还带有 lane，因此一次 Render 不一定处理队列中的全部 action。
 
 每个 Update 保存 action 和 lane。Render 只处理包含于 `renderLanes` 的更新；被跳过的低优先级更新及其后的必要克隆进入 baseQueue，未来从 baseState 重放。这样紧急更新可以先提交，同时保留 transition 更新的正确先后关系。
 
@@ -90,9 +90,9 @@ pending:  +1(sync) -> +10(transition) -> *2(sync)
 
 实际队列克隆细节依版本变化，但“按 lane 跳过、保存基线、未来重放”解释了为什么不能把 state 更新当成简单立即赋值。
 
-## 闭包快照与可变 Ref
+## 用 Ref 读取最新值的边界
 
-组件每次 Render 创建一组新的局部变量和事件函数。旧定时器持有旧 Render 的 count，这是 JavaScript 词法闭包，不是 React 缓存错误。函数式更新解决“下一状态依赖队列中前一状态”；Ref 解决“异步回调需要读取最新可变值”，但 Ref 写入不会触发 Render，也不应承载需要显示的一致业务状态。
+旧定时器持有旧 Render 的 `count`，这是 JavaScript 词法闭包，不是 React 缓存错误。函数式更新解决“下一状态依赖队列中前一状态”；Ref 解决“异步回调需要读取最新可变值”，但 Ref 写入不会触发 Render，也不应承载需要显示的一致业务状态。
 
 测试闭包问题时固定事件序列：点击两次、在两次之间插入微任务/定时器、记录每个 updater 的 prev。用 `act` 等待可观察提交，不读取内部 queue。生产排查若出现状态回退，还要检查 transition 重放、外部 Store 快照和组件 key 是否共同作用。
 

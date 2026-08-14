@@ -104,20 +104,20 @@ Resource 属性稳定标识 service.name、service.version、deployment.environm
 
 跨进程传播使用标准 Trace Context，消息把 traceparent 放在受控 Header。Baggage 会沿链路传播，不能塞 Token、邮箱等敏感或高基数数据。Consumer 为每次处理创建 Span，并记录 event_id 与 attempt，重投时才能区分一次业务事件的多次执行。
 
-## 三类信号继续追问
+## 日志、指标与 Trace 的互补边界
 
-### 有 Trace 后还需要 requestId 吗？
+**有 Trace 后还需要 requestId 吗？**
 
 需要。外部客户端容易携带/报告 requestId，内部 Trace 有自己的采样和权限；二者互相映射。不要盲信客户端传入 ID，可规范化或重新生成。
 
-### 为什么不能把 tenantId 做 Prometheus 标签？
+**为什么不能把 tenantId 做 Prometheus 标签？**
 
 租户数量可能很大且变化，产生高基数时间序列。按服务/路由聚合指标，租户级调查用日志、Trace 或受控分析系统。
 
-### 采样会不会漏掉故障？
+**采样会不会漏掉故障？**
 
 会，因此错误/慢请求可使用 tail sampling，提高保留率；关键计数由不采样的指标承担。采样策略和预算要可观察，不能假设每次 Trace 都存在。
 
-### 日志中的时间为什么仍可能对不上？
+**日志中的时间为什么仍可能对不上？**
 
 主机时钟、时区、缓冲和异步写入会影响。统一 UTC、同步时钟，同时依赖 trace/span 顺序和单调 duration，不只按显示时间猜因果。

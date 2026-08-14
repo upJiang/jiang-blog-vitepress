@@ -91,20 +91,20 @@ DLQ 不是垃圾桶。它需要消息原文的受控副本、失败码、首次/
 
 生产队列还要确定复制类型和故障策略。单节点 durable Queue 无法承受所在节点与磁盘同时失效；Quorum Queue 用多数副本提交换取更强可用性，也带来写放大和容量成本。选副本数前先定义允许丢失窗口、Broker 故障时是否继续发布，以及磁盘告警后的止损动作。
 
-## RabbitMQ 语义继续推演
+## 投递保证、确认与重放边界
 
-### 消息设置 persistent 为什么仍可能丢？
+**消息设置 persistent 为什么仍可能丢？**
 
 若发布到不存在/无匹配路由、生产者没等 confirm、Broker 集群策略不足或磁盘故障，persistent 本身不建立端到端保证。要组合 durable 拓扑、mandatory/alternate、confirm 和监控。
 
-### ACK 能否放在数据库 COMMIT 同一事务？
+**ACK 能否放在数据库 COMMIT 同一事务？**
 
 RabbitMQ ACK 与 MySQL COMMIT 属于不同系统，无法普通地原子提交。采用数据库 Inbox 幂等，让 COMMIT 后 ACK 的重复投递安全。
 
-### DLQ 消息修复后怎样重放？
+**DLQ 消息修复后怎样重放？**
 
 先修复消费者或数据，按筛选批量重发到原交换机，保留 event_id 与审计，限制速率并观察成功/再次失败。不要直接清空 DLQ。
 
-### Queue 长度为零是否代表系统健康？
+**Queue 长度为零是否代表系统健康？**
 
 不一定。消息可能未路由、生产停止、全部堆在 unacked，或消费者错误 ACK。一起看 publish rate、confirm、ready、unacked、消费成功和任务业务状态。

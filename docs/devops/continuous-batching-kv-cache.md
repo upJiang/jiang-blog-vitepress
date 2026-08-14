@@ -20,10 +20,11 @@ practice:
     - 长短请求影响被解释
     - 跨租户缓存不会越过安全边界
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
+# Continuous Batching、PagedAttention 与 KV Cache
 
-# Continuous Batching：为什么请求不必一起开始、一起结束
+Continuous Batching 是模型服务在每次推理迭代重新组合活跃序列的动态批处理方式；PagedAttention 用分页映射管理 KV Cache；KV Cache 保存各序列已经计算过的注意力键和值。它们位于请求调度与 GPU Kernel 之间，用来提高执行槽利用率并控制显存碎片，而不是让显存容量失去上限。
 
 一个 Batch 里有七个短回答和一个长回答。若系统等八个请求全部结束才接收下一批，七条计算槽会长期空闲。Continuous Batching 允许完成的序列离开，并在后续迭代加入新序列，把 GPU 的执行批次从“固定请求集合”变成动态调度状态。
 

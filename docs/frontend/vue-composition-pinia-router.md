@@ -25,6 +25,8 @@ updated: 2026-08-11
 
 # Composition API、Pinia 与 Vue Router 状态边界
 
+Composition API 用函数组合组件逻辑，Pinia 管理跨组件或跨页面的领域状态，Vue Router 管理 URL、路由参数和导航状态。三者处在应用状态架构的不同层，分别承载局部能力、共享数据和可分享的页面位置。明确所有权比让三处状态互相 watch 更可靠。
+
 筛选条件同时存在组件 ref、Pinia 和 route query，三处互相 watch 后出现循环。状态架构先确定权威来源：可分享和后退的筛选由 URL 拥有，Store 负责跨页面领域缓存，组件只维护输入焦点等局部状态。
 
 ## 组合函数封装能力而非文件片段
@@ -49,7 +51,7 @@ route 是响应式对象，但 watch 整个 route 会产生无关更新；监听
 
 Composable 用传入 ref 和假请求单测；Store 测 action/getter；Router 集成测试刷新、复制链接、前进后退和非法 query。出现循环时画出每条 watch 的读写边，删除双向同步，选定唯一源。
 
-面试追问状态管理，应能比较组件、provide/inject、Pinia 和 URL 的生命周期、可分享性与更新范围，而不是把“数据多”当作使用 Store 的标准。
+组件状态、provide/inject、Pinia 和 URL 的生命周期、可分享性与更新范围不同。“数据多”不是把状态移入 Store 的判断标准。
 
 ## Composable 的资源边界
 

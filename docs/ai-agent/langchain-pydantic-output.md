@@ -30,6 +30,8 @@ lastUpdated: false
 ---
 # LangChain 结构化输出：原生约束、Pydantic 解析与有限修复
 
+LangChain 结构化输出是把模型生成结果转换成应用可校验对象的几种集成路径。模型原生约束在生成阶段限制结构，Tool Calling 用工具参数承载对象，Pydantic Parser 则在文本生成后解析和校验。它们位于 ChatModel 输出与业务命令之间，不负责补齐用户权限、Scope 或 Deadline。
+
 通用结构化输出文章已经回答“格式合法为什么仍不等于业务可信”。这一篇聚焦 LangChain：当 Prompt、ChatModel 和 Parser 已经接成 Runnable 后，结构化对象究竟在哪一步产生？
 
 假设 Planner 要返回一个 SearchPlan。它的输入是一条自然语言问题，输出不是最终答案，而是一份交给检索执行器的候选计划。执行器会读取 `objective` 了解本轮目标，遍历 `branches` 发起多路检索，再用 `max_research_rounds` 和 `evidence_budget` 限制循环次数与最多保留的证据数量。
@@ -62,7 +64,7 @@ lastUpdated: false
 
 这个对象将决定检索分支、查询和资源预算，因此需要比“能解析 JSON”更严格的边界。模型可以提出 query 和 channel，服务端仍掌握 actor、Scope、Release、Deadline 和允许的 channel 白名单。
 
-本篇最终实现一个离线解析器：**Pydantic** 检查嵌套字段、枚举、范围、重复分支和额外字段；第一次解析失败时可以调用一个受控 repair 函数，第二次仍失败便停止。
+离线解析器用 **Pydantic** 检查嵌套字段、枚举、范围、重复分支和额外字段；第一次解析失败时可以调用一个受控 repair 函数，第二次仍失败便停止。
 
 ## LangChain 中有三条结构化路径
 
@@ -154,7 +156,6 @@ Pydantic 枚举说明系统“实现过哪些 channel”，Runtime Policy 决定
 
 ### 环境准备
 
-下面的命令接收本节“环境准备”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 锁定 LangChain、Pydantic 与测试依赖，模型候选会使用同一 Schema 解析和校验。
 python3 -m venv .venv
@@ -396,7 +397,7 @@ pytest -q
 | 模型调用 | timeout/refusal/incomplete | model_call_error | 按原始语义处理 |
 | 文本提取 | Markdown 或残缺 JSON | parse_syntax_error | 可修复一次 |
 | Pydantic 字段 | 非法枚举、错类型 | schema_error | 可修复一次 |
-| Pydantic领域 | 重复 ID、预算不足 | domain_schema_error | 视错误决定 |
+| Pydantic 领域 | 重复 ID、预算不足 | domain_schema_error | 视错误决定 |
 | Runtime 装配 | channel 未启用、无 Scope | policy_rejected | 不通过模型修复 |
 | Executor | 工具超时、取消 | execution_error | 按 Deadline/幂等策略 |
 
@@ -410,7 +411,7 @@ pytest -q
 
 ## Schema 生成与供应商子集
 
-`SearchPlan.model_json_schema()` 能生成标准 JSON Schema，但目标模型 API可能只支持子集。上线前执行：
+`SearchPlan.model_json_schema()` 能生成标准 JSON Schema，但目标模型 API 可能只支持子集。上线前执行：
 
 1. 在目标模型版本注册/调用 Schema；
 2. 覆盖 nullable、数组、嵌套对象和数值边界；
@@ -418,7 +419,7 @@ pytest -q
 4. 测试 refusal、截断和内容过滤；
 5. 切换供应商后重跑同一契约测试。
 
-不要因为 Pydantic 能表达某个 validator，就假设模型 API能在生成时执行它。跨分支唯一性通常仍由本地 model_validator 检查。
+不要因为 Pydantic 能表达某个 validator，就假设模型 API 能在生成时执行它。跨分支唯一性通常仍由本地 model_validator 检查。
 
 ## Structured Output 与 Tool Calling 怎样选择
 
@@ -457,28 +458,27 @@ Pydantic 模型是内部协议。新增必填字段、重命名 branch_id 或删
 
 如果依赖执行需要中断、恢复和持久状态，下一步不应继续堆 Parser，而是进入 LangGraph。
 
-## 常见问题
 
-### `with_structured_output` 与自己接 Pydantic Parser 有什么区别？
+**`with_structured_output` 与自己接 Pydantic Parser 有什么区别？**
 
 `with_structured_output` 让模型适配器使用供应商支持的结构化输出或工具机制，并直接返回指定类型；Parser 通常接收模型文本后在本地解析。前者能在生成阶段限制形状，但受供应商 Schema 子集影响；后者兼容面更广，却更容易遇到截断和非法 JSON。无论哪种方式，应用都要运行领域校验，并分别处理拒答、未完成和解析失败。
 
-### Pydantic 对象创建成功，为什么结果仍可能错误？
+**Pydantic 对象创建成功，为什么结果仍可能错误？**
 
 Pydantic 证明字段类型、约束和自定义校验成立，不证明模型对用户意图、事实或权限的判断正确。一个合法的 `intent=greeting` 可能与真实知识查询不符，一个合法 query 也可能包含错误实体。语义正确性要用标注样本、证据和确定性上下文复核；身份、Scope、Release 与 Deadline 则由服务端注入，不给模型填写。
 
-### 严格模式为什么可能让以前能通过的数据失败？
+**严格模式为什么可能让以前能通过的数据失败？**
 
 宽松解析会把字符串数字、单值数组或其他可转换输入悄悄变成目标类型，方便表单却会隐藏模型契约漂移。严格模式要求模型真正返回约定类型，因此能更早暴露变化。启用前要用真实响应样本回放，并把错误类型纳入有限修复策略；不要为了保持通过率而在下游继续做不可追踪的隐式转换。
 
-### 模型拒答和 Pydantic 校验失败应该走同一重试吗？
+**模型拒答和 Pydantic 校验失败应该走同一重试吗？**
 
 不应该。拒答是模型或供应商明确不提供内容，校验失败是已经有载荷但形状不合法；输出截断又是第三种未完成状态。普通缺字段可以在同一 Deadline 内带最小错误修复一次，拒答不应被诱导绕过，截断则先调整输入输出预算。分类后记录 attempt 和终态，才能避免把所有失败都变成昂贵的盲重试。
 
-### 怎样避免模型通过结构化字段扩大权限？
+**怎样避免模型通过结构化字段扩大权限？**
 
 从模型 Schema 中彻底删除身份、租户、Scope、可访问资源 ID 和审批状态，只保留它有资格提出的语义候选。解析成功后，应用创建新的命令对象，从认证上下文和数据库注入可信字段；即使模型把 `scope=all` 塞进额外字段，extra forbid 也会拒绝。执行工具和检索时仍要按可信字段做条件过滤，不能只依赖 Prompt。
 
-### 结构化输出 Schema 变更时要测试什么？
+**结构化输出 Schema 变更时要测试什么？**
 
 为对象保存 Schema 版本，并回放历史响应、队列消息和 Checkpoint。新增必填字段、字段重命名与枚举收缩都可能让旧消费者无法解析；发布时通常先让消费者兼容新旧版本，再让生产者写新版本，最后清理兼容。测试不仅断言解析成功，还要检查迁移后的默认值、字段所有权和领域语义没有改变。

@@ -26,13 +26,17 @@ lastUpdated: false
 ---
 # 不用框架实现 Tool Calling：模型候选、程序执行与结果回传
 
+Tool Calling 是一种应用协议：模型返回结构化的工具名、参数和调用 ID，Runtime 校验候选后调用程序，再把带有同一调用 ID 的结果交回模型。它位于模型输出和外部副作用之间，解决的是“模型怎样提出动作、程序怎样安全执行”的边界问题，不等于模型直接运行函数。
+
+一次只读搜索的最小链路是 `ToolDefinition -> ToolCall -> ExecutionContext -> ToolResult`。模型只拥有候选参数，身份、Scope、Release、Deadline 和执行权限仍由服务端提供；这也是后面 Agent Loop、LangChain Tool 和 MCP Server 共用的基础契约。
+
 用户问：“测试环境的回滚步骤是什么？”模型自身不知道当前制度，于是输出一个候选动作：调用 `search_notes`，参数是 `query="回滚步骤"`、`limit=5`。很多入门示例会直接执行这个 JSON，但企业系统还缺少最关键的一半：谁验证工具名，谁提供用户身份和数据范围，超时和取消怎样传播，工具返回的文本能否信任。
 
 Tool Calling 的本质是**模型生成结构化调用建议，应用程序决定是否以及怎样执行**。模型不直接运行函数，也不能授予自己权限。应用把工具说明和 Schema 交给模型，模型选择工具并生成参数，确定性执行器再完成白名单、Schema、Scope、Deadline 和结果校验。
 
-前面建立的 `ModelGateway` 只能收发文字，结构化输出只能约束对象形状。本篇给它们增加第一种外部能力，并建立普通 Python、LangChain Tool 与 MCP Server 都继续遵守的 `search_notes` 契约。
+前面建立的 `ModelGateway` 只能收发文字，结构化输出只能约束对象形状。增加外部能力后，普通 Python、LangChain Tool 与 MCP Server 都继续遵守同一份 `search_notes` 契约。
 
-## 先看一次工具调用的四个对象
+## 工具调用的四个协议对象
 
 | 对象 | 谁创建 | 保存什么 | 信任级别 |
 | --- | --- | --- | --- |
@@ -119,7 +123,7 @@ sequenceDiagram
 
 Runtime 给模型的只是当前允许工具定义。模型返回候选调用后，门禁把它与服务端 `ExecutionContext` 合并；拒绝路径不会进入工具适配器。通过后，适配器在固定 Scope 和知识版本内查询。结果经过规范化、校验、脱敏和压缩，再以相同 `call_id` 回到模型。模型生成最终答案，但回答仍要做证据验证。
 
-`call_id` 用来配对 ToolCall 与 ToolResult。并行调用时不能按返回顺序猜对应关系；超时或取消也要为原调用产生明确终态，避免消息历史留下“等待中的工具”。
+`call_id` 用来配对 ToolCall 与 ToolResult。并行调用时不能按返回顺序猜对应关系；超时或取消也要为原调用产生明确终态，避免消息历史留下“等待中的工具”。下面的教学代码使用单次调用的 `deadline_seconds`，生产 Runtime 应把整轮请求的绝对 `deadline_at` 换算成每次调用的剩余时间，不能在每次重试时重新开始计时。
 
 ## 执行器的门禁顺序为什么重要
 
@@ -277,12 +281,14 @@ asyncio.run(main())
 
 ## 用 pytest 覆盖七条关键路径
 
-下面的测试直接复用前文实现。测试使用 pytest 和内存数据，不连接真实服务。下面展示四条核心测试，其余三条按表补齐。
+把前面的实现保存为 `tool_executor.py`，把下面的代码保存为 `test_tool_executor.py`。两份文件只依赖 Python、pytest 和 pytest-asyncio；它们使用内存 Repository，不会访问真实数据库。七条测试分别锁定正常结果、未知工具、越权字段、空结果、参数错误、超时和取消。
 
 为了验证“用 pytest 覆盖七条关键路径”，下面的测试把“每个测试都从模型候选调用进入 execute，并断言执行器返回的稳定业务状态”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
 # 每个测试都从模型候选调用进入 execute，并断言执行器返回的稳定业务状态。
+import asyncio
+
 import pytest
 
 from tool_executor import ExecutionContext, ToolCall, execute
@@ -316,6 +322,47 @@ async def test_successful_no_match_is_empty_not_error() -> None:
     result = await execute(ToolCall("c4", "search_notes", {"query": "不存在"}), CTX)
     assert result.status == "empty"
     assert result.data == {"items": []}
+
+@pytest.mark.asyncio
+async def test_limit_out_of_range_is_rejected() -> None:
+    result = await execute(
+        ToolCall("c5", "search_notes", {"query": "回滚", "limit": 0}),
+        CTX,
+    )
+    assert result.status == "error"
+    assert result.code == "invalid_arguments"
+
+@pytest.mark.asyncio
+async def test_timeout_is_not_reported_as_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def slow_search(*args: object, **kwargs: object) -> list[dict[str, str]]:
+        await asyncio.sleep(0.05)
+        return []
+
+    monkeypatch.setattr("tool_executor.search_notes", slow_search)
+    result = await execute(
+        ToolCall("c6", "search_notes", {"query": "回滚"}),
+        ExecutionContext("u", frozenset({"public"}), 0.001),
+    )
+    assert result.status == "error"
+    assert result.code == "timeout"
+
+@pytest.mark.asyncio
+async def test_cancellation_is_propagated(monkeypatch: pytest.MonkeyPatch) -> None:
+    started = asyncio.Event()
+
+    async def blocked_search(*args: object, **kwargs: object) -> list[dict[str, str]]:
+        started.set()
+        await asyncio.Event().wait()
+        return []
+
+    monkeypatch.setattr("tool_executor.search_notes", blocked_search)
+    task = asyncio.create_task(
+        execute(ToolCall("c7", "search_notes", {"query": "回滚"}), CTX)
+    )
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
 ```
 
 第一条验证查询和返回都受 Scope 约束；第二条证明未注册写工具不会进入适配器；第三条拒绝模型偷偷加入权限字段；第四条区分成功零结果与错误。还要补：`limit=0` 的参数错误、慢依赖的 timeout、取消任务抛出 `CancelledError`。运行前需安装 `pytest` 与 `pytest-asyncio`，再执行：
@@ -325,7 +372,7 @@ async def test_successful_no_match_is_empty_not_error() -> None:
 python3 -m pytest -q
 ```
 
-命令先由 Python 启动 pytest，再由 pytest 收集当前文件中的异步用例，`-q` 只压缩进度输出，不会跳过断言。正常结果应显示七条通过，并以退出码 0 结束，适合放进 CI 门禁。
+命令先由 Python 启动 pytest，再由 pytest 收集当前文件中的异步用例，`-q` 只压缩进度输出，不会跳过断言。正常结果应显示七条通过，并以退出码 0 结束，适合放进 CI 门禁。超时测试通过替换内存搜索函数制造慢依赖，取消测试则真实取消正在等待的协程；这两条只证明执行器的控制信号，不证明任何供应商或数据库实现。
 
 若取消测试返回 `ToolOutcome` 而不是抛出 `CancelledError`，说明执行器吞掉了控制信号；若空结果成为 `error`，Planner 可能进行无意义原样重试；若额外 Scope 字段被接受，权限边界已经交给模型。测试收集失败时先检查 Python 环境和插件，断言失败时再按“参数门禁 -> 执行器 -> 适配器 -> 结果归一化”的顺序定位，不要把所有失败都归因于模型。
 
@@ -335,28 +382,27 @@ python3 -m pytest -q
 
 写操作需要更强契约：幂等键、前置读取、用户确认、审批、事务、补偿和审计。不要把本文只读执行器加一个 `delete` 分支就当完成写工具设计。
 
-## 常见问题
 
-### Tool Calling 是模型真的执行了函数吗？
+**Tool Calling 是模型真的执行了函数吗？**
 
 不是。模型只生成一个候选 `ToolCall`，通常包含工具名、调用 ID 和参数。真正查数据库、访问网络或写文件的是应用侧执行器。执行器先用白名单、Schema、身份 Scope、Deadline 和审批规则检查候选，再决定是否调用适配器。日志里应分别记录“模型提出调用”和“系统实际执行”，这样即使恶意文档诱导模型提出删除动作，也能证明实际副作用仍为零。
 
-### 为什么身份、租户和权限范围不能放进工具参数让模型填写？
+**为什么身份、租户和权限范围不能放进工具参数让模型填写？**
 
 因为模型看到的是用户文字和外部资料，它生成的字段都属于不可信候选。如果 `tenant_id` 或 `is_admin` 由模型填写，提示注入就可能把权限扩大。可信身份应来自已经认证的连接，数据范围由服务端根据身份计算，并通过 `ExecutionContext` 注入 Repository。工具 Schema 只暴露完成意图所需的业务参数，例如查询词和数量；执行前后还要按同一 Scope 过滤和复核。
 
-### 空结果、工具错误和模型不会回答有什么区别？
+**空结果、工具错误和模型不会回答有什么区别？**
 
 空结果表示工具成功执行，只是当前范围内没有匹配数据；工具错误表示依赖、参数、权限或超时使查询没有正常完成；模型不会回答则可能发生在工具之前或答案验证之后。三者对应不同动作：空结果可以改写查询或安全说明未找到，超时只在剩余预算足够时有限重试，权限拒绝不可通过换参数绕过，证据不足则应停止生成确定性结论。把它们都编码成空数组会破坏恢复策略。
 
-### 工具描述写得越长，模型选择就越准确吗？
+**工具描述写得越长，模型选择就越准确吗？**
 
 不一定。有效描述要说明工具处理的对象、适用意图、关键限制和返回结果，避免与其他工具产生重叠；堆入整份业务文档只会占用上下文并增加冲突。可以准备一组“应该调用、无需调用、容易误选”的样本，观察工具选择率与参数错误，而不是凭描述长度判断。若两个工具总被混淆，优先调整职责和名称，而不是继续添加形容词。
 
-### 只读工具为什么仍需要安全边界？
+**只读工具为什么仍需要安全边界？**
 
 读取也可能泄露受限资料、枚举资源是否存在、拖垮依赖或把恶意正文带回模型。只读工具仍要限制 Scope、条数、字节数、超时和调用频率，返回时删除敏感字段并标记外部正文为不可信数据。尤其不能先按全局 ID 读取完整对象、再在响应阶段过滤，因为日志、缓存或异常栈可能已经暴露越权内容。权限条件应进入真正的数据查询。
 
-### 什么时候可以重试一次工具调用？
+**什么时候可以重试一次工具调用？**
 
 只有错误具有暂时性、操作满足幂等边界，并且整轮 Deadline 与调用预算仍有余量时才考虑重试。例如短暂网络错误可以指数退避后再试一次；参数错误应让模型修正参数，权限拒绝和未知工具不应重试；写操作还需要幂等键和最终状态查询。重试次数应记录在同一个调用链中，不能通过重新规划把计数清零，否则 Agent 会形成隐藏的无限循环。

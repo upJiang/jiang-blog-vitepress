@@ -26,7 +26,9 @@ updated: 2026-08-11
 
 # React Work Loop、Scheduler 与 Lanes
 
-搜索框输入和结果列表更新同时发生时，React 可以先提交输入，再继续计算低优先级列表。这里有两套容易混淆的优先级：Scheduler 决定 JavaScript 回调何时获得执行机会，Lane 在 Reconciler 中描述哪些 React 更新属于同一批工作、哪些可以跳过或稍后重做。
+Work Loop 是 React Reconciler 推进 Fiber 工作单元的循环，Scheduler 是安排 JavaScript 回调执行机会的独立包，Lane 则用位集合标记更新批次和优先关系。三者位于状态更新与 Commit 之间：Lane 决定处理哪些更新，Scheduler 决定回调何时运行，Work Loop 按选中的 lanes 计算工作树。它们协作，但不是同一个调度器。
+
+搜索框输入和结果列表同时更新时，这套分工允许 React 先处理紧急输入，再继续计算低优先级列表。这里的“并发”仍发生在主线程上的可中断 Render，不是两个组件函数同时在两条 JavaScript 线程执行。
 
 ## 从 setState 到 Root 调度
 
@@ -84,9 +86,7 @@ function teachingConcurrentLoop(shouldYield: () => boolean): void {
 
 排查“transition 没效果”时，依次确认更新是否真的包在 transition、紧急与非紧急状态是否分离、是否有同步长任务、列表是否被外部 store 同步更新，以及 Suspense 是否不断用新 promise 挂起。
 
-面试追问 Lane 时，不需要背二进制常量。应解释它为何比单值 expiration time 更适合表示多批工作，以及 Scheduler 与 Reconciler 各自拥有哪部分状态。
-
-## Root 上有哪些状态集合
+## Root 怎样选择下一批工作
 
 更新传播到 Root 后，不是只有一个“当前优先级”。`pendingLanes` 表示尚未完成工作，`suspendedLanes` 表示因等待资源暂不能推进，`pingedLanes` 表示等待条件已解决，过期信息帮助避免长期饥饿。`getNextLanes` 结合这些集合和正在渲染的 lanes，选择下一批一致工作。
 
@@ -100,9 +100,9 @@ thenable resolve       -> pingedLanes -> 重新调度 Root
 
 Lane 是位集合，因此能同时表达多条更新、包含关系和批量删除；Scheduler 的 task priority/expiration 则决定宿主回调何时运行。React 会做映射，但 Scheduler 不理解“这条任务属于哪个 Fiber 子树”，Lane 也不会直接创建浏览器宏任务。
 
-## beginWork、completeWork 与 bailout
+## bailout 仍要检查子树
 
-工作循环取一个 Fiber 调用 `beginWork(current, workInProgress, renderLanes)`。它处理组件更新队列、Context 和子节点协调；若 props、依赖和相关 lanes 都没有工作，可以 bailout，但仍要根据 `childLanes` 判断是否进入子树。向上时 `completeWork` 创建/准备宿主实例并汇总 `subtreeFlags`。
+Fiber 的 begin/complete 遍历已经在[节点、工作单元与双缓冲](/docs/frontend/react-fiber-concurrent-rendering)中解释。调度层还要补一个条件：当前节点的 props、依赖和相关 lanes 都没有工作时可以 bailout，但必须继续检查 `childLanes`，否则会漏掉后代更新。向上完成时再汇总 `subtreeFlags`，交给 Commit 跳过没有副作用的子树。
 
 中断后 `workInProgress` 保存下一节点。如果更高优先级更新使已完成部分不再适用，React 可以重新调用 `prepareFreshStack`，丢弃未提交结果。所谓“恢复”不保证逐指令继续，也不保证所有已算结果复用；稳定保证是 current/DOM 在 Commit 前不变。
 
@@ -112,4 +112,4 @@ Lane 是位集合，因此能同时表达多条更新、包含关系和批量删
 - [React source: ReactFiberWorkLoop.js](https://github.com/facebook/react/blob/main/packages/react-reconciler/src/ReactFiberWorkLoop.js)
 - [React source: Scheduler.js](https://github.com/facebook/react/blob/main/packages/scheduler/src/forks/Scheduler.js)
 
-源码函数和 lane 常量会随版本调整。面试与排障应依赖职责和状态转换，只有在调试特定 React 版本时才锁定 commit 查字段。
+源码函数和 lane 常量会随版本调整。学习和排障应依赖职责与状态转换，只有调试特定 React 版本时才锁定 commit 查字段。

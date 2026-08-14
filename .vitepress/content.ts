@@ -6,6 +6,7 @@ export type Category =
   | 'backend'
   | 'devops'
   | 'ai-practice'
+  | 'onnx-practice'
 
 export type PracticeType =
   | 'walkthrough'
@@ -16,9 +17,10 @@ export type PracticeType =
 export type EvidenceType =
   | 'official'
   | 'public-source'
+  | 'public-product-evidence'
   | 'anonymized-practice'
   | 'official-guided-operation'
-  | 'preserved'
+  | 'existing-content'
 
 export type ArticleTrack = 'mainline' | 'special'
 export type ArticleMilestone = 'local-agent' | 'runtime'
@@ -28,6 +30,7 @@ export interface ChapterMeta {
   description: string
   category: Category
   part: string
+  stageKey: string
   chapter: number
   slug: string
   tags: string[]
@@ -39,7 +42,7 @@ export interface ChapterMeta {
     verify: string[]
   }
   evidence: EvidenceType
-  preserved?: true
+  contentLocked?: true
   track?: ArticleTrack
   sequence?: number
   dependsOn?: string[]
@@ -55,29 +58,176 @@ export interface SectionMeta {
   path: string
 }
 
-export type FrontendTrackKey =
-  | 'all'
-  | 'fundamentals'
-  | 'typescript'
-  | 'react'
-  | 'vue'
-  | 'tooling'
-  | 'engineering'
-
-export interface FrontendTrackMeta {
-  key: FrontendTrackKey
+export interface SectionStageMeta {
+  key: string
   label: string
 }
 
-export const frontendTracks: FrontendTrackMeta[] = [
-  { key: 'all', label: '全部' },
-  { key: 'fundamentals', label: '基础与手写' },
-  { key: 'typescript', label: 'TypeScript' },
-  { key: 'react', label: 'React' },
-  { key: 'vue', label: 'Vue' },
-  { key: 'tooling', label: '构建工具' },
-  { key: 'engineering', label: '工程专题' }
-]
+export const sectionStages: Record<Category, SectionStageMeta[]> = {
+  'ai-agent': [
+    { key: 'model-foundations', label: '模型基础' },
+    { key: 'model-api', label: '模型调用' },
+    { key: 'agent-loop', label: 'Tool Calling 与 Agent' },
+    { key: 'agent-frameworks', label: 'LangChain 与 LangGraph' },
+    { key: 'context-memory', label: '上下文与记忆' },
+    { key: 'rag-knowledge', label: 'RAG 与知识库' },
+    { key: 'mcp-skills', label: 'MCP、Skill 与多 Agent' },
+    { key: 'quality-runtime', label: '评测与运行' }
+  ],
+  seo: [
+    { key: 'growth', label: '搜索增长与项目判断' },
+    { key: 'search-system', label: '搜索系统与页面规划' },
+    { key: 'page-content', label: '页面内容与结构化信息' },
+    { key: 'evidence-audit', label: '页面审计与证据模型' },
+    { key: 'technical-site', label: '技术交付与站点审计' },
+    { key: 'measurement', label: '搜索数据与业务归因' },
+    { key: 'international-tracking', label: '国际 SEO 与分析追踪' },
+    { key: 'sem', label: 'SEM 与协同增长' }
+  ],
+  frontend: [
+    { key: 'fundamentals', label: '基础与手写' },
+    { key: 'typescript', label: 'TypeScript' },
+    { key: 'react', label: 'React' },
+    { key: 'vue', label: 'Vue' },
+    { key: 'tooling', label: '构建工具' },
+    { key: 'engineering', label: '工程专题' }
+  ],
+  algorithms: [
+    { key: 'foundations', label: '基础与复杂度' },
+    { key: 'linear', label: '线性结构' },
+    { key: 'trees-graphs', label: '树与图' },
+    { key: 'search-string', label: '查找与字符串' },
+    { key: 'paradigms', label: '算法思想' },
+    { key: 'design', label: '综合设计' }
+  ],
+  backend: [
+    { key: 'runtime-basics', label: '基础与运行环境' },
+    { key: 'network-api', label: '网络与 API' },
+    { key: 'database', label: '数据库与事务' },
+    { key: 'async-data', label: '缓存、消息与异步' },
+    { key: 'security', label: '认证与安全' },
+    { key: 'quality', label: '测试、性能与观测' },
+    { key: 'delivery', label: '部署与综合项目' }
+  ],
+  devops: [
+    { key: 'runtime-containers', label: '运行与容器' },
+    { key: 'ai-backend', label: 'AI Backend' },
+    { key: 'model-serving', label: '模型推理服务' },
+    { key: 'gpu', label: 'GPU' },
+    { key: 'kubernetes', label: 'Kubernetes' },
+    { key: 'platform', label: '平台安全与观测' },
+    { key: 'training', label: '分布式训练' },
+    { key: 'delivery', label: '发布与恢复' }
+  ],
+  'ai-practice': [
+    { key: 'foundations', label: 'AI 能力基础' },
+    { key: 'collaboration', label: 'Agent 协作' },
+    { key: 'extensions', label: 'MCP 与 Skill' },
+    { key: 'engineering', label: '研发方法' },
+    { key: 'personal-system', label: '个人工作系统' }
+  ],
+  'onnx-practice': [
+    { key: 'browser-inference', label: '浏览器推理' }
+  ]
+}
+
+function oneOf(value: string, values: readonly string[]): boolean {
+  return values.includes(value)
+}
+
+export function stageKeyFor(category: Category, slug: string, part: string): string {
+  if (category === 'ai-agent') {
+    if (slug === 'python-openai-responses-first-call') return 'model-api'
+    if (oneOf(slug, ['tool-calling-contracts', 'python-agent-loop-from-scratch', 'agent-framework-selection'])) return 'agent-loop'
+    if (part.startsWith('LangChain') || part.startsWith('LangGraph')) return 'agent-frameworks'
+    if (part.startsWith('上下文工程')) return 'context-memory'
+    if (part === '知识怎样进入 Agent' || part.startsWith('RAG 与知识工程')) return 'rag-knowledge'
+    if (part.includes('MCP') || part.startsWith('Skill')) return 'mcp-skills'
+    if (part === '答案质量与运行' || part.startsWith('可信运行')) return 'quality-runtime'
+    return 'model-foundations'
+  }
+
+  if (category === 'seo') {
+    if (oneOf(slug, ['search-growth-model', 'seo-project-evaluation'])) return 'growth'
+    if (oneOf(slug, ['crawl-index-ranking', 'keyword-intent-page-mapping', 'site-structure-page-planning'])) return 'search-system'
+    if (oneOf(slug, ['on-page-seo-structured-data', 'content-ai-media-topic-pages', 'media-video-structured-data'])) return 'page-content'
+    if (oneOf(slug, ['browser-page-seo-audit', 'seo-evidence-scoring-boundaries', 'seo-optimizer-chrome-extension'])) return 'evidence-audit'
+    if (oneOf(slug, ['technical-seo-rendering-performance', 'developer-performance-optimization', 'http-javascript-rendering-seo', 'robots-sitemap-canonical-strategy', 'crawl-index-duplicate-troubleshooting'])) return 'technical-site'
+    if (oneOf(slug, ['links-brand-analytics-attribution', 'search-performance-attribution'])) return 'measurement'
+    if (oneOf(slug, ['international-seo-hreflang', 'analytics-tracking-evidence'])) return 'international-tracking'
+    return 'sem'
+  }
+
+  if (category === 'frontend') {
+    if (slug.startsWith('relearn/') || part === '基础与手写') return 'fundamentals'
+    if (part === 'TypeScript' || slug === 'typescript-type-system-engineering') return 'typescript'
+    if (part === 'React' || oneOf(slug, ['react-fiber-concurrent-rendering', 'nextjs-rendering-cache-invalidation'])) return 'react'
+    if (part === 'Vue' || slug === 'vue-reactivity-scheduler') return 'vue'
+    if (part === '构建工具' || part === '现代前端：构建工具') return 'tooling'
+    return 'engineering'
+  }
+
+  if (category === 'algorithms') {
+    if (oneOf(slug, ['dataStructures', 'complexity'])) return 'foundations'
+    if (oneOf(slug, ['array', 'string', 'stack', 'queue', 'chain', 'chainHead', 'chainCicle'])) return 'linear'
+    if (oneOf(slug, ['tree', 'ergodicTree', 'bstTree', 'DFS', 'bfs-topological-shortest-path'])) return 'trees-graphs'
+    if (oneOf(slug, ['binary-search-boundaries', 'kmp-string-matching'])) return 'search-string'
+    if (oneOf(slug, ['sort', 'thinking', 'dynamic', 'greedy-intervals'])) return 'paradigms'
+    return 'design'
+  }
+
+  if (category === 'backend') {
+    if (oneOf(part, ['后端基础', 'Linux 运行基础'])) return 'runtime-basics'
+    if (oneOf(part, ['网络与请求链', 'API 设计'])) return 'network-api'
+    if (/^(?:MySQL|ORM|事务)/.test(part)) return 'database'
+    if (oneOf(part, ['Redis', '消息与任务', '文件与对象'])) return 'async-data'
+    if (part.startsWith('认证')) return 'security'
+    if (oneOf(part, ['测试', '性能', '观测与治理'])) return 'quality'
+    return 'delivery'
+  }
+
+  if (category === 'devops') {
+    const partNumber = part.match(/^第([一二三四五六七八])部分/)?.[1]
+    const stages = { 一: 'runtime-containers', 二: 'ai-backend', 三: 'model-serving', 四: 'gpu', 五: 'kubernetes', 六: 'platform', 七: 'training', 八: 'delivery' } as const
+    return stages[partNumber as keyof typeof stages] ?? 'runtime-containers'
+  }
+
+  if (category === 'ai-practice') {
+    if (part === '基础认知') return 'foundations'
+    if (part === 'Agent 协作') return 'collaboration'
+    if (part === '能力扩展') return 'extensions'
+    if (part === '研发系统') return 'engineering'
+    return 'personal-system'
+  }
+
+  return 'browser-inference'
+}
+
+export interface SectionTrackGroup {
+  key: string
+  label: string
+  groups: Array<{
+    key: string
+    label: string
+    items: ChapterMeta[]
+  }>
+}
+
+export function displayPart(part: string): string {
+  return part.replace(/^第[一二三四五六七八九十]+部分[：:]?\s*/, '')
+}
+
+export function sectionTrackGroups(category: Category, items = articlesByCategory(category)): SectionTrackGroup[] {
+  return sectionStages[category].map((track) => {
+    const trackItems = items.filter((item) => item.stageKey === track.key)
+    const groups = [...new Map(trackItems.map((item) => [item.part, item])).keys()].map((part) => ({
+      key: part,
+      label: displayPart(part),
+      items: trackItems.filter((item) => item.part === part)
+    }))
+    return { ...track, groups }
+  })
+}
 
 export const sections: SectionMeta[] = [
   { key: 'ai-agent', title: 'AI 与 Agent', description: '从模型输入输出开始，逐步构建具备检索、工具、记忆、证据和质量治理的知识 Agent。', path: '/docs/ai-agent/' },
@@ -86,13 +236,19 @@ export const sections: SectionMeta[] = [
   { key: 'algorithms', title: '算法', description: '从数据结构、不变量和复杂度出发，用 TypeScript 推导并验证常见算法。', path: '/docs/algorithms/' },
   { key: 'backend', title: '后端', description: '系统学习网络、Linux、API、MySQL、事务、安全、缓存、消息、测试、性能、部署与企业项目。', path: '/docs/backend/' },
   { key: 'devops', title: 'AI Infra 工程', description: '从运行底座、AI Backend 和模型服务走向 GPU、Kubernetes、企业平台、分布式训练与可靠交付。', path: '/docs/devops/' },
-  { key: 'ai-practice', title: 'AI 实践', description: '从核心概念、Agent 协作和能力扩展走向研发闭环、Harness 与个人全栈工作系统。', path: '/docs/ai-practice/' }
+  { key: 'ai-practice', title: 'AI 实践', description: '从核心概念、Agent 协作和能力扩展走向研发闭环、Harness 与个人全栈工作系统。', path: '/docs/ai-practice/' },
+  { key: 'onnx-practice', title: 'ONNX 实践', description: '把轻量 ONNX 模型放进浏览器，沿图片预处理、Worker、WebGPU、WASM 和性能数据走完一次端侧推理。', path: '/docs/onnx-practice/' }
 ]
 
-type ChapterInput = Omit<ChapterMeta, 'category' | 'chapter'>
+type ChapterInput = Omit<ChapterMeta, 'category' | 'chapter' | 'stageKey'>
 
 const course = (category: Category, items: ChapterInput[]): ChapterMeta[] =>
-  items.map((item, index) => ({ ...item, category, chapter: index + 1 }))
+  items.map((item, index) => ({
+    ...item,
+    category,
+    stageKey: stageKeyFor(category, item.slug, item.part),
+    chapter: index + 1
+  }))
 
 const item = (
   part: string,
@@ -106,7 +262,7 @@ const item = (
   verify: string[],
   evidence: EvidenceType,
   type: PracticeType = 'walkthrough',
-  preserved?: true
+  contentLocked?: true
 ): ChapterInput => ({
   part,
   slug,
@@ -117,27 +273,27 @@ const item = (
   outcomes,
   practice: { type, result, verify },
   evidence,
-  ...(preserved ? { preserved } : {})
+  ...(contentLocked ? { contentLocked } : {})
 })
 
 const aiAgentArticlePool = course('ai-agent', [
   item('认识 AI 应用', 'llm-workflow-rag-agent', 'LLM、工作流、RAG 和 Agent 到底是什么，有什么区别', '从同一个知识查询任务出发，拆开模型生成、固定流程、外部检索和动态决策，建立后续 Agent 开发需要的第一张系统地图。', ['LLM', 'Workflow', 'RAG', 'Agent'], ['会运行简单脚本', '知道 HTTP 请求和 JSON'], ['能从输入、状态、控制者和输出解释四种系统', '能为一个需求选择最小可行实现'], '完成一张 AI 功能选型表和四种执行轨迹', ['能画出四种方案的完整执行路径', '能说明为什么一个任务不需要 Agent'], 'official', 'decision'),
   item('模型怎样接收与返回', 'messages-tokens-context', '消息、Token、上下文窗口与模型输入输出', '从一条真实模型请求开始，拆开消息角色、Token 计量、输入输出预算、工具结果和停止原因。', ['Token', 'Context', 'Message'], ['读过 LLM、工作流、RAG 和 Agent 的区别', '会运行简单脚本'], ['能拆分一次请求的消息和上下文预算', '能识别超限、截断和工具消息配对问题'], '完成一份聊天请求的 Token 预算和裁剪记录', ['能标出系统消息、历史、工具结果和当前问题', '能解释输入过长时为什么先裁剪可选内容'], 'official', 'diagnosis'),
-  item('模型怎样接收与返回', 'structured-output-model-boundaries', '结构化输出、Schema 校验与确定性边界', '从一条知识查询请求出发，拆开 JSON、Schema 约束、Pydantic 领域校验、可信字段装配和失败终态，避免把格式正确误认为业务可信。', ['Structured Output', 'JSON Schema', 'Pydantic', 'Trust Boundary'], ['读过消息、Token、上下文窗口与模型输入输出', '会运行脚本并能阅读 JSON'], ['能区分 JSON 模式、Schema 约束和业务语义校验', '能设计模型字段与服务端可信字段的所有权边界', '能用 Pydantic 实现结构、跨字段和可信上下文校验'], '实现并测试一个不会接受模型越权字段的知识查询契约', ['正常结果能生成受控 SearchCommand', '缺字段、错误类型、额外权限字段和非法字段组合都会被拒绝'], 'anonymized-practice', 'implementation'),
+  item('模型怎样接收与返回', 'structured-output-model-boundaries', '结构化输出是什么：从模型 JSON 到可信业务命令', '先区分 JSON、Schema 和结构化输出，再用 Pydantic 校验模型候选，并由服务端装配权限、版本与 Deadline。', ['Structured Output', 'JSON Schema', 'Pydantic', 'Trust Boundary'], ['读过消息、Token、上下文窗口与模型输入输出', '会运行脚本并能阅读 JSON'], ['能区分 JSON 模式、Schema 约束和业务语义校验', '能设计模型字段与服务端可信字段的所有权边界', '能用 Pydantic 实现结构、跨字段和可信上下文校验'], '实现并测试一个不会接受模型越权字段的知识查询契约', ['正常结果能生成受控 SearchCommand', '缺字段、错误类型、额外权限字段和非法字段组合都会被拒绝'], 'anonymized-practice', 'implementation'),
   item('Agent 怎样行动', 'agent-framework-selection', 'Agent 怎样决策：Router、ReAct、Planner、Reflection 与框架选型', '用同一个只读知识查询拆开四种 Agent 控制模式的状态、循环和停止条件，再从控制权、恢复、评测、部署与团队约束选择实现框架。', ['Agent Pattern', 'ReAct', 'Planner', 'LangGraph'], ['理解 Agent 从输入到终态的完整生命周期', '理解结构化输出与可信字段边界'], ['能解释 Router、ReAct、Planner 和 Reflection 的输入、状态与停止条件', '能根据任务复杂度选择普通函数、LangChain、LangGraph 或其他框架', '能设计包含正常、超时、工具失败和循环上限的选型实验'], '运行一个可观察的四模式 Runtime，并完成框架选型评分卡', ['单步问题不会被过度设计成多 Agent', '循环、计划和修复都有确定上限与失败终态'], 'official', 'decision'),
-  item('LangGraph：状态图和执行语义', 'langgraph-state-runtime', 'LangGraph State、Node、Edge、Reducer 与 Checkpoint：从零看懂一张图', '从普通函数推导 StateGraph，逐步解释 State channel、节点局部更新、边、super-step、并发合并和恢复边界。', ['LangGraph', 'State', 'Node', 'Edge', 'Reducer', 'Checkpoint'], ['会读函数和类型提示', '理解 Agent 生命周期'], ['能按输入、状态更新和输出推演最小状态图', '能解释 super-step、并发更新和 Checkpoint 的职责边界'], '实现并测试一张包含知识问题、寒暄和输入不足终态的只读问答图', ['三条路径都能到达可解释终态', '原问题、查询词和证据不会在节点间丢失'], 'anonymized-practice', 'implementation'),
+  item('LangGraph：状态图和执行语义', 'langgraph-state-runtime', 'LangGraph 是什么：用 State、Node 和 Edge 运行第一个状态图', '先解释状态图在 Agent 中的位置，再从普通函数推导 StateGraph，并观察分支、super-step、Reducer 和 Checkpoint 边界。', ['LangGraph', 'State', 'Node', 'Edge', 'Reducer', 'Checkpoint'], ['会读函数和类型提示', '理解 Agent 生命周期'], ['能按输入、状态更新和输出推演最小状态图', '能解释 super-step、并发更新和 Checkpoint 的职责边界'], '运行一张覆盖检索、寒暄、输入不足和无证据终态的只读问答图', ['四条路径都能到达可解释终态', '原问题、查询词和证据不会在节点间丢失'], 'anonymized-practice', 'implementation'),
   item('认识与第一次运行', 'tool-calling-contracts', '不用框架实现 Tool Calling：模型候选、程序执行与结果回传', '从一次只读知识查询拆开 Tool Schema、模型候选、可信上下文、执行器、错误联合类型、取消和结果校验，避免把模型输出当命令。', ['Tool Calling', 'JSON Schema', 'Trust Boundary'], ['理解结构化输出与可信字段边界', '会读类型提示、JSON 和异常'], ['能解释工具定义、ToolCall、执行器和 ToolResult 的输入输出关系', '能实现不会接受模型越权字段的只读工具注册表与执行门禁'], '实现并测试一个带白名单、参数校验、Scope 和稳定错误语义的 search_notes 执行器', ['模型只能提供 query 和 limit，身份与 Scope 由服务端注入', '正常、空结果、参数错误、未知工具、越权、超时和取消能被区分'], 'anonymized-practice', 'implementation'),
   item('Tool、MCP、Skill 与 SubAgent', 'mcp-protocol-lifecycle', 'MCP 协议：现代无状态请求、Legacy 握手与两种传输', '以 2026-07-28 规范为主线，拆开 Host/Client/Server、每请求元数据、server/discover、JSON-RPC、MRTR、订阅、stdio 与 Streamable HTTP，并解释旧 initialize 示例为何仍会出现。', ['MCP', 'JSON-RPC', 'stdio', 'Streamable HTTP'], ['会读 JSON，理解请求、响应、进程和 HTTP', '已理解 Tool Calling 的候选与执行边界'], ['能推演现代 MCP 请求、版本发现、能力调用、补充输入、订阅、取消和关闭', '能区分 2026-07-28 现代协议与 initialize 型 Legacy 协议，并选择 stdio 或 Streamable HTTP'], '手工推演一次现代 search_notes 调用和一次 Legacy 兼容探测', ['能区分连接、版本、能力、业务调用和传输五层失败', '不会把 SDK 主版本、协议日期、HTTP Session 和对话 Thread 混为一谈'], 'official', 'walkthrough'),
-  item('Tool、MCP、Skill 与 SubAgent', 'mcp-node-search-notes-server', 'Node.js 实战：实现一个只读 search_notes MCP Server', '使用 Node.js SDK 1.30.0 建立 stdio Server，注册同时约束输入与输出的只读工具，并用进程内 Client 验证正常、空结果和参数错误。', ['MCP', 'Node.js', 'JavaScript', 'Zod'], ['Node.js 20+', '会读 JavaScript async 函数', '理解 MCP Tool 契约'], ['能实现并运行 Node MCP Server', '能解释 SDK 版本与协议版本的区别'], '完成一个有单元测试和协议契约测试的 Node Server', ['合法与空查询返回结构化结果', '越界参数在查询函数前被拒绝'], 'official-guided-operation', 'implementation'),
+  item('Tool、MCP、Skill 与 SubAgent', 'mcp-node-search-notes-server', 'Node.js 实战：实现一个只读 search_notes MCP Server', '使用 TypeScript MCP SDK v2 分包和 Zod 4 建立现代 stdio Server，注册输入输出 Schema，并验证工具发现、参数拒绝与结构化结果。', ['MCP', 'Node.js', 'JavaScript', 'Zod'], ['Node.js 20+', '会读 JavaScript async 函数', '理解 MCP Tool 契约'], ['能实现并运行 Node MCP Server', '能解释 SDK 版本与协议版本的区别'], '完成一个有单元测试和协议契约测试的 Node Server', ['合法与空查询返回结构化结果', '越界参数在查询函数前被拒绝'], 'official-guided-operation', 'implementation'),
   item('Tool、MCP、Skill 与 SubAgent', 'mcp-python-search-notes-server', 'Python 实战：实现同一份 search_notes MCP Server', '使用 Python、MCP 2.0、Annotated 约束和进程内 Client 实现同一工具契约。', ['MCP', 'Python', 'Pydantic'], ['Python', '会读函数和类型提示', '理解 MCP Tool 契约'], ['能实现 Python MCP Server', '能保持 Node 与 Python 行为一致'], '完成并验证 Python 版只读 MCP Server', ['同一输入得到同结构输出', '参数错误和无结果具有稳定语义'], 'official-guided-operation', 'implementation'),
   item('MCP：连接外部能力', 'mcp-client-security-testing', 'MCP 客户端、测试、认证与安全边界', '从 listTools 和 callTool 走到超时、取消、OAuth、权限、返回值校验、日志审计与远程部署检查。', ['MCP Client', 'OAuth', 'Security'], ['理解 MCP 生命周期', '完成任一 MCP Server 示例'], ['能实现最小 MCP Client', '能设计远程 MCP 的权限与审计边界'], '用客户端调用并验证 search_notes', ['连接会正确关闭', '不可信返回值不会直接变成系统指令'], 'official', 'implementation'),
   item('Skill：沉淀任务方法', 'skill-system-progressive-disclosure', 'Skill 的本质：触发、目录结构与渐进式披露', '从一条任务说明扩展到 SKILL.md、references、scripts、templates 和 assets，解释 Agent 何时读取什么。', ['Skill', 'Progressive Disclosure'], ['会读 Markdown', '知道 Agent 会使用工具'], ['能判断任务是否适合 Skill', '能设计不浪费上下文的 Skill 目录'], '为一个重复任务设计 Skill 信息架构', ['入口只保留路由信息', '详细资料按任务需要加载'], 'official', 'decision'),
-  item('Skill：沉淀任务方法', 'skill-authoring-practice', 'Skill 实战：从空目录写出可验证的任务能力', '从一个页面审计任务开始，创建 SKILL.md、参考资料、脚本和模板，理解触发、渐进读取与验证。', ['Skill', 'Codex', 'Claude Code', 'Progressive Disclosure'], ['会读 Markdown 和 Shell 命令', '了解 Agent 会按任务读取说明'], ['能创建一个公开 Skill', '能验证 Skill 的触发条件和输出质量'], '完成一个匿名页面审计 Skill 的目录与最小实现', ['触发条件与任务匹配', '脚本失败时能给出可定位错误'], 'official', 'implementation'),
+  item('Skill：沉淀任务方法', 'skill-authoring-practice', 'Skill 实战：从空目录写出可验证的任务能力', '从一个页面审计任务开始，创建 SKILL.md、参考资料、结构化采集器和模板，理解触发、渐进读取与失败验证。', ['Skill', 'Codex', 'Claude Code', 'Progressive Disclosure'], ['会读 Markdown 和 Python', '了解 Agent 会按任务读取说明'], ['能创建一个公开 Skill', '能验证 Skill 的触发条件和输出质量'], '完成一个匿名页面审计 Skill 的目录与最小实现', ['触发条件与任务匹配', '脚本失败时能给出可定位错误'], 'official-guided-operation', 'implementation'),
   item('Skill：沉淀任务方法', 'subagent-context-contracts', 'SubAgent：上下文隔离、任务契约与并行协作', '把资料检索、代码验证和内容审查拆成独立任务，处理权限继承、结果契约、冲突、成本和停止条件。', ['SubAgent', 'Context Isolation', 'Parallelism'], ['理解 Agent 生命周期', '知道工具权限需要显式授予'], ['能判断任务是否值得委派', '能设计可合并的子任务结果'], '写出一份可并行执行的 SubAgent 任务契约', ['子任务边界互不重叠', '失败和冲突有明确处理方式'], 'official', 'decision'),
   item('知识怎样进入 Agent', 'rag-ingestion-pipeline', 'RAG 数据导入：从文件准入到可发布知识版本', '先建立可重放的导入状态机，再处理文件准入、解析、OCR、清洗、切片、向量化、质量验证与安全发布。', ['RAG', 'Ingestion', 'Knowledge Version'], ['理解文件和文本编码', '知道 RAG 会先检索再生成'], ['设计可重建的数据导入链', '用候选版本避免半成品进入检索'], '完成一份文档导入状态表', ['失败可以定位到具体阶段', '旧知识在新版本验证前保持可用'], 'anonymized-practice', 'implementation'),
   item('知识怎样进入 Agent', 'document-format-parsing-ocr', 'PDF、Word、PPT、Excel、HTML 与 Markdown 怎样解析入库', '逐种文件拆开原生文本、版面结构、表格、图片、扫描页与 OCR，最后统一成可追溯的 Block。', ['Document Parsing', 'OCR', 'Block'], ['知道文件和文本的区别', '了解 RAG 数据导入流程'], ['为不同文件选择解析器与 OCR 条件', '检查解析覆盖率和原文定位'], '完成一张多格式文档解析决策表', ['扫描 PDF 不会被当成空文档', '表格和标题层级可以追溯'], 'anonymized-practice', 'diagnosis'),
   item('知识怎样进入 Agent', 'semantic-chunking-structure', '语义切片：标题、表格、代码、父子片段与稳定 ID', '从检索问题反推切片边界，保留章节路径、相邻关系、表头、代码块、父子片段和可重建标识。', ['Chunking', 'Parent-Child Retrieval', 'Stable ID'], ['了解文档 Block', '知道 Embedding 会处理文本片段'], ['设计语义切片规则', '验证切片完整性和可追溯性'], '把一份混合文档切成可检索片段', ['表格行保留表头语义', '同一版本重复导入得到稳定标识'], 'anonymized-practice', 'implementation'),
-  item('知识怎样进入 Agent', 'embedding-vector-space', 'Embedding：从文档解析、向量入库到检索索引', '从 PDF、Word、PPT 和 Markdown 的统一处理开始，讲清 Embedding、向量库、批量写入、索引与召回评估。', ['Embedding', 'Vector Database', 'pgvector', 'RAG'], ['理解数组和函数', '知道数据库表和索引的基本概念', '了解文档解析与语义切片'], ['把多种文档转换为可向量化片段', '选择向量库和索引', '设计批量向量写入与召回评估'], '完成一张从文件到向量检索的设计表', ['能解释每种文件如何解析', '能用精确扫描作为索引召回基线'], 'official', 'implementation'),
+  item('知识怎样进入 Agent', 'embedding-vector-space', 'Embedding 是什么：从文本向量到语义检索', '解释 Embedding 的定义与向量空间，再沿文档解析、切片、批量写入、索引和召回评估讲清完整检索链路。', ['Embedding', 'Vector Database', 'pgvector', 'RAG'], ['理解数组和函数', '知道数据库表和索引的基本概念', '了解文档解析与语义切片'], ['把多种文档转换为可向量化片段', '选择向量库和索引', '设计批量向量写入与召回评估'], '完成一张从文件到向量检索的设计表', ['能解释每种文件如何解析', '能用精确扫描作为索引召回基线'], 'official', 'implementation'),
   item('知识怎样进入 Agent', 'pgvector-index-recall', 'pgvector、索引结构、召回率与向量写入', '从精确扫描推进到 HNSW/IVFFlat，理解距离算子、过滤顺序、索引参数、批量写入和召回评测。', ['PostgreSQL', 'pgvector'], ['SQL 基础', '理解 Embedding 与距离函数'], ['为向量列选择距离与索引', '建立 Recall@K 检查'], '设计一张可版本化的向量表与查询', ['查询使用兼容算子', '候选结果能与精确基线比较'], 'official-guided-operation', 'implementation'),
   item('知识怎样进入 Agent', 'hybrid-retrieval-rerank', '精确、全文、向量、结构化检索与重排', '用专有名词、同义表达和表格问题解释多路召回、RRF 融合、重排、缓存和降级。', ['Retrieval', 'Rerank', 'RRF'], ['理解 Embedding 与向量索引', '了解全文检索'], ['为不同查询选择召回通道', '解释融合与重排的职责'], '手工合并三路候选列表', ['融合不会因分数尺度不同失真', '降级后仍保留可解释证据'], 'anonymized-practice', 'implementation'),
   item('上下文工程：预算和记忆', 'context-memory-compression', '短期记忆、长期记忆与滚动摘要：Agent 怎样记住而不越权', '从一次环境和偏好对话出发，区分运行状态、短期上下文、会话摘要与长期事实，并实现授权、冲突、TTL 和撤回状态机。', ['Context Engineering', 'Memory'], ['理解 Message、Turn、Checkpoint、上下文预算和压缩策略', '理解用户 Scope、来源与版本'], ['能区分运行状态、短期记忆、会话摘要和长期记忆的生命周期', '能实现带来源、授权、冲突、过期和撤回的记忆写入门禁'], '保存一个长期回答偏好，同时阻止临时环境和敏感内容跨会话传播', ['只有 active 且仍在 Scope/TTL 内的事实进入未来上下文', '撤回事实不会从旧历史或旧摘要静默复活'], 'anonymized-practice', 'implementation'),
@@ -157,7 +313,7 @@ const aiAgentArticlePool = course('ai-agent', [
   item('LangGraph：状态图和执行语义', 'langgraph-conditional-reducers', 'LangGraph 条件路由与 Reducer：分支为什么不会互相覆盖', '在最小 StateGraph 上加入问题分类、条件边和并行列表合并，逐步观察状态快照。', ['LangGraph', 'Reducer', 'Conditional Edge'], ['理解 State、Node、Edge', '会读 TypedDict'], ['能写条件路由', '能选择覆盖、追加和自定义 Reducer'], '完成普通问题、寒暄和拒答三条路径', ['每条路径都有终态', '并行结果按 Reducer 合并'], 'official', 'implementation'),
   item('LangGraph：状态图和执行语义', 'langgraph-parallel-fanout', 'LangGraph 并行扇出与融合：同时查多种知识源', '用 Send 把一个问题分给全文、向量和结构化检索分支，再在融合节点去重和排序。', ['LangGraph', 'Send', 'Parallelism'], ['理解条件边和 Reducer', '了解多路检索'], ['能推演扇出和扇入', '能处理一个分支失败而其他分支成功'], '完成三路检索的状态图推演', ['分支结果带来源标识', '失败分支不会丢弃可用证据'], 'official', 'implementation'),
   item('LangGraph：状态图和执行语义', 'langgraph-checkpoint-threads', 'LangGraph Checkpoint、Thread 与恢复：进程重启后如何继续', '从一次中断的图执行开始，区分 thread、checkpoint、业务 Turn 和事件，并验证恢复不会重复副作用。', ['LangGraph', 'Checkpoint', 'Thread'], ['理解状态图和异步任务', '了解数据库持久化'], ['能为图选择恢复点', '能设计幂等工具边界'], '实现一个可暂停和恢复的只读图', ['恢复从最近快照继续', '不可重放副作用有幂等保护'], 'official-guided-operation', 'implementation'),
-  item('LangGraph：状态图和执行语义', 'agent-runtime-domain-model', 'Conversation、Turn、Message、Event、Task：Agent 的业务状态模型', '从聊天页面的一个问题拆出会话、回合、消息、事件和后台任务，解释每个对象的所有权与终态。', ['Runtime', 'Turn', 'Event'], ['理解 HTTP 请求生命周期', '了解数据库主键'], ['能设计 Agent 业务实体', '能区分状态和事件'], '画出一次 Turn 的状态和事件表', ['重复请求可查到同一 Turn', '事件顺序可重放'], 'anonymized-practice', 'implementation'),
+  item('LangGraph：状态图和执行语义', 'agent-runtime-domain-model', 'Agent Runtime 状态是什么：Conversation、Turn、Message、Event 与 Task', '先区分最小聊天数据和异步运行数据，再实现 Turn 状态机、事件序号、幂等约束与 PostgreSQL 表关系。', ['Runtime', 'Turn', 'Event'], ['理解 HTTP 请求生命周期', '了解数据库主键'], ['能设计 Agent 业务实体', '能区分状态和事件'], '运行 Turn 状态机与事件重放测试，并得到一份 PostgreSQL 最小迁移', ['同一作用域的幂等键有数据库唯一约束', '终态不可覆盖，事件可以按序号重放'], 'anonymized-practice', 'implementation'),
   item('LangGraph：状态图和执行语义', 'agent-request-lifecycle-runtime', '一次 Agent 请求的完整 Runtime 生命周期', '从入口准入、版本快照、Worker 所有权、图执行到终态事件，逐阶段列出输入、写入和停止条件。', ['Runtime', 'Admission', 'Snapshot'], ['理解 Turn 和 Checkpoint', '知道队列 Worker 的基本职责'], ['能画出请求时序图', '能定位一个请求在运行链的阶段'], '完成一份可审计的 Runtime 时序表', ['每阶段有可观测状态', '取消、过期和失败均有终态'], 'anonymized-practice', 'walkthrough'),
   item('LangGraph：状态图和执行语义', 'agent-parallel-preprocess', 'Agent 并行预处理：安全、上下文、记忆与快速检索怎样合并', '把互不依赖的预处理拆成并行节点，说明共享输入、结果 Reducer、失败隔离和预算扣减。', ['LangGraph', 'Preprocess', 'Concurrency'], ['理解并行扇出', '了解提示注入和上下文预算'], ['能识别可并行阶段', '能设计局部失败和合并策略'], '完成四路预处理的状态表', ['分支不修改共享可变对象', '合并结果可复现'], 'anonymized-practice', 'implementation'),
   item('LangGraph：状态图和执行语义', 'agent-planner-search-plan', 'Planner、SearchPlan 与停止条件：Agent 怎样决定查到哪里', '把自然语言问题转换成有预算的研究计划，解释查询任务、证据目标、优先级和停止条件。', ['Planner', 'SearchPlan', 'Budget'], ['理解结构化输出和检索', '了解 Deadline'], ['能设计有限 SearchPlan', '能判断证据足够还是需要补搜'], '为三个问题类型写研究计划 Schema', ['计划可被程序校验', '不会因模型反复改写而无限循环'], 'anonymized-practice', 'implementation'),
@@ -185,8 +341,8 @@ const aiAgentArticlePool = course('ai-agent', [
   item('可信运行：异步和恢复', 'celery-worker-ack-lease', 'Celery Worker、ACK、任务所有权与 Lease', '沿消息投递、预取、执行、ACK、重投和租约续期解释 Worker 重启后的行为。', ['Celery', 'Worker', 'Lease'], ['理解队列和 Turn', '会读 async/sync 区别'], ['能设计任务所有权', '能处理 ACK 前崩溃和重复执行'], '推演一条任务在 Worker 故障下的生命周期', ['副作用有幂等键', '失去租约的 Worker 停止写状态'], 'official-guided-operation', 'implementation'),
   item('可信运行：异步和恢复', 'deadline-cancel-checkpoint-recovery', 'Deadline、取消、Checkpoint 与停滞恢复', '把用户取消、绝对截止时间、图快照和停滞扫描放进同一状态机，明确谁能改变终态。', ['Deadline', 'Cancellation', 'Recovery'], ['理解 Checkpoint、Lease 和事件', '了解 asyncio cancellation'], ['能设计取消传播链', '能区分过期、取消和失败'], '完成正常、取消、过期和停滞恢复四条路径', ['取消不会被后续节点覆盖', '恢复不会重复已确认副作用'], 'anonymized-practice', 'implementation'),
   item('可信运行：异步和恢复', 'sse-events-replay-fallback', 'SSE 事件、序号、断线重放与轮询降级', '从浏览器断开开始，说明事件持久化、Last-Event-ID、心跳、重放窗口和轮询兜底。', ['SSE', 'Event Replay', 'Fallback'], ['了解 HTTP 流式响应', '理解 Event 和 Turn 终态'], ['能设计可重放事件流', '能处理慢客户端和断线'], '实现一个匿名事件重放状态表', ['事件序号单调递增', '终态后仍可查询最终结果'], 'anonymized-practice', 'implementation')
-  ,item('认识与第一次运行', 'python-openai-responses-first-call', 'Python 第一次调用真实模型：请求、响应、usage、错误与流式输出', '使用 OpenAI Responses API 完成第一次真实请求，读懂响应和 usage，并用同一接口的 Fake Adapter 覆盖无密钥测试。', ['OpenAI', 'Responses API', 'Streaming', 'Usage'], ['会运行 Python 脚本', '理解环境变量和 HTTP 请求'], ['能运行同步和流式 Responses 请求', '能区分认证、限流、超时、空响应与测试替身'], '得到可替换的 ModelGateway、真实调用入口和无密钥测试', ['有密钥时读取真实 output_text 与 usage', '无密钥时 Fake Adapter 测试不会伪装在线结果'], 'official', 'implementation')
-  ,item('认识与第一次运行', 'python-agent-loop-from-scratch', '不用框架实现第一个有限 Agent 循环', '把模型候选、只读工具结果和下一轮调用连接成有次数上限、重复检测和明确终态的 Python Agent。', ['Agent Loop', 'Tool Calling', 'Stop Condition'], ['完成无框架 Tool Calling', '理解模型网关与结构化结果'], ['能复述 ToolCall 到 ToolResult 再到最终回答的循环', '能处理未知工具、参数错误、空结果和循环耗尽'], '得到可测试的 agent_loop.py 和五条终态路径', ['正常问题产生有证据回答', '重复调用和达到上限时确定停止'], 'anonymized-practice', 'implementation')
+  ,item('认识与第一次运行', 'python-openai-responses-first-call', 'Responses API 与第一次 Python 模型调用', '使用 OpenAI Responses API 完成第一次真实请求，读懂响应和 usage，并用同一接口的 Fake Adapter 覆盖无密钥测试。', ['OpenAI', 'Responses API', 'Streaming', 'Usage'], ['会运行 Python 脚本', '理解环境变量和 HTTP 请求'], ['能运行同步和流式 Responses 请求', '能区分认证、限流、超时、空响应与测试替身'], '得到可替换的 ModelGateway、真实调用入口和无密钥测试', ['有密钥时读取真实 output_text 与 usage', '无密钥时 Fake Adapter 测试不会伪装在线结果'], 'official', 'implementation')
+  ,item('认识与第一次运行', 'python-agent-loop-from-scratch', '什么是 Agent 循环', '从用户输入到最终回答推演有限 Agent 循环，再用 Python 实现模型决策、工具执行、状态更新、终止条件与异常处理。', ['Agent Loop', 'Tool Calling', 'Stop Condition'], ['完成无框架 Tool Calling', '理解模型网关与结构化结果'], ['能复述 ToolCall 到 ToolResult 再到最终回答的循环', '能处理未知工具、参数错误、空结果和循环耗尽'], '得到可测试的有限循环核心，并覆盖正常、空结果、重复、工具错误和步数耗尽路径', ['正常问题产生有证据回答', '重复调用和达到上限时确定停止'], 'anonymized-practice', 'implementation')
   ,item('RAG 与知识工程：导入和版本', 'rag-unified-block-model', '统一 Block：标题、段落、表格、代码和原文定位', '把不同解析器输出统一为可追溯 Block，保留层级、版面、表头、代码语言和原文坐标。', ['RAG', 'Block', 'Document Parsing'], ['理解多格式解析和 OCR', '知道切片需要结构信息'], ['能定义跨格式 Block 契约', '能验证结构覆盖和原文定位'], '得到 ingestion.py 中的 Block 模型与覆盖率检查', ['标题、表格和代码不退化成无来源纯文本', '每个 Block 都能定位到原文件'], 'anonymized-practice', 'implementation')
   ,item('MCP、Skill 与 SubAgent 专题', 'mcp-foundations-boundaries', 'MCP 是什么：与 HTTP API、Tool Calling 和插件的边界', '从 Host 为什么需要统一连接外部能力讲起，区分协议、模型候选、业务 API 和能力打包方式。', ['MCP', 'HTTP API', 'Tool Calling', 'Plugin'], ['理解 Tool Calling 和执行器边界', '知道 Client、Server 和进程'], ['能解释 MCP 解决的互操作问题', '能判断何时使用 MCP、普通函数或 HTTP API'], '得到一张 MCP 系统位置图和能力边界表', ['不会把 MCP 说成模型直接执行工具', '能说明 Host、Client 和 Server 各自状态'], 'official', 'decision')
   ,item('MCP、Skill 与 SubAgent 专题', 'mcp-transports-discovery-cancellation', 'MCP 传输与生命周期：stdio、Streamable HTTP、Legacy SSE、发现、取消和重连', '沿一次连接拆开传输、会话、能力发现、调用、取消、断开和重连，并说明旧 SSE 的兼容边界。', ['MCP', 'stdio', 'Streamable HTTP', 'Cancellation'], ['理解 MCP 角色与 JSON-RPC', '了解进程标准输入输出和 HTTP'], ['能选择本地或远程传输', '能推演发现、调用、取消和重连状态'], '得到一份传输选择表和失败分层 Runbook', ['stdio 不把日志写入协议 stdout', 'HTTP 重连不会盲目重放有副作用调用'], 'official', 'walkthrough')
@@ -338,18 +494,31 @@ const aiAgentArticles: ChapterMeta[] = aiAgentArticleOrder.map((slug, index) => 
 })
 
 const seoArticles = course('seo', [
-  item('第一部分：建立增长模型', 'search-growth-model', 'SEO、SEM、GEO 与搜索增长全景', '从用户提出问题到产生有效业务结果，分清自然搜索、广告和生成式搜索各自负责什么。', ['SEO', 'SEM', 'GEO'], ['了解网站基本组成'], ['画出搜索增长漏斗', '区分流量指标与业务结果'], '建立一张从需求到收入的诊断表', ['每一层都有证据字段', '数据缺口被明确记录'], 'official', 'decision'),
-  item('第一部分：建立增长模型', 'seo-project-evaluation', '项目评估、目标设定与数据基线', '在写内容和投广告前，判断需求、业务匹配、竞争、交付能力、现金流和测量条件。', ['SEO', 'Project Evaluation'], ['读过第 1 章'], ['判断项目是否值得进入搜索渠道', '建立可比较的基线'], '完成一份项目评估卡', ['结论包含机会、成本和停止条件', '事实、假设与缺口分开'], 'official', 'decision'),
-  item('第二部分：需求、抓取与页面', 'crawl-index-ranking', '搜索引擎怎样发现、抓取、索引和排名', '沿链接发现、抓取、渲染、索引、查询和排序理解网页进入搜索结果的全过程。', ['Crawl', 'Index'], ['HTTP 状态码基础'], ['定位页面卡在哪个阶段', '正确使用 robots、noindex 与 Sitemap'], '用 GET 和页面源码检查一个 URL', ['区分原始 HTML 与渲染 DOM', '能解释 200 页面为何仍可能不收录'], 'official-guided-operation', 'diagnosis'),
-  item('第二部分：需求、抓取与页面', 'keyword-intent-page-mapping', '关键词、搜索意图与页面映射', '从用户任务而不是关键词数量出发，识别意图、主题、实体、修饰词和页面职责。', ['Keyword', 'Search Intent'], ['读过第 1、2 章'], ['建立关键词簇', '避免多个页面争夺同一任务'], '制作一张关键词到页面的映射表', ['每个关键词有意图和证据', '重复任务被合并或区分'], 'official', 'decision'),
-  item('第二部分：需求、抓取与页面', 'site-structure-page-planning', '页面规划、网站结构、URL 与内链', '把关键词映射变成栏目、专题、详情页、面包屑和上下文内链。', ['Information Architecture', 'URL'], ['读过第 4 章'], ['设计稳定 URL', '让重要页面在合理点击深度内可达'], '画出一个小型网站的页面树和内链图', ['不存在孤立核心页', '参数页和规范页策略一致'], 'official', 'implementation'),
-  item('第三部分：页面与内容', 'on-page-seo-structured-data', 'TDK、正文结构、Canonical 与结构化数据', '逐项完成标题、摘要、主标题、正文、链接、Canonical 和与可见内容一致的结构化数据。', ['On-page SEO', 'Structured Data'], ['HTML 基础', '读过第 5 章'], ['审查一张页面的基础 SEO', '避免模板冲突和错误标记'], '完成一份页面检查表和 JSON-LD 校验', ['原始 HTML 中元信息完整', '结构化数据字段可在页面中核对'], 'official-guided-operation', 'implementation'),
-  item('第三部分：页面与内容', 'content-ai-media-topic-pages', '内容质量、AI 内容、图片、视频与主题页', '从内容简报、来源、独有信息、媒体可访问性和更新责任建立内容生产系统。', ['Content', 'GEO', 'Media'], ['读过第 4、6 章'], ['判断内容是否解决真实任务', '安全使用 AI 辅助研究和编辑'], '为一篇专题页制作内容简报', ['每个重要结论有来源', '图片视频有语义与性能处理'], 'official', 'decision'),
-  item('第四部分：技术审计与排障', 'technical-seo-rendering-performance', '渲染、性能、robots、Sitemap 与技术 SEO', '用原始响应、渲染页面、网络瀑布和站点文件检查发现、渲染与体验问题。', ['Technical SEO', 'Performance'], ['HTTP 与浏览器基础', '读过第 3 章'], ['执行一轮技术 SEO 检查', '识别脚本渲染和资源问题'], '完成 robots、Sitemap、状态码和核心页面抽查', ['检查使用真实 GET', '规范 URL、内链和 Sitemap 一致'], 'anonymized-practice', 'diagnosis'),
-  item('第四部分：技术审计与排障', 'browser-page-seo-audit', '使用页面快照和原始 HTML 完成 SEO 审计', '从单页快照扩展到多页抽样，比较原始 HTML、渲染 DOM、模板差异和规则证据。', ['Browser Extension', 'SEO Audit'], ['读过第 6、8 章'], ['设计页面审计快照', '区分评分、证据和修复优先级'], '对匿名页面执行一次浏览器侧审计', ['每条发现包含证据和复查方法', '不把工具分数等同于排名'], 'anonymized-practice', 'implementation'),
-  item('第四部分：技术审计与排障', 'crawl-index-duplicate-troubleshooting', '抓取、索引、重复页面和收录异常排查', '按发现、抓取、渲染、索引、排名和数据口径逐层排查，不跨层猜原因。', ['Troubleshooting', 'Duplicate Content'], ['读过第 3、8、9 章'], ['使用诊断树缩小问题范围', '处理近重复、参数和迁移页面'], '完成一份 P0-P3 排障报告', ['每个问题有证据、动作、验证和回滚', '不存在把波动直接归因算法的结论'], 'official', 'diagnosis'),
-  item('第五部分：站外、数据与投放', 'links-brand-analytics-attribution', '外链、品牌提及、搜索数据与归因', '把展现、点击、到站、有效转化、收入与品牌影响拆开，评估站外增长和真实业务价值。', ['Links', 'Analytics', 'Attribution'], ['读过第 1 章'], ['识别值得获取的链接', '建立 SEO 归因与置信度'], '制作一张搜索到业务结果的数据字典', ['品牌与非品牌分开', '平台转化与真实业务结果分开'], 'official', 'decision'),
-  item('第五部分：站外、数据与投放', 'sem-account-keywords-landing', 'SEM 账户、关键词、出价、落地页与 90 天协同计划', '从账户结构和搜索词开始，串联匹配、否定词、预算、创意、落地页、归因和 SEO 回流。', ['SEM', 'Bidding', 'Landing Page'], ['读过第 1、2、11 章'], ['建立可控制的搜索广告账户', '制定 SEO/SEM 联合验证计划'], '完成一份 90 天搜索增长 Runbook', ['含预算停止条件和回滚', '广告词与 SEO 页面互相反馈但不重复归因'], 'official', 'implementation')
+  item('搜索增长与项目判断', 'search-growth-model', 'SEO、SEM、GEO 与搜索增长全景', '沿需求、页面、发现、抓取、索引、排名、点击、转化和收入，分清自然搜索、搜索广告与生成式搜索各自能证明什么。', ['SEO', 'SEM', 'GEO'], ['了解网站基本组成'], ['画出搜索增长漏斗', '区分流量指标与业务结果'], '建立一张从需求到收入的诊断表', ['每一层都有证据字段', '数据缺口被明确记录'], 'official', 'decision'),
+  item('搜索增长与项目判断', 'seo-project-evaluation', '搜索项目评估、目标设定与数据基线', '在生产内容或购买流量前，核对需求、业务匹配、竞争、交付能力、现金流与测量条件。', ['SEO', 'Project Evaluation'], ['理解搜索增长漏斗'], ['判断项目是否值得进入搜索渠道', '建立可比较的数据基线'], '完成一份项目评估卡', ['结论包含机会、成本和停止条件', '事实、假设与缺口分开'], 'official', 'decision'),
+  item('搜索系统与页面规划', 'crawl-index-ranking', '搜索引擎怎样发现、抓取、索引和排名', '沿链接发现、抓取、渲染、索引、查询和排序理解网页进入搜索结果的全过程。', ['Crawl', 'Index'], ['HTTP 状态码基础'], ['定位页面卡在哪个阶段', '正确使用 robots、noindex 与 Sitemap'], '用匿名 GET 和页面源码检查一个 URL', ['区分原始 HTML 与渲染 DOM', '能解释 200 页面为何仍可能不收录'], 'official-guided-operation', 'diagnosis'),
+  item('搜索系统与页面规划', 'keyword-intent-page-mapping', '关键词、搜索意图与页面映射', '从用户任务出发，识别意图、主题、实体和修饰词，再决定一个查询应由哪类页面承接。', ['Keyword', 'Search Intent'], ['理解搜索增长漏斗'], ['建立关键词簇', '避免多个页面争夺同一任务'], '制作一张关键词到页面的映射表', ['每个关键词有意图和证据', '重复任务被合并或区分'], 'official', 'decision'),
+  item('搜索系统与页面规划', 'site-structure-page-planning', '页面规划、网站结构、URL 与内链', '把查询与页面映射变成栏目、专题、详情页、面包屑和上下文内链，并识别孤立页候选。', ['Information Architecture', 'URL'], ['完成关键词与页面映射'], ['设计稳定 URL', '让重要页面在合理点击深度内可达'], '画出一个小型网站的页面树和内链图', ['不存在未经解释的孤立核心页', '参数页和规范页策略一致'], 'official', 'implementation'),
+  item('页面内容与结构化信息', 'on-page-seo-structured-data', '页面 SEO、Canonical 与结构化数据', '把标题、摘要、H1、正文、链接、Canonical 和 Schema 组织成同一页面承诺，并核对最终 HTML 与可见事实。', ['On-page SEO', 'Structured Data'], ['HTML 基础', '理解页面职责'], ['审查页面的基础 SEO', '避免模板冲突和虚假标记'], '完成页面检查与 JSON-LD 校验', ['原始 HTML 中元信息完整', '结构化数据字段可在页面中核对'], 'official-guided-operation', 'implementation'),
+  item('页面内容与结构化信息', 'content-ai-media-topic-pages', 'AI 辅助内容、证据与主题集群', '从页面任务、资料来源、独有信息与维护责任建立可核验的 AI 辅助内容流程。', ['Content', 'GEO'], ['理解查询与页面映射'], ['判断 AI 辅助内容是否解决真实任务', '为重要结论建立来源与维护责任'], '为一个主题集群制作内容简报和证据清单', ['每个重要结论有来源', '每个页面有独立任务与维护责任'], 'official', 'decision'),
+  item('页面内容与结构化信息', 'media-video-structured-data', '图片、视频与媒体 SEO', '从语义、尺寸、加载优先级、失败路径和可见内容出发，配置图片、视频与媒体结构化信息。', ['Image SEO', 'Video SEO'], ['理解页面内容与结构化数据'], ['配置图片语义与加载优先级', '验证媒体 Schema 与可见内容一致'], '完成媒体资源规格与检查表', ['首屏和屏外媒体策略不同', '媒体字段与可见内容一致'], 'official-guided-operation', 'implementation'),
+  item('页面审计与证据模型', 'seo-evidence-scoring-boundaries', 'SEO 诊断的证据、评分与边界', '拆开适用规则、已测规则、覆盖率、置信度、严重问题封顶和无法检测项，避免把审计分数当成排名结论。', ['Evidence', 'SEO Audit'], ['理解搜索漏斗与页面类型'], ['解释 SEO 分数的计算条件', '区分事实、风险候选与检测边界'], '建立证据等级与 P0-P3 任务模板', ['不可测项不被当作失败', '每项任务包含证据、验证与回滚'], 'public-product-evidence', 'diagnosis'),
+  item('页面审计与证据模型', 'browser-page-seo-audit', '页面 SEO 六类规则与证据采集', '比较匿名 GET、原始 HTML、渲染 DOM、HTTP、Canonical、robots、资源与 Schema 证据，形成可复查的单页审计。', ['Browser Extension', 'SEO Audit'], ['理解页面 SEO 与证据状态'], ['设计页面审计快照', '区分评分、证据和修复优先级'], '对匿名页面执行一次浏览器侧审计', ['每条发现包含证据和复查方法', '不把工具分数等同于排名'], 'public-product-evidence', 'implementation'),
+  item('页面审计与证据模型', 'seo-optimizer-chrome-extension', '页面审计如何从发现走到复验', '把规则发现、页面标注、证据核对、修复交付和重新验证连接起来，说明浏览器审计与站外数据的职责边界。', ['SEO Audit', 'Verification'], ['理解单页审计的证据来源'], ['按证据而不是分数安排修复', '知道何时需要日志或平台数据'], '完成一次发现、修复与复验记录', ['修复前后使用同一条规则和样本', '页面工具不能证明的结果被明确标记'], 'public-product-evidence', 'implementation'),
+  item('技术交付与站点审计', 'robots-sitemap-canonical-strategy', 'Robots、Sitemap、Canonical 与索引治理', '区分抓取控制、索引控制和规范网址，并让 robots、Sitemap、Canonical、内链与页面目标保持一致。', ['Robots', 'Sitemap', 'Canonical'], ['理解发现、抓取与索引的区别'], ['决定哪些 URL 应被抓取和索引', '消除 Sitemap 与页面信号冲突'], '完成全站索引治理矩阵', ['每类 URL 有明确目标', '抽查结果与矩阵一致'], 'official-guided-operation', 'implementation'),
+  item('技术交付与站点审计', 'http-javascript-rendering-seo', 'HTTP、JavaScript 渲染与搜索可访问性', '比较匿名 GET、原始 HTML、渲染 DOM、资源响应和失败路径，判断搜索系统能否稳定取得主要内容。', ['HTTP', 'Rendering'], ['HTTP 与 HTML 基础', '理解索引治理信号'], ['检查状态、跳转和渲染差异', '识别爬虫资源访问风险'], '完成原始响应与渲染结果对照表', ['关键内容不依赖脆弱交互', '失败路径有服务端证据'], 'official-guided-operation', 'diagnosis'),
+  item('技术交付与站点审计', 'technical-seo-rendering-performance', 'Core Web Vitals：Field、Lab 与单次访问证据', '区分真实用户数据、实验室测试与浏览器单次访问，读懂 LCP、INP、CLS、FCP 和 TTFB 的用途与检测边界。', ['Technical SEO', 'Performance'], ['HTTP 与浏览器基础'], ['区分 Field Data、Lab Data 与单次会话数据', '使用性能指标定位页面体验问题'], '为关键页面制作性能指标诊断表', ['每个数值标明数据来源、设备、周期和统计口径', '不能检测的 INP 与 Field Data 不被补造'], 'public-product-evidence', 'diagnosis'),
+  item('技术交付与站点审计', 'developer-performance-optimization', '开发侧性能优化与验证', '把性能证据拆到服务器、资源发现、主线程、布局和缓存任务，并建立基线、复测与回滚。', ['Web Performance', 'Performance Budget'], ['Web 开发基础', '理解性能指标证据边界'], ['定位 LCP、INP、CLS 和 TTFB 根因', '按影响与风险安排开发任务'], '完成开发优化任务单与性能预算', ['实验室与真实用户指标分别验收', '改动包含回滚条件'], 'official-guided-operation', 'implementation'),
+  item('技术交付与站点审计', 'crawl-index-duplicate-troubleshooting', '站点抽样、重复页面与收录异常排查', '从 Sitemap、robots 和 20/50/100 页同源抽样进入模板、近似重复、孤立页候选与收录异常诊断。', ['Troubleshooting', 'Duplicate Content'], ['理解索引治理与渲染证据'], ['使用诊断树缩小问题范围', '区分已确认问题与抽样候选'], '完成一份站点审计与 P0-P3 排障报告', ['每个问题有证据、动作、验证和回滚', '抽样候选不被写成全站事实'], 'public-product-evidence', 'diagnosis'),
+  item('搜索数据与业务归因', 'links-brand-analytics-attribution', '外链、品牌提及与站外增长', '从可引用资产、来源语境、链接关系和业务结果评估站外增长，避免把链接数量当作目标。', ['Links', 'Brand'], ['理解搜索增长漏斗'], ['识别值得获取的链接', '区分品牌提及、引荐访问与业务结果'], '评估一批新增链接与品牌提及', ['记录来源语境、关系属性与目标受众', '业务结果带有证据置信度'], 'official', 'decision'),
+  item('搜索数据与业务归因', 'search-performance-attribution', '搜索表现分析与 SEO 归因', '用 Google、Bing 和百度搜索 CSV 分析展现、点击、CTR、平均位置、4-20 位页面、品牌流量和查询页面冲突。', ['Search Console', 'Attribution'], ['理解查询、页面和业务漏斗'], ['寻找可验证的搜索增长机会', '建立等长周期和置信度口径'], '制作查询页面分析表与数据字典', ['品牌与非品牌分开', '搜索指标与有效业务结果相连'], 'public-product-evidence', 'diagnosis'),
+  item('国际 SEO 与分析追踪', 'international-seo-hreflang', '国际 SEO：语言页面、Canonical 与 hreflang', '从目标语言和地区出发，核对 html lang、Canonical、hreflang 自引用、互返和关联页面可访问性。', ['International SEO', 'hreflang'], ['理解规范网址与索引治理'], ['设计多语言 URL 与关联关系', '区分国际 SEO 问题、机会和检测边界'], '完成一组语言页面的关联验证表', ['每个语言页自引用且互返', '未知目标市场不会被误报为问题'], 'official-guided-operation', 'implementation'),
+  item('国际 SEO 与分析追踪', 'analytics-tracking-evidence', '分析追踪的五层证据与跨域归因', '区分标签存在、浏览器初始化、浏览器请求、平台接收和后端有效业务，并说明 GA4、GTM、Ads、UET、Clarity、Consent 与跨域追踪的适用条件。', ['GA4', 'GTM', 'UET', 'Consent'], ['理解搜索数据与业务归因'], ['按五层证据诊断追踪', '验证成功、失败、拒绝同意和跨域路径'], '完成追踪证据与业务对账表', ['前一层证据不冒充后一层', '不使用个人信息强行关联'], 'public-product-evidence', 'diagnosis'),
+  item('SEM 与协同增长', 'sem-account-keywords-landing', 'SEM 搜索广告的账户、关键词与落地页', '从业务目标和查询意图建立账户、广告组、关键词、创意与落地页的第一层映射。', ['SEM', 'Search Ads'], ['理解搜索增长与项目基线'], ['建立可控制的搜索广告账户', '让查询、广告承诺和页面任务一致'], '完成账户与意图结构图', ['品牌与非品牌分开', '每个广告组有明确落地页任务'], 'official', 'implementation'),
+  item('SEM 与协同增长', 'sem-search-terms-bidding-budget', '搜索词、匹配方式、出价与预算', '从真实搜索词管理匹配方式、否定词候选、CPC、预算、转化延迟和学习期，避免无证据调价。', ['Search Terms', 'Bidding'], ['理解账户与意图结构'], ['识别无效消耗候选', '制定预算与停止条件'], '完成搜索词治理和预算规则', ['否定词经过人工意图复核', '调整保留成熟观察窗口'], 'public-product-evidence', 'diagnosis'),
+  item('SEM 与协同增长', 'sem-creative-landing-tracking', '广告创意、落地页与转化追踪', '连接创意承诺、页面任务、主要转化、有效线索、收入、退款和毛利。', ['Landing Page', 'Conversion Tracking'], ['理解搜索词与预算治理'], ['区分平台转化与有效业务', '评估归因数据的可信度'], '完成转化事件与归因验收表', ['主要和观察转化分开', '结果可关联到点击或受控归因键'], 'official-guided-operation', 'implementation'),
+  item('SEM 与协同增长', 'sem-platform-diagnostics', 'Google、Bing 与百度投放诊断', '按追踪、搜索词、成本、创意页面、有效业务与预算顺序诊断平台自动化，不用平台汇总替代增量与毛利。', ['PMax', 'AI Max', 'oCPC'], ['理解转化追踪与有效业务'], ['按固定顺序排查广告异常', '为自动化投放设置数据边界'], '完成多平台诊断与止损清单', ['先验证追踪再调整预算', '自动化结果回到有效 CPA 与毛利'], 'public-product-evidence', 'diagnosis'),
+  item('SEM 与协同增长', 'seo-sem-90-day-plan', 'SEO 与 SEM 的协同验证周期', '把需求验证、技术修复、内容建设、广告实验和业务复盘放进同一依赖顺序，同时保留学习期、转化延迟和停止条件。', ['SEO Operations', 'SEM Operations'], ['理解 SEO 与 SEM 的完整证据链'], ['按依赖和证据安排工作', '建立负责人、观察周期和复盘机制'], '完成搜索增长协同路线图', ['每阶段有停止条件和回滚', 'SEO 与 SEM 共享数据但不重复归因'], 'anonymized-practice', 'implementation')
 ])
 
 const algorithmSpecs = [
@@ -371,16 +540,16 @@ const algorithmSpecs = [
   ['dynamic', '动态规划', '从重叠子问题和状态转移建立可复用的求解模型。', ['动态规划']]
 ] as const
 
-const preservedAlgorithmArticles = course('algorithms', algorithmSpecs.map(([slug, title, description, tags]) =>
-  item('算法与数据结构', slug, title, description, [...tags, 'TypeScript'], [], [], '', [], 'preserved', 'walkthrough', true)
+const contentLockedAlgorithmArticles = course('algorithms', algorithmSpecs.map(([slug, title, description, tags]) =>
+  item('算法与数据结构', slug, title, description, [...tags, 'TypeScript'], [], [], '', [], 'existing-content', 'walkthrough', true)
 ))
 
 const newAlgorithmArticles = course('algorithms', [
-  item("查找与字符串", "binary-search-boundaries", "二分查找的边界、不变量与答案空间", "从“第一个满足条件的位置”推导左右边界模板，解释循环不变量、终止条件和答案空间二分。", ["二分查找","TypeScript"], ["数组与复杂度基础"], ["能从不变量写出四类边界","能判断何时对答案空间二分"], "实现并测试四种二分边界", ["空数组、重复值和越界目标均通过","每轮搜索区间严格缩小"], "public-source", "implementation"),
-  item("图与搜索", "bfs-topological-shortest-path", "BFS、拓扑排序与无权最短路", "从队列分层进入图的入度、拓扑序和无权最短路径，区分访问时机、环检测与路径恢复。", ["BFS","拓扑排序","TypeScript"], ["队列与图基础"], ["解释 BFS 分层不变量","用入度识别有向环"], "实现课程依赖排序和最短路径恢复", ["重复边与孤立点有明确处理","有环时不会返回伪拓扑序"], "public-source", "implementation"),
-  item("贪心与区间", "greedy-intervals", "贪心算法与区间问题：选择、合并和覆盖", "用交换论证解释为什么按结束位置排序可以选出最多不重叠区间，并比较合并、覆盖与会议室问题。", ["贪心","区间","TypeScript"], ["排序与复杂度基础"], ["能提出并证明局部选择","区分三类区间状态"], "实现区间选择、合并和最少会议室", ["端点相等语义在测试中固定","反例能击穿错误排序策略"], "public-source", "implementation"),
-  item("缓存数据结构", "lru-cache-design", "LRU Cache：哈希表与双向链表的协作", "从 O(1) 查询、更新和淘汰约束推导哈希表加双向链表，处理容量、覆盖、移动与哨兵节点。", ["LRU","哈希表","双向链表","TypeScript"], ["链表与 Map 基础"], ["推导 LRU 的组合数据结构","维护链表和缓存容量不变量"], "实现带哨兵节点的 LRU Cache", ["容量为零和重复写入均通过","每次操作后 Map 与链表节点一一对应"], "public-source", "implementation"),
-  item("查找与字符串", "kmp-string-matching", "KMP 字符串匹配：前缀函数与失配回退", "从朴素匹配重复比较的问题进入最长相等真前后缀，逐步推导前缀表和失配时的状态转移。", ["KMP","字符串","TypeScript"], ["字符串与数组基础"], ["手算前缀函数","解释 KMP 为什么不回退主串指针"], "实现前缀函数与 KMP 搜索", ["重复模式和空模式语义明确","比较次数符合线性复杂度推导"], "public-source", "implementation")
+  item("查找与字符串", "binary-search-boundaries", "二分查找的边界、不变量与答案空间", "从“第一个满足条件的位置”推导左右边界模板，解释循环不变量、终止条件和答案空间二分。", ["二分查找","TypeScript"], ["数组与复杂度基础"], ["能从不变量写出四类边界","能判断何时对答案空间二分"], "实现并测试四种二分边界", ["空数组、重复值和越界目标均通过","每轮搜索区间严格缩小"], "existing-content", "implementation", true),
+  item("图与搜索", "bfs-topological-shortest-path", "BFS、拓扑排序与无权最短路", "从队列分层进入图的入度、拓扑序和无权最短路径，区分访问时机、环检测与路径恢复。", ["BFS","拓扑排序","TypeScript"], ["队列与图基础"], ["解释 BFS 分层不变量","用入度识别有向环"], "实现课程依赖排序和最短路径恢复", ["重复边与孤立点有明确处理","有环时不会返回伪拓扑序"], "existing-content", "implementation", true),
+  item("贪心与区间", "greedy-intervals", "贪心算法与区间问题：选择、合并和覆盖", "用交换论证解释为什么按结束位置排序可以选出最多不重叠区间，并比较合并、覆盖与会议室问题。", ["贪心","区间","TypeScript"], ["排序与复杂度基础"], ["能提出并证明局部选择","区分三类区间状态"], "实现区间选择、合并和最少会议室", ["端点相等语义在测试中固定","反例能击穿错误排序策略"], "existing-content", "implementation", true),
+  item("缓存数据结构", "lru-cache-design", "LRU Cache：哈希表与双向链表的协作", "从 O(1) 查询、更新和淘汰约束推导哈希表加双向链表，处理容量、覆盖、移动与哨兵节点。", ["LRU","哈希表","双向链表","TypeScript"], ["链表与 Map 基础"], ["推导 LRU 的组合数据结构","维护链表和缓存容量不变量"], "实现带哨兵节点的 LRU Cache", ["容量为零和重复写入均通过","每次操作后 Map 与链表节点一一对应"], "existing-content", "implementation", true),
+  item("查找与字符串", "kmp-string-matching", "KMP 字符串匹配：前缀函数与失配回退", "从朴素匹配重复比较的问题进入最长相等真前后缀，逐步推导前缀表和失配时的状态转移。", ["KMP","字符串","TypeScript"], ["字符串与数组基础"], ["手算前缀函数","解释 KMP 为什么不回退主串指针"], "实现前缀函数与 KMP 搜索", ["重复模式和空模式语义明确","比较次数符合线性复杂度推导"], "existing-content", "implementation", true)
 ]).map((article, index) => ({ ...article, chapter: algorithmSpecs.length + index + 1 }))
 
 const relearnSpecs = [
@@ -393,7 +562,7 @@ const relearnSpecs = [
 ] as const
 
 const relearnArticles = course('frontend', relearnSpecs.map(([slug, title, description, tags]) =>
-  item('重学前端', `relearn/${slug}`, title, description, [...tags], [], [], '', [], 'preserved', 'walkthrough', true)
+  item('重学前端', `relearn/${slug}`, title, description, [...tags], [], [], '', [], 'existing-content', 'walkthrough', true)
 ))
 
 const frontendArticles = course('frontend', [
@@ -600,7 +769,7 @@ const devopsArticles = course('devops', [
   item('第三部分：LLM Serving', 'continuous-batching-kv-cache', 'Continuous Batching、PagedAttention 与 KV Cache', '比较静态批处理和连续批处理，解释 KV Block、请求调度、Prefix Cache、公平性和显存压力。', ['vLLM', 'PagedAttention', 'KV Cache'], ['理解推理生命周期'], ['推演动态批处理调度', '解释吞吐、延迟和缓存复用取舍'], '完成一张批处理调度表', ['长短请求影响被解释', '跨租户缓存不会越过安全边界'], 'official', 'decision'),
   item('第三部分：LLM Serving', 'vllm-openai-compatible-serving', 'vLLM 服务、OpenAI 兼容接口与故障定位', '从启动参数、模型加载和 Readiness 进入普通请求、流式请求、并行策略、显存配置与错误分层。', ['vLLM', 'OpenAI Compatible API'], ['理解模型制品、推理生命周期和 GPU 栈'], ['解释 vLLM 服务启动与请求路径', '诊断模型加载、显存和接口错误'], '完成一份 vLLM 启动与排障设计', ['兼容范围被明确声明', '不提供未经目标硬件实测的吞吐数字'], 'official-guided-operation', 'diagnosis'),
   item('第三部分：LLM Serving', 'model-artifacts-precision-quantization', '模型制品、精度、量化与推理优化', '讲清 Config、Tokenizer、Safetensors、FP32、FP16、BF16、INT8、INT4、量化校准和性能验证。', ['Model Artifact', 'Precision', 'Quantization'], ['理解模型部署与 GPU 显存'], ['估算权重与运行显存', '判断量化收益和质量风险'], '制作一份模型制品与精度清单', ['权重和 Tokenizer Revision 匹配', '性能与质量使用同一候选版本验证'], 'official', 'decision'),
-  item('第四部分：GPU 基础', 'gpu-computing-foundations', '为什么 AI 需要 GPU：并行计算、矩阵乘与吞吐', '从一次矩阵乘拆开 CPU 延迟优化、GPU 吞吐设计、SIMT、带宽和算术强度。', ['GPU', 'Parallel Computing'], ['了解 CPU 与内存基础'], ['解释 GPU 适合深度学习的原因', '判断任务是否值得迁移到 GPU'], '完成一张 CPU 与 GPU 工作负载比较表', ['并行度、数据搬运和批量都被考虑', '不会把所有计算都归为 GPU 更快'], 'official', 'decision'),
+  item('第四部分：GPU 基础', 'gpu-computing-foundations', 'GPU 基础：是什么、怎么工作，以及 AI 为什么使用它', '先定义 GPU、主机与设备的数据路径，再用矩阵乘解释并行执行、显存、带宽和 AI 工作负载取舍。', ['GPU', 'Parallel Computing'], ['了解 CPU 与内存基础'], ['解释 GPU 适合深度学习的原因', '判断任务是否值得迁移到 GPU'], '完成一张 CPU 与 GPU 工作负载比较表', ['并行度、数据搬运和批量都被考虑', '不会把所有计算都归为 GPU 更快'], 'official', 'decision'),
   item('第四部分：GPU 基础', 'cuda-programming-model', 'CUDA 执行模型：Thread、Block、Grid、Warp 与 SM', '沿一次 Kernel Launch 解释 Host/Device、线程层级、Warp 调度、SM 资源、同步和内存访问。', ['CUDA', 'Kernel', 'SM'], ['理解 GPU 并行计算'], ['推演 CUDA Kernel 的执行层级', '识别分支和访存对利用率的影响'], '完成一张 CUDA 执行映射图', ['层级关系和资源所有者明确', '未使用真实 GPU 的内容标为机制推演'], 'official', 'walkthrough'),
   item('第四部分：GPU 基础', 'gpu-cuda-vram-nvidia-smi', 'GPU Driver、CUDA Runtime、HBM/VRAM 与显存诊断', '从 CUDA 不可用和 OOM 进入驱动兼容、权重、激活、工作区、KV Cache、数据搬运和多卡需求。', ['GPU', 'CUDA', 'VRAM'], ['Linux 与 CUDA 执行模型基础'], ['建立显存组成账本', '按证据区分兼容问题和容量问题'], '完成一张 GPU 预检与显存估算表', ['Driver 与 Runtime 关系正确', '没有 NVIDIA GPU 时只解释命令字段'], 'official', 'diagnosis'),
   item('第五部分：Kubernetes AI Infra', 'kubernetes-ai-platform-basics', '为什么 AI 平台需要 Kubernetes：控制面与核心对象', '从多模型、多副本和资源声明进入控制面、Pod、Deployment、Service、Ingress、配置与期望状态。', ['Kubernetes', 'AI Platform'], ['理解容器和网络'], ['解释 Kubernetes 的调谐模型', '划分应用、模型服务和平台职责'], '完成一张 AI 工作负载对象图', ['对象之间的控制关系明确', 'Kubernetes 不被描述为理解模型语义'], 'official', 'walkthrough'),
@@ -634,16 +803,21 @@ const aiPracticeArticles = course('ai-practice', [
   item('个人工作系统', 'ai-work-modes-opc-full-stack', 'Plan、Auto、Goal 与 OPC：AI 时代的个人全栈工作系统', '区分 Plan、Auto 和 Goal 的任务、权限与周期，再把产品、设计、研发、测试、发布、增长和复盘组织成保留人类门禁的 OPC 闭环。', ['Plan Mode', 'Auto', 'Goal Mode', 'OPC', 'Full Stack'], ['能独立完成一次小型开发任务', '了解测试、发布、监控与回滚的基本概念'], ['能按任务不确定性、执行权限和持续周期选择 Plan、Auto 或 Goal', '能建立 AI 执行与人类经营门禁分离的一人全栈闭环'], '完成一张 AI 工作模式决策表、OPC 角色图和人类门禁表', ['Goal 不会被误解为扩大沙箱、审批或外部系统权限', '生产、资金、法律与不可逆操作始终有明确人类责任'], 'official-guided-operation', 'decision')
 ])
 
+const onnxPracticeArticles = course('onnx-practice', [
+  item('浏览器推理', 'squeezenet-browser-inference', 'ONNX 浏览器图片识别：从整图分类到目标检测', '用 SqueezeNet 和 YOLOX-Nano 在浏览器里完成整图分类、关注区域分析和目标检测，沿 ONNX 计算图、Tensor、Worker、WebGPU/WASM 与后处理讲清推理过程。', ['ONNX', 'ONNX Runtime Web', 'SqueezeNet', 'YOLOX', 'WebGPU', 'WASM', 'Web Worker'], ['会阅读 TypeScript 和 Vue 组件', '理解图片像素、Promise 和基本浏览器 API'], ['能区分整图分类、关注区域和目标检测分别回答的问题', '能解释 ONNX 文件、ONNX Runtime、Execution Provider 和后处理的职责', '能把 RGB 图片转换为 NCHW Float32 Tensor，并读懂分类概率、检测框和置信度'], '在浏览器本地完成一次整图分类、关注区域分析和目标检测', ['整图分类返回 5 个中文备选类别', '遮挡敏感度分析能标出影响当前判断的区域', '目标检测能在内置图片上标出猫的类别、置信度和位置', '调整置信度阈值只重新筛选结果，不重复执行模型', 'WebGPU 不可用时自动回退 WASM，图片不上传到业务服务器'], 'official-guided-operation', 'implementation')
+])
+
 export const articles: ChapterMeta[] = [
   ...aiAgentArticles,
   ...seoArticles,
   ...relearnArticles,
   ...frontendArticles,
-  ...preservedAlgorithmArticles,
+  ...contentLockedAlgorithmArticles,
   ...newAlgorithmArticles,
   ...backendArticles,
   ...devopsArticles,
-  ...aiPracticeArticles
+  ...aiPracticeArticles,
+  ...onnxPracticeArticles
 ]
 
 export const articlePath = (chapter: ChapterMeta): string =>
@@ -655,5 +829,10 @@ export const articleFile = (chapter: ChapterMeta): string =>
 export const articlesByCategory = (category: Category): ChapterMeta[] =>
   articles.filter((chapter) => chapter.category === category)
 
-export const isPreservedChapter = (chapter: ChapterMeta): boolean =>
-  chapter.preserved === true
+export const articlesInStageOrder = (category: Category): ChapterMeta[] =>
+  sectionTrackGroups(category).flatMap((track) =>
+    track.groups.flatMap((group) => group.items)
+  )
+
+export const isContentLockedChapter = (chapter: ChapterMeta): boolean =>
+  chapter.contentLocked === true

@@ -100,20 +100,20 @@ Node 项目运行 ESLint、TypeScript、Jest 单元/集成、OpenAPI 契约和�
 
 停机测试不能只看进程最终退出。先把 readiness 切为失败，停止 HTTP 新流量与 Consumer 拉取，等待有上限的在途任务；随后关闭 Channel、Connection、Redis、Prisma，最后 flush Trace。测试在 confirm 未返回、对象正在上传和 Redis 命令超时三个位置发送 SIGTERM，确认消息要么已 ACK 并有数据库终态，要么会被重新投递。
 
-## Node 外部依赖继续追问
+## 外部依赖的并发与恢复边界
 
-### RabbitMQ Channel 可以被多个 Consumer 共用吗？
+**RabbitMQ Channel 可以被多个 Consumer 共用吗？**
 
 技术上可行，但确认、prefetch 和错误会互相影响。通常按用途建立有限 Channel，Connection 复用；关闭顺序先 cancel Consumer，再关 Channel/Connection。
 
-### MinIO 上传能否放在 MySQL 事务里？
+**MinIO 上传能否放在 MySQL 事务里？**
 
 不能形成原子提交，且长上传持有数据库连接和锁。先建立任务/对象状态，上传后用条件事务提交，失败由清理和重试恢复。
 
-### Jest `--forceExit` 为什么不是修复？
+**Jest `--forceExit` 为什么不是修复？**
 
 它掩盖未关闭的 Server、Timer、Redis/RabbitMQ 连接，生产停机同样会泄漏。用 open handles/生命周期 hook 找到所有者并显式关闭。
 
-### 缓存异常时 Node API 应自动无限重连吗？
+**缓存异常时 Node API 应自动无限重连吗？**
 
 无限快速重连会阻塞和放大故障。客户端退避重连，业务按操作选择降级/拒绝，readiness 与告警反映状态，并保护 MySQL 回源。

@@ -25,7 +25,9 @@ updated: 2026-08-11
 
 # 白屏、卡顿与内存泄漏的证据化诊断
 
-用户说“页面白了”可能是 HTML 没返回、关键 JS 404、运行时异常、根节点被空状态覆盖，也可能页面已绘制但遮罩未消失。先把现象转成时间、路由、设备、网络和可观察阶段，才能选择工具。
+前端故障诊断从白屏、卡顿或内存持续增长出发，按网络、错误、渲染、主线程和内存层收集证据并定位第一处异常。它连接线上反馈与代码修复，目标是提出一个能被同样输入和环境复验的原因；“性能优化”不是对所有现象都有效的统一答案。
+
+用户说“页面白了”时，HTML 可能没有返回，关键 JS 可能是 404，也可能根节点已渲染却被遮罩盖住。先把现象转成时间、路由、设备、网络和可观察阶段，再选择工具。
 
 ## 五层排查顺序
 
@@ -53,17 +55,21 @@ GC 只回收不可达对象。已卸载 DOM 若仍被监听器、全局 Map、�
 
 固定脚本、数据和环境，保存修复前 trace/heap，修改一个假设，再重跑。性能结论同时报告交互和总工作；内存结论报告对象数量和保留路径。没有对照证据不宣布解决。
 
-面试回答白屏卡顿时，可以按现象归类、分层证据、最小假设、对照验证和回归监控展开。这比列一串缓存、懒加载和 CDN 更容易说明判断过程。
+Performance trace 中先标记用户输入。Event Timing 的 processing start 之前是输入等待，handler 与框架 Render 属于 Script，随后可能出现 Style、Layout 和 Paint。Long Task 会占用主线程，但 INP 还包含事件等待和下一帧呈现；网络、图片解码和合成问题不能全部归因给 JavaScript。
 
-## 卡顿要拆成任务、渲染和资源
+## 用同一条故障时间线完成诊断
 
-Performance trace 中先标记用户输入。Event Timing 的 processing start 之前是输入等待，handler 与框架 Render 属于 Script，随后可能有 Style/Layout/Paint。单个超过 50ms 的 Long Task 会占用主线程，但 INP 还包含事件等待和下一帧呈现。网络慢、图片解码和 GPU 合成也可能让页面视觉迟钝，不能全部归因给 JavaScript。
+假设“订单列表打开详情三十次后越来越卡”。先固定路由、账号权限、数据量、浏览器版本和操作脚本，然后保存下面这些证据，不预设它一定是 React、Vue 或 DOM 泄漏：
 
-白屏按最小证据树处理：文档响应/根 HTML、关键 CSS、入口 JS 请求与 MIME/CSP、首个异常、Root mount、主线程长任务、框架错误边界。给每层设置可观察探针和 release ID，先找到第一处偏离，再建立复现。
+| 阶段 | 记录什么 | 能排除什么 |
+| --- | --- | --- |
+| 复现前 | Release、设备、数据量、初始 heap | 样本和版本不一致 |
+| 每次打开/关闭 | User Timing、Long Task、监听器/定时器计数 | 单纯网络慢或一次性初始化 |
+| 重复三十次后 | 相同交互 trace、强制 GC 后 heap | 只有瞬时分配的假象 |
+| Heap Snapshot | 增长对象和到 GC Root 的 Retainer Path | 凭对象名猜泄漏 |
+| 修复后 | 同一脚本、trace、heap 和功能回归 | 用不同输入制造“优化” |
 
-## 内存泄漏看保留路径
-
-堆上涨不一定泄漏，GC 前临时对象会增长。用相同操作循环多次，在强制 GC 可控的实验环境比较 heap snapshot；查看 Detached DOM、监听器、定时器、闭包、Map cache 和框架实例到 GC Root 的 retaining path。修复应切断真正所有者的引用，并重复操作确认对象数量回落。
+如果 Retainer Path 是 `Window -> event listener -> closure -> component state -> response`，修复点在监听器所有者的 cleanup；若对象能在强制 GC 后回落，问题可能只是分配峰值。结论应报告字段和路径，不填写没有实际运行过的耗时或内存数字。
 
 ```text
 Window -> event listener -> closure -> component state -> large response

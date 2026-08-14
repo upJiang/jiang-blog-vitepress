@@ -98,20 +98,20 @@ signal.NotifyContext 接收 SIGTERM，HTTP Server Shutdown 停新请求并等待
 
 `Server.Shutdown` 等待 Handler 返回，不会替你关闭应用创建的 goroutine，也不会自动停止 RabbitMQ Consumer。服务需要一个顶层 owner 记录 HTTP、Scheduler、Consumer 和 Telemetry 的启动与关闭顺序。测试在请求阻塞、SSE 长连接和后台消费三种状态下发信号，确认 readiness 先下线，SSE 收到结束或连接关闭，未完成消息可以重投。
 
-## Go 并发继续追问
+## 请求并发的生命周期边界
 
-### 可以把 gin.Context Copy 后交给 goroutine 吗？
+**可以把 gin.Context Copy 后交给 goroutine 吗？**
 
 Copy 允许只读部分请求信息，但后台工作仍应有明确生命周期，不能写原响应。可靠任务持久化参数，使用标准 Context 和 Worker。
 
-### Context canceled 应返回 499 还是 500？
+**Context canceled 应返回 499 还是 500？**
 
 客户端已断开时常在日志内部标记 canceled，网关可能使用 499；应用未必还能发送响应。内部 deadline 可映射 504/稳定错误，不能统一 500。
 
-### goroutine 泄漏为什么 CPU 可能不高？
+**goroutine 泄漏为什么 CPU 可能不高？**
 
 泄漏 goroutine 可能阻塞在 channel/socket，几乎不耗 CPU，却占栈、引用对象和连接。看 goroutine 数与 dump，不只看 CPU。
 
-### 多核 Go 是否不需要 Worker？
+**多核 Go 是否不需要 Worker？**
 
 短 CPU 可由 goroutine 多核运行，但长任务仍会占 CPU、内存和请求 deadline。需要可靠重试/状态的工作进入持久 Worker，设置并发。

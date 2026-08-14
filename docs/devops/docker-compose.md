@@ -19,16 +19,15 @@ practice:
     - 服务通过名称互访
     - 持久数据不依赖容器可写层
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# Docker Compose：把 AI Backend 跑成一条完整数据流
+# Docker Compose：组织本地 AI 服务栈
 
 API 容器已经显示 `running`，第一次请求仍报数据库连接失败；重建 PostgreSQL 后，原来的任务记录全部消失；Worker 使用 `localhost:6379`，却始终连不上 Redis。这些不是三个孤立问题，它们暴露了就绪、持久化和容器网络没有被明确设计。
 
 Compose 适合在一台开发机或小型验证环境中描述多容器关系。它不是生产调度器，但能把服务名、网络、卷、健康检查、资源和配置写成可复查契约。
 
-## 先画业务链，再写 YAML
+## 业务服务链与 Compose 配置
 
 ```mermaid
 flowchart LR
@@ -121,4 +120,4 @@ Liveness 回答“进程是否需要重启”，Readiness 回答“实例能否�
 
 容器日志优先写标准输出，由运行平台收集；业务持久状态写数据库或对象存储。停止时先阻止新请求和新任务，再等待在途工作到 Deadline，最后退出。Worker 只有在任务已完成且结果持久化后才能 ACK，重启后才有机会恢复未确认任务。
 
-验证 Compose 设计时，应检查解析后的配置、服务网络、健康状态、Volume 归属和停止顺序。由于本机 Docker daemon 未运行，本篇不声称已经启动这套栈；YAML 用来解释结构和边界，实际使用前还要替换镜像、Secret、资源限制并在隔离环境执行配置检查。
+验证 Compose 设计时，应检查解析后的配置、服务网络、健康状态、Volume 归属和停止顺序。由于本机 Docker daemon 未运行，当前没有启动这套栈；YAML 只用于解释结构和边界，实际使用前还要替换镜像、Secret、资源限制并在隔离环境执行配置检查。

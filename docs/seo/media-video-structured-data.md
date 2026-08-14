@@ -1,17 +1,17 @@
 ---
 title: 图片、视频与媒体 SEO
-description: 让图片和视频兼顾语义、无障碍、结构化数据、抓取与加载性能。
+description: 从语义、尺寸、加载优先级、失败路径和可见内容出发，配置图片、视频与媒体结构化信息。
 category: seo
-part: 第三部分：页面与内容
-chapter: 9
+part: 页面内容与结构化信息
+chapter: 8
 tags:
   - Image SEO
   - Video SEO
 prerequisites:
-  - 读过第 7、8 章
+  - 理解页面内容与结构化数据
 outcomes:
   - 配置图片语义与加载优先级
-  - 验证视频和多语言信号
+  - 验证媒体 Schema 与可见内容一致
 practice:
   type: implementation
   result: 完成媒体资源规格与检查表
@@ -19,16 +19,15 @@ practice:
     - 首屏和屏外媒体策略不同
     - 媒体字段与可见内容一致
 evidence: official-guided-operation
-updated: 2026-08-11
+updated: '2026-08-11'
 ---
-
-# 一张漂亮的首图，为什么同时伤害理解和速度
+# 图片、视频与媒体 SEO
 
 预约工具首页放了一段自动播放视频作为首屏。设计电脑上效果流畅，低端手机却要等数秒才出现主要画面；视频没有 Poster，关键功能只写在画面里；页面里的六张产品截图都使用 `alt="预约系统"`，也没有宽高。
 
 这里至少有三类问题：用户和搜索系统难以理解每张媒体表达什么；浏览器无法提前预留尺寸，页面会跳动；首屏资源优先级错误，主要内容出现更慢。把图片压成 WebP 只能解决其中一部分。
 
-上一篇的[内容生产简报](/docs/seo/content-ai-media-topic-pages)已经说明每个媒体承担的信息任务。本篇把任务转成文件规格、HTML 语义、加载顺序和结构化数据，产出一张可交给内容、设计和开发共同验收的媒体表。
+[内容简报](/docs/seo/content-ai-media-topic-pages)应先说明每个媒体承担的信息任务。媒体 SEO 再把任务转成文件规格、HTML 语义、加载顺序和结构化数据，形成内容、设计和开发可以共同验收的资源表。
 
 ## Alt Text 不是图片关键词栏
 
@@ -51,7 +50,7 @@ updated: 2026-08-11
 
 图片有三个相关尺寸：原始像素、CSS 显示尺寸和设备像素密度。原图小于设备实际需要时会模糊，远大于容器又会浪费传输。
 
-HTML 的 `width` 和 `height`，或 CSS 的 `aspect-ratio`，让浏览器在图片下载前计算比例并预留空间。这能减少后文会讲的 CLS，但不代表必须固定响应式宽度。图片仍可使用 `max-width: 100%; height: auto` 缩放。
+HTML 的 `width` 和 `height`，或 CSS 的 `aspect-ratio`，让浏览器在图片下载前计算比例并预留空间。这能减少 CLS，但不代表必须固定响应式宽度。图片仍可使用 `max-width: 100%; height: auto` 缩放。
 
 下面示例用于公开内容页。输入是准备好的 480、960 两档 AVIF/WebP/JPEG，目标是让浏览器按视口选择接近容器的文件，同时在下载前知道 16:9 比例：
 
@@ -142,10 +141,4 @@ Alt 或文字替代｜width/height｜加载优先级｜缓存策略｜结构化�
 
 内容负责人写信息任务和 Alt，设计负责人确认裁剪与视觉质量，开发负责人实现响应式资源、尺寸、加载和缓存，SEO 负责人核对抓取与结构化语义。至少在窄屏和宽屏各验证一次实际资源，并测试视频或图片请求失败。
 
-下一篇会把页面、媒体和 URL 清单放入全站索引治理，明确 robots.txt、noindex、Canonical 和 Sitemap 各自负责什么。
-
-## 继续学习
-
-- 上一篇：[内容体系、AI 写作与主题覆盖](/docs/seo/content-ai-media-topic-pages)
-- 下一篇：[Robots、Sitemap、Canonical 与索引治理](/docs/seo/robots-sitemap-canonical-strategy)
-- 性能指标：[Core Web Vitals 与网站性能指标](/docs/seo/technical-seo-rendering-performance)
+页面、媒体和 URL 清单还要进入全站索引治理，分别确定 robots.txt、noindex、Canonical 和 Sitemap 的职责。

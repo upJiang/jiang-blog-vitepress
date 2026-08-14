@@ -1,6 +1,6 @@
 ---
-title: Conversation、Turn、Message、Event、Task：Agent 的业务状态模型
-description: 从聊天页面的一个问题拆出会话、回合、消息、事件和后台任务，解释每个对象的所有权与终态。
+title: Agent Runtime 状态是什么：Conversation、Turn、Message、Event 与 Task
+description: 先区分最小聊天数据和异步运行数据，再实现 Turn 状态机、事件序号、幂等约束与 PostgreSQL 表关系。
 category: ai-agent
 part: LangGraph：状态图和执行语义
 chapter: 20
@@ -16,21 +16,27 @@ outcomes:
   - 能区分状态和事件
 practice:
   type: implementation
-  result: 画出一次 Turn 的状态和事件表
+  result: 运行 Turn 状态机与事件重放测试，并得到一份 PostgreSQL 最小迁移
   verify:
-    - 重复请求可查到同一 Turn
-    - 事件顺序可重放
+    - 同一作用域的幂等键有数据库唯一约束
+    - 终态不可覆盖，事件可以按序号重放
 evidence: anonymized-practice
 updated: 2026-08-11T00:00:00.000Z
 lastUpdated: false
 ---
-# Conversation、Turn、Message、Event、Task：Agent 的业务状态模型
+# Agent Runtime 状态是什么：Conversation、Turn、Message、Event 与 Task
 
-只存一张 `chat_messages` 表，Demo 可以运行；一旦回答需要排队、取消、重放或引用，问题会立刻出现：用户消息属于哪次执行？模型流式事件怎样排序？Worker 重启后要查哪个状态？本篇不讲数据库框架，而是把业务对象的所有权和状态边界先设计清楚。
+Agent Runtime 状态是一组在模型调用之外保存的业务事实，用于让 API、队列、Worker 和客户端对同一轮执行形成一致判断：它属于哪段对话、现在运行到哪一步、已经发过哪些事件，以及哪个 Worker 正在执行。只存一张 `chat_messages` 表可以做同步 Demo；一旦加入排队、取消和断线重放，这张表就无法回答“哪次执行已经结束、哪个事件漏了、迟到 Worker 还能不能写”。
 
-本文解决的是“业务 Runtime 怎样记住一轮 Agent 执行”，不是 LangGraph State 怎样在节点间传值。最终你会得到五个实体的关系、**Turn** 状态机、事件序号规则、幂等键作用域和一个可执行的聚合模型，这些对象也构成完整请求时序的业务骨架。
+它的用途是让 API、队列、Worker、事件流和恢复逻辑共享同一份执行事实；这些对象位于 Agent Runtime 的业务状态层，和 LangGraph 的节点 State、模型输出、数据库原始记录各自分工。
+
+本文讨论业务 Runtime 怎样记住一轮执行，不是 LangGraph State 怎样在节点间传值。最小同步实现只需要 Conversation、Turn 和 Message；使用异步 Worker 后，再增加 Event 与 Task。这样初学者不必第一天就建五张表，后续能力也有明确落点。
+
+完整代码位于 `examples/ai-agent-runtime/`：`domain_model.py` 是可运行的内存状态机，`001_runtime.sql` 给出 PostgreSQL 表和唯一约束，`test_domain_model.py` 固定终态、取消和重放语义。内存实现不能证明多进程并发，SQL 迁移也必须在隔离数据库完成集成测试后才能进入服务。
 
 ## 五个对象各自回答一个问题
+
+先按复杂度选模型：同步请求最少保存 Conversation、Turn 和 Message；需要排队时增加 Task，需要向浏览器重放进度时增加 Event。表越多不代表系统越成熟，只有运行需求出现后才值得承担额外事务和清理成本。
 
 | 对象 | 要回答的问题 | 谁拥有它 |
 | --- | --- | --- |
@@ -115,6 +121,8 @@ flowchart TD
 | 当前 | 事件 | 下一状态 | 允许谁写 |
 | --- | --- | --- | --- |
 | pending | worker_claimed | running | 拥有租约的 Worker |
+| pending | cancel_requested | cancelled | 用户/服务端 |
+| pending | deadline_hit | expired | 监控/服务端 |
 | running | cancel_requested | cancel_requested | 用户/服务端 |
 | cancel_requested | stopped | cancelled | 当前 Worker |
 | running | deadline_hit | expired | 监控/Worker |
@@ -131,7 +139,7 @@ flowchart TD
 
 代码只实现确定性状态机，消息、事件和 Worker 的输入输出全部显式化。运行后会打印每次迁移，非法迁移会抛异常。
 
-下面把“状态转移实现”落成最小实现。代码关注“Turn 状态机只允许表中定义的转移，并用终态锁阻止迟到 Worker 覆盖已完成结果”；输入从函数参数或上文定义的状态对象进入，关键分支负责校验或修改状态，返回值再交给后续调用。
+先用内存对象实现迁移表。它能验证允许路径和终态不可逆，但无法保护多个进程；后面的数据库条件更新才负责并发所有权。
 
 ```python
 # Turn 状态机只允许表中定义的转移，并用终态锁阻止迟到 Worker 覆盖已完成结果。
@@ -158,6 +166,8 @@ class Turn:
     def transition(self, event: str) -> None:
         table = {
             (TurnStatus.PENDING, "worker_claimed"): TurnStatus.RUNNING,
+            (TurnStatus.PENDING, "cancel_requested"): TurnStatus.CANCELLED,
+            (TurnStatus.PENDING, "deadline_hit"): TurnStatus.EXPIRED,
             (TurnStatus.RUNNING, "cancel_requested"): TurnStatus.CANCEL_REQUESTED,
             (TurnStatus.CANCEL_REQUESTED, "stopped"): TurnStatus.CANCELLED,
             (TurnStatus.RUNNING, "answer_validated"): TurnStatus.COMPLETED,
@@ -169,9 +179,6 @@ class Turn:
         # 先检查当前状态是否允许继续推进，避免终态被重复任务或迟到结果覆盖。
         if next_status is None:
             raise ValueError(f"非法迁移：{self.status} + {event}")
-        # 收到取消信号就提交取消状态并返回，后面的工具调用和结果写入都不能再发生。
-        if self.status in {TurnStatus.COMPLETED, TurnStatus.FAILED, TurnStatus.CANCELLED, TurnStatus.EXPIRED}:
-            raise ValueError("终态不可再次迁移")
         self.status = next_status
         self.events.append(f"{event}:{self.status}")
 
@@ -196,16 +203,12 @@ print(turn.status, turn.events)
 # Event Store 在同一 Turn 内原子递增序号，SSE 与轮询据此判断缺口、重复和终态顺序。
 from dataclasses import dataclass, field
 from threading import Lock
-# RuntimeEvent 保存可排序、可重放的事件状态，让断线恢复仍能重建相同执行轨迹。
-
 @dataclass(frozen=True)
 class RuntimeEvent:
     turn_id: str
     sequence: int
     event_type: str
     payload: dict[str, object]
-# EventStream 保存可排序、可重放的事件状态，让断线恢复仍能重建相同执行轨迹。
-
 @dataclass
 class EventStream:
     turn_id: str
@@ -214,14 +217,28 @@ class EventStream:
     _lock: Lock = field(default_factory=Lock, repr=False)
 
     def append(self, event_type: str, payload: dict[str, object]) -> RuntimeEvent:
+        # 输入是事件类型和最小负载；序号检查、分配和写入必须处于同一临界区。
         with self._lock:
+            terminal_types = {
+                "turn.completed",
+                "turn.failed",
+                "turn.cancelled",
+                "turn.expired",
+            }
+            if event_type in terminal_types and any(
+                event.event_type in terminal_types for event in self.events
+            ):
+                # 已有终态时拒绝第二个终态，避免重放得到互相矛盾的业务结果。
+                raise ValueError("终态事件已经存在")
             sequence = self.next_sequence
             self.next_sequence += 1
             event = RuntimeEvent(self.turn_id, sequence, event_type, payload)
             self.events.append(event)
+            # 返回已经分配服务端序号的事件，调用方可直接持久化或推送给客户端。
             return event
 
     def replay_after(self, sequence: int) -> list[RuntimeEvent]:
+        # 只返回客户端尚未确认的事件；严格大于可以避免重连后重复最后一条。
         return [event for event in self.events if event.sequence > sequence]
 ```
 
@@ -239,13 +256,11 @@ Message 保存可展示内容和角色；Event 保存阶段、序号、时间和
 
 这时不能按 Task attempt 重复创建用户消息、证据或终态事件。稳定写入键可以由 `turn_id + artifact_type + artifact_key` 构成；例如同一 Turn 的正式 Assistant Message 只有一个逻辑位置，重试应更新候选或发现终态后退出。
 
-Task 的 ACK 只说明队列消息处理完成，不说明业务回答成功。Worker 可能把 Turn 写成 `failed` 后正常 ACK；也可能业务已 `completed`，但在 ACK 前进程退出，Broker 又重投一次。重投 Worker看到终态后应安全退出并 ACK，不能再次生成答案。
+Task 的 ACK 只说明队列消息处理完成，不说明业务回答成功。Worker 可能把 Turn 写成 `failed` 后正常 ACK；也可能业务已 `completed`，但在 ACK 前进程退出，Broker 又重投一次。重投 Worker 看到终态后应安全退出并 ACK，不能再次生成答案。
 
 ## 用 pytest 固定状态不变量
 
 下面的测试复用 `Turn` 和 `EventStream`。重点不是自然语言答案，而是终态不可逆、取消有中间态，以及断线重放不丢事件。
-
-为了验证“用 pytest 固定状态不变量”，下面的测试把“测试覆盖非法转移、终态不可覆盖和事件单调性，防止模型文本直接驱动业务状态”变成可执行断言。每个用例自己构造输入，并用断言固定返回值或失败状态；某条测试失败时，可以从用例名直接定位到被破坏的契约。
 
 ```python
 # 测试覆盖非法转移、终态不可覆盖和事件单调性，防止模型文本直接驱动业务状态。
@@ -270,6 +285,11 @@ def test_running_cancel_requires_worker_confirmation() -> None:
     turn.transition("stopped")
     assert turn.status is TurnStatus.CANCELLED
 
+def test_pending_cancel_finishes_without_worker_confirmation() -> None:
+    turn = Turn("turn-pending")
+    turn.transition("cancel_requested")
+    assert turn.status is TurnStatus.CANCELLED
+
 # 这个用例重复提交或恢复同一运行，确认 Checkpoint、幂等键或事件序号阻止重复副作用。
 def test_event_replay_returns_only_unseen_sequence() -> None:
     stream = EventStream("turn-events")
@@ -280,9 +300,15 @@ def test_event_replay_returns_only_unseen_sequence() -> None:
     replay = stream.replay_after(1)
     assert [event.sequence for event in replay] == [2, 3]
     assert replay[-1].event_type == "turn.completed"
+
+def test_only_one_terminal_event_is_allowed() -> None:
+    stream = EventStream("turn-terminal")
+    stream.append("turn.completed", {})
+    with pytest.raises(ValueError, match="终态事件已经存在"):
+        stream.append("turn.cancelled", {})
 ```
 
-第一个测试让已完成 Turn 再接收失败事件，必须抛错；第二个测试证明 running 取消不是直接 completed 或 cancelled；第三个测试模拟客户端已经看过序号 1，只重放 2 和 3。执行 `pytest -q` 预期得到 `3 passed`。数据库集成测试还要用两个并发连接争抢同一终态，断言只有一个条件更新成功。
+测试分别固定终态不可覆盖、pending 与 running 的不同取消路径、断线重放和终态事件唯一性。仓库内 `test_domain_model.py` 在当前环境得到 `5 passed`。数据库集成测试仍要用两个并发连接争抢同一终态，断言只有一个条件更新成功。
 
 ## 同一状态模型怎样承接导入与评测任务
 
@@ -310,24 +336,23 @@ Event 是追加事实，Task 是异步执行载体。Event 的序号用于重放
 
 先查 Turn 当前状态，再查最近 Event、Task lease 和 Checkpoint。pending 无任务说明投递失败；running 且 lease 过期说明 Worker 停滞；completed 无 AI Message 说明终态事务边界错误；cancel_requested 长时间不变说明取消没有传播。把这四种症状做成 Runbook，比从模型日志开始搜索更有效。
 
-## 常见问题
 
-### Conversation 与 Turn 的关系是什么？
+**Conversation 与 Turn 的关系是什么？**
 
 Conversation 是用户看到的长期对话容器，一般包含多条 Message 和多次 Turn；Turn 是一次用户提交到唯一终态的业务聚合根。同一个 Conversation 可以继续提问，但每个 Turn 有自己的幂等键、Deadline、版本快照和执行状态。把状态放在 Conversation 上，会让并发提问互相覆盖，也无法判断哪次取消对应哪个执行。
 
-### Message 为什么不应该保存所有运行事件？
+**Message 为什么不应该保存所有运行事件？**
 
 Message 面向用户可见内容与对话历史，Event 则记录 accepted、retrieving、validated、completed 等不可变事实。运行期间可能产生几十个事件和多个失败分支，不适合作为聊天消息展示。分开后 Message 可以安全裁剪进入上下文，Event 可以按 sequence 重放和审计；最终 AI Message 只有在验证与事务提交后才成为正式内容。
 
-### 一轮 Turn 为什么会有多个 Task attempt？
+**一轮 Turn 为什么会有多个 Task attempt？**
 
 队列是至少一次投递，Worker 可能在 ACK 前退出、Lease 过期或由恢复扫描器补投，因此同一个 Turn 会有多个执行尝试。Task 记录 attempt、队列、owner 和时间，Turn 仍只允许一个终态。副作用以 Turn 或业务幂等键去重，状态更新带 owner token 条件，防止旧 attempt 在恢复后覆盖新执行者。
 
-### Event sequence 为什么不能由 Worker 自己加一？
+**Event sequence 为什么不能由 Worker 自己加一？**
 
 多个 Worker、取消请求和恢复任务可能同时写事件，进程内计数会产生重复或倒序。序号需要在事实存储中按 Turn 原子分配，并与事件写入处于同一事务边界。客户端使用 `(turn_id, seq)` 去重和重放；若序号有洞可以允许，但已提交序号不能重用或改变含义。
 
-### 终态为什么要由数据库条件更新保护？
+**终态为什么要由数据库条件更新保护？**
 
 取消、超时、Worker 完成和恢复扫描可能竞态。更新语句以 `status IN 非终态`、owner token 和必要版本作为条件，只有一个写入者能把 Turn 推进到 completed、cancelled、expired 或 failed。影响行数为零表示状态已经被别人决定，当前执行者停止并读取事实。仅在 Python 枚举中禁止迁移，无法保护多个进程。

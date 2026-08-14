@@ -25,7 +25,9 @@ updated: 2026-08-12
 
 # OpenAPI、Bruno 与 API 安全测试
 
-NestJS、FastAPI 和 Gin 都返回 200，但 Python 响应少了 `requestId`，Go 对跨租户资源返回 403。编译各自通过无法发现外部语义分叉。同一 OpenAPI 与 Bruno 集合要依次访问三套 API，比较状态码、Schema、Header 和安全失败。
+OpenAPI 是 API 的机器可读协议，Bruno 是发送请求并保存断言的客户端测试工具，安全测试则主动构造越权、重放和伪造输入来验证拒绝边界。三者位于接口实现之外的契约与运行验收层，目标是证明客户端看到的状态码、Schema、Header 和安全失败在不同实现中一致。
+
+NestJS、FastAPI 和 Gin 都返回 200，但 Python 响应少了 `requestId`，Go 对跨租户资源返回 403。编译各自通过无法发现外部语义分叉，因此同一 OpenAPI 与 Bruno 集合要依次访问三套 API。
 
 ## 契约测试把规范变成可运行断言
 
@@ -90,20 +92,20 @@ flowchart LR
 
 集合执行前创建独立租户、用户和资源，执行后按 run_id 精确清理。测试顺序不能依赖上一次残留 Token；同一集合访问三个实现时分别使用 Cookie Jar 和数据前缀。否则一套服务的 Refresh 轮换会让另一套用例随机 401，问题来自测试状态污染而不是契约差异。
 
-## API 安全测试继续追问
+## 契约测试与越权验证边界
 
-### OpenAPI 校验通过为何仍可能越权？
+**OpenAPI 校验通过为何仍可能越权？**
 
 Schema 只验证输入输出形状，不知道当前用户是否能操作目标。需要构造两个租户/角色，验证同一资源在不同 Principal 下的状态和副作用。
 
-### 三套实现内部错误信息不同怎么办？
+**三套实现内部错误信息不同怎么办？**
 
 内部日志可以不同，对外通过统一错误适配器映射稳定 code/detail/requestId。测试不依赖框架默认 Validation Error。
 
-### Bruno 是否替代单元和集成测试？
+**Bruno 是否替代单元和集成测试？**
 
 不能。它擅长外部协议和工作流，难以精确定位 SQL、锁和纯规则。三层测试共同覆盖，不把所有组合都变成慢 API 测试。
 
-### 测试 Refresh Cookie 时怎样读取 HttpOnly？
+**测试 Refresh Cookie 时怎样读取 HttpOnly？**
 
 不需要 JavaScript 读取。HTTP 客户端 Cookie Jar 保存 Set-Cookie 并在后续请求发送；测试检查响应和会话状态，HttpOnly 属性通过 Header/浏览器验证。

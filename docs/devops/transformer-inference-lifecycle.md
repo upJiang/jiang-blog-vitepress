@@ -20,12 +20,13 @@ practice:
     - 每阶段输入输出明确
     - 流式输出不等于并行生成
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
+# Tokenize、Prefill、Decode 与流式推理生命周期
 
-# 一次生成怎样从文本走到流式 Token
+Transformer 推理把输入文本先 Tokenize 成 ID，再用 Prefill 处理整段上下文并建立 KV Cache，随后在 Decode 阶段逐步预测新 Token，最后通过流式协议交给客户端。它位于请求排队与答案传输之间。这几个阶段消耗的计算和内存不同，因此首 Token 等待与后续生成速度要分开观察。
 
-同一个模型，短问题很快出现首 Token，放入长文档后首 Token 等待明显增加；一旦开始输出，后续速度却差不多。这说明变化主要发生在 Tokenize、排队或 Prefill，不应只看总耗时调参。
+同一个模型，短问题很快出现首 Token，放入长文档后首 Token 等待明显增加；一旦开始输出，后续速度却差不多。新增耗时主要落在 Tokenize、排队或 Prefill，不能只看总耗时调参。
 
 推理生命周期把一次请求拆成可观察阶段。每一阶段都有输入、状态、输出和失败方式，TTFT 与 TPOT 也由不同阶段组成。
 

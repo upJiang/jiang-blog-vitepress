@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import {
-  articlesByCategory,
   articlePath,
+  articlesByCategory,
   sections,
+  sectionTrackGroups,
   type Category
 } from '../content'
 import SectionTrackTabs from './SectionTrackTabs.vue'
@@ -23,40 +24,14 @@ const readingHints: Record<Category, string> = {
   algorithms: '先掌握数据结构和复杂度，再用不变量、反例与测试推导查找、图、区间和缓存算法。',
   backend: '先看后端学习地图，再沿请求、数据、一致性、安全、异步处理、运行环境和项目实现逐步展开。',
   devops: '按八个阶段学习运行底座、AI Backend、模型服务、GPU、Kubernetes、企业平台、分布式训练与可靠交付。',
-  'ai-practice': '从 Prompt、Tool、RAG、Agent、Skill 与 MCP 的能力地图出发，逐步建立 Agent 协作、能力扩展、研发系统和个人全栈工作方式。'
+  'ai-practice': '从 Prompt、Tool、RAG、Agent、Skill 与 MCP 的能力地图出发，逐步建立 Agent 协作、能力扩展、研发系统和个人全栈工作方式。',
+  'onnx-practice': '先用一张图片跑通本地推理，再观察 Tensor、Worker、执行后端、缓存和浏览器能力如何共同影响结果。'
 }
 
-const groups = computed(() => {
-  const grouped = new Map<
-    string,
-    ReturnType<typeof articlesByCategory>
-  >()
-
-  for (const item of articlesByCategory(props.category)) {
-    const group = grouped.get(item.part) ?? []
-    group.push(item)
-    grouped.set(item.part, group)
-  }
-
-  return [...grouped.entries()]
-})
+const trackGroups = computed(() => sectionTrackGroups(props.category))
 
 const trackTabs = computed(() => {
-  if (props.category === 'ai-agent') {
-    return [
-      { key: 'all', label: '全部' },
-      { key: 'mainline', label: '推荐阅读顺序' },
-      { key: 'special', label: '专题阅读' }
-    ]
-  }
-
-  return [
-    { key: 'all', label: '全部' },
-    ...groups.value.map(([group], index) => ({
-      key: `part-${index + 1}`,
-      label: displayGroup(group)
-    }))
-  ]
+  return [{ key: 'all', label: '全部' }, ...trackGroups.value.map(({ key, label }) => ({ key, label }))]
 })
 
 const { activeTrack, selectTrack } = useTrackSelection(() =>
@@ -64,30 +39,13 @@ const { activeTrack, selectTrack } = useTrackSelection(() =>
 )
 
 const visibleGroups = computed(() => {
-  if (activeTrack.value === 'all') return groups.value
-  const index = Number(activeTrack.value.replace(/^part-/, '')) - 1
-  return groups.value[index] ? [groups.value[index]] : groups.value
+  const selected = activeTrack.value === 'all'
+    ? trackGroups.value
+    : trackGroups.value.filter(({ key }) => key === activeTrack.value)
+  return selected.flatMap((track) =>
+    track.groups.map((group) => [`${track.key}:${group.key}`, group.label, group.items] as const)
+  )
 })
-
-const aiMainline = computed(() =>
-  articlesByCategory('ai-agent')
-    .filter((item) => item.track === 'mainline')
-    .sort((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0))
-)
-
-const aiSpecialGroups = computed(() => {
-  const grouped = new Map<string, ReturnType<typeof articlesByCategory>>()
-  for (const item of articlesByCategory('ai-agent').filter((entry) => entry.track === 'special')) {
-    const group = grouped.get(item.part) ?? []
-    group.push(item)
-    grouped.set(item.part, group)
-  }
-  return [...grouped.entries()]
-})
-
-function displayGroup(group: string): string {
-  return group.replace(/^第[一二三四五六七八九十]+部分[：:]?\s*/, '')
-}
 </script>
 
 <template>
@@ -118,45 +76,8 @@ function displayGroup(group: string): string {
       @keydown.esc="tabsRef?.focusActiveTab()"
     >
 
-    <template v-if="category === 'ai-agent'">
-      <section v-if="activeTrack === 'all' || activeTrack === 'mainline'" class="article-group article-group--mainline">
-        <div class="article-group-heading">
-          <span>从第一次模型请求到可恢复 Runtime</span>
-          <h2>推荐阅读顺序</h2>
-        </div>
-        <div class="article-index-list">
-          <a v-for="item in aiMainline" :key="item.slug" :href="articlePath(item)">
-            <span class="article-index-copy">
-              <span class="article-index-title">{{ item.title }}</span>
-              <span class="article-index-description">{{ item.description }}</span>
-            </span>
-            <span class="article-index-arrow" aria-hidden="true">→</span>
-          </a>
-        </div>
-      </section>
-
-      <section v-if="activeTrack === 'all' || activeTrack === 'special'" class="article-group article-group--special">
-        <div class="article-group-heading">
-          <span>主线完成后可按需要进入</span>
-          <h2>专题阅读</h2>
-        </div>
-        <div v-for="[group, items] in aiSpecialGroups" :key="group" class="article-special-cluster">
-          <h3>{{ displayGroup(group) }}</h3>
-          <div class="article-index-list">
-            <a v-for="item in items" :key="item.slug" :href="articlePath(item)">
-              <span class="article-index-copy">
-                <span class="article-index-title">{{ item.title }}</span>
-                <span class="article-index-description">{{ item.description }}</span>
-              </span>
-              <span class="article-index-arrow" aria-hidden="true">→</span>
-            </a>
-          </div>
-        </div>
-      </section>
-    </template>
-
-    <section v-for="[group, items] in category === 'ai-agent' ? [] : visibleGroups" :key="group" class="article-group">
-      <h2>{{ displayGroup(group) }}</h2>
+    <section v-for="[groupKey, group, items] in visibleGroups" :key="groupKey" class="article-group">
+      <h2>{{ group }}</h2>
       <div class="article-index-list">
         <a v-for="item in items" :key="item.slug" :href="articlePath(item)">
           <span class="article-index-copy">

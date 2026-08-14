@@ -25,6 +25,8 @@ updated: 2026-08-11
 
 # 模块解析、声明文件与 Project References
 
+模块解析把导入说明符对应到源码或声明文件，声明文件为 JavaScript 包补充静态契约，Project References 则把多个 TypeScript 项目组织成可增量构建的依赖图。三者连接编辑器、TypeScript 编译器和实际运行环境，目标是让类型检查、构建输出与包边界采用一致路径；`paths` 本身不会替浏览器改写 URL。
+
 编辑器能跳转到 `@app/shared`，浏览器却报找不到模块。TypeScript 的 `paths` 帮助类型解析，不一定改写输出导入；真正运行模块的 Node、Bundler 或浏览器还要理解同一 specifier。
 
 ## 三条解析链
@@ -63,7 +65,7 @@ Bundler 模式适合由现代构建器解释扩展名和 exports 的应用，Nod
 
 遇到重复类型或不可赋值的同名类，检查是否安装了多份依赖、类是否含 private 字段形成名义差异，以及 peerDependencies 是否合理。skipLibCheck 能缩短检查但会隐藏声明冲突，不应作为首个修复。
 
-面试追问应能画出编辑器、Bundler、Node 三条解析链，说明 paths 不是运行时别名，并解释 Project References 如何带来边界与增量，而不只是“Monorepo 配置”。
+模块问题要分别画出编辑器、Bundler 与 Node 的解析链。`paths` 不是运行时别名，Project References 也不只是 Monorepo 配置，它还定义构建边界和增量依赖。
 
 ## 一次导入到底经过哪几张表
 

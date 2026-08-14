@@ -123,7 +123,4 @@ for (const sample of samples) {
 
 复杂度是 `O(log n)` 次谓词调用，迭代版本空间 O(1)。空数组、重复元素、NaN 和比较器违反传递性都属于输入契约，不能用边界模板掩盖。
 
-## 参考与验证
-
-- [CP-Algorithms: Binary Search](https://cp-algorithms.com/num_methods/binary_search.html)
-- [MDN: Array.prototype.findIndex](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/findIndex)
+实现依据可以和 [CP-Algorithms 的 Binary Search 说明](https://cp-algorithms.com/num_methods/binary_search.html) 以及 [MDN 的 `findIndex` 参考](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/findIndex) 对照。这里的断言仍以本文定义的边界契约为准：来源解释通用算法，测试负责确认当前实现的闭开区间和返回值。

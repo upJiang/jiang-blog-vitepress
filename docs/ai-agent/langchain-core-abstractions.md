@@ -28,6 +28,8 @@ lastUpdated: false
 ---
 # LangChain 核心抽象：Message、Prompt、Model、Parser 与 Runnable
 
+LangChain Core 是一组用于组合模型调用、消息装配、输出解析和异步执行的接口。它位于应用编排层，连接业务输入与供应商 ChatModel；这些抽象的用途是让同一条调用链可以被独立测试、批量运行和替换模型适配器。
+
 前面的纯 Python Agent 已经有 `ModelGateway`、消息列表、工具循环和停止条件。它可以运行，但每个节点仍用自定义调用方式：模型适配器叫 `generate`，消息装配是普通函数，输出解析和批量、异步、Trace 配置又各有入口。
 
 这一篇只改模型节点的组合方式，不改业务场景。调用方仍然提交只读知识问题：
@@ -42,7 +44,7 @@ lastUpdated: false
 候选回答：先完成身份校验，再由负责人审批。[N1]
 ```
 
-这还不是最终可信答案，因为 Evidence 和 Citation 会在后面的 RAG 与验证节点接入。本篇关注的是：LangChain 把哪些反复出现的调用约定变成公共接口，以及这些接口怎样替换 `agent-demo/app/model_gateway.py` 外层的组合代码。纯 Python 的权限、工具执行和停止条件继续保留。
+当前结果还没有接入 Evidence 和 Citation，因此不能视为可信答案。LangChain 把反复出现的调用约定变成公共接口，用于替换 `agent-demo/app/model_gateway.py` 外层的组合代码；纯 Python 的权限、工具执行和停止条件继续保留。
 
 这篇会回答：
 
@@ -54,7 +56,7 @@ lastUpdated: false
 - LCEL 的 `|` 在运行时如何传递数据；
 - 哪些功能不应该因为用了 LangChain 就塞进 Prompt。
 
-## 先不用框架，把边界写出来
+## 模型调用的基础边界
 
 最小模型调用可以分成四个职责：
 
@@ -170,7 +172,7 @@ LangChain Core 常见消息类型包括：
 
 ### content 不一定只是字符串
 
-随着多模态和供应商接口发展，消息内容可能是多个 content block，例如文本、图片或其他结构。业务代码如果只假设 `message.content` 永远是字符串，会在切换模型或加入多模态时出错。
+多模态接口会把消息内容表示为多个 Content Block，例如文本、图片或其他结构。业务代码如果只假设 `message.content` 永远是字符串，会在切换模型或加入多模态时出错。
 
 初学阶段可以只用文本，但适配层要负责把供应商返回统一成当前应用接受的形式。业务层不要直接遍历某家 SDK 的原始字典。
 
@@ -217,7 +219,7 @@ ChatModel 接收消息并产生 `AIMessage`，通常支持同步、异步、批�
 
 因此“都实现 ChatModel”不等于可以无测试切换。模型网关需要能力声明，集成测试要覆盖结构化输出、工具、流式取消和错误映射。
 
-本篇使用 `FakeListChatModel`，它按预设列表返回答案。它的价值是让链路测试完全离线、确定且不消耗模型额度；真实供应商的网络和协议仍需单独做集成测试。
+测试使用 `FakeListChatModel` 按预设列表返回答案，使链路完全离线、确定且不消耗模型额度；真实供应商的网络和协议仍需单独做集成测试。
 
 ## OutputParser：转换类型，但不替代业务验证
 
@@ -276,7 +278,6 @@ validate(parser(model(prompt(normalize(input)))))
 
 在空目录创建 Python 虚拟环境。这里使用当前 LangChain Core 1.x，并用上限避免未来主版本静默破坏示例：
 
-下面的命令接收本节“环境准备”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 在隔离环境锁定 LangChain 与测试依赖，避免全局版本改变 Runnable 和消息行为。
 python3 -m venv .venv
@@ -598,28 +599,27 @@ batch 是多个输入的执行策略。每一项仍有独立上下文、错误�
 
 如果实现最后让模型自行产生 `visible_scope_ids`，说明上一章的可信字段边界被破坏了。正确顺序是程序先过滤 Evidence，模型只从可见集合中选择引用。
 
-## 常见问题
 
-### LangChain 的 ChatModel 与直接调用供应商 SDK 有什么区别？
+**LangChain 的 ChatModel 与直接调用供应商 SDK 有什么区别？**
 
 供应商 SDK 负责发送该厂商的请求，LangChain ChatModel 在其上提供较统一的 Message、调用配置、流式、批处理和回调接口。统一不代表所有模型能力完全相同：结构化输出、工具调用、Token 字段和错误类型仍要通过能力声明与适配器核对。需要供应商独有功能时可以直接使用 SDK；需要把模型接入 Runnable、Tool 或 Retriever 组合时，ChatModel 能减少协议胶水。
 
-### Message、Prompt 和 Model 为什么要分成三个对象？
+**Message、Prompt 和 Model 为什么要分成三个对象？**
 
 Message 是一次模型协议中的角色化数据，Prompt 是从变量、历史和证据构造 Message 的规则，Model 才负责远程推理。分开后可以在不调用模型时测试模板变量和消息顺序，也能替换模型而不改输入来源。若把三者拼成一个字符串函数，历史裁剪、ToolMessage 配对和证据信任等级都会藏在文本里，问题只能等到线上调用后才暴露。
 
-### Runnable 的 `invoke`、`batch` 和 `stream` 是否只是三种写法？
+**Runnable 的 `invoke`、`batch` 和 `stream` 是否只是三种写法？**
 
 `invoke` 处理一个输入并得到最终输出，`batch` 对多个独立输入调度调用，`stream` 则逐块暴露中间输出；它们对应不同的资源和错误语义。批处理要控制并发、保留输入与结果对应关系，流式要处理取消、慢消费者和未完成输出。某个组件实现了 invoke 不代表它天然支持高效 batch 或真实 token streaming，选用前要用实际模型适配器验证。
 
-### `RunnableConfig` 里应该放哪些信息？
+**`RunnableConfig` 里应该放哪些信息？**
 
 Config 适合传递调用级配置和观测上下文，例如 tags、metadata、callbacks、最大并发以及框架支持的 configurable 字段。用户身份、Scope、事务对象和密钥不应因为“传起来方便”就变成模型可见配置；它们应留在可信 Runtime Context 或外部适配器中。记录 Config 时也要控制高基数字段和隐私，避免把原问题、文档正文或凭证写进 Trace。
 
-### 什么情况下普通 Python 函数比 LCEL 更合适？
+**什么情况下普通 Python 函数比 LCEL 更合适？**
 
 两三个确定步骤、输入输出类型简单、没有统一流式或回调需求时，普通函数通常更直观，调试栈也更短。LCEL 的价值在于组合统一 Runnable、并行映射、配置传播和可观察调用，而不是把每个函数都改写成管道。可以先写纯函数和测试，再在确实需要组合协议时包成 Runnable；如果包装后只增加层级却没有获得流式、批处理或复用，就应保留普通函数。
 
-### 什么时候应该从 LangChain 进入 LangGraph？
+**什么时候应该从 LangChain 进入 LangGraph？**
 
 当应用需要显式共享状态、条件循环、并行分支合并、Checkpoint、中断恢复或唯一终态时，线性 Runnable 链会开始隐藏控制流。LangGraph 把节点更新、边和 Reducer 放进状态图，但不会自动解决权限、事务和幂等。迁移依据应是状态与恢复复杂度，而不是节点数量；一个固定的 Prompt 到 Model 到 Parser 链继续使用 LangChain 就足够。

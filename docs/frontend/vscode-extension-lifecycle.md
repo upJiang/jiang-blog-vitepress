@@ -21,10 +21,11 @@ practice:
 evidence: public-source
 updated: 2026-08-06T00:00:00.000Z
 ---
+# VS Code 扩展生命周期、命令与贡献点
 
-# VS Code 插件开发：从 Extension Host 到第一个命令
+VS Code 扩展是安装到编辑器中的功能包，由扩展清单声明能力，再由运行在 Extension Host 中的 JavaScript 或 TypeScript 代码实现命令、语言支持和工具集成。它位于编辑器核心与外部工具之间，通过受控的 `vscode` API 工作；激活和释放机制用来避免每个扩展都在启动时常驻并留下资源。
 
-这篇文章要做一个很小但完整的插件：在编辑器里选中一段文字，打开命令面板执行“统计选中文本”，VS Code 弹出字符数；右键编辑器也能找到同一命令。
+最小插件提供“统计选中文本”命令：用户在编辑器里选中一段文字，从命令面板或右键菜单执行后，VS Code 弹出字符数。
 
 功能不复杂，刚好可以把插件最容易混淆的三个位置串起来：`package.json` 声明命令，`activate` 注册实现，`context.subscriptions` 管理生命周期。理解这条链后，再做 Webview、代码生成和 AI 助手才不会只会复制脚手架。
 
@@ -41,9 +42,9 @@ flowchart LR
   E --> F[通知、编辑、文件或 Webview]
 ```
 
-这带来一个重要边界：普通前端代码中的 `document.querySelector` 不能直接操作 VS Code 主界面。需要自定义页面时，插件创建 Webview；Webview 是另一套受限页面，通过消息与 Extension Host 通信，下一篇再详细讲。
+这带来一个重要边界：普通前端代码中的 `document.querySelector` 不能直接操作 VS Code 主界面。需要自定义页面时，插件创建 Webview；Webview 是另一套受限页面，只能通过消息与 Extension Host 通信。
 
-## 开始前准备什么
+## 最小扩展工程的运行环境
 
 你需要 Node.js、VS Code 和基本 TypeScript 知识。可以使用官方 Yeoman 生成器创建 TypeScript 扩展，也可以从最小目录手工理解：
 
@@ -57,7 +58,7 @@ text-counter/
 
 `package.json` 不只是 npm 依赖文件，它还包含 VS Code 扩展清单：最低兼容版本、入口文件、激活条件和贡献点。构建后的 `dist/extension.js` 必须与 `main` 对应；编辑器启动扩展时不会直接执行 TypeScript 源文件。
 
-## 第一步：先声明用户能够看到的命令
+## 在 Manifest 中声明命令
 
 在扩展清单中增加：
 
@@ -98,7 +99,7 @@ text-counter/
 
 命令 ID 建议使用稳定前缀，避免与其他扩展碰撞。清单只声明“有这个命令”，尚未提供执行逻辑。
 
-## 第二步：在激活函数中注册实现
+## 在激活函数中注册命令实现
 
 打开 `src/extension.ts`：
 
@@ -150,7 +151,7 @@ export function deactivate(): void {}
 - 可并行的准备工作使用 Promise，但保留取消和错误处理。
 - 缓存只保存可以失效或重建的数据。
 
-## 第三步：运行并观察完整链路
+## 运行扩展并观察命令链路
 
 在 VS Code 中按 `F5`，脚手架会打开 Extension Development Host 窗口。新窗口加载的是开发中的扩展，不会污染主窗口。
 
@@ -178,7 +179,7 @@ export function deactivate(): void {}
 
 只写 `registerCommand` 而不贡献命令，代码可以被其他代码按 ID 调用，却不会自然出现在用户入口；只写 `contributes.commands` 而不注册处理器，用户能看到命令但执行失败。
 
-## 文件和工作区路径不要怎样写
+## 文件与工作区路径边界
 
 旧插件中常见 `vscode.workspace.rootPath`，它只适合单根工作区的历史用法。现代扩展要考虑多根工作区、未打开文件夹以及远程工作区。
 
@@ -200,7 +201,7 @@ export function countCodePoints(text: string): number {
 
 注意“字符数”本身存在产品定义。如果需要按用户感知的字形簇统计，应考虑 `Intl.Segmenter` 及目标运行时兼容性，而不是默默把 Code Point 数称为绝对正确答案。
 
-## 常见问题从哪里查
+## 扩展问题的诊断来源
 
 | 现象 | 第一检查点 |
 | --- | --- |
@@ -211,7 +212,7 @@ export function countCodePoints(text: string): number {
 | 远程工作区文件失败 | 是否把 `Uri` 错转成本地文件路径 |
 | 重载后执行多次 | Disposable 是否被正确管理 |
 
-## 本篇可以带走的插件骨架
+## 可运行的最小扩展骨架
 
 一个最小功能至少要回答：
 
@@ -223,4 +224,4 @@ export function countCodePoints(text: string): number {
 - 注册的资源由谁释放？
 - 哪些逻辑能做普通单元测试，哪些必须启动 VS Code？
 
-下一篇会在这个骨架上增加 Webview。重点不是把 Vue 或 React 页面塞进侧边栏，而是解释 Extension Host 与 Webview 为什么必须通过消息通信，以及 CSP、资源 URI 和消息校验怎样设计。
+这个骨架可以继续增加 Webview，但重点不是把 Vue 或 React 页面塞进侧边栏，而是保持 Extension Host 与 Webview 的消息边界，并正确设计 CSP、资源 URI 和消息校验。

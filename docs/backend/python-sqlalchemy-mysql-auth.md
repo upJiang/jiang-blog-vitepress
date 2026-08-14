@@ -97,20 +97,20 @@ Python 测试运行 ruff、mypy、pytest；MySQL 集成验证事务、N+1 和认
 
 AsyncEngine 的 pool_size、max_overflow 与 Uvicorn Worker 数相乘才是服务总连接上限。四个进程各允许 20 条连接，不是 20，而是最多 80；再叠加 Celery 与迁移 Job 可能超过 MySQL 预算。Pool timeout 应短于请求 deadline，指标记录 checkout 等待和连接使用量，避免把“池里排队”误判成慢 SQL。
 
-## SQLAlchemy 与认证继续追问
+## SQLAlchemy 会话与认证一致性
 
-### expire_on_commit 应该设 false 吗？
+**expire_on_commit 应该设 false 吗？**
 
 async API 常设 false 避免 commit 后访问属性触发隐式 IO，但对象可能是旧值。返回前构造 DTO；需要最新数据库状态时显式 refresh，而不是依赖默认。
 
-### 为什么 Refresh 轮换要锁行？
+**为什么 Refresh 轮换要锁行？**
 
 两个并发刷新都读到有效旧行时可能各自签发新 Token。`SELECT FOR UPDATE` 或原子条件更新让只有一个成功，另一个识别为已替换/重放。
 
-### Pydantic Model 能直接当 ORM Model 吗？
+**Pydantic Model 能直接当 ORM Model 吗？**
 
 职责不同。Pydantic 表达 API 输入输出，SQLAlchemy 表达持久化与关系。直接共用会把数据库字段暴露给客户端，也难以兼容演进。
 
-### 为什么 Alembic autogenerate 仍需人工审查？
+**为什么 Alembic autogenerate 仍需人工审查？**
 
 它无法理解重命名 vs 删除新增、数据回填、锁风险和业务兼容窗口。生成结果只是候选迁移，不是生产计划。

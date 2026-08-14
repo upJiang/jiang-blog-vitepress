@@ -24,7 +24,9 @@ updated: 2026-08-11
 
 # Vue 调度器、computed、watch 与 nextTick
 
-同一同步函数连续修改 count 三次，组件通常只更新一次。响应式 trigger 没有丢更新，而是把组件 Job 加入队列，以微任务批量刷新；Set/标记去重避免同一 Job 重复执行，最终 Render 读取最新状态。
+Vue 调度器接收响应式系统产生的 Job，并决定去重、排序和刷新时机；`computed` 保存惰性派生值，`watch/watchEffect` 在依赖变化时运行同步回调，`nextTick` 让调用方等待当前刷新队列完成。它们位于 `trigger` 与组件 DOM 更新之间，各自解决“何时执行”“算什么”和“何时观察完成”的问题。
+
+同一同步函数连续修改 `count` 三次，组件通常只更新一次。`trigger` 没有丢更新，而是把同一个组件 Job 交给调度器；队列去重后，最终 Render 读取最新状态。
 
 ## 队列不只是 Promise.then
 
@@ -53,7 +55,7 @@ function queueJob(job: () => void): void {
 
 queueJob 每次调用先把函数写入 Set，同一 Job 因此只保留一次；首个调用创建微任务，刷新时依次执行当前任务，finally 清空状态。Job 执行失败仍会释放 pending，但教学输出没有排序、错误分发和刷新中插入规则，真实组件调度必须补齐这些边界。
 
-教学模型表达去重和微任务刷新，未处理排序、刷新中插入和多队列。真实排查不能据此假设所有 watcher 与组件更新的顺序相同。
+这段教学模型只表达去重和微任务刷新。排序、刷新中插入和多队列的具体顺序放在后面的完整轨迹中，不能据此假设所有 watcher 与组件更新时机相同。
 
 ## computed 的脏标记
 
@@ -66,12 +68,6 @@ computed getter 应纯净。写请求、修改依赖或依赖当前时间，会�
 watch 有显式 source，可拿新旧值并 cleanup；watchEffect 自动收集同步读取。`flush: 'pre'` 通常在组件 DOM 更新前，`post` 在更新后，`sync` 立即执行且不批处理，应谨慎用于简单状态。
 
 `nextTick` 返回当前刷新 Promise，让代码等待已经排队的 DOM 更新完成。它不是固定延时，也不保证图片加载、动画结束或浏览器绘制完成。等待绘制用 requestAnimationFrame，等待资源用资源事件。
-
-## 验证轨迹
-
-记录同步修改、pre watcher、组件 render、post watcher、nextTick 和 rAF。预期同步日志先结束，刷新队列按阶段运行，nextTick 在该轮 flush 后恢复。修改中再排 Job 应在同一受控刷新过程或下一轮处理，不能永久丢失。
-
-出现无限更新先查 watcher 是否写回自身 source、computed getter 是否修改依赖、组件 updated 是否无条件 set state。面试追问应能把 trigger 的 scheduler 入口、Job 去重、computed lazy 与 nextTick 边界连接起来。
 
 ## Job Queue 的数据结构和顺序
 
@@ -95,6 +91,12 @@ watch 有显式 source，可拿新旧值并 cleanup；watchEffect 自动收集�
 computed 维护内部 Effect、缓存值和脏状态。依赖 trigger 时 scheduler 先把 computed 标脏并通知读取它的消费者；下一次读取才求值。getter 必须无副作用，否则缓存命中与重新计算会改变外部行为。
 
 watch source 决定依赖范围，回调收到新旧值和 cleanup 注册器。异步回调在 await 前注册 cleanup 最可靠；新版本提供的清理 API 仍应按官方同步调用约束使用。深度 watch 需要遍历对象，成本随图规模增长，也无法为原地嵌套修改自动保留深克隆 oldValue。
+
+## 记录一轮真实刷新
+
+在同一组件中加入 pre watcher、Render 日志、post watcher、`nextTick` 和 `requestAnimationFrame`，连续修改状态三次。记录 Vue 版本和调用位置，验证同步日志先结束，组件 Job 去重，pre/组件/post 按当前版本规则推进，`nextTick` 在该轮 flush 后恢复，rAF 才提供下一次绘制机会。
+
+出现无限更新时，先找哪个 watcher 写回了自身 source、computed getter 是否修改依赖、组件更新 Hook 是否无条件写状态。测试断言阶段关系和最终 DOM，不依赖未公开的私有函数调用次数。
 
 ## 官方依据
 

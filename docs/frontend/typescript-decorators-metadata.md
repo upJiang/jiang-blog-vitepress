@@ -25,6 +25,8 @@ updated: 2026-08-11
 
 # TypeScript 装饰器、初始化顺序与元数据边界
 
+装饰器在类、方法、字段或访问器的定义阶段接收目标并返回处理结果；元数据是框架额外保存的类型或配置描述。这条机制横跨 TypeScript 编译配置、JavaScript 装饰器协议和框架反射层，可用来注册行为或读取声明信息。旧版实验装饰器与标准装饰器的调用协议不同。
+
 同样写 `@logged`，项目切换 TypeScript 配置后参数形状完全不同。原因是旧版 experimentalDecorators 与标准装饰器不是一套调用协议，旧框架依赖的 emitDecoratorMetadata 也不是标准装饰器自动提供的能力。
 
 ## 装饰器处理的是定义过程
@@ -63,7 +65,7 @@ TypeScript 类型通常被擦除。旧 emitDecoratorMetadata 只能发出有限�
 
 升级前清点 tsconfig、框架版本和所有装饰器签名，建立类/方法/字段/继承初始化测试。查看编译输出，确认是否需要旧 helper 或元数据 polyfill。库应在 package metadata 中声明 TypeScript 与运行时前提。
 
-面试追问装饰器时，要能区分语法、标准协议、TypeScript 旧实验实现和框架元数据，不只回答“装饰器是高阶函数”。
+装饰器需要区分语法、标准协议、TypeScript 旧实验实现和框架元数据。“装饰器是高阶函数”无法解释不同实现的调用契约。
 
 ## 标准方法装饰器的执行轨迹
 

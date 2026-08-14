@@ -1,5 +1,5 @@
 ---
-title: Python 第一次调用真实模型：请求、响应、usage、错误与流式输出
+title: Responses API 与第一次 Python 模型调用
 description: 使用 OpenAI Responses API 完成第一次真实请求，读懂响应和 usage，并用同一接口的 Fake Adapter 覆盖无密钥测试。
 category: ai-agent
 part: 认识与第一次运行
@@ -25,42 +25,19 @@ evidence: official
 updated: 2026-08-12T00:00:00.000Z
 lastUpdated: false
 ---
-# Python 第一次调用真实模型：请求、响应、usage、错误与流式输出
+# Responses API 与第一次 Python 模型调用
 
-先把这一行真正跑通：
+## Responses API 的作用和数据边界
 
-```text
-回答：发布完成后，先检查健康接口，再核对实际流量是否进入新版本。
-输入 Token：37
-输出 Token：24
-```
+Responses API 是 OpenAI 用于模型调用的统一接口。应用提交模型、指令和输入，服务返回带状态、输出项和 usage 的 `Response` 对象。纯文本生成只是它最小的一种用法；同一响应还可以包含推理项、工具调用和其他类型的输出。
 
-这里的文字和数字应当来自一次真实 API 响应，而不是脚本里预先写好的字符串。要做到这一点，程序至少经历了五步：从环境变量读取凭证，构造请求，通过 HTTPS 把请求交给模型服务，等待服务生成 Response，再从 Response 中取出文本和用量。
+在 Agent Runtime 中，它位于模型适配层：向下处理供应商协议，向上提供应用能够校验的 `ModelReply`。它不会替应用完成工具授权、业务状态变更和答案事实校验。API 请求成功，只能说明模型服务返回了一个结果，不能证明结果已经满足业务要求。
 
-这一章会把这五步落成 `app/model_gateway.py`。后面写 Tool Calling、Agent 循环、LangChain 和 LangGraph 时都继续使用这个网关，不再让每篇文章各写一套模型调用。
+本文从一个纯文本请求开始，把完整链路落成 `app/model_gateway.py`：进程读取凭证，SDK 构造 HTTPS 请求，服务创建 Response，程序读取文字和用量，再把供应商异常转换成稳定的应用错误。后续 Tool Calling、Agent 循环、LangChain 和 LangGraph 都可以依赖这个网关，不必各写一套模型调用。
 
-## API Key 是身份凭证，不是模型参数
+先看一个具体问题：发布完成后，怎样检查健康接口，再核对实际流量是否进入新版本？这个问题会贯穿同步调用、错误映射和流式事件示例。
 
-OpenAI API Key 用来证明“哪个 API 项目正在发请求”。服务端据此判断权限、限额和计费归属。它不应写进 Python 文件、Prompt、URL、日志或浏览器代码，也不应该作为函数参数在业务层到处传递。
-
-在终端中为当前 shell 设置变量：
-
-```bash
-# 把右侧内容替换为自己的 Key；环境变量只提供给当前 shell 启动的进程。
-export OPENAI_API_KEY="你的_API_Key"
-
-# 模型名也通过环境变量管理，后续切换模型时不必改业务代码。
-export OPENAI_MODEL="gpt-5.6"
-
-# 只检查变量是否存在，不打印真实凭证。
-test -n "$OPENAI_API_KEY" && echo "OPENAI_API_KEY 已设置"
-```
-
-第一条命令把 Key 放进进程环境；Python SDK 默认读取 `OPENAI_API_KEY`。第二条命令保存模型配置。第三条只验证变量非空，避免 Key 被终端历史、录屏或工单再次暴露。关闭这个 shell 后，临时变量随之消失。
-
-如果代码将来运行在容器或 CI 中，应使用 Secret 管理功能注入同名变量。`.env` 适合本地开发，但必须加入 `.gitignore`；它不是 Secret 保险箱。
-
-## 一次 Responses 请求交了什么，又拿回什么
+## 第一次请求的输入与响应结构
 
 Responses API 的最小请求包含 `model` 和 `input`。`model` 选择能力与计价规则，`input` 保存本轮用户任务。SDK 把 Python 对象序列化为 JSON，通过 `/v1/responses` 发给服务端。
 
@@ -80,25 +57,58 @@ sequenceDiagram
 
 Python 应用负责输入和超时，SDK 负责认证头、序列化和响应类型，API 负责鉴权和创建 Response，模型运行服务完成输入处理与输出生成。返回的不是一段裸字符串，而是带 ID、状态、多个 output item 和 usage 的 Response 对象。
 
-**`response.output_text` 是 SDK 提供的便利聚合字段。** `response.output` 可能同时包含消息、工具调用和其他 item，因此不要假定文字永远位于 `output[0].content[0].text`。后面接入 Tool Calling 时，我们会直接检查 output item 的类型。
+`response.output` 是输出项列表，可能同时包含消息、工具调用和推理项，因此不能假定文字永远位于 `output[0].content[0].text`。官方 Python SDK 提供的 `response.output_text` 会聚合文字输出，适合本章的纯文本请求。进入 Tool Calling 后，程序必须遍历 item 类型；空 `output_text` 可能表示模型提出了工具调用，并不必然表示服务失败。
 
-## 建立可替换的模型网关
+`instructions` 保存当前请求的高层行为约束，`input` 保存动态任务。两者分开便于审查和测试，但 `instructions` 只约束模型行为，不能代替程序中的数据权限、工具白名单和状态校验。
 
-在 `agent-demo` 目录准备环境。输入是本机 Python 和包索引，目标是得到隔离环境、OpenAI SDK 与 pytest：
+## 使用 Python 发出真实请求
+
+### 准备凭证和运行环境
+
+OpenAI API Key 用来标识发起请求的 API 项目。服务端据此判断权限、限额和计费归属。Key 不应写进 Python 文件、Prompt、URL、日志或浏览器代码，也不应该作为普通业务参数在各层传递。
+
+在终端中为当前 shell 设置变量：
+
+```bash
+# 把右侧内容替换为自己的 Key；环境变量只提供给当前 shell 启动的进程。
+export OPENAI_API_KEY="你的_API_Key"
+
+# 模型名也通过环境变量管理，后续切换模型时不必改业务代码。
+export OPENAI_MODEL="gpt-5.6"
+
+# 只检查变量是否存在，不打印真实凭证。
+test -n "$OPENAI_API_KEY" && echo "OPENAI_API_KEY 已设置"
+```
+
+Python SDK 默认读取 `OPENAI_API_KEY`。第三条命令只验证变量非空，避免 Key 被终端输出、录屏或工单再次暴露。容器和 CI 应通过 Secret 管理功能注入同名变量。`.env` 可以简化本地开发，但必须加入 `.gitignore`；它不能替代 Secret 管理。
+
+在 `agent-demo` 目录准备环境。输入是本机 Python 和包索引，目标是得到隔离环境、OpenAI SDK 与 pytest。最终目录如下，在线调用和无密钥测试共用 `ModelGateway`：
+
+```text
+agent-demo/
+├── app/
+│   ├── __init__.py
+│   └── model_gateway.py
+├── tests/
+│   └── test_model_gateway.py
+└── run_model.py
+```
 
 ```bash
 # 建立隔离环境，避免示例依赖污染系统 Python。
 python3 -m venv .venv
 source .venv/bin/activate
 
-# SDK 负责 Responses API；pytest 用来验证无密钥替身和错误路径。
-python -m pip install "openai>=1.99,<2" "pytest>=8,<9"
+# 安装当前 OpenAI SDK；pytest 用来验证无密钥替身和错误路径。
+python -m pip install --upgrade openai pytest
 
 mkdir -p app tests
 touch app/__init__.py
 ```
 
-成功后，`python -c "import openai; print(openai.__version__)"` 会打印已安装版本。若安装失败，先检查虚拟环境是否激活、Python 能否访问包索引以及代理配置，不要通过关闭 TLS 校验绕过网络问题。
+成功后，`python -c "import openai; print(openai.__version__)"` 会打印已安装版本。生产项目应把验证通过的具体版本写入 lockfile 或依赖文件，不能每次部署都临时升级。若安装失败，先检查虚拟环境、包索引和代理配置，不要通过关闭 TLS 校验绕过网络问题。
+
+### 用模型网关隔离供应商协议
 
 `app/model_gateway.py` 不把 OpenAI SDK 对象泄露到业务代码。调用方只看 `ModelReply`：文本、统一 usage 和供应商响应 ID。
 
@@ -194,7 +204,7 @@ class OpenAIResponsesGateway:
 
 异常转换没有抹掉原因：`raise ... from exc` 保留原始异常链，日志层可以读取 HTTP 状态和请求 ID，业务层只处理稳定 `code`。成功路径检查文本和 usage，然后返回不依赖 OpenAI 类型的 `ModelReply`。这一边界让 LangChain 或 Claude 适配器以后可以替换实现，而 Agent 循环不用改。
 
-## 运行一次真实请求
+### 运行并检查同步响应
 
 入口只负责读取问题、调用网关和展示必要结果。不要打印完整 Response，因为其中可能包含用户输入、工具参数和其他不适合进入普通日志的内容。
 
@@ -223,9 +233,11 @@ if __name__ == "__main__":
 
 执行 `python run_model.py`。真实回答和 Token 数会随模型、输入和服务端处理变化，不应该与本文开头的示意数字逐字一致。可验证的结果是：回答非空，三个 usage 字段为非负整数，`total_tokens` 能与响应计量对应，Response ID 非空。
 
-认证失败通常先检查变量是否设置、Key 是否属于当前项目以及模型权限；429 既可能是短时间速率限制，也可能是额度限制，应读取原始错误类型后决定是否重试；连接失败检查 DNS、代理和 TLS；超时要记录已经消耗的时间，不能无上限原样重试。
+`total_tokens` 等字段应以当前 API 返回的 usage 契约为准。不能从其中一个总数字倒推缓存、推理或其他细分计量，也不应把某次真实回答逐字写进测试断言。模型输出会变化，单元测试应检查结构、状态和边界；答案质量交给代表样本和 Eval 衡量。
 
-## 流式输出不是“把字符串切碎”
+## 读取 usage 与流式事件
+
+### 流式响应的事件生命周期
 
 非流式调用要等完整 Response 生成后才返回。流式调用使用 SSE 逐个发送**语义事件**。文本增量只是其中一种事件，常见生命周期还包括 `response.created`、`response.output_text.delta`、`response.completed` 和 `error`。
 
@@ -263,7 +275,11 @@ stream_answer("用两句话说明健康检查与真实切流验证的区别。")
 
 程序收到多个 delta 后追加显示，只有 `response.completed` 才证明这次 Response 正常结束。网络中断可能发生在已经显示一部分文字之后，因此 UI 要把流式草稿与最终状态分开；验证、引用和持久化通常在完整候选到达后完成。流式输出改善首字等待体验，却没有减少模型生成工作，也不会自动解决取消、重放和内容审核。
 
-## 没有 Key 时怎样测试，而不是伪造“真实成功”
+建立连接成功也不表示流会持续前进。生产实现通常分别限制连接时间、首个事件等待时间、事件空闲时间和整轮 Deadline，并在取消时关闭底层流。
+
+## 错误分类与可测试模型网关
+
+### 用测试替身验证离线路径
 
 单元测试不应该依赖网络、额度或模型随机性。Fake Adapter 实现同一个 `ModelGateway` 协议，返回明确标记的固定结果。它证明调用方正确处理接口，**不能证明真实 API 可用**。
 
@@ -300,7 +316,9 @@ def test_ask_uses_gateway_once() -> None:
 
 测试中的 `ask()` 只依赖协议，既能接收真实网关，也能接收 Fake。`calls` 让测试观察调用次数；固定 usage 只用于测试字段传递。运行 `pytest -q` 可以在没有 Key 时完成本地验证，但验收报告必须写“Fake 路径通过，在线调用未执行”，不能展示一段固定输出声称模型已经响应。
 
-## 把运行结果变成可排障证据
+Fake 能证明调用方按协议传参、处理空输入并传播字段，不能证明凭证有效、模型可用、真实 usage 正确、流式事件顺序稳定或网络错误映射完整。后几项需要使用明确权限、低成本输入和受控环境执行在线冒烟测试。
+
+### 从错误现象定位失败层
 
 最小日志建议记录：内部请求 ID、Response ID、模型名、开始与结束时间、最终状态、输入/输出 Token、错误码和 HTTP 状态。不要默认记录 API Key、完整 Prompt、完整工具结果或用户私密文本。
 
@@ -316,38 +334,6 @@ def test_ask_uses_gateway_once() -> None:
 | output_text 为空 | Response status 与 output item 类型 | 检查拒绝、工具调用或不完整原因，不伪造空答案 |
 | 流中途断开 | 最后事件类型与是否 completed | 丢弃或标记草稿，不能提交为最终答案 |
 
-到这里，`ModelGateway` 已经成为后续文章的第一个稳定接口：模型服务接收请求，返回候选文字和计量；程序负责凭证、超时、错误分类和是否接受结果。
+SDK 自动重试可以吸收部分短暂错误，但 Agent 还受整轮 Deadline、调用预算和幂等约束。如果 SDK、网关与任务队列分别重试，请求次数会相乘。本例用 `max_retries=0` 暴露一次调用的真实失败；生产系统应在一个位置根据错误类型、剩余时间和副作用语义执行有限重试。
 
-## 常见问题
-
-### `output_text` 和 `output` 有什么区别？
-
-`output` 是 Response 的 item 列表，可能包含文本消息、工具调用等不同类型。`output_text` 是部分官方 SDK 提供的便利属性，会聚合文本输出。只做纯文本请求时使用它很方便；进入 Tool Calling 后必须遍历 item 类型，因为空 `output_text` 可能意味着模型提出了工具调用，而不一定是服务失败。
-
-### 为什么不把 API Key 写在配置文件里，代码读取更方便？
-
-配置文件容易被提交、打包、截图或复制到日志。环境变量也不是绝对安全，但它让凭证脱离源码，并能由容器或 CI 的 Secret 系统注入。应用还应限制变量读取范围、定期轮换 Key，并确保异常和调试输出不打印它。
-
-### `total_tokens` 是否永远等于输入加输出？
-
-应以目标 API 返回的 usage 契约为准，不要自行猜供应商如何分类推理、缓存或其他 Token。本章保存 API 给出的三个顶层字段；后续 Prompt Cache 会继续读取输入明细中的缓存计量，而不是从总数倒推。
-
-### SDK 自动重试不是更省事吗？
-
-自动重试适合部分短暂错误，但 Agent 还有整轮 Deadline、调用预算和幂等约束。如果 SDK、网关和任务队列各自重试，次数会相乘。本章关闭自动重试以暴露单次语义；后续在一个位置根据错误类别和剩余时间加入有限重试。
-
-### 流式请求为什么仍然需要超时？
-
-建立连接成功不代表流会持续前进。服务可能迟迟没有首个事件，也可能在中途停滞。生产实现通常区分连接超时、首 Token 超时、事件空闲超时和整轮 Deadline，并在取消时关闭底层流。
-
-### Fake Adapter 能测试什么，不能测试什么？
-
-它能测试业务层是否按协议调用、是否处理空输入、调用次数和字段传播。它不能证明凭证有效、模型可用、真实 usage 正确、流式事件顺序稳定或网络错误映射完整。这些需要带明确权限和低成本输入的在线冒烟测试。
-
-### 为什么真实回答不能写成测试断言？
-
-模型输出具有非确定性，模型快照和服务行为也会演进。单元测试应断言结构、状态和边界；需要衡量回答质量时，使用代表样本和 Eval 指标，而不是要求某次回答逐字等于固定句子。
-
-### `instructions` 和 `input` 为什么分开？
-
-`instructions` 保存当前请求的高层行为约束，`input` 保存动态任务。分开有利于权限审查、Prompt 版本管理和后续缓存稳定前缀。它仍只是模型约束：真正的数据权限、工具白名单和终态必须由程序控制。
+`ModelGateway` 形成了清晰边界：模型服务负责返回候选输出和计量，应用负责凭证、超时、错误分类、测试证据和是否接受结果。加入工具后，变化发生在 Response item 的处理逻辑，而不是把这些责任重新混在一起。

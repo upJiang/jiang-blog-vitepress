@@ -28,6 +28,8 @@ lastUpdated: false
 ---
 # 本地 Compose 部署：FastAPI、PostgreSQL/pgvector、Redis、Celery、MinIO 与 SSE
 
+这篇搭建的是一套单机多容器的 Agent 验证环境。Docker Compose 负责声明 API、数据库、Broker/Worker、对象存储和网络关系，让此前的 Runtime 契约能跨进程验证；它不替应用实现权限、幂等、Lease、终态或引用。
+
 [Agent Trace](/docs/ai-agent/agent-trace-observability) 已经把模型、检索、工具、队列和验证阶段串到同一条运行记录；此前的模型网关、LangGraph、Retriever、Turn、Worker 和事件也都有稳定接口。如果它们仍然只存在于一个 Python 进程，Worker 重启无法证明恢复，API 与后台任务也无法验证所有权。现在把同一个 `agent-demo` 连接到本地基础设施：
 
 ```text
@@ -285,7 +287,7 @@ docker compose start worker
 docker compose logs --tail=100 worker
 ```
 
-正确结果不是“任务一定从头再跑”。恢复扫描器要检查终态、Lease、Deadline、取消和 Checkpoint；新 Worker 获得所有权后从安全位置继续。模型调用等外部动作要有 attempt 和幂等记录，失去 Lease 的旧 Worker不能提交迟到终态。
+正确结果不是“任务一定从头再跑”。恢复扫描器要检查终态、Lease、Deadline、取消和 Checkpoint；新 Worker 获得所有权后从安全位置继续。模型调用等外部动作要有 attempt 和幂等记录，失去 Lease 的旧 Worker 不能提交迟到终态。
 
 Compose 只让故障可复现。若应用尚未实现 Lease/Checkpoint，这个实验应失败并暴露缺口，不能用重启后碰巧回答成功冒充恢复语义。
 
@@ -301,48 +303,47 @@ docker compose down --volumes
 
 第一条可恢复：下次启动继续使用命名卷。第二条会删除 PostgreSQL、Redis 和 MinIO 演示数据，属于破坏性清理；执行前用 `docker compose ls` 和 `docker volume ls` 确认项目名与目标卷。不要使用会波及其他项目的全局 prune 命令。
 
-## 常见问题
 
-### 为什么不用一个容器运行 API 和 Worker？
+**为什么不用一个容器运行 API 和 Worker？**
 
 两者生命周期和扩缩容不同。API 处理短请求与 SSE，Worker 处理长任务；分开后可以独立重启、限制并发和观察故障。共享镜像仍可复用代码，容器命令决定进程角色。
 
 故障边界也不同：API 重启不应终止已提交 Turn，Worker 崩溃则要依靠 ACK、Lease 和 Checkpoint 恢复。若两者塞进一个进程，健康检查很难区分“HTTP 可用但任务不消费”和“Worker 正常但长连接拥塞”，资源限制也会互相影响。
 
-### `depends_on: service_healthy` 是否保证应用已经可用？
+**`depends_on: service_healthy` 是否保证应用已经可用？**
 
 只保证声明的依赖探针通过。数据库接受连接不代表迁移完成，MinIO 存活不代表 Bucket 已创建，Redis PING 不代表 Worker 正确消费。应用 Readiness 要检查自身必要条件，端到端测试再验证整条链。
 
 因此就绪检查至少分两层：服务层检查连接、迁移和配置版本；业务层提交一个低成本 Turn，观察它是否产生递增事件并到达唯一终态。前一层失败时不用发业务请求，后一层失败则沿 API、Outbox、Broker、Worker 和数据库事件逐段定位。
 
-### Redis 同时做 Broker 和 SSE 通知是否可靠？
+**Redis 同时做 Broker 和 SSE 通知是否可靠？**
 
 适合本地开发，但职责仍要分命名空间。Redis Pub/Sub 只做低延迟唤醒，事实事件写 PostgreSQL；Broker 负责任务投递，业务幂等和终态也在数据库。生产是否拆实例取决于容量和故障隔离。
 
 验证方法是短暂停止 Redis 通知或断开一个 SSE 连接：数据库事件仍应持续增加，重连后能够按序号补发。若 Redis 故障导致终态丢失，说明应用把缓存或 Pub/Sub 错当成事实存储；若只导致页面更新变慢，则降级边界符合设计。
 
-### 为什么 MinIO 不直接保存解析后的所有业务状态？
+**为什么 MinIO 不直接保存解析后的所有业务状态？**
 
 对象存储适合原文件、大制品和按对象读取；Turn、Release、Block 元数据、ACL 和事件需要事务、查询与约束，更适合数据库。MinIO 对象通过稳定 ID 和校验和与数据库记录关联。
 
 对账时从数据库对象记录读取期望 key 与 SHA-256，再到 MinIO 检查对象是否存在、大小和校验和是否匹配。孤立对象进入延迟清理队列，数据库引用存在但对象缺失则关闭候选 Release，不能让解析器把缺文件解释成空文档。
 
-### 本地没有 OpenAI Key，还能完成哪些验证？
+**本地没有 OpenAI Key，还能完成哪些验证？**
 
 可以验证 Compose、迁移、健康检查、幂等提交、队列、Fake Model、事件、取消和恢复控制。不能验证真实模型认证、usage、流式供应商事件和回答质量。报告必须把两类结果分开。
 
 无 Key 的结果应写成“基础设施与确定性 Runtime 已通过，在线模型 Gate 未执行”。等有 Key 后再用短输入检查真实 Response ID、usage 和流式完成事件，并确认计量写回同一 Turn；不要拿 Fake 的固定 Token 数冒充供应商账单。
 
-### 为什么 API 返回 202，而不是等回答后返回 200？
+**为什么 API 返回 202，而不是等回答后返回 200？**
 
 长任务跨模型、检索和验证，HTTP 连接可能先断开。202 表示已创建稳定 Turn；客户端通过 SSE 或状态接口继续观察。很短的直接回答可以做同步优化，但仍应复用同一终态和事件语义。
 
-### 如何确认请求真的被 Worker 消费，而不是只进入 Redis？
+**如何确认请求真的被 Worker 消费，而不是只进入 Redis？**
 
 同时查看数据库 Task/Turn 状态、Worker 日志或心跳、事件序号和 Celery 队列。只有 Broker 队列长度下降不足以证明成功，消息也可能被 ACK 后业务提交失败。
 
 最有用的证据是同一个 `turn_id`：提交后应看到任务进入 queued，Worker 获得 attempt/Lease，事件序号递增，最后由条件更新写入终态。若队列已经清空但状态停在 queued，检查 ACK 时机、Worker 异常和派发补偿，而不是直接重发用户请求。
 
-### `docker compose down --volumes` 为什么要单独强调？
+**`docker compose down --volumes` 为什么要单独强调？**
 
 它会删除本项目命名卷中的数据库、Redis 和对象存储数据。普通 `down` 只删除容器与网络，数据仍可恢复。清理前必须确认项目名和卷，避免把其他本地环境的数据当演示数据删除。

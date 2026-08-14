@@ -1,15 +1,15 @@
 ---
 title: HTTP、JavaScript 渲染与搜索可访问性
-description: 比较匿名 GET、原始 HTML、渲染 DOM 和资源交付，判断搜索系统能否稳定取得主要内容。
+description: 比较匿名 GET、原始 HTML、渲染 DOM、资源响应和失败路径，判断搜索系统能否稳定取得主要内容。
 category: seo
-part: 第四部分：索引、渲染与性能
-chapter: 11
+part: 技术交付与站点审计
+chapter: 13
 tags:
   - HTTP
   - Rendering
 prerequisites:
   - HTTP 与 HTML 基础
-  - 读过第 10 章
+  - 理解索引治理信号
 outcomes:
   - 检查状态、跳转和渲染差异
   - 识别爬虫资源访问风险
@@ -20,16 +20,15 @@ practice:
     - 关键内容不依赖脆弱交互
     - 失败路径有服务端证据
 evidence: official-guided-operation
-updated: 2026-08-11
+updated: '2026-08-11'
 ---
-
-# 浏览器里有正文，为什么匿名请求只得到一个空容器
+# HTTP、JavaScript 渲染与搜索可访问性
 
 预约软件的功能页在日常 Chrome 中显示正常，查看原始响应却只有 `<div id="app"></div>`。标题、价格、功能说明和链接都要等待 JavaScript 下载、接口请求和客户端渲染。一次接口超时后，用户看到转圈，原始 HTML 仍然是空壳。
 
 这不等于“客户端渲染一定不能做 SEO”。真正的问题是公开页面的主要信息有多少个失败依赖，搜索系统与普通用户在失败时能获得什么。
 
-上一篇完成的[索引治理矩阵](/docs/seo/robots-sitemap-canonical-strategy)说明每类 URL 应该怎样被抓取和索引。本篇验证服务器与浏览器是否真正兑现这些规则。输入是公开 URL，处理过程是跟踪 HTTP、保存原始 HTML、执行浏览器渲染并抽查资源，输出是一张差异表与开发问题候选。
+[索引治理矩阵](/docs/seo/robots-sitemap-canonical-strategy)说明每类 URL 应该怎样被抓取和索引。交付审计负责验证服务器与浏览器是否真正兑现这些规则：输入是公开 URL，过程包括跟踪 HTTP、保存原始 HTML、执行浏览器渲染和抽查资源，结果是一张差异表与开发问题候选。
 
 ## HTTP 是页面交付的第一层
 
@@ -145,12 +144,6 @@ URL｜页面任务｜GET 状态与最终 URL｜跳转链｜HTTPS/HSTS/混合内�
 压缩｜缓存｜失败场景｜证据强度｜负责人
 ```
 
-开发/运维负责 HTTP、渲染、资源和缓存证据；SEO 负责人确认哪些差异影响页面任务与索引；内容负责人核对正文；创业者按业务影响排期。先诊断，不在这一章直接选择所有优化方案。
+开发/运维负责 HTTP、渲染、资源和缓存证据；SEO 负责人确认哪些差异影响页面任务与索引；内容负责人核对正文；创业者按业务影响排期。这个阶段只完成诊断，不直接选择所有优化方案。
 
-验收还要覆盖随机不存在 URL、脚本失败、接口超时和移动端。下一篇会把本次加载过程中的时间和布局数据转成性能指标，先理解指标再安排代码优化。
-
-## 继续学习
-
-- 上一篇：[Robots、Sitemap、Canonical 与索引治理](/docs/seo/robots-sitemap-canonical-strategy)
-- 下一篇：[Core Web Vitals 与网站性能指标](/docs/seo/technical-seo-rendering-performance)
-- 开发优化：[开发侧性能优化与验证](/docs/seo/developer-performance-optimization)
+验收还要覆盖随机不存在 URL、脚本失败、接口超时和移动端。加载过程中的时间与布局数据应进一步转换为性能指标，先完成归因再安排代码优化。

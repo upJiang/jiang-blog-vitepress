@@ -30,6 +30,8 @@ lastUpdated: false
 ---
 # LangChain create_agent：模型、工具与消息循环怎样闭合
 
+`create_agent` 是 LangChain 用来组装模型、工具和消息循环的工厂。它返回一个可调用的状态图：模型根据消息提出 ToolCall，工具节点执行受控能力并追加 ToolMessage，模型再决定继续调用还是给出最终 AIMessage。它适合边界清楚的有限 Agent，不替代业务侧的权限、持久化、用量和终态管理。
+
 `search_notes` Tool 只允许模型填写查询和数量，Runtime 注入可信范围，执行结果通过 **ToolMessage** 返回。现在还缺一个控制者，它要完成下面这段对话：
 
 ```text
@@ -41,7 +43,7 @@ AIMessage     模型：根据这条说明回答入口，并在无证据时拒答
 
 这四条消息就是最小 Agent 循环的可观察轨迹。模型没有直接执行函数；工具也没有直接面向用户回答。`create_agent` 在两者之间维护消息状态：调用模型、发现 **ToolCall**、执行白名单 Tool、追加 ToolMessage，再次调用模型，直到模型不再请求工具。
 
-本篇会用当前 LangChain 1.x 的 `create_agent` 实际运行这条轨迹。模型使用离线 `ScriptedChatModel`，因此不需要 API Key，也不会用一个自写 `while` 循环冒充框架行为。脚本模型只替代“模型怎样选择动作”，消息协议、Tool 执行节点、ToolRuntime 注入和图递归限制都由真实 LangChain 执行。
+LangChain 1.x 的 `create_agent` 可以实际运行这条轨迹。离线 `ScriptedChatModel` 不需要 API Key，只替代模型怎样选择动作；消息协议、Tool 执行节点、ToolRuntime 注入和图递归限制都由真实 LangChain 执行。
 
 ## Agent 比固定链多的是“由模型提出下一步”
 
@@ -147,7 +149,6 @@ ToolMessage 必须使用原 ToolCall 的 ID。它的 `content` 给模型阅读�
 
 安装 LangChain 1.x、Pydantic 和 pytest；示例不会连接模型供应商：
 
-下面的命令接收本节“环境、输入和预期轨迹”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 安装 Agent、Fake 模型和测试依赖，预期轨迹由固定 AIMessage 与 ToolCall 驱动。
 python3 -m venv .venv
@@ -329,8 +330,6 @@ if __name__ == "__main__":
     demo()
 ```
 
-代码从 `Note`、`RequestContext`、`search_notes` 这些职责点进入，按定义的调用关系读取输入并更新状态，最终把返回值交给本节下游。正常结果要与后文预期一致；参数非法、依赖失败或状态不允许时应抛出或映射稳定错误，不能静默继续。
-
 ### 模型替身只替换模型决策
 
 `ScriptedChatModel` 继承 LangChain 的 `BaseChatModel`。`bind_tools` 是模型适配器接收工具 Schema 的入口；示例检查注册列表只有 `search_notes`，真实供应商适配器会把这些 Schema 转成自己的请求格式。
@@ -353,7 +352,6 @@ if __name__ == "__main__":
 
 ### 运行并逐条观察消息
 
-下面的命令接收本节“运行并逐条观察消息”已经说明的目录、依赖或参数，并按出现顺序执行。运行前先确认当前路径，观察每一步退出码和后文列出的可见结果；前一步失败时不要继续。
 ```bash
 # 运行后逐条核对 Human、AI、Tool 和最终 AI 消息，call_id 必须成对且步数不超上限。
 python simple_agent.py
@@ -549,28 +547,27 @@ Deadline 是绝对截止时刻。模型、工具、重试和验证都共享剩�
 
 完成后再为 `loop` 模式打印每一步的模型和工具事件。
 
-## 常见问题
 
-### 一个简单 LangChain Agent 内部到底循环了什么？
+**一个简单 LangChain Agent 内部到底循环了什么？**
 
 每轮把当前 Messages 交给模型；若返回普通 AIMessage 就结束，若返回 ToolCall，Runtime 校验并执行工具，再追加匹配的 ToolMessage，随后重新调用模型。循环状态至少包含消息、步骤、已见动作和剩余时间。`create_agent` 封装了图与工具节点，但应用仍要设置工具白名单、可信 Context、停止条件和失败终态。
 
-### 为什么 ToolCall 后必须追加对应的 ToolMessage？
+**为什么 ToolCall 后必须追加对应的 ToolMessage？**
 
 模型需要知道某个调用 ID 的真实观察，才能决定回答或继续行动。ToolMessage 应包含相同 ID、结构化成功或错误结果，并保持调用顺序；缺失或错配会导致供应商拒绝消息，或模型重复工具。多个 ToolCall 并行执行时也要按 ID 关联，不能只把几个结果拼成一段无来源文本。
 
-### 怎样防止 Agent 重复调用同一个工具？
+**怎样防止 Agent 重复调用同一个工具？**
 
 Runtime 可把工具名和规范化参数组成稳定 action key，在执行前与本轮已见集合比较；重复时停止、改写或进入有限纠正，而不是再次消耗依赖。还要同时设置 max_steps 与绝对 Deadline，因为参数轻微变化可能绕过完全相等判断。Trace 中记录候选、是否执行和停止原因，才能区分模型重复与工具重试。
 
-### 寒暄是否也应该进入工具 Agent？
+**寒暄是否也应该进入工具 Agent？**
 
 通常不需要。入口 Router 可以把寒暄、输入不足和明确危险请求走短路径，避免为一句“你好”发送工具 Schema、启动循环和占用检索资源。Router 只做有限分类，知识问题才进入 Agent；权限与安全检查仍在入口执行。是否短路应由可测试规则或结构化分类决定，不应靠工具返回空结果后再猜。
 
-### 一次返回多个 ToolCall 时应该串行还是并行？
+**一次返回多个 ToolCall 时应该串行还是并行？**
 
 先分析工具之间是否有数据依赖、共享资源和副作用。互相独立的只读查询可以在并发上限内并行，结果按调用 ID 合并；后一个查询依赖前一个实体时必须串行。并行分支要有各自超时和统一 Join，ACL 失败通常阻断整轮，非关键辅助数据超时可以降级。不能只因为模型一次给出多个调用就默认并发。
 
-### 为什么这个简单 Agent 还不能直接当企业 Runtime？
+**为什么这个简单 Agent 还不能直接当企业 Runtime？**
 
 它通常在单进程内保存 Messages，缺少持久化 Turn、幂等提交、任务所有权、Lease、版本快照、事件重放、Checkpoint 和最终权限复核。进程退出或浏览器断线时，状态与副作用边界都不明确。简单 Agent 适合用来理解模型和工具的循环；当请求变长、分支增多或需要恢复时，应把状态放入显式 Runtime，不要继续在回调里堆逻辑。

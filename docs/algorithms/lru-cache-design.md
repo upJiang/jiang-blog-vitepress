@@ -132,7 +132,4 @@ Map 保存 `key -> node`，双向链表保存最近使用顺序；两者必须�
 
 `get` 是读语义却会改变顺序，因此并发实现要明确是否需要锁/原子操作；异步 JS 单线程不代表 Worker/多实例共享安全。TTL、最大权重和淘汰回调会把 O(1) 核心扩展成额外时间/资源协议，淘汰回调抛错不能破坏 Map/链表一致性。
 
-## 参考与验证
-
-- [Redis: Eviction Policies](https://redis.io/docs/latest/develop/reference/eviction/)
-- [MDN: Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map)
+如果要把内存 LRU 扩展到服务缓存，可对照 [Redis 的淘汰策略说明](https://redis.io/docs/latest/develop/reference/eviction/)；容器语义可对照 [MDN 的 `Map` 参考](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map)。这些资料解释外部语义，本文测试仍以 Map/链表双射和容量不变量为准。

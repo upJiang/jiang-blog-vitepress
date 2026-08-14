@@ -26,7 +26,9 @@ updated: 2026-08-12
 
 # Kubernetes 探针、资源、HPA 与排障
 
-应用启动迁移需要 40 秒，liveness 第 10 秒开始探测并连续失败，Kubernetes 不断重启容器，服务永远到不了 ready。startup、readiness 和 liveness 回答不同问题；资源 requests/limits 与 HPA 又决定它在哪里运行、何时扩容和何时被 OOM。
+startup、readiness 和 liveness 是 Kubernetes 对进程启动、接流量资格和存活状态的三种探针；requests/limits 是调度与运行时资源边界，HPA 是根据指标调整副本的控制器。它们位于 Pod 运行状态和平台调度层，分别回答“能否开始”“能否服务”“是否需要重启”“放在哪里”和“要运行几份”。
+
+应用启动迁移需要 40 秒，liveness 第 10 秒开始探测并连续失败，Kubernetes 不断重启容器，服务永远到不了 ready。
 
 ## 三类探针不能互相替代
 
@@ -96,20 +98,20 @@ ImagePullBackOff 查镜像名称、digest、Registry 身份和网络。修改前
 
 滚动发布还会因 maxSurge 短时增加总 requests。平时节点刚好容纳 10 个副本，不代表能再调度第 11 个候选 Pod；这会让发布卡在 Pending。容量规划要预留滚动峰值，或调整 surge/unavailable 并确认可用性目标。
 
-## Kubernetes 运行状态继续追问
+## 探针、资源与调度故障
 
-### readiness 失败时在途请求会怎样？
+**readiness 失败时在途请求会怎样？**
 
 它阻止新的 Service 流量，但已经建立的连接/请求可能继续。发布摘流还需 preStop/应用 drain 和足够 termination grace，入口也可能有连接复用。
 
-### CPU limit 为什么会让延迟抖动？
+**CPU limit 为什么会让延迟抖动？**
 
 进程达到配额后被周期性 throttling，即使节点还有空闲 CPU，也可能暂停。观察 throttled_seconds 与 P99，按服务特性决定是否设置/提高 limit，并保留 request。
 
-### HPA 最小副本能设为 0 吗？
+**HPA 最小副本能设为 0 吗？**
 
 标准 HPA 通常最小至少 1；缩到 0 需要事件驱动扩缩等机制。冷启动会增加首请求延迟，数据库迁移和唯一 Scheduler 也要独立处理。
 
-### Pod Pending 为什么可能与镜像无关？
+**Pod Pending 为什么可能与镜像无关？**
 
 可能没有满足 requests 的节点、taint/toleration 不匹配、PVC 未绑定、亲和性无解。先读 Pod events 与 scheduler reason，不先改镜像。

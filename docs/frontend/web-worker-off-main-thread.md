@@ -24,7 +24,9 @@ updated: 2026-08-11
 
 # Web Worker、消息传递与主线程预算
 
-解析几十 MB 数据让输入停顿，把同一函数放进 Promise 不会离开主线程。Dedicated Worker 拥有独立全局环境和事件循环，可以并行执行 CPU 工作，但不能直接访问 DOM，数据交换也有序列化和内存成本。
+Web Worker 是浏览器提供的后台 JavaScript 执行环境。Dedicated Worker 由一个页面创建，拥有独立的全局对象和事件循环，通过消息与主线程交换数据。它位于页面交互与 CPU 密集计算之间，用来减少长任务对输入和渲染的阻塞；它不能直接访问 DOM，传输数据也有序列化、复制或所有权转移成本。
+
+解析几十 MB 数据让输入停顿时，把同一函数放进 Promise 不会离开主线程。Worker 才能把计算移到另一条线程，但“移走计算”不保证总耗时下降，是否值得迁移要用主线程响应和端到端耗时一起判断。
 
 ## 隔离边界
 
@@ -50,6 +52,68 @@ Worker 收到带 id 的数组后在独立线程累加，并输出同 id 的成�
 
 协议用 id 关联并发请求，用可辨识联合表达成功失败。生产协议还需版本、取消、超时和输入上限。不能把 Error 对象细节或敏感数据无选择发送。
 
+只有 Worker 端代码还无法完成调用。主线程需要保存每个请求的 Promise 所有者，并在 Worker 崩溃、超时或页面销毁时统一收尾：
+
+```ts
+type Pending = {
+  resolve: (value: number) => void
+  reject: (reason: Error) => void
+  timer: number
+}
+
+export function createSumWorker() {
+  const worker = new Worker(new URL('./sum.worker.ts', import.meta.url), {
+    type: 'module'
+  })
+  const pending = new Map<string, Pending>()
+  let closed = false
+
+  worker.onmessage = (message: MessageEvent<WorkerReply>) => {
+    const task = pending.get(message.data.id)
+    if (!task) return
+    clearTimeout(task.timer)
+    pending.delete(message.data.id)
+    if (message.data.ok) task.resolve(message.data.total)
+    else task.reject(new Error(message.data.error))
+  }
+
+  worker.onerror = () => {
+    closed = true
+    for (const task of pending.values()) {
+      clearTimeout(task.timer)
+      task.reject(new Error('worker_crashed'))
+    }
+    pending.clear()
+  }
+
+  return {
+    sum(values: Float64Array, timeoutMs = 5_000): Promise<number> {
+      if (closed) return Promise.reject(new Error('worker_unavailable'))
+      const id = crypto.randomUUID()
+      return new Promise((resolve, reject) => {
+        const timer = window.setTimeout(() => {
+          pending.delete(id)
+          reject(new Error('worker_timeout'))
+        }, timeoutMs)
+        pending.set(id, { resolve, reject, timer })
+        worker.postMessage({ id, kind: 'sum', values } satisfies WorkerRequest)
+      })
+    },
+    dispose() {
+      closed = true
+      worker.terminate()
+      for (const task of pending.values()) {
+        clearTimeout(task.timer)
+        task.reject(new Error('worker_disposed'))
+      }
+      pending.clear()
+    }
+  }
+}
+```
+
+这份适配器解决请求关联和统一终止，Worker 崩溃后也会拒绝新任务；它还没有实现自动重建和单任务取消。若一个 Worker 同时承载多个长任务，应增加 `cancel(id)` 消息，并把计算切成可检查取消标记的小块；若每个页面只有一个独占任务，直接 `terminate()` 更可靠。
+
 ## 什么时候值得迁移
 
 适合可独立的 CPU 密集任务：解析、压缩、图像处理、搜索索引。很短任务的 Worker 启动与消息成本可能更大；大量细碎消息会造成复制和调度开销。DOM 测量仍在主线程，Worker 只能计算数据结果。
@@ -64,7 +128,7 @@ SharedWorker 可在同源多个页面共享进程和连接，但生命周期、�
 
 固定数组和设备，记录主线程版本的 Long Task、INP 代理交互和总耗时；Worker 版本记录序列化、计算和回传。预期主线程响应改善，总耗时可能因传输增加。若数据可转移，比较 clone 与 transfer。
 
-面试追问 Worker 与 Promise 时，应明确 Promise 只安排异步控制流，Worker 才提供另一线程；再说明 DOM 限制、结构化克隆、Transferable、取消和适用成本。
+Promise 只安排异步控制流，Worker 才提供另一条线程。迁移评审还要同时说明 DOM 限制、结构化克隆、Transferable、取消和启动成本。
 
 ## 消息协议和所有权
 

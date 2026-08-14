@@ -20,10 +20,9 @@ practice:
     - 正常、过载、取消、发布和恢复路径完整
     - 每项能力都有所有者、证据和停止条件
 evidence: anonymized-practice
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# Enterprise AI Platform：把 36 个主题收敛成一套系统
+# 综合项目：设计 Enterprise AI Platform
 
 平台已经接入五个模型、两个向量库和三个 Agent，任何变更仍要逐个业务修改；出现超时时也没人知道请求停在网关、检索、模型还是流式入口。组件数量增加了，平台能力没有形成。
 

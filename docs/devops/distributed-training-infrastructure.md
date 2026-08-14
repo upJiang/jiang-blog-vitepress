@@ -20,14 +20,21 @@ practice:
     - 策略选择能回到瓶颈
     - 不提供未经实测的训练吞吐
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
+# 分布式训练：Data、Tensor、Pipeline Parallel、DDP 与 FSDP
 
-# 分布式训练：先问单卡为什么不够
+分布式训练把模型计算、参数或数据批次分配到多张 GPU 或多台机器。Data Parallel、Tensor Parallel、Pipeline Parallel、DDP 和 FSDP 分别切分不同对象。它们位于训练框架与 GPU/网络资源之间，用来突破单卡容量或提高吞吐，同时引入同步、通信和调度成本。
 
 训练任务扩到八张 GPU，吞吐只提升一点。可能是每张卡的 Batch 太小、梯度 AllReduce 占满网络、数据加载跟不上，也可能是 Pipeline 出现大量空泡。增加 GPU 只增加可用资源，不自动改变瓶颈。
 
 分布式训练把数据、参数、激活、梯度和 Optimizer State 分布到多个 Rank。选择策略前先判断目标：模型是否放不下、单步计算是否太慢、数据量是否需要更大吞吐，还是训练时间受检查点与输入管线影响。
+
+## 分布式训练的定义与目标
+
+分布式训练是让多个进程（通常每个进程绑定一个 GPU）共同完成同一个训练作业。每个进程有自己的 `Rank`，进程总数是 `World Size`；它们通过进程组交换梯度、参数、激活或检查点。它解决的是单个设备的容量、计算或输入吞吐不够，不会把任意 Python 循环自动变快。
+
+一轮训练至少涉及模型参数、梯度、Optimizer State 和当前 Batch。后面的 DP、TP、PP 与 FSDP 都在回答同一个问题：每个 Rank 在什么阶段拥有哪一份状态，以及为了得到下一份状态要付出哪种通信。
 
 ## 训练状态占用什么
 
@@ -80,6 +87,17 @@ flowchart TB
 ```
 
 图只演示关系，不指定唯一策略。真实拓扑要写清 World Size、Global/Local Rank、节点、GPU UUID、Process Group 与每种并行维度。
+
+假设两台机器各有四张卡，`World Size=8`，节点内使用 Tensor Parallel、节点间使用 Data Parallel：`global_rank=0..3` 属于 DP 副本 0，`global_rank=4..7` 属于 DP 副本 1；`local_rank` 是进程在本机的 GPU 序号。
+
+| 阶段 | 每个 Rank 需要的状态 | 典型通信 | 要记录的字段 |
+| --- | --- | --- | --- |
+| 前向 | 本地 Batch、当前层参数或参数分片 | AllGather 或层内 TP 通信 | `step`、`layer`、`global_rank` |
+| 反向 | 激活、梯度分片 | ReduceScatter、TP Reduce | `backward_start/end`、`collective` |
+| 更新 | Optimizer State 分片 | 参数同步或分片更新 | `optimizer_step`、`shard_id` |
+| 检查点 | 参数、优化器和训练进度分片 | 分片写入、Manifest 汇总 | `checkpoint_id`、`rank`、校验和 |
+
+这张表也说明了为什么“八张卡”不是完整配置。只要 Batch、参数布局、进程组或检查点格式没有写出来，就无法判断增加设备是在扩大数据并行，还是改变了单层计算的所有权。
 
 ## 数据与检查点
 

@@ -20,14 +20,13 @@ practice:
     - Driver 与 Runtime 关系正确
     - 没有 NVIDIA GPU 时只解释命令字段
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# GPU Driver、CUDA Runtime 与显存：先分层，再处理 OOM
+# GPU Driver、CUDA Runtime、HBM/VRAM 与显存诊断
 
 模型日志提示 `CUDA unavailable`，这不是显存不足；模型能加载、长上下文一到就 OOM，也不意味着驱动不兼容。第一类故障发生在设备与软件栈可用性，第二类发生在运行容量。把它们都归为“GPU 有问题”会让排查从错误层开始。
 
-本篇建立软件栈与显存账本。由于当前机器是 Apple Silicon，没有 NVIDIA GPU，命令字段仅按 NVIDIA 官方文档解释，不提供本地 GPU 输出和性能结论。
+软件栈与显存账本用于解释进程、模型和 CUDA 组件怎样占用设备资源。由于当前机器是 Apple Silicon，没有 NVIDIA GPU，命令字段仅按 NVIDIA 官方文档解释，不提供本地 GPU 输出和性能结论。
 
 ## GPU 软件栈
 

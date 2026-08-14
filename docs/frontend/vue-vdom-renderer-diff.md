@@ -25,9 +25,11 @@ updated: 2026-08-11
 
 # Vue VNode、Renderer 与 Keyed Diff
 
-列表从 `[a,b,c,d]` 变成 `[a,c,b,e,d]`，哪些 DOM 能留在原位，哪些需要移动或新建？Renderer 先由 VNode type/key 判断身份，再在 keyed children 中同步前后缀、建立索引映射，最后用最长递增子序列减少移动。
+VNode 是 Vue 对元素或组件输出的渲染描述；Renderer 把前后 VNode 树映射为宿主环境的创建、更新、移动和删除操作；Keyed Diff 是同一父节点下列表子节点的协调算法。它们位于组件 Render Effect 与 DOM 操作之间，负责保留业务身份并减少不必要的宿主变更。
 
-本篇目标是从一次列表重排完成完整执行推演，并用宿主操作日志验证新增、删除、复用和移动。实践边界限定在同一父节点的 keyed children；跨层级移动、Transition 动画和浏览器布局成本需要在更上层分别分析。
+列表从 `[a,b,c,d]` 变成 `[a,c,b,e,d]` 时，Renderer 先由 VNode 的 type/key 判断身份，再在 keyed children 中同步前后缀、建立索引映射，最后用最长递增子序列减少移动。
+
+一次列表重排可以完整推演新增、删除、复用和移动，再用宿主操作日志核对结果。实践边界限定在同一父节点的 keyed children；跨层级移动、Transition 动画和浏览器布局成本需要在更上层分别分析。
 
 ## Renderer 的输入输出
 
@@ -58,7 +60,7 @@ LIS 可保留一个旧节点；0 表示 e 需要新建
 
 用自定义 host operation 记录 create/insert/remove/patchProp，比直接观察 DOM 更容易断言算法轨迹。测试纯追加、纯删除、头尾交换、逆序、混合插入和重复 key。再在浏览器确认输入状态和焦点跟随业务实体。
 
-面试比较 React/Vue diff 时，说明 Vue 编译提示和 LIS 移动优化，React 侧说明 Fiber 调度与单向子节点协调；不要用脱离版本的“谁一定更快”结论。
+比较 React/Vue diff 时，要分清 Vue 编译提示与 LIS 移动优化、React Fiber 调度与单向子节点协调的不同职责，不能用脱离版本和输入的“谁一定更快”作结论。
 
 ## 把混合区间完整走一遍
 

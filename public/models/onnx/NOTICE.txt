@@ -1,0 +1,47 @@
+SqueezeNet 1.0 Opset 12
+
+Source repository: https://huggingface.co/onnxmodelzoo/squeezenet1.0-12
+Pinned revision: 0e6cddd4291d78516c22543bc5a347d5916154a0
+Model file: squeezenet1.0-12.onnx
+Model size: 4,952,956 bytes
+Model SHA-256: dec81a8684617770b3cf13fadc1d92565d1d453d23935fc6388b792d99c992bd
+License: Apache-2.0
+
+The model and ImageNet synset labels are distributed by the ONNX Model Zoo project.
+The ONNX Model Zoo repository is licensed under Apache-2.0:
+https://github.com/onnx/models/blob/main/LICENSE
+
+YOLOX-Nano 416x416
+
+Source release: https://github.com/Megvii-BaseDetection/YOLOX/releases/tag/0.1.1rc0
+Source revision: e1052df71842031413f6030723c3607b839c80ce
+Original release file: yolox_nano.onnx
+Local model file: yolox-nano-416.onnx
+Model size: 3,659,407 bytes
+Model SHA-256: c789161ed43c8269fcd4e67c67eeeb4e80c622da2eb296a20bc6007bd18a0b7d
+License: Apache-2.0
+License file: https://github.com/Megvii-BaseDetection/YOLOX/blob/e1052df71842031413f6030723c3607b839c80ce/LICENSE
+
+ImageNet Chinese labels
+
+Source repository: https://github.com/DWHNicholas/ImageNet_chinese_cls
+Pinned revision: 4c9d449bfd473628c3bba0dba39536bc4c97be77
+Local file: imagenet.zh-CN.txt
+Label count: 1,000
+File SHA-256: f7b6f4bb0ddec755dbea41577c7c5155a4fa2852706f2263c0d3015dc67a8181
+License: Apache-2.0
+
+COCO Chinese labels
+
+The 80 Chinese display labels in coco.zh-CN.txt follow the class order in
+YOLOX/yolox/data/datasets/coco_classes.py at the pinned YOLOX revision above.
+The translations are maintained with this experiment and are distributed
+under the repository license. They do not change the YOLOX model output order.
+Label count: 80
+File SHA-256: cb569f2cf19083e113efd42ee51403ef2328b94e66890e220f91aba62e0c6b86
+
+Sample image: Domestic cat 2011 G02.jpg
+Author: George Chernilevsky
+Source: https://commons.wikimedia.org/wiki/File:Domestic_cat_2011_G02.jpg
+License: Public domain
+Original image SHA-1: 04be0d16becf3d4fefe5ea70b4cdef7274a08fd1

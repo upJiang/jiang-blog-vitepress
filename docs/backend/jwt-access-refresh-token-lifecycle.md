@@ -31,7 +31,7 @@ updated: 2026-08-12
 
 这套实现确实“用了 JWT”，却没有处理长期凭证存储、撤销、设备会话和泄露响应。**JWT 只是带签名的声明格式，不是一套完整登录系统。**
 
-本篇设计一条可运营的认证链：15 分钟 Access Token 放在浏览器内存；30 天随机 Refresh Token 放在 HttpOnly Cookie；服务端只保存 Refresh Token 哈希和会话族状态；每次刷新都轮换令牌，旧令牌重放会撤销整族会话。
+认证链采用 15 分钟 Access Token 和 30 天随机 Refresh Token：前者放在浏览器内存，后者放在 HttpOnly Cookie；服务端只保存 Refresh Token 哈希和会话族状态；每次刷新都轮换令牌，旧令牌重放会撤销整族会话。
 
 ## 登录系统里有四种不同东西
 
@@ -259,32 +259,32 @@ export async function apiFetch(input: RequestInfo, init: RequestInit = {}) {
 
 前端与 API 完全跨站时，需要 `SameSite=None; Secure`，同时配置精确 CORS Origin、允许凭证和 CSRF 防护。不能使用 `Access-Control-Allow-Origin: *` 与凭证组合。
 
-## 认证生命周期里的继续追问
+## 凭证撤销与并发刷新的边界
 
-### JWT 可以验签，为什么退出后 Access Token 还可能有效？
+**JWT 可以验签，为什么退出后 Access Token 还可能有效？**
 
 业务 API 只做离线验签时，不会自动查询 Session 撤销状态。已经签发的 Access Token 会在 15 分钟 TTL 内继续有效。可通过缩短 TTL、检查高风险操作的会话状态、维护短期撤销缓存或提高会话版本解决，但会增加依赖与延迟。系统需要按风险选择，而不是宣称 JWT 可即时撤销。
 
-### HttpOnly 是否意味着不用担心 XSS？
+**HttpOnly 是否意味着不用担心 XSS？**
 
 不是。HttpOnly 阻止脚本读取 Cookie，但被注入的脚本仍可能以当前页面身份发请求、读取页面数据和窃取内存 Access Token。仍需输出编码、CSP、依赖治理和最小权限。HttpOnly 只是减少长期 Refresh 凭证被直接复制的风险。
 
-### 为什么 Refresh Token 使用随机字符串，而 Access 使用 JWT？
+**为什么 Refresh Token 使用随机字符串，而 Access 使用 JWT？**
 
 Access Token 被多个业务 API 高频验证，JWT 允许服务在短时内离线校验声明。Refresh 只访问认证服务，最重要的是可撤销、单次使用与重放检测，随机不透明令牌配合服务端 Session 更直接。把 Refresh 也做成 JWT 不会消除状态管理需求。
 
-### 多标签页同时恢复登录会不会再次造成并发刷新？
+**多标签页同时恢复登录会不会再次造成并发刷新？**
 
 单个标签页的 Promise 不能合并其他标签页请求。可以让 Refresh 端点使用短宽限窗口与严格令牌族状态，或用 Web Locks/BroadcastChannel 协调同源标签页。无论客户端如何协调，服务端事务仍必须正确处理并发，因为客户端控制不能成为安全前提。
 
-### 权限变化后，旧 Access Token 中的角色怎么办？
+**权限变化后，旧 Access Token 中的角色怎么办？**
 
 如果把完整权限放进 JWT，它会在过期前保持旧值。可以只携带主体与会话身份，在数据库或缓存查询权限；也可以携带权限版本，在关键请求中核对当前版本。权限变化要求即时生效的系统不能只依赖长时自包含 Token。
 
-### Refresh 请求超时后可以直接重试吗？
+**Refresh 请求超时后可以直接重试吗？**
 
 结果可能未知：服务端可能已经轮换 Cookie，但响应丢失。浏览器若没有收到新 Cookie，重试旧令牌可能被判定为重放。实现需要为相邻轮换保留受控的幂等恢复信息，或让客户端重新登录；不能简单无限重试，也不能为了方便永久接受旧令牌。
 
-### 为什么不把 Access Token 放 localStorage，用户体验不会变差吗？
+**为什么不把 Access Token 放 localStorage，用户体验不会变差吗？**
 
 页面刷新时多一次会话恢复请求，但换来的是 Access 不长期留在可被脚本读取的持久存储。Refresh Cookie 仍能恢复登录，因此用户不必重新输入密码。应用应显示短暂认证恢复状态，避免受保护页面先闪现再跳转。

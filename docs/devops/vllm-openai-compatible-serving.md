@@ -19,14 +19,13 @@ practice:
     - 兼容范围被明确声明
     - 不提供未经目标硬件实测的吞吐数字
 evidence: official-guided-operation
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
-
-# vLLM：启动一个端口只是服务化的第一步
+# vLLM 服务、OpenAI 兼容接口与故障定位
 
 容器日志显示 HTTP Server 已启动，调用模型列表也成功，第一次 Chat 请求却返回“模型不存在”。常见原因是客户端使用仓库名称，服务对外暴露的是另一个 served model name。接口、模型制品、引擎参数和部署标识必须在同一契约中对齐。
 
-vLLM 提供面向大模型推理的 Engine 与 OpenAI-compatible Server，核心能力包括调度、PagedAttention、Continuous Batching、并行执行和流式输出。本篇解释启动与故障路径，不在当前无 NVIDIA GPU 的环境声称完成真实部署。
+vLLM 提供面向大模型推理的 Engine 与 OpenAI-compatible Server，核心能力包括调度、PagedAttention、Continuous Batching、并行执行和流式输出。启动与故障路径可以从配置和协议验证，当前无 NVIDIA GPU 的环境不能证明真实部署结果。
 
 ## 从进程启动到请求完成
 
@@ -88,7 +87,7 @@ vLLM 的兼容 Server 支持常见模型列表、Completions、Chat Completions 
 | 容量 | 权重或工作区 OOM | 模型参数、dtype、显存账本 |
 | 并行 | GPU 数量、Rank、拓扑错误 | 可见设备、并行参数、Worker 日志 |
 
-修复顺序是先确认错误阶段，再改变最小变量。遇到 OOM 就降低 `gpu-memory-utilization` 可能适得其反，因为可用于 KV Cache 的空间更少；模型加载 OOM 与高并发 KV OOM需要不同处理。
+修复顺序是先确认错误阶段，再改变最小变量。遇到 OOM 就降低 `gpu-memory-utilization` 可能适得其反，因为可用于 KV Cache 的空间更少；模型加载 OOM 与高并发 KV OOM 需要不同处理。
 
 ## 运行期故障和过载
 
@@ -100,4 +99,4 @@ Worker 崩溃、NCCL 错误和节点不可用属于执行故障。编排平台�
 
 新 vLLM 或模型版本先作为候选实例加载，验证模型列表、普通与流式请求、长度拒绝、取消、显存与 Eval，再逐步接流量。旧实例在候选稳定前保持可用。回滚要恢复模型、Tokenizer、模板、引擎和启动参数整组版本。
 
-本篇不提供吞吐结论，因为它必须来自目标模型、GPU、vLLM 版本和真实请求分布。可靠的交付物是一份可复现配置、能力矩阵、故障证据表和候选验证记录。
+吞吐结论必须来自目标模型、GPU、vLLM 版本和真实请求分布。当前只能形成可复现配置、能力矩阵、故障证据表和候选验证记录。

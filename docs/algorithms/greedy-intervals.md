@@ -95,7 +95,4 @@ console.assert(selected.every((item, index) => index === 0 || selected[index - 1
 
 排序 `O(n log n)`，一次扫描 O(n)，额外空间取决于排序实现和输出。随机暴力验证只能发现反例，不能替代交换论证；两者都需要，前者验证代码，后者验证算法选择。
 
-## 参考与验证
-
-- [CLRS: Greedy Algorithms](https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/)
-- [CP-Algorithms: Scheduling](https://cp-algorithms.com/schedules/schedule_one_machine.html)
+交换论证和调度背景可对照 [CLRS 的 Greedy Algorithms 章节](https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/) 与 [CP-Algorithms 的单机调度说明](https://cp-algorithms.com/schedules/schedule_one_machine.html)。这些来源支持证明方法和问题模型；本文的随机反例与断言仍负责验证端点语义和代码行为。

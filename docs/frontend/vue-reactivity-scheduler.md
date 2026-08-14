@@ -24,7 +24,9 @@ updated: 2026-08-11
 
 # Vue 3 响应式系统：依赖图与 Effect
 
-模板读取 `state.price * state.count` 后，修改 count 会让组件更新，修改无关字段不会。Vue 不是定时比较整个对象，而是在 Effect 执行期间记录“哪个副作用读取了哪个 target/key”，写入时沿依赖图找到受影响 Effect。
+Vue 3 的响应式系统负责把状态读取与需要重新执行的计算连接起来。它位于普通 JavaScript 数据和组件渲染、`computed`、`watch` 之间：Proxy 拦截读写，ReactiveEffect 表示副作用，依赖图记录“哪个 Effect 读过哪个 target/key”。状态变化后，系统只通知相关 Effect，并把组件更新交给调度器。
+
+例如模板读取 `state.price * state.count` 后，修改 `count` 会触发组件更新，修改无关字段不会。Vue 不需要定时比较整个对象；它在 Effect 执行期间收集读取关系，写入时再沿依赖图寻找订阅者。
 
 ## 依赖图的数据结构
 
@@ -74,6 +76,8 @@ track 的输入是当前 target/key 与 activeEffect，执行后在依赖图中�
 
 Effect 还要阻止不允许的递归触发，并把“立即执行”与“交给 scheduler”分开。trigger 找到 Effect 后，若有 scheduler 就把 job 交给队列，而不是同步重跑组件。
 
+这也是响应式系统与组件调度的交界。依赖图回答“谁需要更新”，scheduler 决定“何时执行以及同一轮是否去重”。`nextTick` 等待的是当前刷新队列完成，不是等待任意网络请求或浏览器所有绘制结束。调度队列、`computed` 和 `watch` 的执行顺序由后续专题展开，本文只把交接点讲清楚。
+
 ## ref、reactive 与解包
 
 reactive 适合对象代理；ref 用带 value 的容器承载原始值或对象，并有自己的 Dep。模板和 reactive 属性在部分场景自动解包 ref，但数组、集合和类型边界存在差异。`toRefs` 用属性 ref 保持解构后的连接；直接解构 reactive 的原始属性只得到当时值。
@@ -82,27 +86,20 @@ computed 是带缓存和脏标记的特殊 Effect。依赖变化时先标脏并�
 
 ## 验证依赖清理
 
-实现 `state.ok ? state.text : 'hidden'` 的 Effect，记录每次 track/trigger。切换 ok=false 后修改 text，Effect 不应再运行；切回 true 后应重新订阅。再测试重复读取同一 key 只保留一个订阅、停止 Effect 后 Dep 不再持有它。
+实现 `state.ok ? state.text : 'hidden'` 的 Effect，记录每次 track/trigger。期望日志可以直接写成下面这条轨迹：
+
+```text
+run 1: track ok, track text -> "hello"
+set ok=false: trigger ok -> cleanup -> run 2: track ok -> "hidden"
+set text="bye": no run
+set ok=true: trigger ok -> run 3: track ok, track text -> "bye"
+```
+
+如果第三步仍然运行，说明旧 `text` 依赖没有清理。还要测试重复读取同一 key 只保留一个订阅、停止 Effect 后 Dep 不再持有它，以及用户函数抛错后 `activeEffect` 能在 `finally` 中恢复。
 
 数组 push、删除属性、`in`、Object.keys 和 Map size 需要额外迭代依赖，若教学实现不支持要明确标注。生产排查可使用 Vue Devtools 和组件 onRenderTracked/onRenderTriggered，定位具体 target/key 操作。
 
-面试回答 Vue 响应式不能停在“Proxy 劫持”。完整链路是代理拦截、Effect 上下文、双向依赖图、cleanup、trigger 分类和 scheduler 入口。
-
-## targetMap 与 Dep 怎样互相找到
-
-概念模型可以写成 `WeakMap<object, Map<PropertyKey, Dep>>`。WeakMap 以原对象为键，不阻止对象回收；每个属性对应一个 Dep，Dep 记录订阅它的 ReactiveEffect。Effect 反向保存自己加入过的 Dep，下一次运行前据此 cleanup，解决条件分支变化后的幽灵依赖。
-
-```text
-activeEffect = renderEffect
-读取 state.ok   -> targetMap[state].get('ok').add(renderEffect)
-读取 state.text -> targetMap[state].get('text').add(renderEffect)
-renderEffect.deps = [okDep, textDep]
-
-下一轮 ok=false：先从旧 deps 删除 effect，只重新订阅 ok
-后续修改 text：textDep 已不含 renderEffect，不触发组件更新
-```
-
-真实实现会用 Effect flags、Dep 链接和版本计数优化订阅维护，不能把某个版本的 `Set` 教学模型当成永久源码形状。稳定职责是双向可清理关系、嵌套 Effect 上下文和重复订阅去重。
+完整链路是代理拦截、Effect 上下文、双向依赖、cleanup、trigger 分类和 scheduler 入口。真实实现会用 Effect flags、Dep 链接和版本计数优化订阅维护，不能把某个版本的 `Set` 教学模型当成永久源码形状；稳定的是这些职责，不是私有字段名。
 
 ## trigger 为什么不能只找同名 key
 

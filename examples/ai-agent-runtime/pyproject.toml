@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiaojiang-ai-agent-runtime"
+version = "0.1.0"
+description = "Runnable examples shared by the structured output, LangGraph, and Agent Runtime articles."
+requires-python = ">=3.11"
+dependencies = [
+  "langgraph>=0.6,<0.7",
+  "pydantic>=2.11,<3",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

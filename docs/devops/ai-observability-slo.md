@@ -20,10 +20,11 @@ practice:
     - Trace 与 Metric 可用稳定 ID 关联
     - Prompt 和原始文档不进入指标标签
 evidence: official
-updated: 2026-08-11
+updated: 2026-08-11T00:00:00.000Z
 ---
+# OpenTelemetry、Prometheus、Grafana、Langfuse 与 AI SLO
 
-# AI 可观测性：请求成功不代表答案可用
+AI 可观测性把一次请求的 Trace、Metric、Log、模型事件、证据和资源消耗关联起来；SLO 则规定一段时间内可接受的服务目标。OpenTelemetry、Prometheus、Grafana 和 Langfuse 分别承接不同采集与分析职责。它们位于 AI Runtime、模型服务和运维决策之间，用来解释延迟、质量、错误与成本。
 
 接口返回 200，用户仍认为系统失败：首 Token 等了二十秒，引用指向过期文档，答案还因为长度上限被截断。传统 HTTP 成功率只能覆盖传输终态，AI 服务还要观察推理阶段、证据质量、资源和成本。
 

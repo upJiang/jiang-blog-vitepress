@@ -1,42 +1,25 @@
 import type { DefaultTheme } from 'vitepress'
 import {
   articlesByCategory,
+  articlesInStageOrder,
   articlePath,
+  sectionTrackGroups,
   sections,
-  type ChapterMeta,
   type Category
 } from './content'
 
-function groupArticles(items: ChapterMeta[]): DefaultTheme.SidebarItem[] {
-  const groups = new Map<string, ChapterMeta[]>()
+function groupArticles(category: Category): DefaultTheme.SidebarItem[] {
+  return sectionTrackGroups(category).map((track) => {
+    const articleItems = track.groups.flatMap((group) =>
+      group.items.map((item) => ({ text: item.title, link: articlePath(item) }))
+    )
 
-  for (const item of items) {
-    const group = groups.get(item.part) ?? []
-    group.push(item)
-    groups.set(item.part, group)
-  }
-
-  return [...groups.entries()].map(([text, group]) => ({
-    text: text.replace(/^第[一二三四五六七八九十]+部分[：:]?\s*/, ''),
-    collapsed: false,
-    items: group.map((item) => ({
-      text: item.title,
-      link: articlePath(item)
-    }))
-  }))
-}
-
-function groupAiArticles(items: ChapterMeta[]): DefaultTheme.SidebarItem[] {
-  const byTrack = (track: 'mainline' | 'special'): DefaultTheme.SidebarItem[] =>
-    items
-      .filter((item) => item.track === track)
-      .sort((left, right) => (left.sequence ?? 0) - (right.sequence ?? 0))
-      .map((item) => ({ text: item.title, link: articlePath(item) }))
-
-  return [
-    { text: '推荐阅读顺序', collapsed: false, items: byTrack('mainline') },
-    { text: '专题阅读', collapsed: true, items: byTrack('special') }
-  ]
+    return {
+      text: track.label,
+      collapsed: true,
+      items: articleItems
+    }
+  })
 }
 
 export function createSidebar(): DefaultTheme.SidebarMulti {
@@ -48,9 +31,7 @@ export function createSidebar(): DefaultTheme.SidebarMulti {
           text: section.title,
           link: section.path
         },
-        ...(section.key === 'ai-agent'
-          ? groupAiArticles(articlesByCategory(section.key))
-          : groupArticles(articlesByCategory(section.key)))
+        ...groupArticles(section.key)
       ]
     ])
   )
@@ -65,5 +46,5 @@ export function sectionNavigation(): DefaultTheme.NavItem[] {
 }
 
 export function categoryStart(category: Category): string {
-  return articlePath(articlesByCategory(category)[0])
+  return articlePath(articlesInStageOrder(category)[0])
 }

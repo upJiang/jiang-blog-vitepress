@@ -25,6 +25,8 @@ updated: 2026-08-11
 
 # Bun Runtime、包管理器、测试器与构建工具
 
+Bun 是一套 JavaScript/TypeScript 工具链，分别提供 Runtime、包管理器、脚本运行器、测试器和 Bundler。这些角色连接项目源码与操作系统、依赖仓库和发布产物，可替换或补充 Node、npm、测试框架与构建工具。评估时必须逐项确认兼容边界。
+
 `bun run dev` 能启动 Vite，不代表项目已经把生产 Runtime 从 Node 迁到 Bun。Bun 同时提供 JavaScript Runtime、包管理器、脚本运行器、测试器和 Bundler，评估时必须逐层说明替换了哪一部分。
 
 ## 五个角色
@@ -56,7 +58,7 @@ Bun 使用 JavaScriptCore，Node 主要使用 V8。语言标准大体一致，�
 
 先在 CI 建立并行实验，不立刻替换团队唯一锁文件。决定锁文件所有者、缓存 key、编辑器/调试支持和生产基线。若只采用脚本运行器，在文档中明确仍由 Vite/Rollup 构建、Node 部署。
 
-面试追问 Bun 与 Vite 区别时，应回答 Vite 是面向前端开发/构建的工具，Bun 是更广的 Runtime 工具链，能力有交集但系统位置不同。
+Vite 面向前端开发和构建，Bun 覆盖更广的 Runtime 工具链。两者能力有交集，系统位置和替换范围却不同。
 
 ## Bun 命令背后的边界
 

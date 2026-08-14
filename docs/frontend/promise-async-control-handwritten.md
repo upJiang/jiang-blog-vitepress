@@ -25,6 +25,8 @@ updated: 2026-08-11
 
 # Promise、并发控制与异步任务编排
 
+Promise 是 JavaScript 表示一次异步操作最终成功或失败的对象，并用 `then`、`catch` 和组合方法传递结果。它位于发起异步操作的代码与消费结果的代码之间，统一完成状态和错误传播；Promise 本身不限制同时运行多少任务，并发控制与取消需要由应用层另行调度。
+
 Promise 手写题最常见的错误，是只实现 `pending/fulfilled/rejected` 三个状态，却遗漏 `then` 必须返回新 Promise、回调结果要递归解析 thenable、回调异步执行和循环引用拒绝。Promise 的核心不是回调数组，而是值解析协议与错误传播。
 
 ## 状态机与不可逆转换
@@ -114,7 +116,7 @@ async function mapLimit<T, R>(items: T[], limit: number, run: (item: T, index: n
 
 Promise 核心用 Promises/A+ 风格用例验证 thenable、重复回调、getter 抛错、链式采用和循环引用。并发池记录每次开始/结束时 active 数，断言最大值不超过 limit；测试空数组、limit 大于长度、同步抛错和中途取消。
 
-面试继续追问时，要能解释 executor 与 then 回调时机、resolve 与 fulfill 的区别、组合方法为何不取消底层任务，以及 async/await 只是建立在 Promise reaction 之上的控制流语法。
+完整的 Promise 模型还要区分 executor 与 `then` 回调时机、resolve 与 fulfill，解释组合方法为何不取消底层任务，以及 async/await 如何建立在 Promise Reaction 之上。
 
 ## 从 resolution 到 microtask 的执行轨迹
 

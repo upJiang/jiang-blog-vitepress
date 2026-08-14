@@ -25,6 +25,8 @@ updated: 2026-08-12
 
 # Kafka 分区、Consumer Group 与 Offset
 
+Kafka 把 Topic 拆成多个有序追加的 Partition；Consumer Group 让一组消费者分担分区；Offset 记录每个分区已经处理到的位置。这三项构成 Kafka 的消费模型，位于事件生产者与可重放消费者之间，用来获得分区内顺序、水平扩展和恢复读取能力。
+
 Topic 有 6 个 Partition，Consumer Group 启动 10 个实例，只有 6 个实例在消费，另外 4 个空闲。这不是调度故障：同一 Group 内，一个 Partition 同一时刻只分配给一个 Consumer，分区数决定该组可用的最大并行度。
 
 ## Partition 是有序追加日志
@@ -88,20 +90,20 @@ Consumer 加入、离开、订阅变化或 poll 超时会触发再均衡。Parti
 
 Kafka 的幂等 Producer 和事务能改善 Kafka 内部写入与 consume-transform-produce 流程，但无法自动让 MySQL 副作用 exactly-once。数据库仍用 Inbox/Outbox 和业务幂等。
 
-## Kafka 还要继续推演
+## 分区、延迟与重放边界
 
-### Lag 为零为什么用户仍看不到结果？
+**Lag 为零为什么用户仍看不到结果？**
 
 Consumer 可能先提交 offset 再异步写数据库，或业务写失败却吞掉错误。Lag 只描述读取位置，不证明副作用成功；还要看处理成功、业务状态和 DLQ。
 
-### 分区越多吞吐越高吗？
+**分区越多吞吐越高吗？**
 
 分区提供并行度，也增加文件、复制、元数据和 rebalance 成本。吞吐还受 Broker 磁盘、网络、消息大小和消费者下游容量限制。
 
-### 如何选择分区 key？
+**如何选择分区 key？**
 
 选择需要保持顺序和聚合的业务标识，同时检查分布是否均匀。租户 ID 可能让大租户形成热点；订单 ID 更均匀，但无法保证同用户所有订单全局顺序。
 
-### Consumer 能否回到任意 offset 重放？
+**Consumer 能否回到任意 offset 重放？**
 
 只要记录仍在保留范围内就可调整 Group offset 或使用新 Group。重放会再次执行副作用，因此要先确认幂等、速率和与当前流量的隔离。

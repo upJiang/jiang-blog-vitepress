@@ -24,6 +24,8 @@ updated: 2026-08-11
 
 # Webpack 模块图、Loader、Plugin 与 Runtime
 
+Webpack 从入口解析模块依赖、生成 Chunk，并输出目标环境可执行的资源。Loader 在模块入图前转换特定文件，Plugin 通过生命周期钩子扩展构建流程，Runtime 则在浏览器侧加载和执行异步 Chunk。它们连接源码与发布产物，让样式、图片和代码能够进入同一张构建图。
+
 入口只有一个 `main.ts`，产物却包含多个 Chunk、一个 Runtime 和动态导入文件。Webpack 的核心工作不是拼接源码，而是解析入口、构建模块依赖图、把模块分配到 Chunk，再生成能在目标环境加载和执行的 Runtime。
 
 ## 从 request 到 Module
@@ -79,7 +81,7 @@ Webpack Runtime 维护模块缓存和 Chunk 加载。HMR 接收更新 manifest/c
 
 生成 stats JSON，用 analyzer 或脚本检查模块所属 Chunk、重复依赖、orphan modules 和资产体积。修改 Loader 依赖文件验证 watch 重建；动态 import 验证网络按需加载；错误 sideEffects 建立生产反例。
 
-面试回答 Loader 与 Plugin 时，应从作用域、输入输出和生命周期区分：Loader 转换单模块，Plugin 介入整个 Compiler/Compilation。再连接 Resolver、Module Graph、Chunk Graph 和 Runtime，才是一条完整构建链。
+Loader 与 Plugin 的区别来自作用域、输入输出和生命周期：Loader 转换单个模块，Plugin 介入整个 Compiler 或 Compilation。Resolver、Module Graph、Chunk Graph 和 Runtime 则组成完整构建链。
 
 ## 一次 import 到浏览器运行时
 

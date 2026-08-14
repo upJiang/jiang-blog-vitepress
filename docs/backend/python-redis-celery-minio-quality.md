@@ -75,7 +75,7 @@ Celery 的 retry 是一次新的投递机会，不是事务回滚。若第一次
 
 Worker 把 `{attempt, sequence, percent, stage}` 写 Redis，并发布进度；Lua/条件逻辑只接受更高 attempt 或同 attempt 更高 sequence。旧 Worker 的 90% 不能覆盖新 attempt 的 20%。
 
-SSE 端先从 MySQL/Redis读取当前快照，再订阅新事件；断线用 task_id 和 Last-Event-ID 恢复。Redis 丢失后至少从 MySQL 得到 queued/running/terminal，不把空进度当任务不存在。
+SSE 端先从 MySQL/Redis 读取当前快照，再订阅新事件；断线用 task_id 和 Last-Event-ID 恢复。Redis 丢失后至少从 MySQL 得到 queued/running/terminal，不把空进度当任务不存在。
 
 ```mermaid
 sequenceDiagram
@@ -100,20 +100,20 @@ ruff 检查代码，mypy 检查类型，pytest 覆盖 MySQL/Redis/MinIO。测试
 
 集成用例还要让 Worker 在三个时间点退出：领取后尚未写入、对象上传后尚未提交、数据库提交后尚未 ACK。前两种应由租约和对象清理恢复；第三种会重复投递，但 Inbox/终态条件更新必须吸收重复。这样才能证明 `acks_late`、业务幂等和资源清理真的组合起来了。
 
-## Python 任务链继续追问
+## 任务状态、重试与清理边界
 
-### Celery Result Backend 能否替代 tasks 表？
+**Celery Result Backend 能否替代 tasks 表？**
 
 它适合框架任务结果和调试，不一定满足租户权限、业务状态、长期审计和跨语言契约。业务任务仍在 MySQL 建模，Result Backend 可选。
 
-### 为什么 Celery eager 测试不够？
+**为什么 Celery eager 测试不够？**
 
 它在测试进程同步执行，没有序列化、Broker、ACK、预取、Worker 崩溃和重投。规则单测可用，可靠性必须真实集成。
 
-### 任务 hard timeout 后对象上传到一半怎么办？
+**任务 hard timeout 后对象上传到一半怎么办？**
 
 使用分段上传/临时 key，完成后才标记数据库；周期任务清理过期 multipart 和非当前 attempt 对象。不能依赖被强杀进程执行清理。
 
-### Celery retry 会不会产生新 task_id？
+**Celery retry 会不会产生新 task_id？**
 
 通常 retry 维持 Celery task identity，但业务不能依赖实现细节保证幂等。始终使用自己的业务 task_id/event_id/attempt 进行状态裁决。

@@ -25,6 +25,8 @@ updated: 2026-08-11
 
 # React Native、Flutter 与 Electron 的运行模型
 
+React Native、Flutter 和 Electron 都能构建跨平台 UI，但分别把 JavaScript/React 映射到原生视图、用 Dart 和自有渲染器绘制界面，或把 Chromium 与 Node 组合成桌面应用。它们连接业务组件与目标操作系统，可复用部分代码并接入平台能力；共享语法不等于共享渲染、线程和发布模型。
+
 三者都能“跨端”，目标平台却不同。React Native 用 React 模型驱动原生视图，Flutter 用 Dart 和自己的渲染体系构建移动/桌面 UI，Electron 把 Chromium 与 Node 组合成桌面应用。选型先看产品平台和原生能力，不按语法熟悉度排名。
 
 ## 渲染与线程
@@ -43,7 +45,7 @@ React 团队、需要大量原生控件和双端共享逻辑可评估 RN；要�
 
 用真实目标设备实现列表、动画、相机/文件、后台恢复、无障碍和升级 fixture。记录帧、内存、启动和包体时说明设备、构建模式与版本。桌面端额外做 IPC、导航和依赖安全审查。
 
-面试追问跨端原理时，应先讲渲染和通信路径，再谈性能边界；“RN 用 JS、Flutter 性能高、Electron 套浏览器”不足以支撑选择。
+跨端选型要先比较渲染和通信路径，再判断性能边界。“RN 用 JS、Flutter 性能高、Electron 套浏览器”没有覆盖工程约束，不能直接支撑选择。
 
 ## 三条渲染链的状态所有权
 

@@ -1,6 +1,6 @@
 # 小江AI 博客写作规范
 
-本文件与 `AGENTS.md` 保持相同要求，供 Claude Code 使用。重写文章前必须读取 `article-writing` Skill；SEO 文章同时读取 `seo-sem-optimizer` Skill。
+本文件与 `AGENTS.md` 保持相同要求，供 Claude Code 使用。重写文章前必须读取 `article-write` Skill；SEO 文章同时读取 `seo-sem-optimizer` Skill。
 
 - 这是个人学习与实践博客，不是课程平台。
 - 长文围绕真实问题、可观察现象或具体实践展开，作者根据主题决定结构、篇幅和叙述顺序。
@@ -11,8 +11,8 @@
 - 私有项目名称、路径、接口、表结构、数据、提示词、截图和凭证不得出现在公开文章。
 - 写作卡、证据台账和自测记录只放 `/tmp`，完成后删除。
 - 算法与重学前端正文不改写；不提交、不推送、不部署。
-- AI 与 Agent 正文变化后，更新正文哈希和文章级审校结论，不再登记逐概念检查表。
+- 算法与重学前端使用独立的完整文件 SHA-256 内容锁，不与写作评分或文章审校状态混用。
 - AI 与 Agent 文章不显示顶部阅读信息和更新时间，不使用自测、迁移练习或统一上一篇/下一篇正文。前置关系通过自然站内链接与共享接口表达，底部导航按主线与专题分轨。
 - 主线元数据维护 `track`、`sequence`、`dependsOn`、`artifactIn` 和 `artifactOut`，正文继续消费前文的 Message、SearchPlan、ContextSnapshot、Block、Chunk、Retriever、Evidence 与 Runtime 契约。
 - 允许作者提出明确判断，但不得编造经历、事故、数据或效果。重要结论可用 Markdown 粗体强调，禁止整段、机械段首和高密度加粗。
-- 完稿后使用 `article-writing` 和 `humanizer-zh` 复核模板腔、过度排比、重复转折、宣传语和过度粗体。
+- 完稿后使用 `article-write` 和 `humanizer-zh` 复核模板腔、过度排比、重复转折、宣传语和过度粗体。

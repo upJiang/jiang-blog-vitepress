@@ -26,7 +26,9 @@ updated: 2026-08-12
 
 # Kubernetes Pod、Deployment、Service 与 Ingress
 
-Pod 被重新创建后 IP 改变，浏览器仍应通过同一个域名访问服务。Kubernetes 不承诺某个 Pod 永久存在；Deployment 维护副本，Service 提供稳定虚拟地址，Ingress/Gateway 把集群外 HTTP 路由到 Service。
+Pod 是一起调度、共享网络和存储边界的最小运行单元；Deployment 让控制器持续维持期望副本；Service 为一组 Pod 提供稳定发现地址；Ingress/Gateway 把集群外请求路由到 Service。它们位于 Kubernetes 控制面和应用流量入口之间，各自拥有不同的生命周期事实。
+
+Pod 被重新创建后 IP 改变，浏览器仍应通过同一个域名访问服务。Kubernetes 不承诺某个 Pod 永久存在，因此客户端不应直接依赖 Pod IP。
 
 ## Pod 是一起调度和共享网络的最小单元
 
@@ -44,7 +46,7 @@ Pod 名称、IP 和本地可写层都是临时的。业务 Session、任务和�
 
 ## Deployment Controller 持续收敛期望副本
 
-Deployment 创建 ReplicaSet，ReplicaSet 维持指定 Pod 数。修改 Pod Template 会创建新 ReplicaSet并按 maxSurge/maxUnavailable 滚动；Pod 异常由控制器补充，而不是“修复原 Pod”。
+Deployment 创建 ReplicaSet，ReplicaSet 维持指定 Pod 数。修改 Pod Template 会创建新 ReplicaSet 并按 maxSurge/maxUnavailable 滚动；Pod 异常由控制器补充，而不是“修复原 Pod”。
 
 镜像使用不可变 digest，Pod Template 带版本标签。迁移不放在每个 Pod init 中争抢执行，使用单独 Job；应用部署与迁移通过兼容发布顺序协调。
 
@@ -106,20 +108,20 @@ NetworkPolicy 还可能允许 DNS 却拒绝到目标 Pod 的流量。策略按 P
 
 Pod 进入 Terminating 后，EndpointSlice 与入口代理的更新并非同时完成。preStop 只能给端点传播和 drain 留出窗口，不能用固定长睡眠替代关闭协议。SSE 与 WebSocket 需要主动结束或让客户端重连，并保证所有在途连接能在 terminationGracePeriodSeconds 内收尾。
 
-## Kubernetes 对象继续推演
+## Kubernetes 对象的职责边界
 
-### Pod 重启次数增加但 Deployment 副本正常，能忽略吗？
+**Pod 重启次数增加但 Deployment 副本正常，能忽略吗？**
 
 不能。Controller 维持数量可能掩盖 CrashLoop、OOM 或探针误杀。按 Pod reason、lastState、events 和前一容器日志定位，观察请求错误是否被重试掩盖。
 
-### 为什么不能把 Service selector 加上 version=v2？
+**为什么不能把 Service selector 加上 version=v2？**
 
 普通滚动期间会让 v1 立即失去流量，破坏渐进替换。稳定 selector 选 app，版本路由用独立 Service/Controller 策略明确管理。
 
-### ConfigMap 更新后 Pod 会自动使用吗？
+**ConfigMap 更新后 Pod 会自动使用吗？**
 
 环境变量不会自动更新，Volume 文件可能延迟更新，但应用未必 reload。用配置版本触发滚动，或实现明确热加载并验证；Secret 轮换同理。
 
-### Deployment 能管理数据库吗？
+**Deployment 能管理数据库吗？**
 
 有状态服务通常需要 StatefulSet、持久卷、备份和专用 Operator，或直接使用托管服务。仅把 MySQL 放进 Deployment 无法获得稳定身份和数据恢复。

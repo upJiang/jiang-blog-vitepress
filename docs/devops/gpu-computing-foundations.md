@@ -1,6 +1,6 @@
 ---
-title: 为什么 AI 需要 GPU：并行计算、矩阵乘与吞吐
-description: 从一次矩阵乘拆开 CPU 延迟优化、GPU 吞吐设计、SIMT、带宽和算术强度。
+title: GPU 基础：是什么、怎么工作，以及 AI 为什么使用它
+description: 先定义 GPU、主机与设备的数据路径，再用矩阵乘解释并行执行、显存、带宽和 AI 工作负载取舍。
 category: devops
 part: 第四部分：GPU 基础
 chapter: 19
@@ -22,11 +22,60 @@ evidence: official
 updated: 2026-08-11
 ---
 
-# 为什么 AI 需要 GPU：问题不只是“核心更多”
+# GPU 基础：是什么、怎么工作，以及 AI 为什么使用它
 
-把一条很短的文本送到 GPU，端到端时间可能比 CPU 更长；把几千个矩阵块组成 Batch 后，GPU 又能提供远高的总吞吐。两种现象并不矛盾。GPU 需要足够多、结构相似的工作来摊薄启动与数据搬运成本。
+GPU（Graphics Processing Unit，图形处理器）是一种包含大量并行执行单元、专用存储层级和调度逻辑的处理器。它最初服务于图形渲染，后来也被用于通用计算。GPU 不是“更快的 CPU”，也不是插上就会自动加速的黑盒；程序必须把适合并行的工作和数据交给它执行。
 
-理解 GPU 要从工作负载开始。深度学习的核心计算大量落在矩阵乘、卷积和向量运算，它们具有高并行度和重复的数据流，适合吞吐导向的设备设计。
+在 AI 系统里，GPU 通常位于模型推理或训练这条链路的计算阶段。CPU 读取请求、准备批次和调度任务，把输入从主存传到 GPU 显存；GPU 执行矩阵乘、卷积或向量运算，再把结果交回 CPU 或继续留在显存中。数据怎样移动，和计算本身一样影响最终耗时。
+
+```mermaid
+flowchart LR
+  APP[请求 / 数据加载] --> CPU[CPU：校验、调度、预处理]
+  CPU --> RAM[主存]
+  RAM --> LINK[PCIe / NVLink]
+  LINK --> VRAM[显存]
+  VRAM --> GPU[GPU：Kernel / 矩阵运算]
+  GPU --> VRAM
+  VRAM --> LINK
+  LINK --> CPU
+  CPU --> OUT[结果 / 响应]
+```
+
+## GPU 在训练和推理中做什么
+
+训练时，GPU 反复执行前向计算、损失计算、反向传播和参数更新；推理时，GPU 根据已经固定的模型参数计算输出。两种场景都可能调用 GPU，但批量大小、显存占用、延迟目标和容错方式不同。Tokenize、HTTP、数据库查询和大多数业务规则通常仍由 CPU 负责。
+
+先用一个不依赖 GPU 的形状模拟把数据关系说清楚：
+
+```python
+# 这个模拟只统计矩阵形状和搬运字节，不声称测得任何 GPU 性能。
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class MatmulPlan:
+    rows: int
+    inner: int
+    cols: int
+    bytes_per_value: int = 2  # 例如 FP16；实际模型还要考虑激活和工作区。
+
+    @property
+    def output_shape(self) -> tuple[int, int]:
+        return self.rows, self.cols
+
+    @property
+    def input_bytes(self) -> int:
+        return (self.rows * self.inner + self.inner * self.cols) * self.bytes_per_value
+
+    @property
+    def output_bytes(self) -> int:
+        return self.rows * self.cols * self.bytes_per_value
+
+plan = MatmulPlan(rows=8, inner=16, cols=4)
+print(plan.output_shape)  # (8, 4)
+print(plan.input_bytes, plan.output_bytes)
+```
+
+`MatmulPlan` 能验证形状和数据规模，但不能比较 CPU 与 GPU 的速度。真实基准还要固定硬件、驱动、精度、框架版本、同步方式和输入分布；没有 NVIDIA GPU 时，先用这个模拟理解“搬运了多少数据、产生什么形状”，不要把示意数字写成性能结论。
 
 ## CPU 与 GPU 优化目标不同
 
@@ -72,4 +121,4 @@ Batch 变大也会增加排队、显存和单步时间。在线系统不能只�
 
 先写出输入大小、可并行单元、数据复用、精度、搬运路径和延迟目标，再找目标框架是否有成熟 GPU Kernel。用同一输入与正确性标准比较 CPU 和 GPU，分别记录准备、复制、执行与同步时间。
 
-当前环境没有 NVIDIA GPU，本篇不提供性能实验。学习成果是一张判断表：能说明工作为什么有并行度、瓶颈更接近计算还是带宽、Batch 如何影响吞吐、数据放在哪里，以及何时 CPU 仍是更好的执行者。
+当前环境没有 NVIDIA GPU，无法提供性能实验。机制判断要说明工作为什么有并行度、限制更接近计算还是带宽、Batch 如何影响吞吐、数据放在哪里，以及何时 CPU 仍是更好的执行者。

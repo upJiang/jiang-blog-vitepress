@@ -26,7 +26,7 @@ updated: 2026-08-06T00:00:00.000Z
 
 扩展要读取当前网页标题，并在弹窗中展示。Popup 无法直接访问页面 DOM，后台 Service Worker 也没有网页 DOM；真正运行在页面上下文旁边的是 Content Script。三个环境有不同权限和生命周期，需要通过消息连接。
 
-本篇先跑通“点击扩展 -> 请求标题 -> 页面读取 -> 返回结果”，再加入最小权限、存储与后台休眠。示例以 Chromium Manifest V3 公共 API 为基础，其他浏览器差异要按目标平台核对。
+最小链路是“点击扩展 -> 请求标题 -> 页面读取 -> 返回结果”，随后再加入最小权限、存储与后台休眠。示例以 Chromium Manifest V3 公共 API 为基础，其他浏览器差异要按目标平台核对。
 
 ## 四个常见运行环境
 
@@ -40,7 +40,7 @@ flowchart LR
 
 Popup 是短生命周期扩展页面；Service Worker 处理事件与跨页面协调，空闲后会被终止；Content Script 可访问 DOM，但与页面 JavaScript 处于隔离世界；注入 page script 才进入页面主世界，风险和通信成本更高。
 
-## 步骤一：从最小权限开始
+## Manifest 权限的最小边界
 
 只读取用户主动点击的当前页，可以考虑 `activeTab` 与 `scripting`，而不是申请所有网站的永久访问。需要长期匹配特定站点时，再使用精确 host permissions。权限文案会影响用户信任，也决定商店审核风险。
 
@@ -59,19 +59,19 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 消息到达时先检查 `message.type`，不匹配就返回，让其他监听器继续处理；匹配后从当前页面读取 `document.title`，用 `slice(0, 200)` 限制返回长度，再通过 `sendResponse` 返回固定类型。输入是扩展内部消息，输出是 `{ type, title }`，异常时应通过 `chrome.runtime.lastError` 或明确错误消息通知调用方。消息处理器使用白名单类型并限制输出大小。真实扩展还要验证 sender、目标 tab 和错误状态，避免任何扩展页面都能触发高权限动作。
 
-## 步骤二：消息是安全契约
+## 扩展消息的安全契约
 
 定义带版本的判别联合，校验输入和输出，不接受 `action + payload:any`。Content Script 传来的网页数据是不可信输入，即使消息来自自己的脚本，DOM 内容仍由网页控制。
 
 Service Worker 只暴露明确能力，例如读取当前 Tab、写入受限存储或发起允许域名请求。远端响应、页面文本和文件都不能被当作代码执行。Manifest V3 限制远程托管代码，依赖应随扩展包发布并满足商店政策。
 
-## 步骤三：接受 Service Worker 会休眠
+## Service Worker 的休眠与状态恢复
 
 后台不应依赖内存变量长期存在。需要恢复的状态写入 `chrome.storage` 或其他合适存储；Timer 与长连接也不具备永久调度保证。事件处理尽快完成，异步响应按 API 要求保持通道或返回 Promise。
 
 状态分为：Popup 局部 UI、Tab 级临时状态、扩展持久设置和可重建缓存。敏感 Token 尽量避免存储；确需认证时缩小权限、生命周期和暴露面，不把凭证发送给 Content Script。
 
-## 步骤四：处理页面导航与失败
+## 页面导航与内容脚本失效
 
 Tab 会刷新、导航和销毁，Content Script 可能尚未注入。Popup 请求失败时展示可操作状态，例如“当前页面不支持”或重新注入，而不是无限重试。SPA 内部导航可能改变 DOM，需要按目标场景监听可靠事件，不用高频全页面扫描。
 
