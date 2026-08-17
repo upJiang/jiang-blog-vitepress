@@ -8,9 +8,9 @@ chapter: 4
 sequence: 4
 slug: structured-output-model-boundaries
 tags:
-  - "Structured Output"
+  - "Structured Outputs"
   - "JSON Schema"
-  - "Validation"
+  - "Pydantic"
 sourceKey: ai-structured-output-model-boundaries
 dependsOn:
   - "messages-tokens-context"

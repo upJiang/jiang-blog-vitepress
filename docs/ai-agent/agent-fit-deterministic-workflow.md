@@ -8,9 +8,9 @@ chapter: 7
 sequence: 7
 slug: agent-fit-deterministic-workflow
 tags:
-  - "Agent Fit"
+  - "Agent"
   - "Workflow"
-  - "Architecture"
+  - "Decision"
 sourceKey: ai-agent-fit-deterministic-workflow
 dependsOn:
   - "python-agent-loop-from-scratch"

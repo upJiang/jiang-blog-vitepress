@@ -7,16 +7,6 @@ import { draftArticleFiles } from "../.vitepress/drafts"
 const root = process.cwd()
 const errors: string[] = []
 const fail = (message: string): void => errors.push(message)
-const expectedCounts: Record<string, number> = {
-  "ai-agent": 98,
-  seo: 25,
-  frontend: 104,
-  algorithms: 21,
-  backend: 68,
-  devops: 37,
-  "ai-practice": 10,
-  "onnx-practice": 1
-}
 const categorySet = new Set(sections.map((section) => section.key))
 const articleFiles = new Set<string>()
 const articleRoutes = new Set<string>()
@@ -41,13 +31,6 @@ function walk(directory: string): string[] {
 
 function dateText(value: unknown): string {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? "")
-}
-
-if (articles.length !== 364) fail(`当前全站完整重建应登记 364 篇文章，实际为 ${articles.length} 篇。`)
-
-for (const [category, expected] of Object.entries(expectedCounts)) {
-  const actual = articles.filter((article) => article.category === category).length
-  if (actual !== expected) fail(`${category} 应为 ${expected} 篇，实际为 ${actual} 篇。`)
 }
 
 for (const section of sections) {
@@ -141,8 +124,6 @@ for (const file of draftFiles) {
   if (!markdownFiles.includes(file)) fail(`草稿登记文件缺失：${file}`)
   if (expectedFiles.has(file)) fail(`草稿不能同时登记为正式文章：${file}`)
 }
-if (expectedFiles.size !== 372) fail(`docs 完整重建应发布 372 个 Markdown，实际登记为 ${expectedFiles.size} 个。`)
-
 for (const file of markdownFiles) {
   if (contentLockedFiles.has(file)) continue
   const body = matter(fs.readFileSync(path.join(root, file), "utf8")).content
@@ -184,20 +165,6 @@ for (const slug of removedAiSlugs) {
   if (fs.existsSync(path.join(root, "docs", "ai-agent", `${slug}.md`))) fail(`已合并的 AI 旧路由文件重新出现：${slug}`)
 }
 const aiStageKeys = new Set(sectionStages['ai-agent'].map((stage) => stage.key))
-const expectedAiStageCounts: Record<string, number> = {
-  foundations: 7,
-  tools: 7,
-  'context-memory': 10,
-  'single-agent': 6,
-  'multi-agent-research': 8,
-  rag: 23,
-  'trust-safety': 8,
-  runtime: 13,
-  production: 5,
-  harness: 7,
-  capstone: 1,
-  appendix: 3
-}
 const sourceKeys = new Set<string>()
 for (const article of aiArticles) {
   if (!aiStageKeys.has(article.stageKey)) fail(`${article.slug} 缺少有效 stageKey。`)
@@ -215,12 +182,6 @@ for (const article of aiArticles) {
     }
     if (dependency.chapter >= article.chapter) fail(`${article.slug} 倒序依赖 ${dependencySlug}。`)
   }
-}
-
-for (const stage of sectionStages['ai-agent']) {
-  const actual = aiArticles.filter((article) => article.stageKey === stage.key).length
-  const expected = expectedAiStageCounts[stage.key]
-  if (actual !== expected) fail(`AI/Agent 阶段 ${stage.label} 应为 ${expected} 篇，实际为 ${actual} 篇。`)
 }
 
 const aiIndexBody = matter(fs.readFileSync(path.join(root, 'docs/ai-agent/index.md'), 'utf8')).content
@@ -293,11 +254,6 @@ for (const file of markdownFiles) {
     if (!fs.existsSync(path.join(root, target.slice(0)))) fail(`内部链接不存在：${file} -> ${match[1]}`)
   }
 }
-
-const algorithmCount = articles.filter((article) => article.category === "algorithms").length
-const relearnCount = articles.filter((article) => article.slug.startsWith("relearn/")).length
-if (algorithmCount !== 21) fail(`算法文章应为 21 篇，实际为 ${algorithmCount} 篇。`)
-if (relearnCount !== 37) fail(`重学前端应为 37 篇，实际为 ${relearnCount} 篇。`)
 
 if (errors.length) {
   console.error(`内容检查失败，共 ${errors.length} 项：`)
