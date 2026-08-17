@@ -6,4 +6,5 @@ node_modules
 *.tsbuildinfo
 .DS_Store
 # 保留这个文件
-!public/privacy-policy.html
+!public/seo-privacy.html
+!public/rootline-privacy.html
