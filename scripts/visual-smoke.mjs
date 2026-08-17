@@ -24,7 +24,7 @@ const availableArticles = articles.filter((article) =>
 )
 const representativeRoutes = [
   '/docs/ai-agent/llm-workflow-rag-agent',
-  '/docs/ai-agent/pgvector-index-recall',
+  '/docs/ai-agent/pgvector-storage-index-recall',
   '/docs/ai-agent/mcp-protocol-lifecycle',
   '/docs/ai-agent/rag-evaluation-recall-mrr-ndcg',
   '/docs/ai-agent/knowledge-agent-capstone',
@@ -32,11 +32,11 @@ const representativeRoutes = [
   '/docs/ai-agent/python-openai-responses-first-call',
   '/docs/ai-agent/agent-production-architecture',
   '/docs/ai-agent/prompt-cache-prefix-design',
-  '/docs/ai-practice/mcp-design-workflow-mining',
-  '/docs/ai-practice/python-mcp-server-practice',
-  '/docs/ai-practice/article-publishing-skill-practice',
-  '/docs/ai-practice/context-engineering-harness',
-  '/docs/ai-practice/ai-work-modes-opc-full-stack',
+  '/docs/ai-practice/mcp-opportunity-analysis',
+  '/docs/ai-practice/fastmcp-server-practice',
+  '/docs/ai-practice/article-check-skill-practice',
+  '/docs/ai-practice/coding-harness-troubleshooting',
+  '/docs/ai-practice/personal-ai-work-system',
   '/docs/seo/search-growth-model',
   '/docs/seo/technical-seo-rendering-performance',
   '/docs/seo/sem-account-keywords-landing',
@@ -394,7 +394,7 @@ try {
     'AI 与 Agent 左侧一级目录没有与栏目 Tab 保持一致'
   )
   const contextTrack = sectionTrackGroups('ai-agent').find((track) => track.key === 'context-memory')
-  const contextSidebarGroup = page.locator('.VPSidebarItem.level-0').filter({ hasText: '上下文与记忆' }).first()
+  const contextSidebarGroup = page.locator('.VPSidebarItem.level-0').filter({ hasText: '上下文工程与记忆' }).first()
   assert(
     (await contextSidebarGroup.locator('a[href^="/docs/ai-agent/"]').count()) ===
       (contextTrack?.groups.flatMap((group) => group.items).length ?? 0),
@@ -420,11 +420,12 @@ try {
 
   await page.goto(`${baseURL}/docs/ai-practice/`, { waitUntil: 'networkidle' })
   assert((await page.locator('.article-index-list a').count()) === 10, 'AI 实践栏目应展示 10 篇文章')
-  assert((await page.getByText('基础认知', { exact: true }).count()) > 0, 'AI 实践栏目缺少基础认知分组')
+  assert((await page.getByText('能力选型', { exact: true }).count()) > 0, 'AI 实践栏目缺少能力选型分组')
   assert((await page.getByText('Agent 协作', { exact: true }).count()) > 0, 'AI 实践栏目缺少 Agent 协作分组')
-  assert((await page.getByText('能力扩展', { exact: true }).count()) > 0, 'AI 实践栏目缺少能力扩展分组')
-  assert((await page.getByText('研发系统', { exact: true }).count()) > 0, 'AI 实践栏目缺少研发系统分组')
-  assert((await page.getByText('个人工作系统', { exact: true }).count()) > 0, 'AI 实践栏目缺少个人工作系统分组')
+  assert((await page.getByText('MCP 实践', { exact: true }).count()) > 0, 'AI 实践栏目缺少 MCP 实践分组')
+  assert((await page.getByText('Skill 实践', { exact: true }).count()) > 0, 'AI 实践栏目缺少 Skill 实践分组')
+  assert((await page.getByText('研发交付', { exact: true }).count()) > 0, 'AI 实践栏目缺少研发交付分组')
+  assert((await page.getByText('Harness 与工作系统', { exact: true }).count()) > 0, 'AI 实践栏目缺少 Harness 与工作系统分组')
 
   await page.goto(`${baseURL}/docs/onnx-practice/`, { waitUntil: 'networkidle' })
   assert((await page.locator('.article-index-list a').count()) === 1, 'ONNX 实践栏目应展示 1 篇文章')
@@ -549,7 +550,7 @@ try {
   const detectionModelResponse = await page.request.get(`${baseURL}/models/onnx/yolox-nano-416.onnx`)
   assert(detectionModelResponse.status() === 200, 'YOLOX-Nano 模型静态资源不可访问')
 
-  for (const removedRoute of ['/docs/architecture/ai-system-seven-layers', '/docs/engineering/systematic-debugging', '/docs/ai-practice/codex-claude-code-rules']) {
+  for (const removedRoute of ['/docs/architecture/ai-system-seven-layers', '/docs/engineering/systematic-debugging', '/docs/ai-practice/codex-claude-code-rules', '/docs/ai-agent/pgvector-index-recall', '/docs/ai-practice/python-mcp-server-practice']) {
     const removedPage = await browser.newPage({ viewport: { width: 1440, height: 900 } })
     await removedPage.goto(`${baseURL}${removedRoute}`, { waitUntil: 'networkidle' })
     assert((await removedPage.title()).startsWith('404'), `旧栏目路由没有进入 404 页面：${removedRoute}`)
@@ -568,7 +569,7 @@ try {
     await removedPage.close()
   }
 
-  await page.goto(`${baseURL}/docs/ai-agent/agent-production-architecture`, { waitUntil: 'networkidle' })
+  await page.goto(`${baseURL}/docs/ai-agent/llm-workflow-rag-agent`, { waitUntil: 'networkidle' })
   await page.locator('.mermaid svg').first().waitFor({ timeout: 10_000 })
   assert((await page.locator('.mermaid svg').count()) > 0, 'Agent 文章 Mermaid 未渲染')
   const mermaidPreview = page.locator('.mermaid-preview').first()
@@ -625,6 +626,7 @@ try {
   await page.keyboard.press('Escape')
   await mermaidViewer.waitFor({ state: 'detached' })
   assert(await mermaidPreview.evaluate((element) => document.activeElement === element), '关闭流程图后焦点没有返回预览')
+  await page.goto(`${baseURL}/docs/ai-agent/agent-request-lifecycle-runtime`, { waitUntil: 'networkidle' })
   assert((await page.locator('.VPSidebar').count()) === 1, '文章页缺少左侧导航')
   assert((await page.locator('.VPDocAside').count()) === 1, '文章页缺少右侧目录')
   const aiSidebar = page.locator('.VPSidebar')

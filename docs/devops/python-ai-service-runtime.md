@@ -20,110 +20,70 @@ practice:
     - 阻塞任务不占住事件循环
     - 失败和取消不会遗留后台任务
 evidence: official
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # Python AI 服务运行时：typing、asyncio、线程与多进程
 
-一个接口同时发出 50 个模型请求时吞吐正常，加入 PDF 解析后整个服务开始卡顿。原因可能不是模型更慢，而是 CPU 密集解析直接运行在事件循环线程里，阻止它继续接收网络事件。AI Backend 常同时拥有网络 I/O、轻量 CPU 处理和重型解析，必须为三类工作选择不同执行位置。
+一个 Python 模型 API 在单请求时很快，两个并发请求却互相等待。原因可能不是模型变慢，而是事件循环被同步分词阻塞，或者多进程各自加载了一份权重。选择并发模型前，要先区分等待 I/O、消耗 CPU 和占用 GPU 的工作。
 
-类型契约先定义一批带 Deadline 的任务，asyncio、线程和进程分别承担明确职责。运行时限制并发、传播取消、隔离阻塞工作，最终输出顺序明确的成功或失败结果。
+## asyncio 只擅长把等待交错起来
 
-## typing 先规定数据能怎样流动
-
-类型提示不会自动验证网络输入，也不会改变运行时调度。它的价值是把接口所有权写清：请求包含哪些字段，模型适配器返回什么，错误是否进入正常返回，调用方能否取消。
-
-`Protocol` 适合描述模型客户端行为，`dataclass` 或 Pydantic 模型适合承载结构化状态，`Literal` 和 `Enum` 适合限制有限终态。外部 JSON 仍需运行时校验；通过校验后，内部函数再依赖稳定类型。
-
-## 三种执行模型解决不同问题
-
-| 模型 | 适合任务 | 主要限制 | 典型错误 |
-| --- | --- | --- | --- |
-| asyncio | HTTP、数据库、Redis 等可等待 I/O | 事件循环不能执行长时间阻塞代码 | async 函数内部调用同步解析器 |
-| 线程 | 没有异步接口的阻塞 I/O、会释放 GIL 的库 | 共享内存、取消能力有限 | 无界创建线程、在线程里修改共享状态 |
-| 多进程 | 纯 Python CPU 密集解析与计算 | 序列化、启动和进程间传输有成本 | 把每个小任务都提交进程池 |
-
-asyncio 的并发来自任务在 `await` 时让出执行权，不等于多个 CPU 核心同时运行 Python 字节码。线程可以让阻塞调用不占事件循环，但并不保证 CPU 密集代码线性加速。多进程提供独立解释器和地址空间，更适合足够大的 CPU 工作单元。
-
-## 一个有边界的异步调度器
-
-下面程序不依赖外部 API。输入是一组字符串，模拟不同耗时的模型调用；目标是同时最多运行两个请求，并把每个输入映射为结构化结果。代码使用 `TaskGroup` 管理任务所有权，使用 `Semaphore` 限制下游并发。
+async def 让协程在 await I/O 时把执行权交给事件循环。它不会让 CPU 密集的分词、压缩或 Python 循环自动并行，也不会把一个同步 SDK 变成异步。阻塞事件循环时，健康检查、SSE 心跳和其他请求都会一起延迟。
 
 ```python
 import asyncio
-from dataclasses import dataclass
-from typing import Protocol
 
-class TextModel(Protocol):
-    async def complete(self, prompt: str) -> str: ...
+async def fetch_and_stream(client, prompt: str):
+    response = await client.generate(prompt)
+    async for token in response:
+        yield token
 
-@dataclass(frozen=True)
-class CompletionResult:
-    index: int
-    text: str | None
-    error: str | None
-
-class DemoModel:
-    async def complete(self, prompt: str) -> str:
-        # 网络客户端在等待响应时应让出事件循环。
-        await asyncio.sleep(0.02)
-        if prompt == "fail":
-            raise RuntimeError("upstream unavailable")
-        return prompt.upper()
-
-async def run_bounded(
-    prompts: list[str],
-    model: TextModel,
-    concurrency: int,
-) -> list[CompletionResult]:
-    semaphore = asyncio.Semaphore(concurrency)
-    results: list[CompletionResult | None] = [None] * len(prompts)
-
-    async def execute(index: int, prompt: str) -> None:
-        async with semaphore:
-            try:
-                # 单任务超时必须小于外层请求的剩余 Deadline。
-                text = await asyncio.wait_for(model.complete(prompt), timeout=1)
-                results[index] = CompletionResult(index, text, None)
-            except Exception as exc:
-                results[index] = CompletionResult(index, None, type(exc).__name__)
-
-    async with asyncio.TaskGroup() as group:
-        for index, prompt in enumerate(prompts):
-            group.create_task(execute(index, prompt))
-
-    # 所有任务已结束，因此槽位不再包含 None。
-    return [result for result in results if result is not None]
-
-async def main() -> None:
-    results = await run_bounded(["one", "fail", "three"], DemoModel(), 2)
-    print(results)
-
-if __name__ == "__main__":
-    asyncio.run(main())
+async def main():
+    await asyncio.gather(
+        consume(fetch_and_stream(client, "a")),
+        consume(fetch_and_stream(client, "b")),
+    )
 ```
 
-`run_bounded` 先按输入长度分配结果槽，使并发完成顺序不会改变输出顺序。每个 `execute` 只有进入 Semaphore 后才占用下游配额，`wait_for` 给单次调用设置上限。异常被转换为结构化结果，因此某个上游失败不会取消其他独立任务；如果业务要求任一失败即整体失败，则应让异常离开子任务，由 `TaskGroup` 取消同组任务。
+输入是两个独立 Prompt，执行过程是协程在网络等待处交错，输出是两条 Token 流。若 client.generate 内部执行同步 CPU 工作，gather 仍会被它阻塞，需要线程池或进程池，并为任务设置上限。
 
-外层取消与普通异常不同。收到 `CancelledError` 时通常应清理资源后继续抛出，不能吞掉并返回伪成功。数据库事务、流式连接和模型请求也要接收同一取消信号，否则 HTTP 已结束，后台仍在运行。
+## 线程和多进程的代价不一样
 
-## 阻塞代码怎样离开事件循环
+| 工作 | 合适的机制 | 主要代价 |
+| --- | --- | --- |
+| 网络 I/O、连接等待 | asyncio 协程 | 事件循环不能被同步代码堵住 |
+| 短 CPU 解析、压缩 | 受控线程池 | 共享状态、上下文切换 |
+| 长 CPU 计算 | 多进程或独立 Worker | 内存复制、进程生命周期 |
+| GPU 推理 | Serving 引擎的批处理 | 显存、队列和模型实例数 |
 
-短暂、主要等待文件或兼容库的同步函数可以通过 `asyncio.to_thread` 调用。它把函数交给线程池，事件循环继续处理其他连接。线程中的函数不会因为协程取消而自动停止，因此要为库本身设置超时，并避免不可逆副作用。
+多进程能绕开 Python GIL 的部分限制，但每个进程可能独立加载 tokenizer、权重和缓存。GPU 服务不能只看 CPU 核数决定 worker 数量。
 
-CPU 密集解析可放到长期复用的 `ProcessPoolExecutor` 或独立 Worker。传入进程池的数据必须可序列化，结果也要控制大小。大型文件更适合传对象存储键，由 Worker 自己读取，而不是把几十 MB 二进制通过进程队列复制多次。
+## typing 是运行边界的说明书
 
-## Deadline、超时和取消不是同一个状态
+类型标注不能替你验证请求，却能把“可能为空”“必须带 tenant_id”“流式事件有哪些 kind”写进接口。对 AI 服务尤其重要，因为字符串和字典很容易在层间丢失状态所有权。运行时仍需要 Pydantic 或显式检查，类型检查通过不等于输入可信。
 
-Deadline 是绝对结束时间，跨服务传播后可以计算剩余预算。超时表示某一步超过分配预算；取消表示调用方主动终止；失败表示执行完成但未得到有效结果。三者可能触发不同重试、退款和审计逻辑，不能统一映射为 500。
+## 取消必须传到最深处
 
-重试只能发生在剩余预算允许、操作幂等且错误可恢复时。模型请求已经到达供应商但连接丢失，结果可能未知；直接重试可能重复计费。运行时应给每个尝试记录 request ID、开始时间、终态和用量归属。
+客户端断开后，API 层收到取消，应该停止等待模型、释放队列槽和关闭上游连接。只取消最外层协程而不通知同步线程或 GPU 请求，会让用户看不到结果，但资源仍被占用。给每个请求记录 deadline、取消原因和清理完成时间，才能判断“取消成功”还是“超时后遗留”。
 
-## 运行时检查清单
+## 本地验证看什么
 
-- 每个并发入口有 Semaphore、连接池或队列上限，而不是无限 `gather`。
-- 同步 I/O 不在事件循环执行，CPU 密集任务不靠增加 async 关键字解决。
-- 任务由请求、TaskGroup、Worker 或调度器明确拥有，终态后不会遗留后台协程。
-- Deadline 向下传播，取消保持取消语义，错误进入稳定联合类型。
-- 观测同时记录排队时间、执行时间、并发槽和终态，避免只看总延迟。
+```bash
+python -m asyncio your_probe.py
+python -X dev your_service.py
+ps -o pid,ppid,pcpu,pmem,cmd -C python
+```
 
-掌握这些边界后，FastAPI 只是把 HTTP 生命周期接到这套运行时上，而不是替你自动解决并发、取消与资源所有权。
+这些命令只能帮助观察事件循环警告、进程数量和资源趋势。真实吞吐要在固定请求分布、模型版本和硬件上测量，不能从开发机的单次结果推导生产容量。下一篇把这些运行时边界放进 FastAPI 和 OpenAI 兼容协议。
+
+## 不要把 ContextVar 当成持久状态
+
+request_id、tenant_id 等短生命周期上下文可以用 ContextVar 在协程链路中传播，但线程池、子进程、后台任务和消息队列不会天然继承它。真正需要恢复和审计的字段，必须显式写入任务消息、数据库或结构化事件。
+
+同样，asyncio.CancelledError 不是普通业务错误。捕获它做清理后应继续传播取消语义，不能吞掉后把请求标成成功。连接池、流式生成器和临时文件都应在 finally 中关闭，使取消成为可验证的资源释放过程。
+
+## 进程模型还决定了连接的归属
+
+Web 服务器创建多个 worker 时，每个进程都有自己的事件循环、连接池和内存。启动前初始化的全局客户端在 fork 后可能带着不安全的连接状态，模型对象也可能被重复加载。初始化时机要按运行模型设计，而不是只看代码能否 import。
+
+对数据库、HTTP 和 Redis 客户端，通常让每个 worker 在自身生命周期内创建和关闭。对 GPU 模型，先明确是否只允许一个 Serving 进程拥有设备，再让 API worker 通过网络调用它。这样避免多个 Python worker 无意竞争同一张卡。

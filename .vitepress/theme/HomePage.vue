@@ -12,7 +12,7 @@ const router = useRouter()
 
 const featuredPaths = [
   'ai-agent/llm-workflow-rag-agent',
-  'ai-practice/ai-work-modes-opc-full-stack',
+  'ai-practice/personal-ai-work-system',
   'ai-agent/knowledge-agent-capstone',
   'frontend/relearn/browser/browser_event',
   'devops/ai-infra-role-map'
@@ -22,7 +22,7 @@ const focusAreas = [
   {
     name: 'AI 全栈实践',
     description: '用规则、MCP、Skill 与工作模式组织一个人的产品和工程交付。',
-    href: '/docs/ai-practice/ai-work-modes-opc-full-stack'
+    href: '/docs/ai-practice/personal-ai-work-system'
   },
   {
     name: 'Agent 工程师',

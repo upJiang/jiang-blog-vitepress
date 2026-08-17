@@ -18,10 +18,10 @@ const defaultRoutes = [
   '/docs/backend/python-fastapi-runtime-layering',
   '/docs/devops/vllm-openai-compatible-serving',
   '/docs/ai-practice/',
-  '/docs/ai-practice/python-mcp-server-practice',
-  '/docs/ai-practice/article-publishing-skill-practice',
-  '/docs/ai-practice/context-engineering-harness',
-  '/docs/ai-practice/ai-work-modes-opc-full-stack'
+  '/docs/ai-practice/fastmcp-server-practice',
+  '/docs/ai-practice/article-check-skill-practice',
+  '/docs/ai-practice/coding-harness-troubleshooting',
+  '/docs/ai-practice/personal-ai-work-system'
 ]
 const routes = process.env.LIGHTHOUSE_ROUTES
   ? process.env.LIGHTHOUSE_ROUTES.split(',').map((route) => route.trim()).filter(Boolean)

@@ -20,68 +20,69 @@ practice:
     - 层级关系和资源所有者明确
     - 未使用真实 GPU 的内容标为机制推演
 evidence: official
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # CUDA 执行模型：Thread、Block、Grid、Warp 与 SM
 
-CUDA 执行模型是主机程序把一次 Kernel 工作映射到 GPU 线程层级和硬件资源的规则。它位于 GPU 基础与具体 Kernel 优化之间：Host/Device、Grid、Block、Thread 描述程序怎样组织工作，Warp、SM、寄存器和共享内存解释硬件怎样调度和执行。理解这层，才有办法把代码中的线程配置和实际吞吐联系起来。
-
-它解决的不是“线程越多越快”，而是让开发者能回答三个问题：一个数据问题被拆成多少 Block 和 Thread，Block 在哪个 SM 上驻留，执行过程中计算、分支、访存和同步分别消耗什么资源。下面先建立这张映射，再解释常见的利用率误判。
-
-配置了很多 CUDA Thread，GPU 利用率仍然不高。线程数量只说明暴露了多少并行工作，不说明每个 Block 消耗多少寄存器和共享内存、Warp 是否发生分支、访存是否合并，也不说明 Host 是否在等待同步。
-
-CUDA 提供 Host/Device 编程模型。CPU 上的 Host 代码分配内存、准备数据并发起 Kernel；GPU 上的 Device 代码由许多线程执行。Grid、Block 和 Thread 是软件组织层级，Warp 与 SM 是理解硬件调度的关键层级。
+CUDA 代码把线程数写得很大，GPU 却没有按预期加速。线程数量只是工作声明，真正影响执行的是 Block 如何分配到 SM、Warp 是否分支、寄存器和共享内存是否足够，以及全局内存访问是否合并。
 
 ## 一次 Kernel Launch 的层级
 
 ```mermaid
 flowchart TD
-  H[Host Program] -->|launch| G[Grid]
-  G --> B1[Block 0]
-  G --> B2[Block 1]
+  H[Host CPU] -->|launch grid| G[Grid]
+  G --> B0[Block 0]
+  G --> B1[Block 1]
   G --> BN[Block N]
-  B1 --> T[Threads]
-  T --> W[Warps]
-  W --> SM[Streaming Multiprocessor]
-  SM --> R[Registers]
-  SM --> S[Shared Memory / Cache]
-  SM --> C[Execution Units]
+  B0 --> W0[Warps]
+  W0 --> T[Threads]
+  W0 --> SM[SM scheduler]
 ```
 
-一次 Launch 创建 Grid，Grid 由多个 Block 组成，Block 包含多个 Thread。Block 被调度到某个 SM，并在该 SM 上完成；多个 Block 可以驻留同一 SM，前提是寄存器、共享内存、线程和 Warp 资源允许。
+Grid 是一次 Kernel 的全部工作，Block 是可以独立调度的协作单元，Thread 执行同一 Kernel 的不同数据索引。硬件通常以 Warp 为执行和分支的基本组，Block 会被放到某个 SM 上驻留，直到其中线程完成。
 
-## Thread、Block 与 Grid
+## 索引映射和边界检查
 
-Thread 使用自己的索引处理一个或多个数据元素。Block 提供局部协作边界，同一 Block 的线程可以使用共享内存并在指定同步点等待。Grid 组织整个问题规模，不同 Block 通常不能在普通 Kernel 内做全局同步。
+```cpp
+__global__ void add(const float* a, const float* b, float* c, int n) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) c[i] = a[i] + b[i];
+}
 
-Block 维度应匹配数据形状和硬件限制。Thread 数过少难以形成足够 Warp，过多可能让单个 Block 占用太多资源，降低同时驻留 Block 数。选择不是背固定数值，而是结合 Kernel 的寄存器、共享内存和访存模式。
+// 解释性 launch：block=256，grid 覆盖 n 个元素
+add<<<(n + 255) / 256, 256>>>(a, b, c, n);
+```
 
-## Warp 是实际调度单元
+输入是长度为 n 的数组，执行过程是每个 Thread 计算一个索引，输出写入 c[i]。if (i < n) 防止最后一个 Block 越界。示例展示索引和层级，不声称在本机 GPU 上运行，也没有包含错误检查、内存分配和同步。
 
-硬件把相邻线程组成 Warp，并以共同指令流执行。Warp 内线程遇到数据相关分支时，可能先执行一条路径、屏蔽另一部分线程，再执行另一条路径，这叫分支发散。结果仍正确，但有效吞吐降低。
+## Warp 分支和资源驻留
 
-Warp 还能在等待内存时切换到其他可运行 Warp，以隐藏延迟。只有足够的活动 Warp 且资源允许，调度器才有选择。Occupancy 表示理论活动 Warp 比例，不等于性能；更高 Occupancy 也可能因为额外工作或缓存行为变慢。
+同一 Warp 内的线程走不同分支时，硬件可能分段执行，吞吐下降。Block 使用的寄存器和共享内存越多，单个 SM 能同时驻留的 Block 越少。增加线程数可能提高并行度，也可能因为资源占用降低 occupancy。occupancy 只是线索，访存和算术瓶颈仍需单独分析。
 
-## SM 拥有什么资源
+## 同步的所有者
 
-SM 包含 Warp Scheduler、寄存器文件、共享内存/缓存和各种执行单元。Block 的资源在驻留期间占用 SM。若每线程寄存器过多或每 Block 共享内存过大，能同时驻留的 Block 会减少。
+| 同步范围 | 能保证什么 | 不能保证什么 |
+| --- | --- | --- |
+| 同一 Block 的 __syncthreads | Block 内共享内存访问顺序 | 不同 Block 之间的即时顺序 |
+| Kernel 结束 | 前一个 Kernel 的全局结果可见 | Host 端异步调用已完成 |
+| Host/Device 同步 | CPU 得到设备完成结果 | 下一个 Kernel 一定高效 |
 
-Tensor Core 等专用单元加速受支持形状和数据类型的矩阵运算。框架选择的 Kernel 必须匹配 GPU 架构、精度和布局；“安装了 CUDA”不意味着任意操作都会走最优单元。
+## 机制推演的边界
 
-## 内存层级与访问
+::: warning
+**未实测**
 
-寄存器最靠近线程，速度快但数量有限；共享内存由 Block 内线程显式协作；L1/L2 Cache 缓解重复访问；Global Memory 容量大但延迟高；Constant 等空间适合特定只读模式。HBM/VRAM 是设备主存，和片上存储不是同一层。
+Warp 大小、寄存器分配、缓存和编译器行为要以目标 GPU、CUDA 版本和编译结果为准。下一篇从 Driver、Runtime 和 nvidia-smi 进入显存账本，解释模型为什么在第二个请求时 OOM。
+:::
 
-相邻线程访问连续、对齐地址时，硬件更容易合并内存事务。散乱访问会增加请求数。Tile 技术把 Global Memory 数据加载到共享内存反复使用，以计算换取更高数据复用。
+## 内存访问决定线程是否真的协作
 
-## 同步与异步
+相邻线程若访问相邻地址，硬件通常能合并为较少的内存事务；若每个线程跨很大步长访问，带宽会被浪费。共享内存可以复用一个 Block 内反复使用的数据，但也会占用 SM 资源并可能产生 bank conflict。
 
-Kernel Launch 对 Host 通常是异步的：Host 可以继续安排复制或其他 Kernel，直到显式同步、读取结果或依赖关系要求等待。设备内同步范围有限，Block 内 Barrier 只协调同一 Block 线程。
+这类优化必须从正确性开始：先确保索引边界、数据类型、同步范围正确，再用 profiler 判断瓶颈是算术、全局内存、分支还是占用。只凭肉眼调整 block size 很容易得到偶然更快、换形状就变慢的 Kernel。
 
-错误也可能在后续同步点才被观察到。排障需要记录哪个 Launch、Stream 与同步调用暴露错误，不能只看最后一条 API。跨 Stream 并发还要用 Event 或依赖保证数据在使用前完成。
+## Host 的异步提交也会造成误判
 
-## 映射一个问题时问什么
+Kernel launch 常常对 Host 异步返回，CPU 继续执行不代表 GPU 已完成。若在错误位置调用同步，可能把前一个 Kernel 的失败误归给后一个调用；若完全不检查错误，又会让非法访问延后暴露。
 
-先确定每个 Thread 处理什么索引，Block 内是否需要共享数据，Block 之间是否独立；再估算每 Block 线程、寄存器和共享内存；最后观察分支、访存与同步。输入到输出的索引映射必须可手算，小规模边界和非整除长度要有保护。
-
-当前环境没有 CUDA 设备，无法编译或运行 Kernel。验证方式是机制推演：给出 Grid 与 Block 大小，手工映射几个 Thread 到数据，说明它们组成哪些 Warp、占用哪些 SM 资源、哪里同步、哪里可能发散或产生非合并访问。
+调试阶段通常在关键边界检查 launch 错误并同步定位，性能阶段再减少不必要的同步。两种模式不能混为一谈：为了测速去掉同步，不能变成忽略正确性和错误传播。

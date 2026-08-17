@@ -1,0 +1,1228 @@
+{
+  "schemaVersion": 1,
+  "category": "devops",
+  "generatedAt": "2026-08-17",
+  "reviews": [
+    {
+      "path": "docs/devops/agent-runtime-infrastructure.md",
+      "slug": "agent-runtime-infrastructure",
+      "title": "Agent Runtime 基础设施：LangGraph、MCP、工具与恢复",
+      "chapter": 27,
+      "bodySha256": "cb694e1e2e37c25976dbd9127f3f7f219c0d2b3e0723546ec29b4bfb4ec53adf",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://langchain-ai.github.io/langgraph/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/ai-capacity-load-cost.md",
+      "slug": "ai-capacity-load-cost",
+      "title": "TTFT、TPOT、吞吐、队列、容量与成本",
+      "chapter": 30,
+      "bodySha256": "c6bfb965d11c1dd00565ca62c5a7b39ce7b9e0afc80453aec038fe541e3c629d",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://sre.google/sre-book/monitoring-distributed-systems/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/ai-infra-role-map.md",
+      "slug": "ai-infra-role-map",
+      "title": "AI Infra 全景、岗位职责与学习路径",
+      "chapter": 1,
+      "bodySha256": "c0d0221e1cf7d4ea46fe8779d02e59e78445c2765cba8202cf145d91673768c8",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://sre.google/sre-book/table-of-contents/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/ai-observability-slo.md",
+      "slug": "ai-observability-slo",
+      "title": "OpenTelemetry、Prometheus、Grafana、Langfuse 与 AI SLO",
+      "chapter": 29,
+      "bodySha256": "b3bc019dabeef4b419aee3d795417dfed14f64d5ca3ca619533a8423bb4f2390",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://opentelemetry.io/docs/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/ai-platform-security.md",
+      "slug": "ai-platform-security",
+      "title": "AI Platform 安全：多租户、Secret、数据、模型与审计",
+      "chapter": 31,
+      "bodySha256": "09cc5a3c1a8feb74dcac9f770cd992a6e552477cae3ff3939884a41e3f28322a",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/candidate-migration-rollback-recovery.md",
+      "slug": "candidate-migration-rollback-recovery",
+      "title": "候选验证、迁移、切流、回滚、备份与恢复",
+      "chapter": 36,
+      "bodySha256": "16533261ad24f20e5a326b477f10225e5a4639de5c478bcaf5052bf2965b9911",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://sre.google/sre-book/release-engineering/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/ci-cd-artifact-security.md",
+      "slug": "ci-cd-artifact-security",
+      "title": "CI/CD、SBOM、签名、Secret 与不可变制品",
+      "chapter": 35,
+      "bodySha256": "691a0b0729c07630009fa42915f8e26037a0d3c13866caa411c57eee181eb782",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://slsa.dev/spec/v1.0/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/continuous-batching-kv-cache.md",
+      "slug": "continuous-batching-kv-cache",
+      "title": "Continuous Batching、PagedAttention 与 KV Cache",
+      "chapter": 16,
+      "bodySha256": "a0c690a236e94cda7fffd9a79281a443391e1120b2a85fbc6ad107d055c4d8e5",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.vllm.ai/en/latest/design/paged_attention.html",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/cuda-programming-model.md",
+      "slug": "cuda-programming-model",
+      "title": "CUDA 执行模型：Thread、Block、Grid、Warp 与 SM",
+      "chapter": 20,
+      "bodySha256": "cee03070362b968ac3e53c212796cc1b88c738ed5ae42568728437825d633de0",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/deepspeed-zero-infrastructure.md",
+      "slug": "deepspeed-zero-infrastructure",
+      "title": "DeepSpeed ZeRO：状态分片、Offload 与显存边界",
+      "chapter": 33,
+      "bodySha256": "c1b90c7d9730159509091a00427154e074b15aeadc4ce8e9da47a301dd33bef0",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://www.deepspeed.ai/tutorials/zero/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/distributed-training-infrastructure.md",
+      "slug": "distributed-training-infrastructure",
+      "title": "分布式训练：Data、Tensor、Pipeline Parallel、DDP 与 FSDP",
+      "chapter": 32,
+      "bodySha256": "723ed2ba45a5b25e5f030a860a369b52d89b71cf41c6224a313176fe52f19988",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://pytorch.org/docs/stable/distributed.html",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/docker-compose.md",
+      "slug": "docker-compose",
+      "title": "Docker Compose：组织本地 AI 服务栈",
+      "chapter": 5,
+      "bodySha256": "e4e580634fd88d4fcbd330f5d9617d4b0f693b4e57715c5905814bd450593649",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.docker.com/compose/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/enterprise-ai-platform-capstone.md",
+      "slug": "enterprise-ai-platform-capstone",
+      "title": "综合项目：设计 Enterprise AI Platform",
+      "chapter": 37,
+      "bodySha256": "3573002bfbe295913a3d34a72017168778ea18dfb1a08b82e1efebe26f205ced",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://opentelemetry.io/docs/concepts/observability-primer/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/fastapi-openai-compatible-service.md",
+      "slug": "fastapi-openai-compatible-service",
+      "title": "FastAPI 构建 OpenAI 兼容的 LLM 服务",
+      "chapter": 8,
+      "bodySha256": "8c5866ff6e74984e440ead960d93984cd10efa713a96d675804e8fc7c29b3778",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://fastapi.tiangolo.com/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/gpu-computing-foundations.md",
+      "slug": "gpu-computing-foundations",
+      "title": "GPU 基础：是什么、怎么工作，以及 AI 为什么使用它",
+      "chapter": 19,
+      "bodySha256": "8d9ab801590a7e7e1323fc8f810282e0755140bb2da7f67e6ee69803e69e0d7f",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/gpu-cuda-vram-nvidia-smi.md",
+      "slug": "gpu-cuda-vram-nvidia-smi",
+      "title": "GPU Driver、CUDA Runtime、HBM/VRAM 与显存诊断",
+      "chapter": 21,
+      "bodySha256": "2e26af6d1cd4c7ed6a03e7ab9861364d913b96b7fd2c4584c23980a96bb8712b",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.nvidia.com/deploy/nvidia-smi/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/kubernetes-ai-platform-basics.md",
+      "slug": "kubernetes-ai-platform-basics",
+      "title": "为什么 AI 平台需要 Kubernetes：控制面与核心对象",
+      "chapter": 22,
+      "bodySha256": "535e20cdd9d9e3bd9b69f060f8068d7920082113460a8af05d9e8a7a3329c404",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://kubernetes.io/docs/concepts/overview/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/kubernetes-ai-service-deployment.md",
+      "slug": "kubernetes-ai-service-deployment",
+      "title": "Kubernetes 部署 AI 服务：GPU Operator、模型卷与探针",
+      "chapter": 23,
+      "bodySha256": "916f31c9cf06d3414dc6abcbd1996c47a40542f6967eb4e71611b95486714105",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/kubernetes-gpu-scheduling.md",
+      "slug": "kubernetes-gpu-scheduling",
+      "title": "Kubernetes GPU 调度、共享、MIG 与自动扩缩容",
+      "chapter": 24,
+      "bodySha256": "a54a1f5354ca50e07834b44153cfa1cfd3835d4698e0e978a35cc56b9abf3296",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/linux-service-troubleshooting.md",
+      "slug": "linux-service-troubleshooting",
+      "title": "Linux 服务运行：进程、资源、信号与证据化排障",
+      "chapter": 2,
+      "bodySha256": "de60eccb146ac961fbebac8b633571004f3fdba75361fbbd41ff629689ebfd11",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://man7.org/linux/man-pages/man2/execve.2.html",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/llm-gateway-design.md",
+      "slug": "llm-gateway-design",
+      "title": "LLM Gateway：API Key、路由、限流、Token 与成本",
+      "chapter": 25,
+      "bodySha256": "deeb9568cf35f2efdee26fdc603c136dea84122df4c08f35216cdd92c24f79f5",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://github.com/openai/openai-openapi",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/llm-serving-architecture.md",
+      "slug": "llm-serving-architecture",
+      "title": "LLM Serving：从模型文件到稳定推理 API",
+      "chapter": 13,
+      "bodySha256": "5fbfea31be7713232e8f33744af0e37c77dccfc7a2c994731986ff83471c4843",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.vllm.ai/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/model-artifacts-precision-quantization.md",
+      "slug": "model-artifacts-precision-quantization",
+      "title": "模型制品、精度、量化与推理优化",
+      "chapter": 18,
+      "bodySha256": "bc22e61d9bf8f7555169cc1e615395ea114d6c8f7eac1b87d560d77e9e09e3b1",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://huggingface.co/docs/transformers/quantization/overview",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/multi-model-platform.md",
+      "slug": "multi-model-platform",
+      "title": "多模型管理平台：注册、版本、路由、健康与切换",
+      "chapter": 26,
+      "bodySha256": "348a5cdf0b2acffac1bc12c3b7382852127ab8a6fa4839e52645b66cc862e3d1",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://kubernetes.io/docs/concepts/architecture/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/nccl-gpu-communication.md",
+      "slug": "nccl-gpu-communication",
+      "title": "NCCL、Collective、AllReduce 与多机 GPU 通信",
+      "chapter": 34,
+      "bodySha256": "bac4f2876950f1d8b2f94d569f859cefb7d7d41e4fb60b42c31716d0bc5373bd",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/network-dns-tls-http-proxy.md",
+      "slug": "network-dns-tls-http-proxy",
+      "title": "DNS、TCP、TLS、HTTP 与代理请求链",
+      "chapter": 3,
+      "bodySha256": "4fcea246d24620b26b563a6f27180510990a9c64a271231f899d5b7169b6eb6b",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Overview",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/nginx-static-proxy-sse.md",
+      "slug": "nginx-static-proxy-sse",
+      "title": "Nginx、TLS、模型 API 与 SSE 流式入口",
+      "chapter": 6,
+      "bodySha256": "3461d58500001e899ac46a26c6001bfc4376c068a8345d9ddb424c9cc5ec21ff",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://nginx.org/en/docs/http/ngx_http_proxy_module.html",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/object-storage-minio.md",
+      "slug": "object-storage-minio",
+      "title": "对象存储：模型、文档、Multipart 与生命周期",
+      "chapter": 12,
+      "bodySha256": "ad9a68186615522a1681a6bead714e23e843e9dabe1b24655fbbf0dceb135a6d",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://min.io/docs/minio/linux/developers/python/API.html",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/oci-container-runtime.md",
+      "slug": "oci-container-runtime",
+      "title": "OCI 镜像、容器隔离、cgroup 与进程生命周期",
+      "chapter": 4,
+      "bodySha256": "f7a5511bc3ef36015454757c3fcb02760e17abfee89150a547c56931edab267f",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://github.com/opencontainers/runtime-spec",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/open-model-huggingface-deployment.md",
+      "slug": "open-model-huggingface-deployment",
+      "title": "Hugging Face、Qwen、Llama、DeepSeek 与首次开源模型部署",
+      "chapter": 14,
+      "bodySha256": "04fd3dc885ef5bd0941d35018b8ee9a5c2fe28bdecd32525bfe22997ca13a9dc",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://huggingface.co/docs/hub/models-the-hub",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/postgres-pgbouncer-operations.md",
+      "slug": "postgres-pgbouncer-operations",
+      "title": "PostgreSQL、JSONB、pgvector、索引与连接池",
+      "chapter": 10,
+      "bodySha256": "b74bb69f810d7958a93b101e8b16b5965695fbfe195274a9077468b026ec5541",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://www.postgresql.org/docs/current/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/python-ai-service-runtime.md",
+      "slug": "python-ai-service-runtime",
+      "title": "Python AI 服务运行时：typing、asyncio、线程与多进程",
+      "chapter": 7,
+      "bodySha256": "5f9bad5c25e3108da54c1ab725f8032d9c0ff91802a577e32c02ecdcde8a7026",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/queue-worker-plane.md",
+      "slug": "queue-worker-plane",
+      "title": "消息队列与 Worker：拆分在线推理和离线任务",
+      "chapter": 11,
+      "bodySha256": "ffbc2c492c32e91e4888cd2bbcc0c76592c176dc5f1a1b016391a7e24e343c08",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://www.rabbitmq.com/docs/reliability",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/rag-infrastructure.md",
+      "slug": "rag-infrastructure",
+      "title": "RAG Infra：从文档发布到带证据回答",
+      "chapter": 28,
+      "bodySha256": "97fff94137ba1b901741a421762cbd9e8578e2c39f6ef0e7b0e653e9642b9384",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://www.postgresql.org/docs/current/ddl-priv.html",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/redis-operations.md",
+      "slug": "redis-operations",
+      "title": "Redis 在 AI 系统中的缓存、Session、限流与任务角色",
+      "chapter": 9,
+      "bodySha256": "48354946bde74679141abc7f429897d7e390c3889e7915ba072d9847b9ea516a",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://redis.io/docs/latest/",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/transformer-inference-lifecycle.md",
+      "slug": "transformer-inference-lifecycle",
+      "title": "Tokenize、Prefill、Decode 与流式推理生命周期",
+      "chapter": 15,
+      "bodySha256": "151e0f9360588a59fc41090d0e127e57b942b79d53eb4d93bf2d00c8d48937f1",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://huggingface.co/docs/transformers/main_classes/text_generation",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    },
+    {
+      "path": "docs/devops/vllm-openai-compatible-serving.md",
+      "slug": "vllm-openai-compatible-serving",
+      "title": "vLLM 服务、OpenAI 兼容接口与故障定位",
+      "chapter": 17,
+      "bodySha256": "bd1e32088993da40924544acb8d6180816638839e88b5c90e9d5a2c3b87ca71c",
+      "reviewedAt": "2026-08-17",
+      "sources": [
+        {
+          "type": "official-or-specification",
+          "url": "https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html",
+          "checkedAt": "2026-08-17"
+        },
+        {
+          "type": "tutorial-structure-reference",
+          "url": "https://datawhalechina.github.io/hello-agents/#/",
+          "checkedAt": "2026-08-17"
+        }
+      ],
+      "practiceBoundary": "代码与配置只用于解释语义；GPU、CUDA、vLLM、多卡和 Kubernetes 内容未声明真实硬件或集群实测。",
+      "privacyReview": {
+        "status": "pass",
+        "note": "正文不包含真实凭证、个人信息、生产地址或未脱敏业务数据。"
+      },
+      "beginnerReview": {
+        "status": "pass",
+        "note": "从可观察场景进入，术语在机制与证据上下文中解释，示例后说明输入、过程、输出或边界。"
+      },
+      "seniorReview": {
+        "status": "pass",
+        "note": "状态所有者、故障边界、版本敏感项与未实测范围明确，不以示例推演替代生产性能结论。"
+      }
+    }
+  ]
+}

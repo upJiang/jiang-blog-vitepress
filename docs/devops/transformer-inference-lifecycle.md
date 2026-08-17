@@ -20,80 +20,59 @@ practice:
     - 每阶段输入输出明确
     - 流式输出不等于并行生成
 evidence: official
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # Tokenize、Prefill、Decode 与流式推理生命周期
 
-Transformer 推理把输入文本先 Tokenize 成 ID，再用 Prefill 处理整段上下文并建立 KV Cache，随后在 Decode 阶段逐步预测新 Token，最后通过流式协议交给客户端。它位于请求排队与答案传输之间。这几个阶段消耗的计算和内存不同，因此首 Token 等待与后续生成速度要分开观察。
+用户点击发送后，首个 Token 迟迟不来；一旦开始输出，后续 Token 却很快。这里至少包含两个不同阶段：输入被一次性处理的 Prefill，以及逐 Token 生成的 Decode。把两者混成“推理耗时”，就无法解释 TTFT 和 TPOT。
 
-同一个模型，短问题很快出现首 Token，放入长文档后首 Token 等待明显增加；一旦开始输出，后续速度却差不多。新增耗时主要落在 Tokenize、排队或 Prefill，不能只看总耗时调参。
-
-推理生命周期把一次请求拆成可观察阶段。每一阶段都有输入、状态、输出和失败方式，TTFT 与 TPOT 也由不同阶段组成。
-
-## 完整时序
+## 从文本到第一个 Token
 
 ```mermaid
 sequenceDiagram
   participant C as Client
-  participant S as Serving
   participant T as Tokenizer
-  participant Q as Scheduler
-  participant G as GPU
-  C->>S: messages + generation params
-  S->>T: apply template + encode
-  T-->>S: input token ids
-  S->>Q: enqueue sequence
-  Q->>G: Prefill(input tokens)
-  G-->>Q: first logits + KV Cache
-  loop until stop
-    Q->>G: Decode(last token + KV)
-    G-->>Q: next logits
-    Q->>Q: sample token
-    Q-->>C: stream delta
-  end
-  Q-->>C: finish reason + usage
+  participant P as Prefill
+  participant D as Decode
+  participant S as Stream
+  C->>T: text + chat template
+  T-->>P: input token ids
+  P->>P: attention over prompt
+  P-->>D: first logits + KV cache
+  D->>D: sample next token
+  D-->>S: delta token
+  S-->>C: SSE event
 ```
 
-协议层先把消息应用 Chat Template，Tokenizer 再把文本转换为整数 ID。调度器决定何时进入 Batch。Prefill 并行处理全部输入位置并建立每层 KV Cache；Decode 每轮基于已有 Cache 产生下一个 Token 的 Logits；采样器按参数选出 Token，直到停止条件成立。
+Tokenize 把文本变成整数序列，Chat Template 决定角色和特殊 Token。Prefill 一次处理输入并建立 KV Cache，首 Token 还要经过调度和采样。Decode 每次只追加一个或一小段 Token，并复用已有 KV。
 
-## Tokenize 改变的不只是计费
+## TTFT、TPOT 和总时长怎样拆
 
-Tokenizer 包含词表、预处理和特殊 Token。相同字符在不同 Tokenizer 下可能得到不同长度。Chat Template 还会插入角色、分隔符和结束标记，因此真正输入量不是用户文本的简单字符数。
-
-输入过长应在进入 GPU 前被确定性拒绝或裁剪。裁剪必须知道系统指令、当前问题、历史、工具结果和 RAG 证据的优先级，不能从字符串末尾盲目截断。Tokenizer Revision 与模型 Revision 不匹配，会让 Token ID 语义错误。
-
-## Prefill 为什么影响首 Token
-
-Prefill 对全部输入 Token 做前向计算。输入越长，计算和内存访问通常越多；请求在队列中等待、Batch 组成和 Prefix Cache 命中也会影响首 Token。Prefill 输出第一轮 Logits，并为每层保存 Key/Value，后续 Decode 才无需重复计算完整历史。
-
-TTFT 大致覆盖入口、校验、Tokenize、排队、Prefill、第一次采样和首事件传输。只看到 TTFT 高，不能立即归因 GPU；需要拆出 queue time、prefill time 和 transport time。
-
-## Decode 为什么逐 Token 进行
-
-自回归模型的下一个 Token 依赖已经生成的 Token，所以 Decode 存在串行依赖。一个请求不能一次产生全部未来 Token，流式输出也不改变这条依赖。引擎可以把许多请求的单步 Decode 组成 Batch，提高设备利用率。
-
-Decode 每一步读取模型权重和 KV Cache，计算量与访存模式不同于 Prefill。TPOT 观察相邻可见 Token 的时间，受到 Batch 大小、活动序列、Cache、采样和传输影响。Token/s 要说明是单请求、实例总输出还是输入输出合计。
-
-## 采样决定下一 Token 与终止
-
-Greedy 选择最高概率 Token；Temperature 调整分布尖锐程度；Top-p 在累计概率集合中采样。参数支持取决于模型和引擎，确定性也会受并行 Kernel、版本和硬件影响，不能把固定 Seed 当作绝对复现保证。
-
-停止条件包括生成 EOS、命中 Stop、达到最大输出、内容策略拒绝、客户端取消、Deadline 或执行错误。Finish Reason 应保留这些差异。达到长度上限不是正常完成，调用方可能需要提示答案被截断。
-
-## KV Cache 是运行状态
-
-每层 Attention 需要过去 Token 的 Key 与 Value。Cache 大小随层数、KV Head、Head Dimension、数据类型、序列长度和活动请求增加。模型权重固定时，长上下文和高并发仍可能让显存耗尽。
-
-请求结束或取消后必须释放对应 Cache Block。Prefix Cache 可以复用相同前缀的计算，但命中要匹配模型、Tokenizer、模板和 Token 序列，并考虑租户敏感内容边界。
-
-## 怎样定位生命周期问题
-
-| 现象 | 首查阶段 | 需要的证据 |
+| 指标 | 包含的阶段 | 容易被误读成 |
 | --- | --- | --- |
-| 首 Token 慢 | 排队、Tokenize、Prefill | queue、input tokens、prefill time |
-| 首 Token 快但后续慢 | Decode、Batch、传输 | TPOT、active sequences、event gap |
-| 长上下文 OOM | Prefill、KV Cache | input length、Cache block、显存账本 |
-| 客户端断开仍占 GPU | 取消传播与调度器 | disconnect、sequence state、block release |
-| 输出不停或截断 | Template、Stop、max tokens | token ids、finish reason、参数 |
+| TTFT | 排队 + Tokenize + Prefill + 首事件 | 模型纯计算时间 |
+| TPOT | Decode 相邻 Token 的间隔 | 完整请求平均延迟 |
+| 端到端 | 首 Token 到最后 Token、传输和收尾 | 只由 GPU 决定 |
+| 输出长度 | 停止条件前生成的 Token 数 | 字符数 |
 
-总时间只告诉你用户等了多久，阶段指标才告诉你改哪里。理解生命周期之后，Continuous Batching 和 PagedAttention 就不再是抽象优化名词，而是调度这些阶段与状态的方法。
+输入越长，Prefill 通常越重；输出越长，Decode 时间和 KV 占用越大。流式传输还受代理缓冲和客户端消费速度影响。测量时至少记录 prompt token、output token、首事件时间和最后事件时间。
+
+## 采样决定“何时停止”
+
+Temperature、top_p、top_k 等参数改变候选选择，stop token、最大新 Token 和上下文上限决定生成边界。服务端要把实际生效的参数写进 usage 或 trace，不能只记录客户端传入值，因为策略层可能做了上限和默认值覆盖。
+
+## 流式异常不是普通 HTTP 异常
+
+在首个事件发出前，服务端仍可返回 HTTP 4xx/5xx；发出事件后，状态码已经确定，中途失败通常通过 error 事件、连接关闭和服务端终态表达。客户端必须避免把断线当成正常完成，也不能自动重试一个可能已经计费的请求。下一篇进入多请求调度，解释为什么 Continuous Batching 需要管理 KV Block。
+
+## 上下文窗口是一个服务边界
+
+最大上下文不是单纯的模型常数。服务需要为系统提示、工具定义、RAG Evidence、用户输入和预计输出共同预留空间。若只在引擎报错后才发现超限，客户端已经等待了排队和 Tokenize 时间。
+
+入口应计算或估算 Token，保留输出预算，并在截断时明确说明删掉了什么。RAG 的 Evidence 编排要按 token budget 选择片段，不是把召回结果全部拼进去。这个预算同时影响 Prefill、KV Cache、TTFT 和成本。
+
+## 停止条件会改变用户可见的结果
+
+模型看到 eos、命中 stop 序列、达到 max_new_tokens、被客户端取消或超过 deadline，都会停止生成，但含义不同。前两者通常是正常完成，长度上限表示被截断，取消和超时则需要在终态中保留原因。
+
+对于流式协议，服务端还要处理 stop 序列跨 Token 边界的情况，不能把半个停止符泄露给客户端后再删除。实现细节依赖 tokenizer 和引擎，接口契约至少要让调用方知道 finish_reason 来自哪一类边界。

@@ -20,78 +20,58 @@ practice:
     - Trace 与 Metric 可用稳定 ID 关联
     - Prompt 和原始文档不进入指标标签
 evidence: official
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # OpenTelemetry、Prometheus、Grafana、Langfuse 与 AI SLO
 
-AI 可观测性把一次请求的 Trace、Metric、Log、模型事件、证据和资源消耗关联起来；SLO 则规定一段时间内可接受的服务目标。OpenTelemetry、Prometheus、Grafana 和 Langfuse 分别承接不同采集与分析职责。它们位于 AI Runtime、模型服务和运维决策之间，用来解释延迟、质量、错误与成本。
+接口返回 200，用户仍然认为系统失败：首 Token 等了二十秒，引用指向过期文档，答案还被截断。AI 可观测性要把一次请求的 Trace、Metric、Log、模型事件、证据和成本连起来，同时避免把 Prompt 和租户数据塞进高基数标签。
 
-接口返回 200，用户仍认为系统失败：首 Token 等了二十秒，引用指向过期文档，答案还因为长度上限被截断。传统 HTTP 成功率只能覆盖传输终态，AI 服务还要观察推理阶段、证据质量、资源和成本。
-
-可观测性不是收集所有数据。它要让工程师从一个症状定位到请求阶段、模型版本、知识 Release、资源瓶颈和终态，同时控制标签基数与敏感内容。
-
-## Trace、Metric、Log 与事件的分工
-
-| 信号 | 适合回答 | 不适合承担 |
-| --- | --- | --- |
-| Trace | 单次请求经过哪些阶段、父子关系和耗时 | 长期聚合趋势 |
-| Metric | 错误率、分位延迟、队列和资源趋势 | 任意 request ID 或 Prompt |
-| Log | 详细错误、状态转换和诊断上下文 | 无结构全文堆积 |
-| Business Event | Turn、知识发布、计费和审计事实 | 高频硬件采样 |
-
-OpenTelemetry 提供 Trace、Metric、Log 的语义与传播基础；Prometheus 抓取数值时序；Grafana 展示与告警；Langfuse 等 LLM Observability 工具关注模型调用、Prompt、Trace 与评测。工具可以组合，字段所有权和隐私策略必须统一。
-
-## 一条端到端 Trace
+## 一条 Trace 该包含哪些阶段
 
 ```mermaid
 flowchart LR
-  A[HTTP Accept] --> G[Gateway Route]
-  G --> R[Agent Runtime]
-  R --> Q[RAG Retrieve]
-  R --> T[Tool Call]
-  R --> M[Model Attempt]
-  M --> F[First Token]
-  F --> D[Decode / Stream]
-  D --> V[Validate / Finish]
-  V --> U[Usage Commit]
+  R[request] --> G[gateway span]
+  G --> A[agent turn]
+  A --> Q[retrieval]
+  A --> M[model attempt]
+  M --> K[queue/prefill/decode]
+  Q --> E[evidence]
+  G -.usage.-> U[usage event]
+  R -.metrics.-> P[Prometheus]
 ```
 
-根 Span 使用稳定 request/turn 关联，子 Span 记录路由、检索、工具、模型 Attempt、首 Token 和验证。Span 属性包含低基数模型标识、Deployment、Release、终态和错误类别；Prompt 与文档正文默认不作为属性，应脱敏、采样或只保存受控引用。
+Trace 用于解释单次请求的父子关系和耗时，Metric 用于趋势与 SLO，Log 用于详细错误，Business Event 用于 Turn、知识发布、计费和审计事实。OpenTelemetry 可以提供传播和语义，Prometheus 负责数值时序，Grafana 展示，Langfuse 等工具可承载模型调用和评测。
 
-异步任务通过 Trace Context 或显式 Link 关联，但业务恢复不能依赖 Trace 系统。Turn、Task 与 Event 仍写业务数据库，观测丢失不能改变执行正确性。
+## 指标标签要稳定而克制
 
-## AI 延迟拆解
+| 适合做 label | 不适合做 label |
+| --- | --- |
+| service、model_revision、route、status_class | 完整 Prompt、文档正文、用户 ID |
+| tenant_tier、error_code、region | request_id、任意 Token 序列 |
+| stream、cache_hit、retrieval_mode | 高基数的原始 URL 或工具参数 |
 
-总延迟至少拆为入口、准入、排队、检索/工具、Tokenize、Prefill、TTFT、Decode/TPOT、验证和传输。TTFT 是到首个可见 Token，TPOT 描述后续 Token 间隔；两者不能相加成简单总时间而忽略输出数量。
+request_id 放在 Trace 和结构化 Log 中，用 exemplars 或关联字段从聚合指标跳到单次请求。把原始内容放进指标会造成内存和隐私风险，也会让 Prometheus 失去聚合价值。
 
-按输入/输出 Token 档位、模型、终态和流式模式看分位数。长上下文请求自然更慢，若不分桶，业务结构变化会被误判为版本回归。Bucket 也要控制数量，防止指标爆炸。
+## AI SLO 不能只写可用率
 
-## 资源和队列信号
+在线聊天可以同时约束 HTTP 成功率、TTFT P95、TPOT P95、队列年龄、流式中断率和引用覆盖率。不同模型和请求档位要分开计算，否则短请求会掩盖长上下文的失败。SLO 窗口、排除条件和错误预算要写清楚，才能触发一致的发布或降级动作。
 
-Serving 观察等待请求、最老年龄、活动序列、Batch Token、KV Cache、抢占、GPU 利用、显存和 OOM；Backend 观察连接池、Redis 内存、队列深度、Worker Lease、对象上传和数据库锁；Gateway 观察限流、配额、路由、供应商错误和用量差异。
+## 采集本身也有成本和边界
 
-资源指标只有与请求阶段关联才可行动。GPU 利用率低可能是没有流量、CPU Tokenize 慢、数据搬运或 Batch 太小；高利用率也可能伴随严重排队，不能单独代表健康。
+Prompt、文档和工具参数可能含敏感信息。采集前做脱敏、采样和访问控制，原始内容与指标分开保存。Langfuse 或类似系统可以记录模型输入输出，但不能代替租户审计和数据库事实。
 
-## 质量 SLI
+## 从症状回到责任层
 
-质量无法完全由在线单一指标表示。可使用结构化输出通过率、工具参数拒绝、检索 Recall、Evidence 覆盖、引用有效、拒答正确、人工反馈和离线 Eval。在线反馈有偏差，离线 Eval 有代表性边界，两者应共同解释。
+TTFT 上升先看入口、队列、Prefill 和 KV；引用错误看 release、ACL 和 Evidence；成本异常看 usage、价格版本和重试。观测的价值是缩短判断路径，不是把所有日志堆在一个仪表盘。下一篇用这些指标和请求分布推导容量与成本。
 
-RAG 回答至少记录知识 Release、候选数、Rerank、采用 Evidence 和 Claim 验证结果。模型版本升级后，质量与运行指标使用同一 Release 标记，才能把变化归因到候选版本。
+## 告警应该指向用户影响和下一步证据
 
-## SLO 怎样写得可计算
+“GPU 利用率高”适合容量看板，不一定适合作为用户告警。更直接的告警可以是某模型路由的 TTFT P95 超过目标且队列年龄上升，或 RAG 引用覆盖率在一个 release 后显著下降。告警正文附 Trace 查询、模型 Revision、时间窗口和 runbook 链接，值班人员才能快速定位。
 
-SLO 由服务对象、SLI、阈值、窗口和排除规则组成。例如“在滚动 28 天内，符合输入上限且被准入的流式请求，99% 在目标时间内产生首 Token”。这比“系统要快”可计算，也明确了拒绝与异常流量怎样处理。
+错误预算消耗时，平台可以冻结模型切换、限制低优先级请求或扩大预热容量。这样 SLO 不是周报里的数字，而是影响发布和过载策略的控制信号。
 
-可用性 SLO 要定义哪些终态算成功；延迟 SLO 分 TTFT 与完成；质量 SLO 依赖受控 Eval；成本是预算而非可用性。错误预算用于决定是否继续发布，不能通过扩大排除项制造达标。
+## 采样不能破坏根因链路
 
-## 标签与隐私
+高流量系统不可能保留所有完整 Trace，但错误、慢请求、新 Revision 和安全事件应提高采样率。采样决策尽量在入口确定，并传播到子 span，避免只留下模型 span 却丢掉网关或 RAG 父链。
 
-Prometheus 标签适合模型档位、区域、状态、错误类别等有限集合。用户 ID、请求 ID、文件名、URL、Prompt 和任意错误文本会造成高基数或泄露，应放 Trace/Log 的受控字段或只存哈希与引用。
-
-采样策略保留错误、长尾和关键发布样本，同时对普通成功请求做比例采样。即使不采样完整 Trace，核心计量和终态指标仍需完整。敏感数据要有保留期限、访问审计和删除路径。
-
-## 从告警到行动
-
-告警应映射 Runbook：TTFT 升高先看队列和 Prefill，TPOT 升高看 Decode、Batch 和设备，引用覆盖下降看知识 Release 与检索，成本突增看 Token 分布、路由和重试。只有能指向下一条证据的告警才有价值。
-
-最终观测表要为每个 SLI 写明数据源、单位、标签、采样、负责人、告警阈值和 Runbook。这样仪表盘不只是展示系统很忙，而是支持发布判断、故障定位和容量决策。
+聚合指标保持全量，详细内容按策略采样并脱敏。这样既能看见总体 SLO，又能在异常时找到代表请求。采样规则本身也要版本化，否则两周前后的趋势可能不可比。

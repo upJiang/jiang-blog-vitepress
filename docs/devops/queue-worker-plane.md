@@ -20,65 +20,74 @@ practice:
     - 慢任务不阻塞在线请求
     - 副作用能识别重复执行
 evidence: anonymized-practice
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # 消息队列与 Worker：拆分在线推理和离线任务
 
-消息队列保存待处理任务或事件，Worker 从队列领取工作并在独立进程中执行。它们位于在线请求与耗时后台处理之间，用来削峰、重试和隔离资源。队列只提供投递与消费机制，任务优先级、幂等、容量和不同工作负载的公平性仍要由系统设计。
+用户上传文档后，接口应立即返回任务 ID；如果 API 进程把解析、Embedding 和对象写入都同步做完，超时只是迟早的事。队列把在线响应与后台工作分开，但它也引入了重复投递、租约、顺序和幂等问题。
 
-用户问一个简单问题，却在队列里等了十分钟。原因是同一批 Worker 正在处理大文件 OCR，每个任务占用大量 CPU 和内存，在线 Agent 的短任务只能排在后面。队列能解耦生产者和消费者，却不会自动提供隔离、公平性和正确的资源配置。
-
-任务平面要根据延迟目标、资源类型、失败语义和顺序要求拆分。在线延续任务、文档解析、Embedding、评测和清理拥有不同的并发、Prefetch、重试与停止方式。
-
-## 从任务状态而不是 Broker 消息开始
+## 一项文档任务怎样流动
 
 ```mermaid
-stateDiagram-v2
-  [*] --> pending
-  pending --> running: Worker 获得所有权
-  running --> succeeded: 结果提交并确认
-  running --> retry_wait: 可恢复失败
-  retry_wait --> pending: 到达重试时间
-  running --> failed: 不可恢复或超限
-  running --> cancelled: 取消被确认
-  running --> stalled: Lease 过期
-  stalled --> pending: 恢复扫描
+sequenceDiagram
+  participant C as Client
+  participant A as API
+  participant Q as Queue
+  participant W as Worker
+  participant DB as Database
+  participant O as Object Store
+  C->>A: upload + create task
+  A->>DB: task=queued
+  A->>Q: task_id
+  Q->>W: delivery
+  W->>O: read object
+  W->>DB: chunks/embeddings
+  W->>DB: task=completed
+  W-->>Q: ACK
 ```
 
-Broker 消息负责通知“有任务可执行”，数据库任务记录负责回答当前终态、幂等键、尝试次数、所有者和结果位置。只有消息而没有持久状态，API 很难告诉用户任务在哪里，也无法判断重复投递是否已产生副作用。
+任务状态的事实在数据库，队列只负责唤醒 Worker。ACK 前如果进程退出，消息可能再次投递；因此每个副作用都要以 task_id、chunk_id 或 idempotency_key 做幂等。
 
-## RabbitMQ、Kafka 和 Redis 解决的侧重点不同
+## 至少一次投递意味着什么
 
-RabbitMQ 以队列、Exchange、Routing Key 与消费者确认为中心，适合后台命令和细粒度路由。Kafka 以分区追加日志、Offset、消费组和保留为中心，适合可重放事件流和高吞吐顺序处理。Redis List/Stream 或任务框架可以支持较轻量场景，但仍要理解确认、可见性、持久化和淘汰边界。
+| 阶段 | 可能重试的原因 | 需要的保护 |
+| --- | --- | --- |
+| 对象读取 | 网络断开、临时 5xx | 校验 ETag/长度，重试可退避 |
+| 切片写入 | Worker 在事务提交后崩溃 | 唯一键 task_id + chunk_no |
+| Embedding | 批次部分成功 | 记录模型版本和输入哈希 |
+| 任务状态 | 旧 Worker 晚到覆盖新状态 | 状态转换检查版本或租约 |
 
-选型不能只看吞吐宣传。要回答消息是否需要长期重放、顺序保证到什么范围、消费者怎样扩缩、失败消息放哪里、运维团队能否恢复，以及业务是否已经有可靠幂等状态。
+“消息只消费一次”通常不是现实保证。更可靠的目标是副作用至多生效一次，消息可以多次到达。任务状态要区分 queued、running、retrying、failed、completed 和 cancelled，不能用一个布尔值掩盖恢复路径。
 
-## ACK 时机决定重复与丢失
+## Worker 的租约和取消
 
-先 ACK 再执行，Worker 崩溃可能丢任务；执行并提交结果后 ACK，Worker 可能在副作用成功但 ACK 前崩溃，于是消息会再次投递。大多数可靠队列提供的是至少一次投递，应用必须接受重复并用幂等键处理。
+Worker 领取任务时写入 lease_until，并定期续租。续租失败后停止写入，避免两个 Worker 同时处理。取消任务不是删除消息，而是写入取消状态，Worker 在文档分页、Embedding 批次和提交前检查取消标记。
 
-幂等不是简单查询“任务是否存在”。要为外部副作用定义唯一操作键，在数据库用唯一约束抢占执行权，记录未知结果，并让重试读取已有结果。发送邮件、调用无幂等 API 或模型计费请求时，需要更谨慎的状态和人工处置路径。
+```python
+async def process(task):
+    for batch in batches(task):
+        await ensure_lease(task.id)
+        if await is_cancelled(task.id):
+            return "cancelled"
+        vectors = await embed(batch)
+        await save_idempotent(task.id, batch.number, vectors)
+    await mark_completed(task.id)
+```
 
-## Prefetch、并发和资源所有权
+示例的输入是可分页任务，输出是 completed 或 cancelled。ensure_lease 和 save_idempotent 不是装饰品，它们定义了 Worker 是否仍有权产生副作用。真实队列的 ACK、可见性超时和重试策略要按所用产品核对。
 
-Prefetch 决定消费者提前持有多少未确认消息。数值过大会让慢 Worker 囤积任务，破坏公平性；过小可能浪费吞吐。Worker 并发也不能只按 CPU 核数：OCR 看 CPU/内存，Embedding 看批量和供应商配额，GPU 推理看显存和调度槽，数据库任务看连接池。
+## 在线推理和离线任务不共用同一预算
 
-为每类队列记录单任务峰值资源、平均与尾延迟、允许并发、下游配额和最大年龄。扩 Worker 前先确认瓶颈不在共享数据库、对象存储或模型服务，否则扩容只会增加争用。
+模型聊天请求需要低首 Token 延迟，文档解析可以排队几分钟。把两者放在同一 Worker 池会让离线大任务挤占在线资源。按队列、优先级、并发和 GPU/CPU 资源拆分，并给每个队列设最大年龄与丢弃策略。下一篇处理任务依赖的模型和文档对象，说明为什么对象存储要有版本和校验。
 
-## 重试必须有限且可解释
+## 重试要区分暂时失败和确定失败
 
-网络连接失败、限流和短时不可用可能适合指数退避与随机抖动；Schema 错误、权限拒绝、文件损坏和模型不支持通常不会因为等待而恢复。把所有异常统一重试会制造队列风暴并掩盖永久失败。
+对象存储短暂 503、数据库连接瞬断可以退避重试；文档格式不支持、模型版本不存在、权限被撤销通常是确定失败，重复执行只会浪费资源。Worker 应记录 error_code、可重试性、attempt 和下次执行时间，而不是把所有异常重新塞回队列。
 
-每次尝试记录错误类别、下次时间和剩余 Deadline。达到上限后进入死信或人工队列，不要无限循环。消费者修复后可按任务 ID 重放，重放仍经过同一幂等门禁。
+Dead-letter 队列也不是终点。它保留失败消息和上下文，供人工或修复任务重新判定。重投前先修复输入、配置或代码，并保持原有幂等键，避免“修复后重放”变成第二次副作用。
 
-## Lease 与停滞恢复
+## 顺序需求要显式声明
 
-长任务不能只用 `running=true` 表示所有权。Worker 启动时写入 owner 与 Lease 到期时间，执行期间续租；只有持有当前租约的 Worker 可以提交进度和终态。失去 Lease 的旧 Worker 必须停止写入，必要时由资源端的 fencing token 拒绝旧所有者。
+同一文档的解析、切片、Embedding 和发布通常有先后依赖，但不同文档可以并行。若队列只保证大致投递顺序，Worker 不能假设后一条消息一定看得到前一条的写入。状态机或依赖图应检查前置状态，而不是依赖消息抵达顺序。
 
-恢复扫描器只处理超过租约且仍为运行态的任务。它要先确认 Worker 心跳、外部副作用和当前版本，再决定重入队、标为未知还是人工处理，不能把所有超时任务简单复制一份。
-
-## 停机先停止取新任务
-
-发布或缩容时，Worker 先取消消费或把实例标为 draining，再等待在途任务结束、续租或安全回退。宽限期结束前仍未完成的任务，应保持可恢复状态并由其他 Worker 接管。直接结束进程可能让大量任务同时等待 Lease 过期。
-
-一个合格任务平面能从指标看出队列深度、最老任务年龄、执行时间、重试率、死信数、活跃 Lease 和各资源池利用率。它的目标不是“消息最终消失”，而是每个任务都有唯一可解释终态，在线流量不会被离线工作拖垮。
+需要严格顺序的实体可使用按文档键分区、单写者或版本号；全局严格顺序的代价通常很高，也会降低吞吐。先把顺序缩到真正需要的一小段，平台才不会被无谓串行化。

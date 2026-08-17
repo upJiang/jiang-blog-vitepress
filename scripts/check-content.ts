@@ -8,7 +8,7 @@ const root = process.cwd()
 const errors: string[] = []
 const fail = (message: string): void => errors.push(message)
 const expectedCounts: Record<string, number> = {
-  "ai-agent": 67,
+  "ai-agent": 98,
   seo: 25,
   frontend: 104,
   algorithms: 21,
@@ -43,7 +43,7 @@ function dateText(value: unknown): string {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? "")
 }
 
-if (articles.length !== 333) fail(`当前全站完整重建应登记 333 篇文章，实际为 ${articles.length} 篇。`)
+if (articles.length !== 364) fail(`当前全站完整重建应登记 364 篇文章，实际为 ${articles.length} 篇。`)
 
 for (const [category, expected] of Object.entries(expectedCounts)) {
   const actual = articles.filter((article) => article.category === category).length
@@ -97,7 +97,14 @@ for (const article of articles) {
     tags: article.tags,
     ...(article.prerequisites ? { prerequisites: article.prerequisites } : {}),
     ...(article.outcomes ? { outcomes: article.outcomes } : {}),
-    ...(article.evidence ? { evidence: article.evidence } : {})
+    ...(article.evidence ? { evidence: article.evidence } : {}),
+    ...(['ai-agent', 'ai-practice'].includes(article.category) ? {
+      stageKey: article.stageKey,
+      sequence: article.sequence,
+      slug: article.slug,
+      sourceKey: article.sourceKey,
+      dependsOn: article.dependsOn ?? []
+    } : {})
   }
   for (const [field, expected] of Object.entries(expectedFields)) {
     const actual = parsed.data[field]
@@ -134,7 +141,7 @@ for (const file of draftFiles) {
   if (!markdownFiles.includes(file)) fail(`草稿登记文件缺失：${file}`)
   if (expectedFiles.has(file)) fail(`草稿不能同时登记为正式文章：${file}`)
 }
-if (expectedFiles.size !== 341) fail(`docs 完整重建应发布 341 个 Markdown，实际登记为 ${expectedFiles.size} 个。`)
+if (expectedFiles.size !== 372) fail(`docs 完整重建应发布 372 个 Markdown，实际登记为 ${expectedFiles.size} 个。`)
 
 for (const file of markdownFiles) {
   if (contentLockedFiles.has(file)) continue
@@ -178,17 +185,18 @@ for (const slug of removedAiSlugs) {
 }
 const aiStageKeys = new Set(sectionStages['ai-agent'].map((stage) => stage.key))
 const expectedAiStageCounts: Record<string, number> = {
-  foundations: 6,
-  tools: 6,
-  'context-memory': 6,
+  foundations: 7,
+  tools: 7,
+  'context-memory': 10,
   'single-agent': 6,
-  'multi-agent': 5,
-  research: 3,
-  rag: 11,
+  'multi-agent-research': 8,
+  rag: 23,
   'trust-safety': 8,
-  runtime: 10,
-  harness: 5,
-  capstone: 1
+  runtime: 13,
+  production: 5,
+  harness: 7,
+  capstone: 1,
+  appendix: 3
 }
 const sourceKeys = new Set<string>()
 for (const article of aiArticles) {
@@ -242,20 +250,22 @@ for (const article of aiArticles) {
 
 const focusHeadingSequences: Record<string, string[]> = {
   'llm-workflow-rag-agent': [
-    '同一个问题会经过四条不同路径',
-    'LLM 负责生成候选',
-    '工作流把确定步骤写进程序',
-    'RAG 为回答补充外部证据',
-    'Agent 在受限循环中选择动作',
-    '选择能完成任务的最小方案'
+    '用同一个问题比较四条执行路径',
+    'LLM 怎样根据上下文生成候选',
+    '工作流怎样固定控制路径',
+    'RAG 怎样把外部知识带进回答',
+    'Agent 怎样根据观察选择下一步',
+    '四类系统怎样组合',
+    '怎样选择最小可行方案'
   ],
   'python-openai-responses-first-call': [
-    '请求由模型、指令和输入组成',
+    'Responses API 解决什么问题',
+    '准备 Python 环境和凭证',
     '发出第一次同步请求',
-    '读取正文、状态和 usage',
-    '流式事件按类型到达',
-    '四类失败的证据不同',
-    '无密钥测试验证的是适配层'
+    '读取文本、响应状态和 usage',
+    '流式事件怎样到达',
+    '认证、限流、超时和空响应怎样区分',
+    '用 Fake Adapter 测试无密钥路径'
   ],
   'python-agent-loop-from-scratch': [
     'Agent 循环的定义与作用',

@@ -20,126 +20,63 @@ practice:
     - 模型路由有确定性输入
     - 未知结果不会被盲目重试或重复计费
 evidence: anonymized-practice
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # LLM Gateway：API Key、路由、限流、Token 与成本
 
-业务请求模型 `analysis-large`，网关把它路由到供应商 A。A 超时后，网关自动重试供应商 B，最终返回成功，但两边都产生了用量。若系统只保存最终 200，就无法解释成本、重复生成和超时期间发生了什么。
+调用方只传入 model=gpt-like，网关却把请求重试到另一个模型，最后账单和用户看到的模型不一致。LLM Gateway 不是普通反向代理，它必须同时持有身份、路由、预算、重试和用量的确定性状态。
 
-LLM Gateway 位于业务应用与模型供应者之间。它接收稳定的内部契约，确认身份与预算，按能力和策略选择 Deployment，传播 Deadline，记录每次 Attempt，最后把供应商响应映射为统一终态。
-
-## 网关的数据流
+## 一次请求如何被网关接纳
 
 ```mermaid
-flowchart LR
-  C[Client] --> A[Authenticate]
-  A --> P[Policy / Quota]
-  P --> R[Model Router]
-  R --> D1[Managed Provider]
-  R --> D2[vLLM Deployment]
-  D1 --> U[Usage Ledger]
-  D2 --> U
-  U --> M[Response / SSE]
-  A -.audit.-> O[Trace / Log]
-  R -.attempt.-> O
-  U -.billing facts.-> O
+sequenceDiagram
+  participant C as Client
+  participant G as Gateway
+  participant P as Policy
+  participant S as Serving
+  C->>G: API key + model + messages
+  G->>P: tenant, scope, quota
+  P-->>G: route + limit + deadline
+  G->>S: attempt(model_revision)
+  S-->>G: stream + usage
+  G-->>C: normalized response
+  G->>P: usage/cost event
 ```
 
-外部 API Key 映射为服务端主体、租户、允许模型和预算。客户端可以请求公开模型标识，却不能直接选择供应商凭证、内部 endpoint 或计费分组。路由输出的是具体 Deployment 与 Attempt 配置，并留下规则版本。
+网关先解析 Key 和租户范围，再把公开模型名解析到一个具体 Revision。每次 attempt 都要有独立 ID，重试只能在请求无副作用或明确可重放时发生。Token 统计和成本以 Serving 返回的 usage 与计价版本为准，不能只按字符数猜。
 
-## LLM Gateway 的定义与职责
+## 限流、预算和重试的顺序
 
-LLM Gateway 是业务应用调用模型时经过的统一协议层。它位于应用与多个模型 Deployment 之间，拥有身份、Scope、能力路由、预算、限流、Attempt 记录和供应商错误映射；它不拥有 Agent 对话状态，也不替业务服务执行工具。把这层边界写清楚，才能知道哪些字段由客户端提供，哪些字段必须由服务端补齐。
-
-## API Key 与租户 Scope
-
-API Key 数据库只保存不可逆哈希或受控凭证材料，明文只在创建时展示。Key 关联主体、租户、状态、到期、模型权限、速率和预算。撤销与权限变更需要使缓存及时失效。
-
-认证回答“你是谁”，授权回答“你能调用什么”。模型访问还可能受地域、数据敏感度、供应商条款和业务环境限制。权限应在路由前完成，并贯穿缓存与用量记录。
-
-## 模型路由使用稳定能力
-
-业务模型名不应等同某个供应商 model string。Registry 为它声明任务、上下文、多模态、工具、结构化输出、地域、质量等级和成本档位，再绑定一个或多个 Deployment。
-
-路由输入至少包含租户 Scope、公开模型、所需能力、数据策略、剩余 Deadline、预算和候选健康。输出包含选中 Deployment、规则版本和原因。随机负载均衡可以是最后一步，但不能替代前面的硬约束。
-
-## 一个确定性路由核心
-
-下面 Python 只演示路由所有权，不调用真实模型。输入是不可变请求上下文和候选 Deployment；处理先过滤硬约束，再按优先级与成本排序；输出包含选择原因。身份和预算由服务端构造，不从模型输出读取。
-
-```python
-from dataclasses import dataclass
-
-@dataclass(frozen=True)
-class RouteRequest:
-    tenant_id: str
-    public_model: str
-    required_capabilities: frozenset[str]
-    allowed_regions: frozenset[str]
-    max_unit_cost: float
-
-@dataclass(frozen=True)
-class Deployment:
-    name: str
-    public_model: str
-    capabilities: frozenset[str]
-    region: str
-    unit_cost: float
-    priority: int
-    healthy: bool
-
-def select_deployment(
-    request: RouteRequest,
-    deployments: list[Deployment],
-) -> Deployment:
-    # 硬约束必须在排序前完成，不能用低成本覆盖权限或能力。
-    candidates = [
-        item
-        for item in deployments
-        if item.healthy
-        and item.public_model == request.public_model
-        and request.required_capabilities <= item.capabilities
-        and item.region in request.allowed_regions
-        and item.unit_cost <= request.max_unit_cost
-    ]
-    if not candidates:
-        raise LookupError("no eligible deployment")
-
-    # 稳定排序让相同输入得到可解释选择。
-    return min(candidates, key=lambda item: (item.priority, item.unit_cost, item.name))
-```
-
-函数不会访问全局变量，输入相同就能复现决策。`required_capabilities <= capabilities` 表示候选必须覆盖全部所需能力。排序只在通过硬约束后发生。生产系统还会加入容量、熔断、权重与亲和性，但每个信号都要记录来源和更新时间。
-
-## 限流、配额和准入
-
-速率限制控制时间窗口内请求或 Token，配额控制一段周期总量，准入控制当前有限资源槽。三者作用不同。一个请求虽然没超过每分钟次数，仍可能因为长上下文占用大量 GPU 和输出预算。
-
-可按请求、输入 Token、最大输出、并发和模型档位组合计权。服务端先校验最大值，再原子预留预算。结束后用最终 Usage 结算并释放并发槽；失败或取消也必须进入释放路径。
-
-## Usage 与成本账本
-
-记录 Request 与 Attempt 两层：Request 表示用户一次意图，Attempt 表示对某个 Deployment 的一次实际调用。每次 Attempt 保存供应商 request ID、开始、接受、首事件、终态、输入/输出 Token 和价格版本。
-
-预估 Token 用于准入，最终 Usage 用于结算。两者差异要保留，不能覆盖。成本由 Usage、供应商、模型、缓存命中和价格版本确定；自托管模型还需要 GPU 时间、闲置与平台成本，但不能用没有测量依据的数字填账。
-
-## 流式透传与错误映射
-
-网关必须逐事件转发并处理背压，不能把整段输出缓存在内存。客户端断开后向下游取消，仍等待最终用量或将 Attempt 标为未知。不同供应商的完成、拒绝、工具调用和错误事件要映射到内部联合类型，再转换为对外协议。
-
-未知模型、权限拒绝和输入超限不重试；连接前失败或明确未接受可能有限重试；已接受且结果未知时默认不盲目重试。Failover 只有在数据策略、能力、剩余 Deadline 和幂等边界都满足时才允许。
-
-一次请求至少有两层状态：
-
-| 层级 | 关键状态 | 结算责任 |
+| 步骤 | 状态 | 失败语义 |
 | --- | --- | --- |
-| Request | `accepted`、`completed`、`failed`、`cancelled` | 用户一次意图的最终对外结果 |
-| Attempt | `started`、`accepted`、`streaming`、`succeeded`、`unknown` | 某个 Deployment 的用量、供应商 ID 和重试边界 |
+| 认证 | key、租户、作用域 | 401/403，不进入模型 |
+| 准入 | 并发、Token 预算、模型能力 | 429 或 400，给出可行动原因 |
+| 路由 | Revision、区域、健康 | 503/424，不能悄悄换能力 |
+| 执行 | attempt、deadline、取消 | 504 或流内错误 |
+| 结算 | input/output token、价格版本 | 可重放的 usage 事件 |
 
-例如 Attempt A 已收到供应商确认但连接断开，只能标为 `unknown`，不能当成“未调用”再无条件重试 B。验收时固定一个供应商返回未知结果的 Fake Adapter，断言只产生一条计费记录，并能从 Request/Attempt 关系解释为什么没有自动 Failover。
+把限流放在模型调用之后会浪费 GPU，把计费放在客户端断开之后才处理会丢失证据。所有状态转换要带 request_id、attempt_id 和 policy_version。
 
-## 网关不应该承担什么
+## 错误契约要稳定
 
-它不保存完整对话业务状态，不运行 Agent 循环，不决定 RAG 文档权限，也不替代 Serving 调度。Gateway 可以传递稳定的 Turn ID、Scope、Deadline 与模型能力，但领域状态由 Runtime 和业务服务拥有。
+```json
+{"error":{"type":"rate_limit_exceeded","code":"tenant_concurrency","message":"too many active generations","request_id":"req_123","retry_after":2}}
+```
 
-验收网关要覆盖撤销 Key、跨租户、未知模型、能力不匹配、限流、预算不足、流式取消、供应商拒绝、结果未知、Failover 和用量对账。只有每种终态都能解释选择、资源与费用，统一入口才真正降低了多模型复杂度。
+这是解释性输出，字段名应由平台统一。客户端需要知道是否可以重试、等待多久以及请求是否已产生费用。不要把上游供应商的原始错误直接暴露给调用方，也不要用一个“模型错误”掩盖认证和策略失败。
+
+## 成本是路由输入，不只是报表
+
+路由可以根据租户预算、模型能力、上下文长度和实时价格选择候选，但降级必须保持能力契约。长上下文请求被切换到便宜模型，可能改变质量和工具调用能力，调用方应能看到实际 model_revision。下一篇把这些 Revision 和健康状态放进多模型控制面。
+
+## 重试要保留 Attempt 历史
+
+连接失败、上游 503、模型超时和客户端断线的重试条件不同。网关应为每次上游尝试生成 attempt_id，记录选中的 Revision、开始/结束、错误和是否收到任何 Token。客户端的 idempotency key 则防止同一业务请求在多次提交后被重复计费。
+
+流式请求一旦已经向客户端输出 Token，就不应静默切换到另一模型继续生成，因为上下文、风格和 usage 都会不一致。此时应结束当前流，明确错误和已生成部分的结算语义。
+
+## 路由决策需要可解释记录
+
+同一个公开模型名可能对应多个供应商或自托管 Revision。每次请求记录候选集合、最终选择、排除原因、policy_version 和 fallback 条件，事后才能解释为什么某个租户被路由到某个成本或区域。
+
+这份记录不应包含完整 Prompt 或 Secret。保留模型能力、上下文档位、健康快照和预算判断就足以复盘路由。没有可解释记录的智能路由，遇到质量或计费争议时很难审计。

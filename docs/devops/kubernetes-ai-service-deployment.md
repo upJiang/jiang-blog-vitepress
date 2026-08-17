@@ -20,116 +20,77 @@ practice:
     - 探针不会把加载中实例送入流量
     - 配置示例明确未在真实集群执行
 evidence: official
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # Kubernetes 部署 AI 服务：GPU Operator、模型卷与探针
 
-Pod 请求了 `nvidia.com/gpu: 1`，却一直 Pending。Deployment、镜像和模型都没有错误，真正缺失的是节点没有被 Device Plugin 注册成可分配 GPU，或现有 GPU 已被其他 Pod 占用。Kubernetes 只能调度 API Server 已知的资源。
+模型 Pod 一直 CrashLoopBackOff，日志只写着“loading weights”；即使把启动探针放宽，Service 仍然过早接入流量。AI 服务部署要把 GPU 能力、模型卷、加载过程和探针语义串起来，而不是套一份通用 Deployment YAML。
 
-部署 AI 服务要连接宿主驱动、容器 Runtime、设备发现、模型制品、Pod 资源和探针。任何一层未就绪，最终都可能表现为 Pod 不可用。
-
-## GPU 能力链
+## GPU 能力怎样进入 Pod
 
 ```mermaid
-flowchart TD
-  H[NVIDIA GPU Hardware] --> D[Host Driver]
-  D --> R[NVIDIA Container Runtime]
-  D --> P[Device Plugin]
-  O[GPU Operator] --> D
-  O --> R
-  O --> P
-  P --> K[Kubelet Extended Resources]
-  K --> S[Scheduler]
-  S --> W[GPU Pod]
-  R --> W
+flowchart LR
+  N[GPU Node + Driver] --> D[NVIDIA Device Plugin / Operator]
+  D --> R[Runtime + Device Resource]
+  R --> P[Pod requests nvidia.com/gpu]
+  P --> S[Serving sees CUDA devices]
 ```
 
-Device Plugin 发现设备并向 Kubelet 注册扩展资源；Scheduler 根据 Pod Request 选择有可分配资源的节点；容器 Runtime 把对应设备和库注入容器。GPU Operator 用 Kubernetes Operator 管理驱动、Toolkit、Device Plugin、监控与相关组件，但是否由 Operator 安装宿主驱动取决于节点镜像和运维策略。
+Device Plugin 把节点上的设备作为可调度资源暴露，Operator 可能负责驱动、Runtime、监控和组件协调。Pod 的资源请求只是调度和设备注入入口，能否加载模型还取决于驱动、CUDA、引擎、显存和制品。
 
-## 模型制品进入 Pod 的方式
-
-模型可以烘焙进镜像、由 Init Container 下载到共享卷、从持久卷挂载，或由节点 Cache 提供。镜像内置最可控但体积大；启动下载灵活但把网络和仓库可用性放进启动路径；共享卷减少重复下载却要管理并发、权限和版本。
-
-无论哪种方式，Pod 都应引用不可变 Revision 并校验文件。Readiness 不能在下载完成前成功，回滚时要能重新获得上一版本制品。节点 Cache 是优化，不应成为唯一来源。
-
-## 一份静态解释清单
-
-下面 YAML 展示对象关系，不代表已在当前环境应用。镜像、模型卷、资源名、路径与探针都需要根据目标集群替换，Secret 也不应直接写入文档。
+## 模型卷和容器启动顺序
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: model-serving
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: model-serving
-  template:
-    metadata:
-      labels:
-        app: model-serving
-    spec:
-      nodeSelector:
-        accelerator: nvidia
-      containers:
-        - name: server
-          image: example/model-server@sha256:replace-with-digest
-          args: ["--model", "/models/revision-a"]
-          resources:
-            requests:
-              cpu: "4"
-              memory: 16Gi
-              nvidia.com/gpu: "1"
-            limits:
-              cpu: "8"
-              memory: 24Gi
-              nvidia.com/gpu: "1"
-          volumeMounts:
-            - name: models
-              mountPath: /models
-              readOnly: true
-          startupProbe:
-            httpGet:
-              path: /health/startup
-              port: 8000
-            periodSeconds: 10
-            failureThreshold: 60
-          readinessProbe:
-            httpGet:
-              path: /health/ready
-              port: 8000
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /health/live
-              port: 8000
-            periodSeconds: 15
-      volumes:
-        - name: models
-          persistentVolumeClaim:
-            claimName: model-artifacts
+resources:
+  limits:
+    nvidia.com/gpu: 1
+volumeMounts:
+  - name: model
+    mountPath: /models/current
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8000
+  periodSeconds: 5
+  failureThreshold: 12
+startupProbe:
+  httpGet:
+    path: /startup
+    port: 8000
+  periodSeconds: 10
+  failureThreshold: 60
 ```
 
-Scheduler 使用 Request 做放置，GPU Request 与 Limit 通常相同。Startup Probe 给模型加载留出窗口，在成功前 Readiness 与 Liveness 不接管；Readiness 只在模型、Tokenizer 和执行器可接目标请求时成功；Liveness 检查进程是否失去恢复能力，不调用昂贵生成。
+这是解释性 YAML。startupProbe 给模型加载留出时间，readinessProbe 只在实例可以安全接收请求后通过。探针路径应区分“进程活着”“正在加载”和“模型可用”，不要让每次探针触发完整生成。
 
-YAML 没有表达 Service、Ingress、Secret、网络策略和 PodDisruptionBudget，它们应在完整部署中补齐。`nodeSelector` 只是最简单示意，真实集群还会使用标签、污点、亲和性与拓扑约束。
+## 加载失败如何分层
 
-## 探针怎样避免错误重启
+| 层 | 证据 | 典型处理 |
+| --- | --- | --- |
+| 调度 | Pod events、节点资源、taint | 修正资源请求/容忍度 |
+| 设备 | 容器内 CUDA 可见性、插件日志 | 核对驱动、Runtime、设备注入 |
+| 制品 | 卷路径、文件、checksum、权限 | 修复挂载或制品状态 |
+| 引擎 | 权重 shape、dtype、显存、参数 | 固定兼容版本并调整配置 |
+| 入口 | Ready、Endpoints、Ingress | 先阻断流量，再看代理 |
 
-模型加载可能持续数分钟。若 Liveness 过早开始，它会在加载完成前反复重启进程。Startup Probe 成功后才启用其他探针，可以把“还在启动”与“运行后失活”分开。
+## 滚动发布对模型更敏感
 
-Readiness 失败应从 Service Endpoint 移除实例，但不一定重启。过载时把实例标为 NotReady 可能把流量全部推给其他实例，造成级联；更合适的做法通常是入口准入和队列控制。
+旧 Pod 不能在新模型还未 Ready 时被全部终止。要根据 GPU 容量、模型加载时间和流式连接设置 maxUnavailable、maxSurge 与排空策略。两个版本同时占用 GPU 可能根本无法调度，候选验证应考虑临时节点、单独池或旁路流量。
 
-## 发布需要双重验证
+::: warning
+**未实测**
 
-基础设施验证包括 Pod 调度、设备可见、模型加载、探针、Endpoint、流式取消和资源回收。模型验证包括固定 Eval、Tokenizer/Template、结构化输出、安全和容量。只有两类证据同时通过，候选才能接生产流量。
+YAML 只说明字段语义，不代表在某个集群、GPU Operator 或 vLLM 版本上直接可用。下一篇继续调度层，比较整卡、共享、MIG、拓扑和自动扩缩容。
+:::
 
-模型占用大、启动慢时，Deployment 默认滚动参数可能没有足够 GPU 同时运行新旧副本。可以使用独立候选 Deployment，先旁路验证，再按 Gateway 权重切流，并在稳定前保留旧实例。
+## 探针必须和模型加载状态对齐
 
-## 故障从哪个对象查起
+startupProbe 失败会让 kubelet 重启容器，readinessProbe 失败只会把实例从流量中摘除，livenessProbe 失败则可能杀掉仍在恢复的进程。模型加载数分钟时，错误设置 liveness 会造成永远加载不完的循环。
 
-Pending 先看调度事件、资源和节点标签；ContainerCreating 看镜像、Volume、Runtime 和设备注入；CrashLoopBackOff 看进程退出与显存；Startup Probe 失败看模型加载；Ready 但请求失败看 Service、Gateway 与接口契约。
+可以让 /startup 只确认初始化在前进，/ready 确认 tokenizer、权重、最小执行路径与队列都可用，/live 确认进程未死锁。三者不必查询同一件事，关键是让发布和告警知道各自的语义。
 
-当前没有可用集群，只能对 YAML 结构和机制做静态说明。真实上线还需用目标 GPU 节点验证 Driver、Operator 版本、模型容量、Drain 和回滚。
+## 资源 request 与 limit 是调度和生存边界
+
+Scheduler 根据 request 选择节点，容器运行时按 limit 施加约束。CPU/内存写得过低会让实例被放到看似合适的节点却在加载时被驱逐或限速；GPU 通常以设备整数请求，不能像内存那样随意超卖。
+
+模型加载、Tokenizer 缓存和下载临时空间都要算进资源设计。为启动峰值留下合理余量，并通过真实候选观察，而不是把 OOM 交给 kubelet 重启循环处理。

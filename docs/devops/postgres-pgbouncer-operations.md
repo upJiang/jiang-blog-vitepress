@@ -20,90 +20,69 @@ practice:
     - 权限过滤进入 SQL
     - 应用池、PgBouncer 和数据库上限一致
 evidence: official-guided-operation
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # PostgreSQL、JSONB、pgvector、索引与连接池
 
-Agent 回答引用了已经下线的文档。向量相似度没有错，问题是查询没有固定知识版本；文档元数据已经更新，旧向量仍在索引中。AI 数据库设计必须同时表达业务实体、版本、权限、异步状态和向量来源，不能只加一列 `embedding`。
+检索接口在低并发时正常，流量一上来却报“too many connections”；把连接池调大后，数据库内存先耗尽。PostgreSQL 不只是一个存表的地方，它同时承载租户、知识版本、Agent 状态和 Embedding，连接池、索引和事务边界必须围绕这些事实设计。
 
-PostgreSQL 适合保存需要事务、约束和可查询历史的状态。JSONB 承载变化较快但仍需查询的结构，pgvector 保存与具体模型和维度绑定的向量，连接池则控制应用并发怎样进入有限的数据库后端进程。
+## 哪些状态应该落在数据库
 
-## 关系列、JSONB 与对象存储怎样分工
+| 数据 | 为什么要持久化 | 典型查询 |
+| --- | --- | --- |
+| 租户、权限、模型绑定 | 需要审计和事务一致性 | 按 tenant_id 查范围 |
+| Knowledge Release | 发布、回滚和证据引用需要版本 | 按 release_id 过滤 |
+| Agent Checkpoint | 进程重启后仍能恢复 | 按 turn_id + sequence 查 |
+| Embedding | 可重建但成本高，需与文档版本对账 | 向量近邻 + ACL 条件 |
 
-经常过滤、连接、排序或承担约束的字段应使用明确列，例如 `tenant_id`、`release_id`、`status` 和时间。JSONB 适合供应商参数、解析统计等可选元数据，但仍要定义 Schema 版本和允许键。大型原文件与模型权重放对象存储，数据库只保存对象键、校验和、大小和状态。
+Redis 的缓存命中不能替代这些事实。尤其是 RAG，向量相似只说明表示接近，不能证明文档仍有效或属于当前租户。权限和发布状态要在 SQL 条件或事务中明确。
 
-把所有数据塞进 JSONB 会失去类型、外键和清晰索引；把供应商每个可选字段都变成列，又会让迁移频繁。判断依据是查询与不变量，而不是“JSON 更灵活”。
+## 连接池为什么会放大问题
 
-## 一份最小知识版本模型
-
-下面 SQL 以 pgvector 为例。输入是一组已解析片段，目标是让每个向量都能回到租户、知识 Release、文档对象和 Embedding 模型。维度 `1536` 只是占位，必须与实际 Embedding 模型一致。
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-
-CREATE TABLE knowledge_releases (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id bigint NOT NULL,
-    version text NOT NULL,
-    status text NOT NULL CHECK (status IN ('building', 'active', 'failed', 'retired')),
-    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (tenant_id, version)
-);
-
-CREATE TABLE document_chunks (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tenant_id bigint NOT NULL,
-    release_id bigint NOT NULL REFERENCES knowledge_releases(id),
-    object_key text NOT NULL,
-    chunk_index integer NOT NULL CHECK (chunk_index >= 0),
-    content text NOT NULL,
-    embedding_model text NOT NULL,
-    embedding vector(1536) NOT NULL,
-    metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
-    UNIQUE (release_id, object_key, chunk_index)
-);
-
-CREATE INDEX document_chunks_scope_idx
-    ON document_chunks (tenant_id, release_id);
-
-CREATE INDEX document_chunks_embedding_hnsw_idx
-    ON document_chunks USING hnsw (embedding vector_cosine_ops);
-
--- 先固定租户和知识版本，再按向量距离排序。
-SELECT id, object_key, chunk_index, content,
-       embedding <=> :query_embedding AS distance
-FROM document_chunks
-WHERE tenant_id = :tenant_id
-  AND release_id = :release_id
-ORDER BY embedding <=> :query_embedding
-LIMIT :limit;
+```mermaid
+flowchart LR
+  C[API workers] --> P[PgBouncer pool]
+  P --> D[(PostgreSQL)]
+  D --> W[work_mem / shared buffers]
+  C -.too many client connections.-> E[queue or timeout]
 ```
 
-第一张表管理候选、激活、失败和退役版本；第二张表让 Chunk 唯一键具有幂等性。查询把租户与 Release 放入 SQL，而不是先召回所有租户再在应用过滤。HNSW 是近似索引，结果应与无索引精确查询建立 Recall 基线；过滤条件、数据分布和参数都会影响召回。
+应用进程数乘以每进程连接数，才是可能打到 PgBouncer 的客户端连接总量。事务池模式下，连接只在事务期间归属请求；Session 状态、临时表和 prepared statement 的行为会不同。池越大不一定吞吐越高，数据库 CPU、锁和内存会先成为瓶颈。
 
-激活新 Release 时，应先完成文件、片段、向量数量和抽样质量校验，再用短事务改变激活指针。在线请求在开始时固定 Release ID，避免执行过程中切换到另一版本。
+## JSONB 和向量索引各自解决什么
 
-## 索引要服务真实查询
+```sql
+CREATE INDEX CONCURRENTLY idx_docs_tenant_release
+  ON documents (tenant_id, release_id);
 
-B-Tree 适合等值、范围和排序，GIN 常用于 JSONB 包含查询与全文结构，向量索引用于近似邻居。索引并非越多越好：每个索引增加写入、存储和维护成本，也可能因为选择性不足而不被计划器采用。
+CREATE INDEX CONCURRENTLY idx_chunks_embedding
+  ON chunks USING hnsw (embedding vector_cosine_ops);
 
-使用 `EXPLAIN (ANALYZE, BUFFERS)` 时要在隔离环境执行，因为它真的运行查询。观察实际与估算行数、扫描方式、过滤掉的行、Buffer 命中和各节点时间。慢查询也可能来自锁等待、连接排队或磁盘，而不是缺索引。
+SELECT id, content
+FROM chunks
+WHERE tenant_id = $1 AND release_id = $2
+ORDER BY embedding <=> $3
+LIMIT 8;
+```
 
-## 事务保护什么
+结构稳定且经常过滤的字段适合普通索引，变化较多的附加属性可以放 JSONB，但不要把所有可查询字段塞进 JSONB 后再依赖全文扫描。向量索引负责近邻候选，SQL 的 tenant_id、release_id 和状态过滤负责范围。实际索引类型、版本和数据规模需要在目标 PostgreSQL/pgvector 上验证。
 
-一次文档导入可能写文档记录、任务状态和 Outbox 事件。需要共同成立的不变量应放在同一数据库事务内；外部对象上传和 Embedding 调用无法直接加入本地事务，应使用状态机、幂等键和补偿清理。
+## 事务与迁移的边界
 
-长事务会保留旧版本、增加锁和 Vacuum 压力。不要在事务里等待模型或网络调用。先完成外部计算，再用短事务提交结果，并校验任务仍属于当前候选版本。
+知识发布至少要让 release、chunk 和 embedding 的可见性一致。先写入新版本并校验数量，再用一个明确的状态转换把它标为 published。不要在请求处理代码里临时 ALTER TABLE；迁移要可回滚、可观测，并考虑旧应用仍在运行。
 
-## 连接池是容量门，不是加速开关
+## 诊断从连接开始
 
-PostgreSQL 每个后端连接都有成本。应用实例数乘以每实例池上限，再加 Worker、迁移、监控和管理员连接，才是总预算。实例扩容时若不缩小单实例池，数据库可能先被连接打满。
+遇到连接耗尽，先看应用并发、PgBouncer pool mode、等待事务、锁和数据库内存，再决定是否调整池大小。把查询耗时、事务时间和队列等待分开记录，才能知道瓶颈在客户端、池还是数据库。下一篇把不会立即完成的解析和 Embedding 工作移到队列与 Worker。
 
-PgBouncer 的 session pooling 保留整个客户端会话，兼容性高；transaction pooling 在事务结束后复用后端连接，连接效率更高，但依赖会话状态、临时表或某些 prepared statement 行为的应用需要谨慎。连接池只能减少后端连接，不会修复慢事务和缺少范围的查询。
+## 向量检索的 SQL 也要有执行计划
 
-## 运行态从哪里读证据
+加入 HNSW 或 IVFFlat 索引后，不代表每个查询都会走它。tenant_id、release_id、状态过滤、LIMIT、统计信息和数据量会影响 Planner 的选择。上线前用 EXPLAIN (ANALYZE, BUFFERS) 在隔离数据上确认扫描路径，并比较有无过滤条件时的候选数量。
 
-`pg_stat_activity` 显示连接状态、查询与等待事件；锁视图帮助找到阻塞链；`pg_stat_statements` 聚合规范化查询性能；数据库日志记录死锁、慢查询和检查点。排查前先确认观察窗口、数据库和应用名称，避免把空闲连接误认为泄漏。
+更重要的是把向量召回和最终可见性分开统计：候选数量、ACL 过滤数量、重排后数量和最终 Evidence 数量。只看向量查询耗时会遗漏权限过滤导致的空结果，也无法解释用户为什么没有得到引用。
 
-最终数据模型要回答：哪张表是真相源，谁能改变状态，向量由哪个模型生成，权限在哪一层过滤，知识何时激活，失败如何重跑，连接上限怎样随实例数变化。能够回答这些问题，PostgreSQL 才从“存数据的组件”变成 AI Platform 的一致性核心。
+## 事务边界决定状态是否会半成品可见
+
+导入任务若先写 chunks、再写 release 状态，中途失败时查询面不应看到半成品。可以在事务中写入同一批元数据，或让所有记录先处于 staging，再通过单个发布指针切换可见性。关键是读路径只认清晰状态。
+
+长事务会占用连接、阻碍 vacuum 并放大锁冲突。Embedding 批处理和大文件元数据写入需要按批次提交，同时让每批都能被幂等恢复。事务越大不一定越一致，边界应对应真正的业务原子性。

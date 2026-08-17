@@ -108,11 +108,12 @@ export const sectionStages: Record<Category, SectionStageMeta[]> = {
     { key: 'delivery', label: '发布与恢复' }
   ],
   'ai-practice': [
-    { key: 'foundations', label: 'AI 能力基础' },
+    { key: 'selection', label: '能力选型' },
     { key: 'collaboration', label: 'Agent 协作' },
-    { key: 'extensions', label: 'MCP 与 Skill' },
-    { key: 'engineering', label: '研发方法' },
-    { key: 'personal-system', label: '个人工作系统' }
+    { key: 'mcp-practice', label: 'MCP 实践' },
+    { key: 'skill-practice', label: 'Skill 实践' },
+    { key: 'delivery', label: '研发交付' },
+    { key: 'harness-system', label: 'Harness 与工作系统' }
   ],
   'onnx-practice': [
     { key: 'browser-inference', label: '浏览器推理' }
@@ -176,11 +177,12 @@ export function stageKeyFor(category: Category, slug: string, part: string): str
   }
 
   if (category === 'ai-practice') {
-    if (part === '基础认知') return 'foundations'
+    if (part === '能力选型') return 'selection'
     if (part === 'Agent 协作') return 'collaboration'
-    if (part === '能力扩展') return 'extensions'
-    if (part === '研发系统') return 'engineering'
-    return 'personal-system'
+    if (part === 'MCP 实践') return 'mcp-practice'
+    if (part === 'Skill 实践') return 'skill-practice'
+    if (part === '研发交付') return 'delivery'
+    return 'harness-system'
   }
 
   return 'browser-inference'
@@ -566,18 +568,26 @@ const devopsArticles = course('devops', [
   item('第八部分：交付与综合项目', 'enterprise-ai-platform-capstone', '综合项目：设计 Enterprise AI Platform', '把 Gateway、Agent、RAG、vLLM、GPU、PostgreSQL、Redis、对象存储、观测、成本和发布连接成可演进平台。', ['AI Platform', 'Architecture', 'Capstone'], ['完成前 36 章'], ['给出企业 AI 平台的模块、数据和运行边界', '制定从单体到多集群的建设顺序'], '完成一份 Enterprise AI Platform 设计包', ['正常、过载、取消、发布和恢复路径完整', '每项能力都有所有者、证据和停止条件'], 'anonymized-practice', 'decision')
 ])
 
-const aiPracticeArticles = course('ai-practice', [
-  item('基础认知', 'ai-capability-concepts', 'Prompt、Tool、RAG、Agent、Skill 与 MCP：一张图建立完整认知', '用一次真实开发任务拆开 Prompt、Context、Tool Calling、RAG、Agent、SubAgent、Skill 与 MCP，建立不会混用概念的能力地图。', ['Prompt', 'Tool Calling', 'RAG', 'Agent', 'Skill', 'MCP'], ['会使用命令行和编辑器', '知道 HTTP 请求与 JSON 的基本形式'], ['能从输入、控制、数据与执行边界解释八种 AI 能力', '能为开发需求选择 Prompt、RAG、Tool、Skill、MCP 或 SubAgent'], '完成一张 AI 能力选型表和端到端执行轨迹', ['每种能力都有明确输入、处理、输出与责任方', '简单任务不会被过度设计成多 Agent 或 MCP'], 'official', 'decision'),
-  item('Agent 协作', 'subagent-development-workflows', 'SubAgent 开发协作：拆任务、并行取证与主 Agent 收口', '用一次跨前后端改动拆开可并行与必须串行的工作，建立任务契约、上下文隔离、文件所有权和证据合并方法。', ['SubAgent', 'Parallelism', 'Context Isolation', 'Task Contract'], ['理解 Agent 的目标、工具和停止条件', '知道 Git 工作区可能包含未提交改动'], ['能用依赖图判断开发任务应并行还是串行', '能编写可验证、可取消、可合并的 SubAgent 任务契约'], '完成一份跨前后端任务的依赖图、所有权表与结果契约', ['多个 Agent 不会同时修改同一文件或竞争共享状态', '主 Agent 能识别失败、冲突、证据缺口并完成最终验证'], 'official-guided-operation', 'decision'),
-  item('能力扩展', 'mcp-design-workflow-mining', 'MCP 设计方法：从重复工作中发现值得开发的连接器', '从跨系统复制、实时查询和标准操作中识别 MCP 机会，完整设计 Server、Tool、Resource、Schema、权限、幂等、错误、审计与部署。', ['MCP', 'Tool', 'Resource', 'Schema', 'Security'], ['理解 HTTP、JSON 和进程的基本概念', '知道 Agent 会通过 Tool Calling 请求外部能力'], ['能区分 MCP、Skill、普通 API、CLI 与 RAG 的职责边界', '能从工作摩擦设计可授权、可审计、可测试的 MCP Server'], '完成一张 MCP 机会卡、能力清单和 Server 契约', ['静态知识和一次性脚本不会被误做成远程 MCP', '实时数据、敏感权限与副作用都有明确所有者和失败语义'], 'official-guided-operation', 'decision'),
-  item('能力扩展', 'python-mcp-server-practice', '从零实现 FastMCP Server：查询依赖包最新版本', '用 FastMCP 把普通 Python 函数注册为可发现 Tool，并以公开包索引练习 Schema、Transport、错误映射、缓存与真实 Client 契约测试。', ['MCP', 'FastMCP', 'Python', 'Contract Test'], ['会编写带类型提示的异步函数', '理解 Client、Server 与 Tool 的基本职责'], ['能解释 FastMCP 封装的协议工作并实现可发现 Tool', '能为外部 HTTP 查询设计超时、缓存、稳定错误与安全约束'], '完成一个查询 PyPI 最新稳定版本的 FastMCP Server 和契约测试', ['正常、非法名称、包不存在、限流、超时和缓存均有可复现结果', '外部响应只作为数据处理，不会成为 Agent 指令'], 'official-guided-operation', 'implementation'),
-  item('能力扩展', 'skill-design-workflow-mining', 'Skill 设计方法：把成功 Prompt 变成稳定工作流', '从重复 Prompt、固定检查表和频繁纠错中挖掘 Skill，设计触发描述、渐进式披露、脚本、参考、资产、错误处理和评测。', ['Skill', 'SKILL.md', 'Progressive Disclosure', 'Evaluation'], ['会读 Markdown 和简单脚本', '理解 Agent、项目规则与 MCP 的基本边界'], ['能判断重复工作是否值得沉淀为 Skill', '能设计可正确触发、按需加载、可回归评测的 Skill'], '完成一张 Skill 机会卡和可验证的最小目录设计', ['触发描述覆盖真实说法且不会抢占无关任务', '确定性步骤、长资料和输出资产进入正确目录'], 'official-guided-operation', 'implementation'),
-  item('能力扩展', 'article-publishing-skill-practice', '从零实现文章发布检查 Skill：规则、脚本、评测与迭代', '把一次文章验收任务做成完整 Skill，检查 Frontmatter、标题、内部链接、示例、敏感信息与发布清单，并建立触发和回归评测。', ['Skill', 'Content Quality', 'Python', 'Evaluation'], ['理解 SKILL.md、scripts、references 与 assets 的分工', '会运行脚本并阅读 Markdown Frontmatter'], ['能实现一个规则与确定性检查分离的文章发布 Skill', '能用正例、负例和失败用例评测触发与执行质量'], '完成 article-publishing-check Skill、检查器和评测矩阵', ['检查器能定位元数据、标题、链接与敏感信息问题', 'Skill 不会把普通润色误判为发布验收或擅自发布'], 'official-guided-operation', 'implementation'),
-  item('研发系统', 'ai-coding-development-loop', 'AI Coding 研发闭环：从需求文档、原子 Diff 到 PR 与部署', '用一个完整功能贯穿需求成文、仓库取证、变更契约、原子 Diff、自动测试、独立审查、PR、候选发布、观测与回滚。', ['AI Coding', 'Diff Policy', 'Pull Request', 'CI/CD'], ['能独立完成一次代码修改和测试', '了解版本控制、发布与运行监控的基本概念'], ['能把产品想法转成连接需求、代码、测试和发布的可执行工件', '能设计自动化研发流水线，同时保留 Git、生产和不可逆操作的人类授权'], '完成需求文档、变更契约、测试矩阵、Diff Checker、PR 与发布状态样例', ['越界文件、敏感信息、迁移和测试缺口可被确定性检查', '候选产物通过门禁后才进入灰度，异常可快速回滚'], 'public-source', 'implementation'),
-  item('研发系统', 'spec-sdd-plan-first-development', 'Spec 与 SDD 实践：主流工具、可执行规格与真实仓库落地', '用同一个带权限批量导出需求，对比 Superpowers、Spec Kit、OpenSpec 与 BMAD Method，并给出已有仓库和新项目的选型判断。', ['Specification', 'SDD', 'Spec Kit', 'OpenSpec'], ['会阅读需求、代码和测试', '理解计划、规格与实现是不同工件'], ['能判断四类主流方法各自在澄清、增量变更、多 Agent 与流程纪律上的取舍', '能为真实仓库写一份随需求变化而更新的轻量可执行 Spec'], '完成带权限批量导出的四种规格推演和选型结果', ['Star 快照只作样本筛选而非质量证明', '小任务不会因套用完整 SDD 而制造无效文档'], 'public-source', 'decision'),
-  item('研发系统', 'context-engineering-harness', '上下文工程与 Harness Engineering：为 Agent 建立可靠执行环境', '从一次不可重复的编码任务追查上下文截断、提示注入、工具超时、越界修改、无限重试、多 Agent 冲突和发布后异常。', ['Context Engineering', 'Harness Engineering', 'Agent Runtime', 'Evaluation'], ['理解 Prompt、Agent、Tool、规则和测试的基本职责', '知道沙箱、权限与运行环境会影响 Agent 行为'], ['能从故障证据区分 Prompt、上下文、工具、环境、控制和反馈问题', '能为编码 Agent 建立可追踪、可取消、可恢复并能长期回归的 Harness'], '完成一次不可重复任务的 Trace 复盘、修复设计和长期评测方案', ['工具失败不会被当成空成功，测试结果会反馈给下一轮决策', 'Checkpoint 恢复不重复已确认副作用，Goal 有明确完成定义'], 'public-source', 'diagnosis'),
-  item('个人工作系统', 'ai-work-modes-opc-full-stack', 'Plan、Auto、Goal 与 OPC：AI 时代的个人全栈工作系统', '区分 Plan、Auto 和 Goal 的任务、权限与周期，再把产品、设计、研发、测试、发布、增长和复盘组织成保留人类门禁的 OPC 闭环。', ['Plan Mode', 'Auto', 'Goal Mode', 'OPC', 'Full Stack'], ['能独立完成一次小型开发任务', '了解测试、发布、监控与回滚的基本概念'], ['能按任务不确定性、执行权限和持续周期选择 Plan、Auto 或 Goal', '能建立 AI 执行与人类经营门禁分离的一人全栈闭环'], '完成一张 AI 工作模式决策表、OPC 角色图和人类门禁表', ['Goal 不会被误解为扩大沙箱、审批或外部系统权限', '生产、资金、法律与不可逆操作始终有明确人类责任'], 'official-guided-operation', 'decision')
-])
+const aiPracticeInputs: Array<Omit<ChapterMeta, 'category' | 'chapter' | 'stageKey' | 'sequence'>> = [
+  { part: '能力选型', slug: 'ai-capability-selection', title: 'AI 能力选型：Prompt、RAG、Tool、Agent、Skill 与 MCP', description: '用同一个开发任务比较六类能力的输入、控制、数据、执行和失败边界。', tags: ['Prompt', 'RAG', 'Tool', 'Agent', 'Skill', 'MCP'], sourceKey: 'practice-capability-selection', dependsOn: [] },
+  { part: 'Agent 协作', slug: 'subagent-collaboration-practice', title: 'SubAgent 协作：拆分任务、并行取证与结果合并', description: '用跨前后端改动练习依赖分析、上下文隔离、文件所有权和可验证结果契约。', tags: ['SubAgent', 'Parallelism', 'Context Isolation'], sourceKey: 'practice-subagent-collaboration', dependsOn: ['ai-capability-selection'] },
+  { part: 'MCP 实践', slug: 'mcp-opportunity-analysis', title: '怎样从重复工作中识别 MCP 机会', description: '从跨系统复制、实时查询和标准操作判断普通 API、CLI、Skill 或 MCP。', tags: ['MCP', 'Opportunity Analysis', 'Tool'], sourceKey: 'practice-mcp-opportunity', dependsOn: ['ai-capability-selection'] },
+  { part: 'MCP 实践', slug: 'fastmcp-server-practice', title: '用 FastMCP 实现一个可测试的只读 Server', description: '实现公开包信息查询，验证发现、Schema、Transport、超时、缓存和错误映射。', tags: ['MCP', 'FastMCP', 'Python'], sourceKey: 'practice-fastmcp-server', dependsOn: ['mcp-opportunity-analysis'] },
+  { part: 'Skill 实践', slug: 'skill-design-practice', title: 'Skill 设计：触发、渐进式披露与回归评测', description: '把重复 Prompt 和检查步骤整理成可正确触发、按需加载并能测试的 Skill。', tags: ['Skill', 'SKILL.md', 'Evaluation'], sourceKey: 'practice-skill-design', dependsOn: ['ai-capability-selection'] },
+  { part: 'Skill 实践', slug: 'article-check-skill-practice', title: '实现文章检查 Skill：规则、脚本与评测', description: '将 Frontmatter、标题、链接、示例和隐私检查拆成写作判断与确定性脚本。', tags: ['Skill', 'Content Quality', 'Testing'], sourceKey: 'practice-article-check-skill', dependsOn: ['skill-design-practice'] },
+  { part: '研发交付', slug: 'ai-coding-delivery-chain', title: 'AI Coding 交付链：从需求到候选发布', description: '用一个功能贯穿需求、仓库取证、最小 Diff、测试、审查、候选验证与回滚。', tags: ['AI Coding', 'Testing', 'Delivery'], sourceKey: 'practice-ai-coding-delivery', dependsOn: ['subagent-collaboration-practice'] },
+  { part: '研发交付', slug: 'spec-sdd-plan-first-development', title: 'Spec 与 SDD：让规格连接需求、代码与验证', description: '比较常见规格方法，并为已有仓库设计能随需求更新的轻量执行规格。', tags: ['Specification', 'SDD', 'Plan'], sourceKey: 'practice-spec-sdd', dependsOn: ['ai-coding-delivery-chain'] },
+  { part: 'Harness 与工作系统', slug: 'coding-harness-troubleshooting', title: 'Coding Harness 排障：上下文、工具、环境与反馈', description: '沿一次不可重复任务的 Trace 区分输入截断、工具失败、越界修改、卡循环和恢复错误。', tags: ['Harness', 'Context Engineering', 'Troubleshooting'], sourceKey: 'practice-coding-harness', dependsOn: ['ai-coding-delivery-chain'] },
+  { part: 'Harness 与工作系统', slug: 'personal-ai-work-system', title: '个人 AI 工作系统：任务模式、权限与长期反馈', description: '按不确定性、权限和持续周期安排计划、执行、评测、发布、增长和复盘。', tags: ['AI Work System', 'Goal', 'Feedback'], sourceKey: 'practice-personal-ai-system', dependsOn: ['coding-harness-troubleshooting', 'spec-sdd-plan-first-development'] },
+]
+
+const aiPracticeArticles: ChapterMeta[] = aiPracticeInputs.map((article, index) => ({
+  ...article,
+  category: 'ai-practice',
+  stageKey: stageKeyFor('ai-practice', article.slug, article.part),
+  chapter: index + 1,
+  sequence: index + 1,
+}))
 
 const onnxPracticeArticles = course('onnx-practice', [
   item('浏览器推理', 'squeezenet-browser-inference', 'ONNX 浏览器图片识别：从整图分类到目标检测', '用 SqueezeNet 和 YOLOX-Nano 在浏览器里完成整图分类、关注区域分析和目标检测，沿 ONNX 计算图、Tensor、Worker、WebGPU/WASM 与后处理讲清推理过程。', ['ONNX', 'ONNX Runtime Web', 'SqueezeNet', 'YOLOX', 'WebGPU', 'WASM', 'Web Worker'], ['会阅读 TypeScript 和 Vue 组件', '理解图片像素、Promise 和基本浏览器 API'], ['能区分整图分类、关注区域和目标检测分别回答的问题', '能解释 ONNX 文件、ONNX Runtime、Execution Provider 和后处理的职责', '能把 RGB 图片转换为 NCHW Float32 Tensor，并读懂分类概率、检测框和置信度'], '在浏览器本地完成一次整图分类、关注区域分析和目标检测', ['整图分类返回 5 个中文备选类别', '遮挡敏感度分析能标出影响当前判断的区域', '目标检测能在内置图片上标出猫的类别、置信度和位置', '调整置信度阈值只重新筛选结果，不重复执行模型', 'WebGPU 不可用时自动回退 WASM，图片不上传到业务服务器'], 'official-guided-operation', 'implementation')

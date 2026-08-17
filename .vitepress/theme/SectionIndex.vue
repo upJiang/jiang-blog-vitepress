@@ -17,17 +17,6 @@ const section = computed(() =>
 )
 const tabsRef = ref<InstanceType<typeof SectionTrackTabs> | null>(null)
 
-const readingHints: Record<Category, string> = {
-  'ai-agent': '先理解模型、工作流、RAG 和 Agent，再按问题进入工具、知识处理、质量与运行实践。',
-  seo: '先建立增长漏斗和数据基线，再进入页面、技术审计、归因与搜索广告。',
-  frontend: '算法与重学前端保留原有顺序；现代专题从浏览器现象和可运行结果进入原理。',
-  algorithms: '先掌握数据结构和复杂度，再用不变量、反例与测试推导查找、图、区间和缓存算法。',
-  backend: '先看后端学习地图，再沿请求、数据、一致性、安全、异步处理、运行环境和项目实现逐步展开。',
-  devops: '按八个阶段学习运行底座、AI Backend、模型服务、GPU、Kubernetes、企业平台、分布式训练与可靠交付。',
-  'ai-practice': '从 Prompt、Tool、RAG、Agent、Skill 与 MCP 的能力地图出发，逐步建立 Agent 协作、能力扩展、研发系统和个人全栈工作方式。',
-  'onnx-practice': '先用一张图片跑通本地推理，再观察 Tensor、Worker、执行后端、缓存和浏览器能力如何共同影响结果。'
-}
-
 const trackGroups = computed(() => sectionTrackGroups(props.category))
 
 const trackTabs = computed(() => {
@@ -54,7 +43,6 @@ const visibleGroups = computed(() => {
       <p>主题文章</p>
       <h1>{{ section.title }}</h1>
       <span>{{ section.description }}</span>
-      <span class="section-reading-hint">{{ readingHints[category] }}</span>
       <span class="section-count">{{ articlesByCategory(category).length }} 篇文章</span>
     </header>
 

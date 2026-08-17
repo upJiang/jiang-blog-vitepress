@@ -20,63 +20,71 @@ practice:
     - 资源限制能回到 cgroup
     - SIGTERM 能到达业务进程
 evidence: official
-updated: 2026-08-11T00:00:00.000Z
+updated: 2026-08-17T00:00:00.000Z
 ---
 # OCI 镜像、容器隔离、cgroup 与进程生命周期
 
-同一个模型镜像在开发机能启动，到另一台机器却提示架构不匹配；容器显示内存只有几 GB，宿主机明明还有空闲；停止容器时应用也没有执行清理。这三个现象分别落在镜像平台、cgroup 资源边界和 PID 1 信号处理，不能用“Docker 有问题”概括。
+容器里的模型进程显示 Running，宿主机却访问不到端口；换成 root 后日志突然能写了，但停止容器时请求被直接截断。OCI 容器不是一层“打包”，而是 Runtime 用镜像、rootfs、Namespace、cgroup 和进程信号共同构造的一次受限运行。
 
-容器不是轻量虚拟机的同义词。它首先是宿主机上的进程，只是使用 Namespace 获得隔离视图，使用 cgroup 获得资源计量与限制，再叠加镜像文件系统和 Runtime 生命周期。
-
-## 从镜像到容器进程
+## 从镜像 Digest 到容器进程
 
 ```mermaid
-flowchart TD
-  I[OCI Image Manifest] --> L[Read-only Layers]
-  L --> B[Bundle: config + rootfs]
-  B --> R[OCI Runtime]
+flowchart LR
+  I[Image Manifest + Digest] --> R[OCI Runtime]
+  R --> F[Rootfs Layers]
   R --> N[Namespaces]
   R --> C[cgroup]
-  R --> P[Container PID 1]
-  P --> A[Application Threads / Children]
+  R --> M[Mounts]
+  N --> P[PID 1: model server]
+  C --> P
+  M --> P
+  P --> X[stop: SIGTERM -> timeout -> SIGKILL]
 ```
 
-镜像清单描述平台、配置与 Layer；Layer 是内容寻址的只读文件变化；创建容器时，Runtime 准备 root filesystem、Namespace、cgroup 和进程参数，再启动容器的第一个进程。容器还会得到一层可写文件系统，但它通常随容器删除，不适合保存数据库、模型上传或持久任务状态。
+镜像是不可变内容的描述，容器是这些内容加上运行时配置的实例。Runtime 根据 OCI bundle 建立 rootfs、进程和隔离边界。镜像 Digest 能证明内容身份，却不能证明端口、用户、挂载和资源限制一定正确。
 
-## OCI 解决的是可交换契约
+## 同一个进程怎样被 Namespace 重新看见
 
-OCI Image Specification 定义镜像布局和配置，Runtime Specification 定义怎样从 Bundle 创建进程，Distribution Specification 定义 Registry 交互。Docker、containerd、CRI-O 与低层 Runtime 可以在这些契约上协作。
+| Namespace | 进程看到的世界 | 故障表现 |
+| --- | --- | --- |
+| PID | 容器内的 1 号进程与有限进程树 | 宿主机 PID 与容器 PID 对不上 |
+| Network | 独立网卡、路由、端口空间 | 容器内 curl 成功，宿主机端口未发布 |
+| Mount | 独立根目录和挂载点 | 文件在宿主机存在，容器路径看不到 |
+| User | 用户与能力集合 | 能读不能写，或特权端口绑定失败 |
 
-镜像标签只是可变名称，Digest 才指向具体内容。生产发布若只记录 `latest`，同一配置可能在不同时间拉到不同内容；应把镜像 Digest、模型 Revision 和配置版本共同写入发布记录。
+端口发布不是“容器自动拥有宿主机端口”，而是运行时在宿主机网络和容器网络之间建立转发。挂载也不是复制文件，bind mount 的只读标志、路径所有权和安全策略会同时影响进程。
 
-多架构镜像使用 Manifest List 或 Image Index 为 `linux/amd64`、`linux/arm64` 等平台选择具体 Manifest。平台选错时，二进制可能直接无法执行。GPU 能力也不会因为镜像名称里包含 CUDA 自动出现，它仍依赖宿主机驱动、容器 Runtime 配置和设备注入。
+## cgroup 限制的是资源，不是应用意图
 
-## Namespace 隔离的是视图
+CPU quota 限制可用时间片，memory.max 限制可使用的内存，pids.max 限制进程数量。模型加载时的峰值、分词线程、日志缓冲和共享内存都可能计入限制。看到应用报“无法分配内存”时，要把容器 cgroup、宿主机压力和模型自身显存分开看。
 
-PID Namespace 让容器看到自己的进程编号；Mount Namespace 提供独立挂载视图；Network Namespace 提供接口、路由和端口空间；User Namespace 可以映射容器与宿主用户。Namespace 不复制一套内核，容器进程仍共享宿主机内核。
+```bash
+docker inspect <container> --format '{{json .State}}'
+docker top <container>
+docker exec <container> sh -c 'cat /proc/1/status; cat /proc/1/cgroup'
+docker stats --no-stream <container>
+```
 
-因此，容器内看到的 `localhost` 指向自己的 Network Namespace，不是数据库容器。跨容器通信要通过同一网络中的服务名或明确地址。进程在容器内是 PID 1，在宿主机上会有另一个 PID，两种视图都可能用于排障。
+这些命令用于确认状态、进程、cgroup 和资源快照。它们不能替代持续观测，尤其不能把一次 stats 读数当成容量结论。
 
-## cgroup 管理资源预算
+## PID 1 决定停止是否可靠
 
-cgroup 记录和限制 CPU、内存、进程数与 I/O 等资源。内存限制不是预留量：宿主机有空闲内存，也不代表容器可以超过自己的上限。达到硬边界时，进程可能被 cgroup 范围内的 OOM 处理终止。
+容器停止时，Runtime 通常先向 PID 1 发送 SIGTERM。若 PID 1 是 shell，信号可能没有转发给真正的服务；若应用没有停止钩子，连接会在超时后被强制结束。正确的做法是让业务进程成为可接收信号的 PID 1，或明确使用能转发和回收子进程的 init。
 
-CPU quota 控制可使用的时间份额，cpuset 控制允许在哪些 CPU 上运行，两者语义不同。AI 服务还要区分主存与 GPU 显存；普通容器内存限制不会替代 GPU 显存管理，GPU 设备资源要由 NVIDIA Runtime 或 Kubernetes Device Plugin 暴露。
+::: warning
+**容易误判**
 
-## PID 1 为什么特殊
+把容器内的 localhost 当成宿主机 localhost、把 root 当成权限修复、把镜像层当成持久化卷，都会让故障在重启或迁移后再次出现。下一篇将这些运行实例放进 Compose 网络，观察多个服务怎样共同启动和恢复。
+:::
 
-容器停止时，Runtime 通常向 PID 1 发送 `SIGTERM`，等待宽限期，再发送 `SIGKILL`。如果入口是不会转发信号的 Shell，真正的模型服务收不到停止通知；如果 PID 1 不回收子进程，还会积累僵尸进程。
+## 容器权限为什么经常在挂载点暴露
 
-入口应使用 exec 形式让业务程序直接成为 PID 1，或使用能正确转发信号和回收子进程的 init。应用收到 `SIGTERM` 后停止接流量、取消或排空请求、刷新必要状态并退出。所有耗时步骤都要小于 Runtime 的停止宽限期。
+镜像里用 USER 10001 运行应用，并不自动让挂载进来的宿主机目录归 10001 所有。容器内看到的 UID/GID 与宿主机文件元数据、user namespace 映射和 SELinux/AppArmor 策略共同决定访问结果。开发环境里 chmod 777 能暂时掩盖问题，生产里则会放大写入和泄露范围。
 
-## 挂载决定数据所有权
+更稳妥的做法是为数据目录分配明确的运行组与最小权限，挂载只读配置，单独挂载可写日志或临时目录，并在镜像构建和运行配置中记录 UID/GID。这样重建容器、换节点或升级 Runtime 后，权限边界仍可复现。
 
-Bind Mount 把宿主路径直接暴露给容器，方便开发但耦合具体目录与权限。Named Volume 由容器平台管理，适合数据库等持久数据。对象存储和远程模型仓库则通过网络提供独立生命周期。
+## 镜像层和运行写层为什么要分开
 
-不要把持久化问题简化为“挂一个目录”。要写清数据所有者、写入用户、备份方式、升级兼容、并发访问和删除条件。模型缓存可以重建，业务数据库不能；两者应使用不同的恢复与清理策略。
+镜像层在构建后应该保持不可变，它适合程序、受控依赖和默认配置。模型下载缓存、上传文件、数据库数据和运行日志若写进容器可写层，会随着重建、迁移或清理消失，也难以被独立备份和审计。
 
-## 判断容器设计是否成立
-
-一份可审查的容器设计至少回答：镜像由哪个 Digest 标识，目标平台是什么，进程以哪个用户运行，CPU/内存/PID 上限是多少，哪些目录可写，哪些状态必须持久化，健康检查验证什么，收到停止信号后怎样结束。
-
-容器带来的价值是可重复的运行边界，而不是让故障消失。只有把镜像、进程、Namespace、cgroup、挂载和信号逐层对应起来，后面的 Compose 与 Kubernetes 才不会变成配置背诵。
+把持久数据移到命名卷或外部存储后，还要定义备份与升级方式。卷能跨容器存在，不代表它自动兼容新版程序。Schema、文件格式和所有权仍要有迁移和回退策略。
