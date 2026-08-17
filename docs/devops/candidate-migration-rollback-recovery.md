@@ -24,58 +24,101 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # 候选验证、迁移、切流、回滚、备份与恢复
 
-新镜像启动失败，旧容器已经删掉；数据库迁移又写入了旧程序不认识的字段。此时把镜像 tag 改回去不够。低风险发布要同时准备代码、入口和数据的回退点，并让候选版本在不影响正式流量的情况下证明自己。
+新版本已经通过单元测试，数据库迁移却删除了旧代码仍需要的列。应用切流失败后虽然镜像能回滚，旧进程也无法读取新 schema。应用回滚、数据回退和灾难恢复是三件事：只有在设计兼容迁移、备份恢复和旧版本可运行路径后，“可以回滚”才不是口号。
 
-## 发布是一台状态机
+
+<InfraFigure src="/images/ai-infra/candidate-migration-rollback-recovery/hero.png" alt="新旧候选并存，通过备份、旁路验证、切流与回滚保护服务的插画"
+  icon="recovery" caption="低风险发布保持旧版本可用，先验证候选，再用最小流量变更完成切换。" />
+
+
+## 一次发布需要哪些相互独立的回退点
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Candidate | 使用最终制品和目标配置启动、但尚未承接正式流量的实例。 |
+| Expand/Contract Migration | 先新增兼容结构并让新旧代码共存，稳定后再删除旧结构，避免一次性破坏回滚。 |
+| Traffic Switch | 通过负载均衡、Service selector 或路由权重把新请求转向候选，数据层不应被顺带重启。 |
+| Rollback | 把应用流量恢复到已验证旧版本；不自动撤销已写入的新数据。 |
+| Recovery | 从隔离备份重建依赖并验证业务不变量，证明数据灾难后能恢复。 |
+
+## 排障时最容易走错的岔路
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| 镜像可回滚 | schema 或数据已经变成旧代码不兼容 | 采用 expand/contract 并做旧版本 probe |
+| 候选健康 | 后台任务可能重复运行或未覆盖真实入口 | 禁用重复 master 任务并切流后回归 |
+| 备份成功 | 备份可能损坏、缺对象存储或恢复时间超标 | 隔离恢复演练 |
+| 切回旧 upstream | 新版本写入的任务和事件仍可能继续 | 停止新准入并处理在途/补偿 |
+
+::: warning 不要用重启代替诊断
+恢复服务和解释故障是两个目标。紧急止损后仍要回到原始日志、指标与状态转换，避免同类问题重复出现。
+:::
+
+## 候选版本怎样在不删除旧版本的情况下上线
 
 ```mermaid
-stateDiagram-v2
-  [*] --> preflight
-  preflight --> backed_up
-  backed_up --> candidate
-  candidate --> validated
-  candidate --> aborted
-  validated --> shifted
-  shifted --> stable
-  shifted --> rolled_back
-  stable --> cleaned
+flowchart LR
+  S0["预检备份"]
+  S1["兼容迁移"]
+  S2["旁路验证"]
+  S3["切流观察"]
+  S4["恢复收束"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
 ```
 
-preflight 检查依赖、迁移兼容和回滚点；candidate 旁路启动并验证；shifted 后观察业务和观测信号；失败时先恢复入口，再分析候选。每个状态都有进入条件、证据和停止条件，不能只靠“感觉稳定”。
+### 1. Release Controller/DBA 怎样完成预检备份
 
-## 应用回滚、数据回退和灾难恢复
+核对 digest、容量、兼容矩阵，创建并校验可恢复备份。
 
-| 动作 | 恢复什么 | 风险 |
-| --- | --- | --- |
-| 应用回滚 | 运行代码和镜像 | 新数据格式可能不兼容旧代码 |
-| 数据回退 | 数据库内容到某时间点 | 丢失合法新写入，需审批 |
-| 灾难恢复 | 从备份重建服务和依赖 | RPO/RTO、备份可读性 |
+这一动作的可观察结果是 preflight、backup manifest、restore check。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-数据库迁移优先采用向后兼容的 expand/contract：先加可选字段和双写，再切换读路径，最后清理旧字段。这样应用回滚不必立即回退数据。
+### 2. 兼容迁移：Migration Job 持有当前状态
 
-## 旁路验证看什么
+执行可重复 expand 迁移，记录 schema version 并保持旧代码可读。
 
-候选容器使用独立端口或网络地址，先验证健康、协议、最小请求、权限、数据读写和关键指标。流式接口要验证取消和连接排空，RAG 要验证租户和 release，模型服务要验证制品、显存和 readiness。旁路容器不能承担正式 master 任务。
+可以从这些位置确认结果：migration id、lock time、old-version probe。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-## 切流前后的最小证据
+### 旁路验证发生时，先看 Candidate
+
+在隔离入口连接真实依赖的受控范围，验证健康、鉴权、流式与状态写入。
+
+这里不靠猜测，优先读取 candidate trace、test identities、cleanup。
+
+### 从 切流观察 留下的证据回到 Router
+
+最小修改 upstream/权重，持续比较 SLO 与业务终态，旧实例保持待命。
+
+决定下一步前需要看到 traffic event、error budget、rollback target。
+
+### 5. Operations 怎样完成恢复收束
+
+稳定后执行 contract；异常先切回，再分析候选，定期隔离恢复演练。
+
+这一动作的可观察结果是 cleanup list、RTO/RPO evidence。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+## 把发布写成有停止条件的 Runbook
+
+以下为顺序清单，不是特定平台命令。每一步输入、证据和失败动作都必须在真实环境补全。
 
 ```text
-before: public status=200, old upstream=healthy, backup=verified
-candidate: contract=pass, migration=compatible, trace=visible
-after: public status=200, errors within budget, old upstream retained
-rollback: restore upstream -> reload -> public status=200
+1 preflight: artifact/signature/config/capacity -> stop on mismatch
+2 backup: create + verify manifest + isolated restore sample
+3 migrate: expand only -> verify old and new application compatibility
+4 candidate: health + auth + SSE + state transition + cleanup
+5 switch: change only traffic target -> immediate public regression
+6 observe: SLO + logs + business invariants -> rollback on threshold
+7 contract: only after rollback window and explicit approval
 ```
 
-这是 Runbook 的证据格式，不是实际线上结果。切流前保留旧容器和入口配置，nginx -t 通过后再热加载；切流后立即检查公网、直连、数据看板和临时验证数据。下一篇把供应链、候选和平台链路串成一个综合设计。
+旁路成功不保证公网路由、证书和真实网关策略正确，所以切流后必须即时回归。回滚应优先只改变流量指向，不停止数据库、Redis 或旧实例。备份文件存在也不证明恢复，应在隔离位置实际还原并校验行数、对象引用与权限不变量。
 
-## 备份只有恢复成功后才算能力
 
-备份策略需要明确 RPO 和 RTO：最多允许丢多久的数据、多久恢复到可服务。定期在隔离环境恢复数据库、对象和必要的配置，校验数据量、校验和、关键查询和应用兼容性。只检查备份文件存在，无法证明它可读、权限仍有效或版本可兼容。
 
-恢复演练不能对生产主依赖做破坏性操作。使用隔离网络、临时名称和只读/副本数据，记录每一步耗时和失败点。演练结果再反馈到 Runbook、容量和发布门禁，才能让“灾难恢复”从口号变成已知流程。
+## 最后回到适用范围
 
-## 恢复后的验证比启动成功更严格
+破坏性 contract 迁移、旧制品清理和备份过期都应在观察期后独立审批。RTO 是恢复所需时间目标，RPO 是可接受数据丢失窗口；二者必须由演练证据支持。
 
-数据库恢复完成、容器启动和健康检查 200 只证明基本组件存在。还要验证关键查询、对象引用、权限、队列消费、模型制品和观测链是否与恢复点一致。否则服务看似上线，用户请求才会发现缺索引或错误版本。
-
-恢复完成后记录实际 RPO/RTO、差异数据和后续补偿动作。不要静默把恢复窗口内的丢失写入当作“正常”，它需要业务、审计和用户影响的明确处置。
+最后一篇把前 36 章放回同一条 Enterprise AI Platform 请求链，展示如何按风险和需求逐步建设，而不是一次堆满组件。

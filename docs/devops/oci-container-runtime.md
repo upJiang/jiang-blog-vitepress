@@ -24,67 +24,116 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # OCI 镜像、容器隔离、cgroup 与进程生命周期
 
-容器里的模型进程显示 Running，宿主机却访问不到端口；换成 root 后日志突然能写了，但停止容器时请求被直接截断。OCI 容器不是一层“打包”，而是 Runtime 用镜像、rootfs、Namespace、cgroup 和进程信号共同构造的一次受限运行。
+模型容器显示 Running，宿主机却访问不到 8000 端口；进入容器能看到进程，挂载目录又报 Permission denied。把这些现象分成“网络问题”“权限问题”“Docker 问题”会错过共同根因：同一个进程正同时处在独立的 network namespace、受 cgroup 限制，并通过挂载看到来自宿主机的文件所有权。容器只是把这些约束组合起来。
 
-## 从镜像 Digest 到容器进程
+
+<InfraFigure src="/images/ai-infra/oci-container-runtime/hero.png" alt="容器镜像被展开为 rootfs 并通过 namespace 与 cgroup 隔离进程的插画"
+  icon="container" caption="容器不是轻量虚拟机，而是受一组 Linux 隔离与资源规则约束的进程。" />
+
+
+## 镜像、容器和进程分别是什么
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| OCI Image | 按 OCI Image Specification 组织的不可变层、配置和 manifest。Digest 是内容摘要；tag 只是可移动名称，不能替代可追溯版本。 |
+| OCI Runtime | 根据 bundle 中的 `config.json` 创建 namespace、cgroup、挂载并启动容器进程的实现，例如 runc。它不等于镜像仓库或编排平台。 |
+| rootfs | 镜像层解包并叠加后提供给进程的根文件系统视图。它改变进程看到的路径，不会自动改变宿主机文件的 UID/GID。 |
+| namespace | 隔离进程看到的 PID、网络、挂载、主机名等资源视图；隔离可见性，不负责设置 CPU 和内存配额。 |
+| cgroup | 把进程归组并统计、限制 CPU、内存、I/O 等资源；它限制资源，不提供完整文件系统隔离。 |
+
+## 排障时最容易走错的岔路
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| 容器 Running | 只代表 PID 1 尚未退出，不代表模型加载完成或端口 ready | 检查应用就绪信号和监听状态 |
+| 容器内能 curl | 可能只命中 loopback，不能证明宿主机发布和外部路由正常 | 分别测试容器地址、宿主机端口和外部入口 |
+| chmod 777 后能写 | 权限边界被放大，但 UID/GID 与挂载设计仍然错误 | 固定运行身份并给目标目录最小写权限 |
+| 容器突然退出 137 | 常见于 SIGKILL，包括 cgroup OOM 或强制停止，不能只看应用日志 | 检查 OOMKilled、memory.events 与 stop timeout |
+
+::: warning 不要用重启代替诊断
+恢复服务和解释故障是两个目标。紧急止损后仍要回到原始日志、指标与状态转换，避免同类问题重复出现。
+:::
+
+## 从镜像 Digest 到 PID 1 的运行链
 
 ```mermaid
 flowchart LR
-  I[Image Manifest + Digest] --> R[OCI Runtime]
-  R --> F[Rootfs Layers]
-  R --> N[Namespaces]
-  R --> C[cgroup]
-  R --> M[Mounts]
-  N --> P[PID 1: model server]
-  C --> P
-  M --> P
-  P --> X[stop: SIGTERM -> timeout -> SIGKILL]
+  S0["解析制品"]
+  S1["准备文件系统"]
+  S2["建立边界"]
+  S3["启动进程"]
+  S4["停止与清理"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
 ```
 
-镜像是不可变内容的描述，容器是这些内容加上运行时配置的实例。Runtime 根据 OCI bundle 建立 rootfs、进程和隔离边界。镜像 Digest 能证明内容身份，却不能证明端口、用户、挂载和资源限制一定正确。
+### 1. 镜像客户端与 Registry 怎样完成解析制品
 
-## 同一个进程怎样被 Namespace 重新看见
+按 digest 拉取 manifest、config 与各层并校验内容。
 
-| Namespace | 进程看到的世界 | 故障表现 |
-| --- | --- | --- |
-| PID | 容器内的 1 号进程与有限进程树 | 宿主机 PID 与容器 PID 对不上 |
-| Network | 独立网卡、路由、端口空间 | 容器内 curl 成功，宿主机端口未发布 |
-| Mount | 独立根目录和挂载点 | 文件在宿主机存在，容器路径看不到 |
-| User | 用户与能力集合 | 能读不能写，或特权端口绑定失败 |
+这一动作的可观察结果是 `docker image inspect`、digest、架构与入口。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-端口发布不是“容器自动拥有宿主机端口”，而是运行时在宿主机网络和容器网络之间建立转发。挂载也不是复制文件，bind mount 的只读标志、路径所有权和安全策略会同时影响进程。
+### 2. 准备文件系统：Snapshotter 持有当前状态
 
-## cgroup 限制的是资源，不是应用意图
+展开只读镜像层，添加容器可写层和显式挂载。
 
-CPU quota 限制可用时间片，memory.max 限制可使用的内存，pids.max 限制进程数量。模型加载时的峰值、分词线程、日志缓冲和共享内存都可能计入限制。看到应用报“无法分配内存”时，要把容器 cgroup、宿主机压力和模型自身显存分开看。
+可以从这些位置确认结果：mount 信息、overlay 层、卷来源。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 建立边界发生时，先看 Runtime 与内核
+
+创建 namespace、cgroup、capability 和安全策略。
+
+这里不靠猜测，优先读取 `docker inspect`、`nsenter`、cgroup 文件。
+
+### 从 启动进程 留下的证据回到 Runtime
+
+在新边界中执行 Entrypoint，首进程成为容器 PID 1。
+
+决定下一步前需要看到 `ps`、命令行、退出码、信号处理。
+
+### 5. 容器引擎 怎样完成停止与清理
+
+先发送停止信号，等待超时，再强制结束并回收临时状态。
+
+这一动作的可观察结果是 终止日志、stop timeout、挂载与进程残留。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+## 为什么容器里监听 127.0.0.1 会让端口映射失效
+
+下面的命令读取容器配置与内部监听状态。`model-api` 是教学名称；`docker exec` 需要镜像内存在 `ss`，若没有应使用调试容器或读取 `/proc`，不能据此判断没有监听。
 
 ```bash
-docker inspect <container> --format '{{json .State}}'
-docker top <container>
-docker exec <container> sh -c 'cat /proc/1/status; cat /proc/1/cgroup'
-docker stats --no-stream <container>
+docker inspect model-api --format "pid={{.State.Pid}} image={{.Image}}"
+docker port model-api
+docker exec model-api ss -ltnp
+docker inspect model-api --format "{{json .Mounts}}"
+docker inspect model-api --format "memory={{.HostConfig.Memory}} cpus={{.HostConfig.NanoCpus}}"
+docker stop --time 30 model-api
 ```
 
-这些命令用于确认状态、进程、cgroup 和资源快照。它们不能替代持续观测，尤其不能把一次 stats 读数当成容量结论。
+端口发布把宿主机连接转发到容器 network namespace 的目标地址。如果应用只绑定容器内的 `127.0.0.1:8000`，它只接受同一 namespace 的 loopback 连接；转发到容器网卡地址时会被拒绝。应让应用在明确风险下绑定 `0.0.0.0:8000`，再由发布规则决定外部可达范围。挂载权限则要把容器运行 UID、宿主机目录所有者、只读标记和 SELinux/AppArmor 一起核对。
 
-## PID 1 决定停止是否可靠
+## 同一个 PID 为什么在宿主机和容器里编号不同
 
-容器停止时，Runtime 通常先向 PID 1 发送 SIGTERM。若 PID 1 是 shell，信号可能没有转发给真正的服务；若应用没有停止钩子，连接会在超时后被强制结束。正确的做法是让业务进程成为可接收信号的 PID 1，或明确使用能转发和回收子进程的 init。
+PID namespace 改变进程看到的进程树。容器里的 PID 1 在宿主机仍有另一个真实 PID；它承担孤儿进程回收和信号语义。若 Entrypoint 是不会转发信号的 shell，容器引擎发送的 SIGTERM 可能停在 shell，业务子进程继续运行，最终被超时后的 SIGKILL 强制结束。使用 exec form Entrypoint 或最小 init 可以让信号与子进程回收路径明确。
 
-::: warning
-**容易误判**
+## 网络 namespace 怎样与端口发布配合
 
-把容器内的 localhost 当成宿主机 localhost、把 root 当成权限修复、把镜像层当成持久化卷，都会让故障在重启或迁移后再次出现。下一篇将这些运行实例放进 Compose 网络，观察多个服务怎样共同启动和恢复。
-:::
+容器拥有自己的接口、路由、loopback 和 socket 表。应用绑定 `127.0.0.1` 时只接受该 namespace 内 loopback 请求；发布宿主机端口通常把流量送往容器网卡地址，因此无法命中。应用绑定 `0.0.0.0` 解决的是容器内监听范围，宿主机是否公开仍由 publish、主机防火墙和外部代理决定。两者都要检查，不能用“容器内 curl 成功”替代。
 
-## 容器权限为什么经常在挂载点暴露
+## cgroup OOM 与主机内存还有一层边界
 
-镜像里用 USER 10001 运行应用，并不自动让挂载进来的宿主机目录归 10001 所有。容器内看到的 UID/GID 与宿主机文件元数据、user namespace 映射和 SELinux/AppArmor 策略共同决定访问结果。开发环境里 chmod 777 能暂时掩盖问题，生产里则会放大写入和泄露范围。
+cgroup memory.max 限制该组可使用内存，memory.current 显示当前记账，memory.events 中的 oom/oom_kill 说明组内分配失败和进程被杀。主机仍有空闲内存时，容器也可能因为自己的上限 OOM；反过来没有显式 limit 的容器会参与整机压力。退出码 137 只说明进程收到 SIGKILL，必须结合 OOM 事件和停止操作判断来源。
 
-更稳妥的做法是为数据目录分配明确的运行组与最小权限，挂载只读配置，单独挂载可写日志或临时目录，并在镜像构建和运行配置中记录 UID/GID。这样重建容器、换节点或升级 Runtime 后，权限边界仍可复现。
+## 挂载把宿主机元数据带入容器
 
-## 镜像层和运行写层为什么要分开
+bind mount 不会因为镜像里声明 `USER 10001` 就自动改属主。容器内 UID 10001 访问的是宿主机 inode 的权限元数据，还可能叠加 user namespace 映射、只读 mount 和 SELinux/AppArmor。镜像构建时 `chown` 的目录一旦被挂载覆盖，运行时看到的是挂载源，而不是被遮住的镜像目录。排查时必须从 Mounts、容器 UID/GID 和宿主机路径一起看。
 
-镜像层在构建后应该保持不可变，它适合程序、受控依赖和默认配置。模型下载缓存、上传文件、数据库数据和运行日志若写进容器可写层，会随着重建、迁移或清理消失，也难以被独立备份和审计。
+停止容器时，先记录 PID 1 是否收到 TERM、应用是否停止准入、在途请求是否结束、卷写入是否完成；否则把 stop timeout 加长只会延迟强杀，并不会自动产生优雅退出。
 
-把持久数据移到命名卷或外部存储后，还要定义备份与升级方式。卷能跨容器存在，不代表它自动兼容新版程序。Schema、文件格式和所有权仍要有迁移和回退策略。
+## 最后回到适用范围
+
+namespace 和 cgroup 共享宿主机内核，因此容器不是拥有独立内核的虚拟机。镜像不可变也不代表整个容器状态可恢复：写层会随重建丢失，模型缓存、数据库和上传文档必须放入明确的卷或对象存储，并有版本和备份策略。
+
+单个容器的边界明确之后，现实中的 AI Backend 还需要数据库、Redis、Worker 和对象存储。下一篇用 Compose 观察多个容器怎样互相发现、等待就绪并保留数据。

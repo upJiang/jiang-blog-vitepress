@@ -1960,3 +1960,49 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+/* AI Infra article figures */
+.vp-doc .infra-figure {
+  margin: 28px 0 32px;
+}
+
+.vp-doc .infra-figure img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc .infra-figure figcaption {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.infra-icon {
+  display: inline-flex;
+  flex: 0 0 17px;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  color: var(--vp-c-brand-1);
+  vertical-align: text-bottom;
+}
+
+@media (max-width: 640px) {
+  .vp-doc .infra-figure {
+    margin: 22px 0 26px;
+  }
+
+  .vp-doc .infra-figure img {
+    aspect-ratio: 4 / 3;
+  }
+}

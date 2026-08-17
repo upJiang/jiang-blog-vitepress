@@ -24,61 +24,97 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # GPU Driver、CUDA Runtime、HBM/VRAM 与显存诊断
 
-模型第一次请求成功，第二次长上下文请求却 OOM。nvidia-smi 显示还有显存，应用仍然分配失败。显存不是一个可以随意取用的数字，权重、KV Cache、激活、工作区、CUDA Context 和碎片共同决定当前请求能否被接纳。
+容器里 `nvidia-smi` 能看到 GPU，Python 却提示 CUDA unavailable；修好兼容问题后模型又在加载完成时 OOM。前一个问题是驱动、容器设备和 Runtime 链路，后一个问题是显存容量。把它们都称为“CUDA 问题”会让排查从升级版本和调小 batch 之间来回摇摆。
 
-## Driver、Runtime 和设备之间的关系
+
+<InfraFigure src="/images/ai-infra/gpu-cuda-vram-nvidia-smi/hero.png" alt="驱动、CUDA Runtime 与 GPU 显存中的权重、KV Cache 和工作区层次插画"
+  icon="memory" caption="驱动负责控制设备，Runtime 提供执行接口，显存则被多种长期和峰值分配共同占用。" />
+
+
+## Driver、CUDA Runtime 与显存各自负责什么
+
+先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| NVIDIA Driver | 宿主机内核模块和用户态库组成的设备控制层，向上提供 CUDA Driver API 能力。 |
+| CUDA Runtime | 应用或框架使用的运行库，版本需与驱动支持能力兼容；Toolkit 还包含编译器和开发工具。 |
+| VRAM/HBM | GPU 直接访问的设备内存。HBM 是常见高带宽实现，VRAM 是部署语境中的泛称。 |
+| OOM | 某次设备分配无法满足，不只取决于当前已用总量，还受连续块、缓存器和峰值临时分配影响。 |
+
+::: tip 判断原则
+定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+:::
+
+## 从设备发现到一次显存分配失败
 
 ```mermaid
 flowchart LR
-  App[Framework / Serving] --> R[CUDA Runtime]
-  R --> D[NVIDIA Driver]
-  D --> G[GPU Device]
-  G --> V[VRAM/HBM]
-  App -.nvidia-smi evidence.-> G
+  S0["发现设备"]
+  S1["初始化 Runtime"]
+  S2["建立显存账本"]
+  S3["执行与回收"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-Driver 负责与设备交互，CUDA Runtime 和框架提供编程接口，Serving 引擎管理模型和请求内存。版本兼容失败可能在初始化时暴露，也可能在某个 Kernel 或通信路径才出现。nvidia-smi 是设备视角的快照，不等于框架分配器的完整账本。
+箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-## 显存账本怎么写
+### 1. 发现设备：OS/Container Runtime 持有当前状态
 
-可以把显存需求写成：权重 + 运行时常驻 + 当前 Batch 的激活/工作区 + 每条序列的 KV Cache + 碎片与安全余量。权重通常随模型和精度固定，KV Cache 随输入、输出、层数、头数和并发变化。长上下文和更大 Batch 会同时推高后两项。
+驱动识别 GPU，并把设备节点与库暴露给进程。
 
-| 账本项 | 何时增长 | 排查证据 |
-| --- | --- | --- |
-| 权重 | 模型加载或切换 | Serving 加载日志、框架统计 |
-| KV Cache | 接纳新序列、生成 Token | 请求长度、Block 使用 |
-| 工作区/临时张量 | 特定 Kernel、Prefill 峰值 | 引擎 debug、CUDA error |
-| Context/缓存 | 进程初始化、编译、通信 | nvidia-smi 与进程信息 |
-| 碎片/余量 | 反复分配释放、并发变化 | 分配器统计和失败位置 |
+可以从这些位置确认结果：`nvidia-smi`、device files、container runtime。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-## nvidia-smi 能回答什么
+### 初始化 Runtime发生时，先看 Framework/CUDA
+
+加载兼容库、创建 context 并选择 device。
+
+这里不靠猜测，优先读取 driver/runtime version、初始化错误。
+
+### 从 建立显存账本 留下的证据回到 Serving
+
+依次分配权重、KV Cache、激活、workspace 和通信缓冲。
+
+决定下一步前需要看到 allocated/reserved、模型配置。
+
+### 4. Allocator 怎样完成执行与回收
+
+请求产生峰值分配，结束或取消后回收可复用块。
+
+这一动作的可观察结果是 peak memory、fragmentation、process list。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+## nvidia-smi 能回答什么，不能回答什么
+
+这些命令只有在安装 NVIDIA 驱动的主机或正确注入设备的容器中才有意义。本环境未执行真实 GPU 验证，示例用于解释字段。
 
 ```bash
 nvidia-smi
-nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,temperature.gpu --format=csv
-nvidia-smi pmon -c 1
+nvidia-smi --query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu --format=csv
+nvidia-smi pmon -s um -c 1
+python3 -c "import torch; print(torch.version.cuda); print(torch.cuda.is_available())"
 ```
 
-这些命令可以确认设备、总量、粗略使用和进程活动。它们不能告诉你某个请求需要多少 KV，也不能证明多卡拓扑或 MIG 配置正确。生产诊断还要结合框架内存统计、请求形状和 OOM 日志。
+`nvidia-smi` 的 CUDA Version 通常表示驱动可支持的最高 CUDA 能力，不等于当前 Python 包内 Runtime 版本。memory.used 是设备级快照，难以直接拆成权重、KV Cache 和 allocator reserved；框架指标和 Serving 配置要一起看。utilization.gpu 是采样窗口活动比例，不等价于模型吞吐。
 
-## 多卡不是简单相加
+## 看起来相似，故障边界却不同
 
-Tensor Parallel 可能把权重和计算切到多张卡，需要通信和拓扑支持；Pipeline Parallel 把层分段，带来阶段气泡；数据并行复制模型，显存不一定减少。是否需要多卡，要由模型制品、精度、上下文、并发和通信成本共同推演，不能只看“总显存够不够”。
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| nvidia-smi 正常 | 应用 Runtime、库搜索路径或容器设备仍可能错误 | 在同一进程环境检查框架版本和初始化 |
+| 显存未满仍 OOM | 峰值、碎片、其他进程或大连续分配可能失败 | 看峰值和进程列表，复现具体请求 |
+| 多卡总显存够 | 单个模型状态未按支持策略分片，显存不能自动相加 | 确认 tensor/data parallel 状态分布 |
+| 清缓存后恢复 | 缓存释放改变现场但未解释请求为何达到峰值 | 记录请求长度、并发与各组成 |
 
-::: warning
-**未实测**
-
-没有目标 GPU、驱动、CUDA、引擎版本和请求分布时，只能给出账本和验证方法，不能填写 OOM 阈值或吞吐数字。下一篇进入 Kubernetes，观察 GPU 能力怎样被声明和放入 Pod。
+::: warning 容易误判
+一条成功命令只能证明它覆盖的那一层。重启后的短暂恢复也不是根因已经消失，改变状态前先保存最早证据。
 :::
 
-## OOM 之后先保留请求形状
 
-OOM 日志最有价值的信息是失败发生在加载、Prefill 还是 Decode，以及当时有多少活跃序列、每条序列多长、使用了哪一个 Revision 和精度。没有请求形状，只剩下一张 nvidia-smi 截图，无法判断是权重过大、并发过高还是碎片/工作区峰值。
 
-恢复动作也要分层：先停止接纳新长请求，排空或取消可安全终止的序列，再根据账本调整 max length、并发或模型池。直接重启能释放显存，却会掩盖准入和容量设计缺陷。
+## 这套判断方法的边界
 
-## 显存分配器的“已保留”不等于“正在使用”
+显存估算必须写明模型 revision、dtype、层数、上下文、并发和引擎。多卡还引入 PCIe/NVLink/NCCL 通信，不是把容量数字简单相加。本章没有真实 GPU 诊断结果。
 
-很多框架会保留一部分显存供后续复用，避免频繁向 Driver 分配。于是框架看到的 allocated、reserved 与 nvidia-smi 的进程使用量可能不同。三者差异不必然是泄漏，但在长时间运行后持续单向增长就需要回到请求、缓存和释放路径检查。
-
-处理碎片时优先减少不规则峰值和无界并发，例如限制序列长度、分开长短请求、及时取消。盲目清空缓存可能暂时改变数字，却会干扰正在运行的请求或掩盖真正的准入错误。
+单机 GPU 链路清楚后，下一阶段进入 Kubernetes：先理解控制面的调谐模型，再看 GPU 资源怎样进入 Pod。

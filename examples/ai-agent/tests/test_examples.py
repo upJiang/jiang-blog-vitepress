@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from agent_loop import ScriptedModel, run_agent
+from agent_loop import FinalAnswer, ScriptedModel, ToolCall as AgentToolCall, run_agent
 from context_budget import ContextPart, assemble
 from contracts import AuthContext, authorize_search, parse_search_arguments
 from evidence import Claim, Evidence, validate_claim
@@ -55,6 +55,55 @@ class ExampleTests(unittest.TestCase):
         self.assertEqual(state.status, "completed")
         self.assertEqual(state.steps, 2)
         self.assertIn("找到 2 条记录", answer)
+
+    def test_agent_loop_turns_tool_timeout_into_an_observation(self) -> None:
+        def timeout(_arguments: dict[str, object]) -> str:
+            raise TimeoutError("search timed out")
+
+        state, answer = run_agent(
+            ScriptedModel(),
+            {"search_notes": timeout},
+            "远程访问需要什么权限？",
+        )
+
+        self.assertEqual(state.status, "completed")
+        self.assertEqual(state.steps, 2)
+        self.assertEqual(state.observations, ["tool_error:TimeoutError"])
+        self.assertEqual(answer, "检索失败，当前无法核对答案。")
+
+    def test_agent_loop_rejects_an_unknown_tool_before_execution(self) -> None:
+        class UnknownToolModel:
+            def decide(
+                self, _question: str, _observations: list[str]
+            ) -> AgentToolCall | FinalAnswer:
+                return AgentToolCall("delete_account", {})
+
+        with self.assertRaisesRegex(LookupError, "unknown_tool:delete_account"):
+            run_agent(UnknownToolModel(), {}, "删除账号")
+
+    def test_agent_loop_stops_at_the_decision_limit(self) -> None:
+        class RepeatingModel:
+            def decide(
+                self, question: str, _observations: list[str]
+            ) -> AgentToolCall | FinalAnswer:
+                return AgentToolCall("search_notes", {"query": question})
+
+        tool_calls = 0
+
+        def search(_arguments: dict[str, object]) -> str:
+            nonlocal tool_calls
+            tool_calls += 1
+            return "相同结果"
+
+        with self.assertRaisesRegex(RuntimeError, "step_limit_reached"):
+            run_agent(
+                RepeatingModel(),
+                {"search_notes": search},
+                "重复查询",
+                max_steps=2,
+            )
+
+        self.assertEqual(tool_calls, 2)
 
     def test_model_cannot_supply_trusted_scope(self) -> None:
         with self.assertRaisesRegex(ValueError, "untrusted_fields"):

@@ -23,56 +23,92 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # 对象存储：模型、文档、Multipart 与生命周期
 
-模型文件上传到对象存储后，数据库已经写了“ready”，客户端下载却拿到不完整的权重。对象存储把大文件的字节、版本和生命周期独立出来，数据库只保存可对账的元数据。上传完成、校验通过、发布可见必须是不同状态。
+一个 12 GB 模型上传到 98% 时网络断开，重试后 bucket 里出现多个残留 multipart upload；另一个用户拿到旧的预签名 URL，仍能下载已撤回文档。对象存储不是“无限大的文件夹”，它有自己的对象身份、版本、校验、授权和生命周期。
 
-## 对象和元数据谁是真相
 
-| 对象存储保存 | 数据库保存 |
+<InfraFigure src="/images/ai-infra/object-storage-minio/hero.png" alt="文档与模型大对象从上传、分片、校验到版本发布的对象存储插画"
+  icon="storage" caption="对象存储保存字节，数据库保存业务身份、权限和发布状态。" />
+
+
+## Object 为什么不等于普通文件
+
+| 概念 | 在这条链路中的含义 |
 | --- | --- |
-| 模型权重、Tokenizer、原始文档、分片文件 | object_key、size、checksum、content_type |
-| 不可变版本和 Multipart 分片 | owner、tenant_id、release_id、状态 |
-| 生命周期删除标记 | 业务引用、审计和恢复记录 |
+| Bucket | 对象命名与策略的顶层边界，通常承载区域、版本、生命周期和访问策略。它不是操作系统目录。 |
+| Object Key | bucket 内的完整字符串标识；斜杠只是常见前缀约定，不产生真实目录或继承权限。 |
+| ETag/Checksum | 用于识别传输内容的元数据，但 multipart ETag 不一定是整个对象的 MD5，校验策略必须明确。 |
+| Presigned URL | 在有限时间内授权特定对象操作的签名 URL。它是临时能力，不应成为永久公开地址。 |
 
-数据库里的 ready 只有在对象长度和校验值核对后才成立。对象 key 不应直接暴露租户或用户输入，访问权限通过服务端签发短期预签名 URL 或代理流式读取。
+## 排障时最容易走错的岔路
 
-## Multipart 上传的状态机
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| ETag 一致 | multipart ETag 可能由各 part 组合而来，不是整个对象 MD5 | 使用服务支持的 checksum 或独立 sha256 |
+| 对象存在 | 可能仍在 staging、扫描失败或属于旧版本 | 以数据库发布记录决定可见性 |
+| URL 已过期 | CDN、代理或已下载副本仍可能存在 | 为敏感撤回设计短 TTL、版本和缓存失效 |
+| 开启版本控制 | 旧版本仍占空间且可能含敏感数据 | 配置保留、法务删除和生命周期策略 |
+
+::: warning 不要用重启代替诊断
+恢复服务和解释故障是两个目标。紧急止损后仍要回到原始日志、指标与状态转换，避免同类问题重复出现。
+:::
+
+## 一次大模型上传怎样成为可发布制品
 
 ```mermaid
-stateDiagram-v2
-  [*] --> initiated
-  initiated --> uploading: parts
-  uploading --> uploaded: complete multipart
-  uploaded --> verified: size + checksum
-  verified --> published: metadata commit
-  uploading --> aborted: timeout/cancel
-  initiated --> expired: lifecycle cleanup
+flowchart LR
+  S0["准入"]
+  S1["分片上传"]
+  S2["完成验证"]
+  S3["发布引用"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-分段上传让大模型文件可以并行传输和断点续传，但“所有分片已传”不等于对象可读。完成合并后要校验大小、哈希、模型配置和许可证，再把数据库状态切到 verified。
+### 1. API/Policy 怎样完成准入
 
-## MinIO/S3 语义中容易混淆的地方
+校验租户、大小、类型和配额，生成不可猜测的 staging key。
 
-ETag 在不同上传方式和服务实现下不一定等于整个文件的 MD5。需要端到端校验时，显式保存 SHA-256 或服务支持的 checksum。对象版本、删除标记和生命周期规则也会影响恢复，不能只看控制台里是否还能看到一个 key。
+这一动作的可观察结果是 upload_id、tenant_id、expected_digest。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+### 2. 分片上传：Client/Object Storage 持有当前状态
+
+并行上传 part，失败后按 upload_id 续传或主动 abort。
+
+可以从这些位置确认结果：part 列表、校验和、未完成 upload。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 完成验证发生时，先看 Worker
+
+合并对象并验证长度、摘要、扫描结果和模型清单。
+
+这里不靠猜测，优先读取 content_length、sha256、scan status。
+
+### 从 发布引用 留下的证据回到 Database
+
+事务中把业务记录指向不可变 object version，再允许下载。
+
+决定下一步前需要看到 object_version、publish_status、审计记录。
+
+## 预签名上传为何还要在服务端完成确认
+
+下面是 AWS CLI/MinIO 兼容命令的语义示例，endpoint、凭证和 bucket 均需替换。它展示只读检查和清理未完成上传的入口，不包含真实 Secret。
 
 ```bash
-mc stat local/models/qwen/revision-1/model.safetensors
-mc cp --attr 'Content-Type=application/octet-stream' model.safetensors local/models/qwen/revision-1/
+aws --endpoint-url "$S3_ENDPOINT" s3api head-object \
+  --bucket ai-artifacts --key "staging/tenant_demo/model.bin"
+aws --endpoint-url "$S3_ENDPOINT" s3api list-multipart-uploads \
+  --bucket ai-artifacts
+aws --endpoint-url "$S3_ENDPOINT" s3api get-object-attributes \
+  --bucket ai-artifacts --key "models/qwen/revision/model.bin" \
+  --object-attributes ObjectSize,Checksum
 ```
 
-命令是解释性示例，地址、凭证和校验参数需按实际 MinIO 版本配置。不要把访问密钥写进镜像或终端历史。
+客户端上传成功只说明对象存储接受了字节。服务端仍要用 upload_id 关联业务记录，读取对象长度与 checksum，完成病毒/格式检查后才把状态从 staging 改为 published。删除业务行而不处理对象会泄漏存储，先删对象又可能破坏仍在引用的版本，因此要有可重试的清理任务。
 
-## 恢复时如何对账
 
-先从数据库找出仍被发布版本引用的 object_key，再检查对象是否存在、大小和 checksum 是否一致。缺对象时应阻止模型或知识版本发布，而不是静默下载最新文件。清理任务只删除没有业务引用且超过保留期的版本，并保留审计记录。下一阶段把这些制品交给模型 Serving，开始观察一次推理请求。
 
-## 预签名 URL 是能力票据
+## 最后回到适用范围
 
-预签名 URL 把一段时间内、对特定对象和方法的访问能力交给客户端。它应只允许所需的 GET 或 PUT，设置短过期，key 由服务端生成，并限制 content-length、content-type 或 checksum 条件。把通配 bucket 权限直接交给前端会让租户隔离失去控制。
+MinIO 提供 S3 兼容接口，但版本、纠删码、锁定和一致性能力要按实际部署核对。数据库不要保存大文件正文，对象存储也不要承担复杂业务查询。Secret 通过运行环境注入，预签名 URL 不进入公开日志。
 
-上传回调也不能盲信客户端说“完成”。服务端需要检查对象存在、大小、哈希和元数据，再创建或推进业务记录。对象最终可见、数据库发布、搜索索引可用之间的间隙，要用状态机而不是 sleep 来处理。
-
-## 生命周期规则也会制造数据故障
-
-对象生命周期若只按创建时间删除，仍被某个知识 release、回滚版本或异步任务引用的文件可能突然消失。清理前应先通过数据库引用关系判定可删，再让生命周期规则处理明确的临时上传、失败 multipart 和过期缓存。
-
-对象存储的复制和版本功能能降低误删风险，但不是业务一致性事务。删除标记、恢复窗口和跨区域复制延迟都要进入 Runbook。真正关键的模型制品还应在发布时验证摘要，而不是假设同一个 key 永远对应同一内容。
+AI Backend 的运行、状态和大对象边界已经齐备。下一阶段进入 LLM Serving：先定义模型服务真正拥有的生命周期和指标，再讨论具体引擎。

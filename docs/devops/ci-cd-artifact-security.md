@@ -24,59 +24,102 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # CI/CD、SBOM、签名、Secret 与不可变制品
 
-测试环境验证了镜像 A，生产却重新下载依赖构建出镜像 B。两者来自同一个 Commit，也可能因为基础镜像、系统包或模型文件变化而不同。不可变制品、SBOM 和签名让“运行的到底是什么”变成可以回答的问题。
+测试环境通过后，生产流水线重新执行构建，拉到了更新后的基础镜像；代码 commit 相同，最终 digest 却不同，回滚时也找不到测试过的那份制品。CI/CD 的核心不是自动运行命令，而是让源码、依赖、构建身份、模型和最终摘要形成可验证链。
 
-## 从提交到运行实例
+
+<InfraFigure src="/images/ai-infra/ci-cd-artifact-security/hero.png" alt="代码、依赖、模型和配置经过测试、SBOM、签名成为不可变候选制品的插画"
+  icon="pipeline" caption="环境之间提升的是同一个已验证制品摘要，不是在生产重新构建一个“差不多”的版本。" />
+
+
+## 发布记录至少要能回答四个问题
+
+JSON 是制品清单示例，不包含真实仓库和签名。输入是代码、模型和镜像摘要；输出供发布策略验证。
+
+```json
+{
+  "source_commit": "COMMIT_SHA",
+  "image": "registry/ai-platform@sha256:IMAGE_DIGEST",
+  "model_revision": "MODEL_COMMIT",
+  "sbom": "sha256:SBOM_DIGEST",
+  "provenance": "sha256:PROVENANCE_DIGEST",
+  "candidate_id": "release_20260817_01"
+}
+```
+
+记录要回答“什么源码、什么依赖、谁构建、部署什么字节”。SBOM 发现高危依赖后仍需结合可达性和修复策略；签名验证通过也不证明业务正确，所以候选还要运行契约、迁移和容量检查。模型制品应与应用镜像分别有摘要，再在 release manifest 中绑定。
+
+## 不可变制品为什么是发布与回滚的共同起点
+
+理解下面这些词时，要同时回答输入、状态和输出分别在哪里。它们不是可以互换的产品标签。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Artifact Digest | 由制品内容计算的不可变摘要；tag 可以移动，digest 用于确定具体字节。 |
+| SBOM | 记录制品中软件包、版本和关系的清单，帮助漏洞响应；它不是签名，也不包含所有运行风险。 |
+| Signature | 由受信身份对制品摘要等内容签名，验证来源与完整性；信任仍取决于密钥和策略。 |
+| Provenance | 说明哪个源码、构建器、参数和流程产生制品的证明，SLSA 等规范提供结构。 |
+| Environment Promotion | 同一 digest 从开发候选提升到生产批准，环境差异通过受控配置注入。 |
+
+::: tip 判断原则
+遇到新术语，先问它改变了哪份状态；如果没有状态所有者，这个名词暂时不能指导排障。
+:::
+
+## 一次提交怎样变成可验证候选
 
 ```mermaid
 flowchart LR
-  G[Git commit] --> T[tests + type checks]
-  T --> B[reproducible build]
-  B --> I[image/model digest]
-  B --> S[SBOM + provenance]
-  I --> X[sign/attest]
-  S --> X
-  X --> C[candidate]
-  C --> P[promote same digest]
+  S0["锁定输入"]
+  S1["隔离构建"]
+  S2["生成证据"]
+  S3["提升发布"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-CI 把源码、锁文件、基础镜像和模型制品转成带摘要的产物；SBOM 说明依赖构成，provenance 说明构建来源，签名和证明让部署系统能验证。CD 的核心是提升同一 digest，而不是在每个环境重新 build。
+图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
 
-## AI Release Manifest 应包含什么
+### 从 锁定输入 留下的证据回到 Source/Build
 
-| 字段 | 作用 |
-| --- | --- |
-| code commit / image digest | 代码和运行时身份 |
-| model revision / tokenizer digest | 模型行为和输入映射 |
-| prompt/policy version | Agent 与安全边界 |
-| schema migration version | 数据兼容性 |
-| evaluation/approval evidence | 发布门槛和责任人 |
+固定 commit、依赖锁、基础镜像 digest 与模型 revision。
 
-Secret 不属于 manifest 内容，只记录引用名和注入方式。日志、SBOM 和制品标签都不能包含明文凭证。
+决定下一步前需要看到 source digest、lockfiles、input manifest。
 
-## 签名解决身份，不解决质量
+### 2. CI Builder 怎样完成隔离构建
 
-签名可以证明制品由某个身份发布且内容未被替换，不能证明模型回答质量、显存够用或迁移安全。部署前仍要执行合同测试、启动检查、权限和质量评测，并把结果关联到 digest。
+在受控环境执行测试与构建，不把长期 Secret 写入层。
 
-## 环境提升的证据
+这一动作的可观察结果是 build identity、test result、artifact digest。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-```text
-candidate: sha256:abc...
-verified: contract=pass, security=pass, eval=record-17
-production: same digest sha256:abc...
-rollback: sha256:old...
-```
+### 3. 生成证据：Supply Chain Tools 持有当前状态
 
-这是预期记录格式，不是当前环境的实际结果。它应能回答候选和生产是否同一制品，以及旧版本在哪里。下一篇把这个制品放进候选验证、迁移、切流和回滚状态机。
+产生 SBOM、漏洞报告、签名与 provenance 并关联 digest。
 
-## 验证门禁要覆盖模型与数据兼容
+可以从这些位置确认结果：attestations、policy result。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-代码单测通过不代表 AI Release 可发布。候选环境还需要验证模型/Tokenizer 摘要、数据库迁移兼容、RAG release、工具策略、接口合同和代表性评测。门禁的输入和输出都与 digest 绑定，避免“上一次评测通过”被误用于新制品。
+### 提升发布发生时，先看 Release Controller
 
-对第三方基础镜像和模型制品，SBOM 只能列出已知组成，不能替代漏洞响应。发现严重风险时要能定位哪些 Release 使用了该摘要、冻结新的提升并准备替代版本。供应链治理的结果应是可执行的影响范围，而非一份静态清单。
+验证签名和环境策略，把同一 digest 交给候选验证。
 
-## 环境配置也应有可追溯版本
+这里不靠猜测，优先读取 approval、deployment record、rollback digest。
 
-同一镜像在不同环境可能引用不同模型、数据库、限流和 Secret。Secret 值不入库，但配置结构、引用名、策略版本和变更审批应随 Release Manifest 记录。否则生产异常时无法判断是代码、模型还是环境漂移。
+## 同一个症状，下一步证据可能完全不同
 
-候选环境的验证结果只对相同 digest 和相同配置集有效。任何一项关键引用变化，都应重新运行相应合同检查或评测，而不是把“镜像没变”当成无需验证。
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| tag 相同 | registry 中 tag 可能已指向新 digest | 部署和回滚记录 digest |
+| SBOM 无漏洞 | 扫描库、配置、业务逻辑和模型风险仍可能存在 | 结合测试和运行策略 |
+| 签名有效 | 签名身份可能越权或构建输入不受控 | 验证 provenance 与准入策略 |
+| 生产重新构建 | 得到未经候选环境验证的新字节 | 只提升已验证制品 |
+
+::: warning 结论的边界
+示例输出用于建立判断路径，不应被当成目标环境的真实结果。版本、硬件和请求形状变化后要重新验证。
+:::
+
+
+
+## 哪些结论还需要真实环境验证
+
+Secret 通过短期身份和运行注入，不进入镜像、SBOM、构建日志或缓存。第三方托管模型无法签署内部权重时，也要固定 API 版本、供应商区域与核对记录。
+
+候选制品可追溯后，还要安全地进入真实依赖与流量。下一篇沿备份、迁移、旁路验证、切流、回滚和隔离恢复完成发布闭环。

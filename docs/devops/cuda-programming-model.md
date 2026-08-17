@@ -24,65 +24,94 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # CUDA 执行模型：Thread、Block、Grid、Warp 与 SM
 
-CUDA 代码把线程数写得很大，GPU 却没有按预期加速。线程数量只是工作声明，真正影响执行的是 Block 如何分配到 SM、Warp 是否分支、寄存器和共享内存是否足够，以及全局内存访问是否合并。
+一个向量加法 Kernel 在数据量变大后没有继续加速。代码创建了很多 Thread，但每个 Block 使用过多寄存器，导致一个 SM 同时驻留的 Block 变少；分支又让同一 Warp 内线程走不同路径。线程数量只是工作描述，硬件能否并行执行还受 SM 资源和访存方式约束。
 
-## 一次 Kernel Launch 的层级
 
-```mermaid
-flowchart TD
-  H[Host CPU] -->|launch grid| G[Grid]
-  G --> B0[Block 0]
-  G --> B1[Block 1]
-  G --> BN[Block N]
-  B0 --> W0[Warps]
-  W0 --> T[Threads]
-  W0 --> SM[SM scheduler]
-```
+<InfraFigure src="/images/ai-infra/cuda-programming-model/hero.png" alt="CUDA Grid 中的 Block 和 Thread 被调度到多个 SM 与 Warp 的插画"
+  icon="grid" caption="Grid 描述工作，SM 承载 Block，Warp 是实际调度的一组线程。" />
 
-Grid 是一次 Kernel 的全部工作，Block 是可以独立调度的协作单元，Thread 执行同一 Kernel 的不同数据索引。硬件通常以 Warp 为执行和分支的基本组，Block 会被放到某个 SM 上驻留，直到其中线程完成。
 
-## 索引映射和边界检查
+## Thread、Block、Grid、Warp 与 SM 如何对应
 
-```cpp
-__global__ void add(const float* a, const float* b, float* c, int n) {
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < n) c[i] = a[i] + b[i];
-}
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Thread | CUDA 程序里的最小逻辑工作项，拥有索引和私有寄存器视图；不等于一个独立 CPU 核心。 |
+| Block | 可在同一 SM 上协作的一组 Thread，可共享 shared memory 并进行 block 内同步。 |
+| Grid | 一次 Kernel launch 创建的全部 Block，描述整个并行工作域。 |
+| Warp | 硬件调度的一组相邻线程，NVIDIA 常见为 32；分支不同会分批执行路径。 |
+| SM | GPU 上执行 Warp 的多处理器，拥有有限寄存器、shared memory 和调度槽位。 |
 
-// 解释性 launch：block=256，grid 覆盖 n 个元素
-add<<<(n + 255) / 256, 256>>>(a, b, c, n);
-```
+## 排障时最容易走错的岔路
 
-输入是长度为 n 的数组，执行过程是每个 Thread 计算一个索引，输出写入 c[i]。if (i < n) 防止最后一个 Block 越界。示例展示索引和层级，不声称在本机 GPU 上运行，也没有包含错误检查、内存分配和同步。
-
-## Warp 分支和资源驻留
-
-同一 Warp 内的线程走不同分支时，硬件可能分段执行，吞吐下降。Block 使用的寄存器和共享内存越多，单个 SM 能同时驻留的 Block 越少。增加线程数可能提高并行度，也可能因为资源占用降低 occupancy。occupancy 只是线索，访存和算术瓶颈仍需单独分析。
-
-## 同步的所有者
-
-| 同步范围 | 能保证什么 | 不能保证什么 |
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
-| 同一 Block 的 __syncthreads | Block 内共享内存访问顺序 | 不同 Block 之间的即时顺序 |
-| Kernel 结束 | 前一个 Kernel 的全局结果可见 | Host 端异步调用已完成 |
-| Host/Device 同步 | CPU 得到设备完成结果 | 下一个 Kernel 一定高效 |
+| 线程很多 | SM 资源限制让它们分批执行，不会全部同时运行 | 看 Block 资源与驻留数量 |
+| occupancy 高 | 访存不合并或计算依赖仍可能慢 | 结合 stall reason 与带宽 |
+| Kernel launch 没报错 | 异步错误可能在同步或后续 API 才出现 | 检查 launch error 并在诊断时同步 |
+| if 很少 | Warp 内不同线程走不同分支仍会串行化路径 | 分析分支与线程索引相关性 |
 
-## 机制推演的边界
-
-::: warning
-**未实测**
-
-Warp 大小、寄存器分配、缓存和编译器行为要以目标 GPU、CUDA 版本和编译结果为准。下一篇从 Driver、Runtime 和 nvidia-smi 进入显存账本，解释模型为什么在第二个请求时 OOM。
+::: warning 不要用重启代替诊断
+恢复服务和解释故障是两个目标。紧急止损后仍要回到原始日志、指标与状态转换，避免同类问题重复出现。
 :::
 
-## 内存访问决定线程是否真的协作
+## 一次 Kernel launch 怎样落到硬件资源
 
-相邻线程若访问相邻地址，硬件通常能合并为较少的内存事务；若每个线程跨很大步长访问，带宽会被浪费。共享内存可以复用一个 Block 内反复使用的数据，但也会占用 SM 资源并可能产生 bank conflict。
+```mermaid
+flowchart LR
+  S0["配置启动"]
+  S1["放置 Block"]
+  S2["调度 Warp"]
+  S3["完成同步"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+```
 
-这类优化必须从正确性开始：先确保索引边界、数据类型、同步范围正确，再用 profiler 判断瓶颈是算术、全局内存、分支还是占用。只凭肉眼调整 block size 很容易得到偶然更快、换形状就变慢的 Kernel。
+### 1. Host CUDA Runtime 怎样完成配置启动
 
-## Host 的异步提交也会造成误判
+指定 gridDim、blockDim、stream 和参数并提交 Kernel。
 
-Kernel launch 常常对 Host 异步返回，CPU 继续执行不代表 GPU 已完成。若在错误位置调用同步，可能把前一个 Kernel 的失败误归给后一个调用；若完全不检查错误，又会让非法访问延后暴露。
+这一动作的可观察结果是 launch config、runtime error。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-调试阶段通常在关键边界检查 launch 错误并同步定位，性能阶段再减少不必要的同步。两种模式不能混为一谈：为了测速去掉同步，不能变成忽略正确性和错误传播。
+### 2. 放置 Block：GPU Scheduler 持有当前状态
+
+按寄存器、shared memory 与线程上限把 Block 分配到 SM。
+
+可以从这些位置确认结果：resident blocks、resource limit。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 调度 Warp发生时，先看 SM Warp Scheduler
+
+选择就绪 Warp 发射指令，等待内存时切换其他 Warp。
+
+这里不靠猜测，优先读取 eligible warps、stall reason。
+
+### 从 完成同步 留下的证据回到 Stream/Host
+
+Kernel 按依赖完成，错误可能在之后同步点才暴露。
+
+决定下一步前需要看到 event、synchronize result、last error。
+
+## 从线程索引读懂最小 Kernel
+
+CUDA C++ 示例展示一维映射，需 NVIDIA CUDA Toolkit 和真实 GPU 才能编译运行；这里仅解释语义，不报告运行结果。输入为两个长度 n 的 float 数组，输出为逐元素和。
+
+```cpp
+__global__ void add(const float* a, const float* b, float* out, int n) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) out[i] = a[i] + b[i];
+}
+
+int threads = 256;
+int blocks = (n + threads - 1) / threads;
+add<<<blocks, threads>>>(a, b, out, n);
+```
+
+`threadIdx.x` 是 Block 内索引，`blockIdx.x * blockDim.x` 给出 Block 在全局数组中的起点，边界判断保护最后不足一整 Block 的元素。连续线程访问连续 float 有利于合并访存。256 并非通用最优值；寄存器、shared memory 和具体架构会改变 occupancy。
+
+
+
+## 最后回到适用范围
+
+Block 只能在单个 SM 上执行，普通 block 同步不能跨 Grid。不同 GPU 架构的 SM 资源和调度细节不同，代码正确性与性能结论要分开。
+
+CUDA 描述了工作怎样执行，实际部署还需要驱动、Runtime、设备内存和诊断工具共同工作。下一篇建立显存账本并读懂 nvidia-smi 的边界。

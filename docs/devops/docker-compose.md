@@ -23,75 +23,123 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # Docker Compose：组织本地 AI 服务栈
 
-本地 AI 服务栈常见的失败是：API 容器启动了，Redis 还没准备好；数据库卷被删后，开发者才发现模型任务状态也在里面；服务之间用 localhost 互访，结果每个容器都在访问自己。Compose 的价值是把这些关系写成可复核的拓扑。
+开发者执行 `docker compose up` 后，五个容器都显示 Started，API 仍然不断重启。日志里写着 PostgreSQL connection refused；几秒后数据库已可连接，API 却因为达到重启上限停住了。问题不在启动顺序，而在把“进程已创建”误当成“服务已经能正确回答请求”。
 
-## 先看服务之间的关系
+
+<InfraFigure src="/images/ai-infra/docker-compose/hero.png" alt="API、数据库、缓存、Worker 与对象存储组成的本地 AI 服务栈插画"
+  icon="layers" caption="Compose 的价值不是一条启动命令，而是把多服务依赖写成可复现的运行关系。" />
+
+
+## Compose 实际为本地服务栈管理哪些状态
+
+先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Project | 一组由 Compose 文件共同定义的服务、网络和卷，名称通常成为资源前缀。它提供本地编排边界，不是生产集群控制面。 |
+| Service | 容器运行模板，包括镜像、命令、环境、挂载、网络和健康检查；一次 service 可有一个或多个容器实例。 |
+| Healthcheck | 容器内部周期执行的就绪探针，返回 healthy/unhealthy。它应检查服务能力，而不是只检查进程存在。 |
+| Named Volume | 由容器引擎管理生命周期的持久存储引用。容器重建不删除卷，但 `down -v` 会删除，应明确备份边界。 |
+
+::: tip 判断原则
+定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+:::
+
+## API 启动前为什么要等待能力而不是容器
 
 ```mermaid
 flowchart LR
-  API[api] --> PG[(postgres)]
-  API --> R[(redis)]
-  API --> Q[queue]
-  Q --> W[worker]
-  API --> O[(minio)]
-  W --> O
-  PG -.volume.-> V1[(pgdata)]
-  O -.volume.-> V2[(objects)]
+  S0["创建网络"]
+  S1["启动依赖"]
+  S2["确认就绪"]
+  S3["启动应用"]
+  S4["停止恢复"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
 ```
 
-Compose 网络里的服务名才是稳定的 DNS 名称。API 连接 postgres:5432，而不是 localhost:5432。容器可写层适合临时文件，不适合数据库、对象和模型制品；这些数据必须通过卷或外部服务持久化。
+箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-## 启动顺序和就绪不是一回事
+### 1. 创建网络：Compose 持有当前状态
+
+为 Project 建立默认网络并注册服务名 DNS。
+
+可以从这些位置确认结果：`docker network inspect`、服务名解析。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 启动依赖发生时，先看 数据库与存储容器
+
+进程初始化数据目录、执行恢复或迁移并开始监听。
+
+这里不靠猜测，优先读取 健康检查、初始化日志、持久卷。
+
+### 从 确认就绪 留下的证据回到 Healthcheck
+
+用真实协议执行最小能力检查并形成状态。
+
+决定下一步前需要看到 `docker compose ps` 的 health 状态。
+
+### 4. API 与 Worker 怎样完成启动应用
+
+解析服务名连接依赖，建立连接池并注册任务处理能力。
+
+这一动作的可观察结果是 启动日志、连接池、队列 consumer。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+### 5. 停止恢复：Compose 与服务 持有当前状态
+
+按信号退出并在下次启动重用持久数据。
+
+可以从这些位置确认结果：退出码、卷清单、恢复日志。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+## 一份能表达就绪关系的解释性 Compose 配置
+
+这段 YAML 用于说明字段语义，需结合实际镜像、Secret 和迁移策略后才能运行。输入是 API、PostgreSQL 和 Redis 三个服务；输出是一个只在数据库健康后启动的 API。
 
 ```yaml
 services:
-  api:
-    image: example/api@sha256:...
-    depends_on:
-      postgres:
-        condition: service_healthy
+  db:
+    image: postgres:17
     environment:
-      DATABASE_URL: postgresql://app:secret@postgres:5432/app
-  postgres:
-    image: postgres:16
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+  api:
+    image: local/ai-api@sha256:REPLACE_ME
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+volumes: { pgdata: {} }
+secrets: { db_password: { file: ./secrets/db_password } }
 ```
 
-这段配置只表达“API 等待数据库健康检查通过”，不代表迁移已完成，也不代表业务查询可用。健康检查要尽量靠近服务真实依赖，但不要把昂贵的模型加载塞进每秒执行的探针。
+`depends_on` 的健康条件只影响启动协调，不会在运行期间自动保证数据库永不失效；API 仍需连接超时、重试上限和熔断。`pg_isready` 证明数据库接受连接，不证明目标 schema 已迁移。镜像 digest 用于说明不可变引用，`REPLACE_ME` 不能直接运行。Secret 文件也应排除版本控制。
 
-## 卷、网络与配置各自负责什么
+## 看起来相似，故障边界却不同
 
-| 对象 | 应该保存 | 不应该保存 |
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
-| Volume | PostgreSQL 数据、MinIO 对象、需要恢复的索引 | 一次启动的临时日志 |
-| Network | 服务发现和端口连通 | 业务权限和租户隔离 |
-| Environment/Secret | 连接地址、运行开关、凭证引用 | 镜像内固定的生产密钥 |
-| Healthcheck | 可观察的就绪条件 | 复杂迁移和全量模型评测 |
+| localhost 连接数据库失败 | 容器内 localhost 指向自身，不是另一个 service | 使用 `db:5432` 并确认位于同一网络 |
+| 容器 Started | 依赖进程可能仍在初始化、恢复 WAL 或加载模型 | 为真实能力设计 healthcheck |
+| 重建后数据消失 | 数据写在容器可写层，或误执行了删除卷操作 | 核对 Mounts、卷名称和备份 |
+| 不断 restart | 重启策略掩盖确定性配置错误，日志被快速滚动 | 先关闭自动重启复现首个退出原因 |
 
-Compose 能组织本地依赖，却不会自动提供生产级故障转移、备份和多节点调度。它适合把系统边界变得可见，不能被当作 Kubernetes 的缩小版。
-
-## 停机、恢复和对账
-
-执行 down 或重建前，先确认卷是否仍在、任务是否可重试、对象是否有校验。恢复时按数据库、队列、对象、API、Worker 的顺序验证：数据层先健康，应用层再读取，最后确认后台任务没有重复副作用。
-
-::: tip
-**下一步**
-
-当多个服务都正常而浏览器仍看不到流式 Token，问题通常在入口代理的缓冲和超时。下一篇把 Compose 的 API 放到 Nginx 后面，继续沿同一请求观察。
+::: warning 容易误判
+一条成功命令只能证明它覆盖的那一层。重启后的短暂恢复也不是根因已经消失，改变状态前先保存最早证据。
 :::
 
-## 把本地恢复当成一次小型演练
 
-可以故意停止 Worker，再启动它，观察同一 task_id 是否从持久状态继续，而不是重复写入；可以重建 API 容器，确认数据库与对象卷仍然存在；可以在 Redis 清空的隔离环境中验证缓存失效后系统是否回源。这里的目的不是制造故障，而是确认每种状态有没有明确归属。
 
-Compose 文件还应区分开发便利与生产语义。绑定源码、开放数据库端口、默认密码和单副本依赖适合本地调试，不应被复制成生产配置。把这种差异写在配置和文档里，比让新人从事故中发现更便宜。
+## 这套判断方法的边界
 
-## 依赖故障不应被 depends_on 隐藏
+Compose 很适合本地开发、集成测试和单机演示，但不会提供跨节点调度、声明式滚动发布或集群级资源隔离。不要把开发用明文密码、宽松端口和 bind mount 原样带入生产。
 
-depends_on 只控制 Compose 的启动编排，不能替代应用自己的连接重试、退避和降级。数据库在健康检查通过后仍可能因为迁移、锁或连接数暂时不可用，Redis 也可能在运行中重启。API 必须把这些错误映射成可恢复的业务状态。
-
-本地环境可以通过停止单个依赖来验证：API 是否返回明确的 503，Worker 是否暂停领取任务，恢复后连接池是否重建。这样 Compose 不只是“一键启动”，还是理解依赖故障边界的低成本场地。
+服务栈在本地网络中就绪后，还需要一个稳定入口把 TLS、普通 API 与流式响应交给正确后端。下一篇从“模型在生成，浏览器却看不到 Token”进入 Nginx。

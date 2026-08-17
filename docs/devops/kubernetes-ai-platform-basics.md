@@ -23,55 +23,99 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # 为什么 AI 平台需要 Kubernetes：控制面与核心对象
 
-Pod 状态是 Running，Service 也有 ClusterIP，但请求仍然进不去。Kubernetes 只是在持续把实际状态拉回期望状态，它不会理解模型是否加载完成，也不会替你决定一个 GPU 工作负载应该怎样排队。
+Pod 显示 Running，Service 却没有 Endpoint。应用团队认为集群网络坏了，真正原因是 readiness probe 仍失败，因此 EndpointSlice 控制器没有把 Pod 放入可接流量集合。Kubernetes 的状态不是一个“正常/异常”开关，而是多个控制器围绕期望状态产生的对象关系。
 
-## 控制面怎样看待一个 AI 服务
+
+<InfraFigure src="/images/ai-infra/kubernetes-ai-platform-basics/hero.png" alt="Kubernetes 控制面持续调谐 Deployment、Pod、Service 与 Ingress 的插画"
+  icon="cluster" caption="Kubernetes 保存期望状态并持续调谐对象，但不理解模型是否回答正确。" />
+
+
+## 一个模型服务声明怎样变成可达 Endpoint
 
 ```mermaid
 flowchart LR
-  Y[Desired Deployment] --> C[Controller]
-  C --> P[Pod]
-  P --> S[Service]
-  S --> I[Ingress]
-  K[Scheduler] --> P
-  N[Node + GPU] --> P
+  S0["提交规格"]
+  S1["创建副本"]
+  S2["选择节点"]
+  S3["加入流量"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-Deployment 描述副本和模板，Scheduler 选择节点，Pod 是容器的运行边界，Service 提供稳定发现，Ingress 处理入口。控制器关注标签、数量、探针和资源声明，不知道你的 Prompt 是否有引用，也不知道模型回答质量。
+先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-## 期望状态和实际状态的差距
+### 提交规格发生时，先看 API Server
 
-| 对象 | 期望 | 实际证据 |
+验证 Deployment、Service 和配置并持久化对象版本。
+
+这里不靠猜测，优先读取 resourceVersion、admission result。
+
+### 从 创建副本 留下的证据回到 Deployment/ReplicaSet Controller
+
+比较期望副本并创建 Pod。
+
+决定下一步前需要看到 conditions、events、ReplicaSet。
+
+### 3. Scheduler/Kubelet 怎样完成选择节点
+
+为 Pending Pod 选择节点并启动容器。
+
+这一动作的可观察结果是 scheduling events、container status。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+### 4. 加入流量：Readiness/EndpointSlice 持有当前状态
+
+探针成功后把 Pod IP 纳入 Service 后端。
+
+可以从这些位置确认结果：Ready condition、EndpointSlice、Ingress log。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+## Kubernetes 为什么需要控制面和声明式对象
+
+这里先暂停操作，把容易混用的概念拆开。定义的价值在于划清责任，而不是增加名词数量。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Desired State | 写入 API Server 的对象规格，例如需要三个副本；控制器不断让实际状态接近期望。 |
+| Pod | Kubernetes 最小调度单元，共享网络 namespace 和卷的一组容器，不是长期稳定主机。 |
+| Deployment | 管理无状态 Pod 副本和滚动更新的控制器对象，不直接提供网络地址。 |
+| Service | 按 selector 选择 Ready Pod，并提供稳定虚拟地址；它不负责启动 Pod。 |
+| Ingress | 描述集群外 HTTP 路由意图，必须有具体 Ingress Controller 才会生效。 |
+
+::: tip 判断原则
+不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
+:::
+
+## 别让表面现象替你下结论
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
-| Deployment | replicas=2、镜像摘要固定 | availableReplicas、事件、ReplicaSet |
-| Pod | 容器运行且探针通过 | phase、conditions、containerStatuses |
-| Service | selector 指向就绪 Pod | Endpoints/EndpointSlice |
-| Ingress | 路径和 TLS 规则生效 | controller 日志、curl 和证书 |
+| Pod Pending | 调度条件、资源、污点或卷未满足，不是容器启动失败 | 看 scheduling events |
+| Pod Running | 模型可能仍在加载且 readiness=false | 看 conditions 与探针 |
+| Service 存在 | selector 不匹配或后端不 Ready 时没有可用 Endpoint | 检查 EndpointSlice |
+| Ingress 规则正确 | Controller、IngressClass、证书或上游仍可能失败 | 定位具体 Controller 数据面 |
 
-Pod Running 只说明容器进程没有退出。没有 Ready 条件的 Pod 不应进入 Service endpoints；selector 写错时 Service 会存在但没有后端。排查按对象关系向下走，比只看 Pod 名称更快。
+::: warning 先保留现场
+如果先重启、扩容或删除对象，最早失败可能被覆盖。先确认对象身份、版本和时间线，再决定处理动作。
+:::
 
-## AI 工作负载的边界
+## 从对象关系定位 Running 但不可达
 
-模型制品可以来自对象存储或 PVC，模型服务负责加载和推理，平台控制面负责版本和切流。不要把大模型权重打进频繁变化的应用镜像，也不要把 GPU 资源声明写成业务层的隐式假设。配置、Secret、模型 Revision 和公开能力应分开管理。
-
-## 最小只读诊断
+命令是只读集群诊断，需配置目标 kubeconfig。输入 namespace、Deployment 和 Service 名；输出应按对象关系阅读，而不是只看最后一条日志。
 
 ```bash
-kubectl get deploy,pod,svc,endpoints -n ai
-kubectl describe pod <pod> -n ai
-kubectl get events -n ai --sort-by=.lastTimestamp
+kubectl -n ai get deploy,rs,pod,svc,endpointslice -o wide
+kubectl -n ai describe pod model-api-xxxxx
+kubectl -n ai get pod model-api-xxxxx -o jsonpath="{.status.conditions}"
+kubectl -n ai get endpointslice -l kubernetes.io/service-name=model-api -o yaml
+kubectl -n ai logs model-api-xxxxx --all-containers --tail=100
 ```
 
-命令用于观察调度、探针、挂载、端点和事件。示例没有连接真实集群，输出不能作为部署成功证据。下一篇把 GPU、模型卷和启动/就绪探针放进同一份 AI Service 部署推演。
+Pod Running 表示至少主容器处于运行状态，不保证 Ready。Service 有 ClusterIP 但 EndpointSlice 为空时，应核对 selector 与 Pod labels，再看 readiness。`describe` 中 Event 有保留窗口，日志也可能来自已重启容器；需要时读取 `--previous`。
 
-## Service 流量取决于 Endpoint，而不是 Pod 名字
 
-Service 用 selector 匹配 Pod label，再由控制器维护 EndpointSlice。只有满足就绪条件的 Pod 才应成为后端。若 Service 有 ClusterIP 但 Endpoint 为空，问题通常在 label、namespace、readiness 或端口命名，而不是 Ingress。
 
-调试时从 Ingress 路由到 Service，再从 Service selector 到 EndpointSlice，最后回到 Pod conditions。每一步都能在 Kubernetes API 中看到对象事实，这比进入容器里反复 curl 更容易发现配置错位。
+## 把结论限制在证据范围内
 
-## 控制器会重建，不会理解业务恢复
+Kubernetes 调度声明的 CPU、内存和扩展资源，不理解 TTFT、模型质量或知识版本。ConfigMap/Secret 不是模型制品仓库，Pod 也不是持久存储边界。
 
-Deployment 看到 Pod 消失会创建新 Pod，ReplicaSet 会努力满足副本数。这种调谐不代表任务能够从中断处恢复，也不保证新 Pod 已经有模型制品和数据库状态。无状态 API 和有状态 Worker 应设计不同的重启语义。
-
-将业务状态放到数据库、队列或对象存储后，Pod 重建才成为可控事件。控制器负责重新运行进程，应用负责判断是否领取旧任务、是否重放事件、是否把自己标记 Ready。
+核心对象关系建立后，下一篇把 NVIDIA Device Plugin、GPU Operator、模型卷和探针放入同一个 Deployment 推演。

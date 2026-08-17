@@ -23,60 +23,100 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # LLM Serving：从模型文件到稳定推理 API
 
-模型权重已经下载，服务端口也在监听，但第一个请求要等很久，第二个请求还可能被拒绝。Serving 的职责不是“把模型加载到 GPU”，而是管理准入、排队、执行、流式输出、取消、用量和健康状态。
+健康检查返回 200，第一条真实请求却等待一分钟后 OOM。原因是探针只检查 HTTP 进程存在，权重仍在加载；加载完成后，默认最大上下文又让 KV Cache 预留吃掉剩余显存。模型服务“启动了”和“能按目标请求形状稳定服务”是两个状态。
 
-## 一条请求经过 Serving 的哪些状态
 
-```mermaid
-stateDiagram-v2
-  [*] --> accepted
-  accepted --> queued: admission
-  queued --> prefill
-  prefill --> decoding
-  decoding --> streaming
-  streaming --> completed
-  queued --> rejected: capacity/deadline
-  prefill --> failed
-  decoding --> cancelled
-```
+<InfraFigure src="/images/ai-infra/llm-serving-architecture/hero.png" alt="模型制品进入 Serving 进程后经过队列、调度和流式输出的插画"
+  icon="server" caption="Serving 的责任从加载可用模型开始，到每个请求释放计算与缓存资源结束。" />
 
-accepted 只代表协议和策略通过；queued 表示等待执行槽；prefill 处理输入，decoding 逐步生成 Token。每个状态都要有时间戳，才能把 TTFT 拆成入口、排队、Tokenize 和 Prefill，而不是只记录总耗时。
 
-## Serving 边界和 API 边界
+## Serving 层拥有哪段生命周期
 
-| 层 | 持有的状态 | 不应决定的事情 |
-| --- | --- | --- |
-| Gateway | 身份、预算、公开模型名 | GPU Kernel 细节 |
-| Serving Scheduler | 请求队列、Batch、KV 预算 | 租户是否有权访问文档 |
-| Model Engine | 权重、采样、缓存、执行流 | 最终计费事实 |
-| GPU Runtime | 设备、内存、Kernel | 业务错误语义 |
+先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
 
-边界清楚后，模型服务可以替换引擎，网关也可以把同一公开模型路由到不同 Revision。跨层共享的信息用 request_id、model_revision 和 usage 事件连接，不能让一个全局字典成为所有状态的来源。
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Model Artifact | 配置、Tokenizer、权重和必要代码组成的可追溯输入，必须锁定 revision 与摘要。 |
+| Scheduler | 决定哪些请求在本轮进入 Prefill 或 Decode，以及它们如何共享批次和显存。 |
+| Readiness | 实例已加载目标 revision，并能接受约定请求的可路由状态；不是进程存活的同义词。 |
+| TTFT/TPOT | TTFT 是请求到首个 Token 的时间；TPOT 描述首 Token 之后相邻输出 Token 的平均或分位时间，二者瓶颈不同。 |
 
-## 准入要先于昂贵的加载
-
-在排队前检查最大输入长度、预计输出上限、租户预算、模型能力和截止时间。系统如果已经知道 KV Cache 放不下，就应返回可解释的 4xx 或降级，而不是让请求进入队列后再 OOM。准入规则要和实际调度预算保持一致，否则“接受成功”会制造更多长尾。
-
-## 健康、就绪和可用不是一个词
-
-进程活着是 liveness，HTTP 端口能回应是 readiness 的一部分，模型权重和 tokenizer 已可用、热身完成、能完成最小推理才接近 serving readiness。健康检查不能每次都加载模型，也不能只返回 200 就把加载中的实例送入流量。
-
-## 未实测边界
-
-::: warning
-**这里不填性能数字**
-
-不同引擎、模型、GPU、量化和请求分布会改变队列和吞吐。后文的推演用于理解状态和证据，不把理论值当成实测结果。下一篇从 Hugging Face 制品开始，走完第一次开源模型部署的核对过程。
+::: tip 判断原则
+定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
 :::
 
-## 过载时应该怎样拒绝
+## 从冷启动到请求资源释放
 
-服务一旦接近 KV 或队列上限，继续接受请求会让所有人的 TTFT 一起恶化。更可控的策略是在入口按预计 Token、模型能力和租户并发做 admission，返回可重试的限流错误，或者将非交互任务转到独立队列。拒绝条件必须可观测，否则调用方只会看到偶发超时。
+```mermaid
+flowchart LR
+  S0["准备制品"]
+  S1["加载设备"]
+  S2["调度请求"]
+  S3["流式完成"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+```
 
-排空时也要停止接纳新请求，但允许已进入 Decode 的序列在 deadline 内结束。直接杀掉实例会丢失流式终态和 usage；无限等待则会阻塞发布。Serving 的生命周期因此需要明确 draining、deadline 和强制终止后的补偿记录。
+箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-## 使用量事件要和终态对账
+### 1. 准备制品：Artifact Loader 持有当前状态
 
-输入 Token 往往在开始前可计算或由引擎返回，输出 Token 则在 Decode 完成后才稳定。客户端取消、上游断开和引擎失败会让 usage 处于部分完成状态。平台需要定义何时记账、如何标记估算与最终值，以及重试是否创建新的 attempt。
+校验配置、Tokenizer、权重分片和架构兼容性。
 
-把 usage 放在单独的可重放事件中，比在 HTTP 响应结束时写一行日志更可靠。这样即使网关重启或客户端断开，也能和 Turn、模型 Revision、价格版本及审计记录对账。
+可以从这些位置确认结果：revision、digest、缺失文件。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 加载设备发生时，先看 Serving Process
+
+分配权重、运行时工作区与缓存预算，执行最小预热。
+
+这里不靠猜测，优先读取 显存账本、load duration、ready=false。
+
+### 从 调度请求 留下的证据回到 Scheduler
+
+根据输入长度、并发与预算安排 Prefill/Decode。
+
+决定下一步前需要看到 queue_ms、running/waiting、batch tokens。
+
+### 4. Output Processor 怎样完成流式完成
+
+采样、解码、发送事件并在取消或终态释放 KV block。
+
+这一动作的可观察结果是 first_token、finish_reason、freed blocks。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+## 用状态表定义“已就绪”而不是猜测
+
+以下是解释性状态，不对应某个引擎固定日志格式。输入是模型 revision 和启动配置；只有所有前置状态满足，入口才应把流量送入实例。
+
+```text
+process=alive
+artifact.revision=4f92c1 digest=sha256:...
+tokenizer.loaded=true
+weights.loaded=true device_count=2
+warmup.completed=true
+scheduler.accepting=true
+readiness=true
+```
+
+若 process alive 但 weights.loaded=false，liveness 应保持成功以免加载被反复重启，readiness 则必须失败。预热只能验证一组受控输入，不代表最大上下文、峰值并发或所有采样参数可用；这些属于容量和兼容测试。
+
+## 看起来相似，故障边界却不同
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| GPU 利用率 100% | 可能是有效计算，也可能长请求占满批次或 Kernel 忙等 | 同时看吞吐、队列、TTFT 和输出进度 |
+| TTFT 高 | 排队、长输入 Prefill、Prefix 未命中或入口缓冲都可能贡献 | 按时间戳拆开 queue 与 prefill |
+| TPOT 抖动 | 动态批次、采样、慢客户端或显存换入换出都可能影响 | 关联 batch 与请求形状 |
+| 健康检查成功 | 探针可能只检查 HTTP 端口 | 把目标 revision 与 scheduler accepting 纳入 readiness |
+
+::: warning 容易误判
+一条成功命令只能证明它覆盖的那一层。重启后的短暂恢复也不是根因已经消失，改变状态前先保存最早证据。
+:::
+
+
+
+## 这套判断方法的边界
+
+Serving 不决定用户权限、知识范围和最终计费，它接收经过规范化的请求并报告真实 usage 与终态。引擎指标命名会随版本变化，结论应记录版本、模型、硬件和配置；本章不提供未经实测的吞吐数字。
+
+理解 Serving 边界后，下一篇从 Hugging Face 模型仓库开始，完成开源模型制品的选择、下载、校验和首次部署决策。

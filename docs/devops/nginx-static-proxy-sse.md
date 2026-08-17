@@ -24,80 +24,115 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # Nginx、TLS、模型 API 与 SSE 流式入口
 
-普通 JSON 接口很快返回，SSE 却要等几十秒才一次性出现。模型可能一直在生成，但代理把事件缓冲了。Nginx 既是 TLS 终止点和静态文件入口，也是会改变连接语义的中间层，配置必须围绕响应类型和停止条件来写。
+聊天接口返回状态是 200，服务端日志每 100 毫秒生成一个 Token，浏览器却十秒后一次性看到整段答案。这个现象常被误判为模型流式能力失效，其实 Token 已经离开模型，只是被应用服务器或 Nginx 缓冲。理解入口时必须同时看客户端到 Nginx、Nginx 到上游这两条连接。
 
-## 普通响应和 SSE 走的是同一条 TCP 连接吗
+
+<InfraFigure src="/images/ai-infra/nginx-static-proxy-sse/hero.png" alt="Nginx 将网页、普通 API 与流式 Token 请求分流到不同后端的插画"
+  icon="route" caption="入口代理同时管理客户端连接和上游连接，流式响应需要不同的缓冲与超时策略。" />
+
+
+## 一个 Token 在入口处会经过哪些缓冲区
 
 ```mermaid
-sequenceDiagram
-  participant B as Browser
-  participant N as Nginx
-  participant A as API
-  B->>N: GET /v1/chat/completions
-  N->>A: proxy request
-  A-->>N: event: token-1\n\n
-  N-->>B: event: token-1\n\n
-  A-->>N: event: token-2\n\n
-  N-->>B: event: token-2\n\n
+flowchart LR
+  S0["接收连接"]
+  S1["构造上游请求"]
+  S2["读取流"]
+  S3["发送客户端"]
+  S4["结束连接"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
 ```
 
-SSE 需要持续发送 text/event-stream 事件，并让客户端尽快看到每个事件。proxy_buffering、proxy_read_timeout、Connection 头、压缩和缓存策略都会改变体验。普通接口关心完整响应时间，SSE 还关心事件之间的空闲间隔。
+先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-## 配置字段要和问题对应
+### 接收连接发生时，先看 Nginx listener
 
-```nginx
-location /v1/ {
-  proxy_pass http://api:8000;
-  proxy_http_version 1.1;
-  proxy_set_header Host $host;
-  proxy_set_header X-Request-ID $request_id;
-  proxy_buffering off;
-  proxy_read_timeout 90s;
-  proxy_send_timeout 90s;
-}
+完成 TCP/TLS，按 server_name、路径和方法匹配 location。
 
-location / {
-  root /srv/web;
-  try_files $uri $uri/ /index.html;
-}
-```
+这里不靠猜测，优先读取 access log、证书、命中的 location。
 
-proxy_buffering off 只对需要即时转发的流式路径关闭，静态页面仍可使用缓存。read timeout 是两次上游数据之间允许的空闲时间，不是生成总时长。若模型很久没有 Token，应由应用发送心跳或由网关主动取消，而不是无限拉长超时。
+### 从 构造上游请求 留下的证据回到 Proxy module
 
-## TLS 和热加载的安全顺序
+选择 upstream，设置 Host、Authorization 与转发头。
 
-证书由 Nginx 终止时，客户端看到的是 Nginx 的证书，源站内部可以使用另一条连接。修改配置后先执行 nginx -t，再热加载；配置测试失败时不能 reload。SSE 长连接存在期间，旧 worker 可能仍在服务，切换要考虑连接排空而不是只看新请求。
+决定下一步前需要看到 upstream_addr、request_id、连接错误。
 
-```bash
-nginx -t
-nginx -s reload
-curl -N -H 'Accept: text/event-stream' https://example.test/v1/chat/completions
-```
+### 3. 上游与 Nginx 怎样完成读取流
 
-curl -N 关闭客户端输出缓冲，适合观察事件是否按到达顺序出现。它不是浏览器兼容性测试，也不能证明代理在高并发下不会耗尽连接。
+上游写出 SSE 事件，框架与代理缓冲策略决定何时继续发送。
 
-## 故障定位看三份日志
+这一动作的可观察结果是 事件时间戳、响应头、proxy_buffering。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-| 日志 | 能证明什么 | 不能证明什么 |
-| --- | --- | --- |
-| 浏览器/客户端 | 收到事件的时间与断开原因 | 事件是否在源站及时产生 |
-| Nginx access/error | 请求、上游状态、超时和连接 | 模型内部排队原因 |
-| API/Serving | Token 生成、取消和异常 | 客户端是否被代理缓冲 |
+### 4. 发送客户端：Nginx 与浏览器 持有当前状态
 
-::: warning
-**边界**
+保持连接并在空闲超时前持续发送字节。
 
-SSE 不是消息队列。客户端断线后是否重放、是否重复计费，要由应用的事件 ID、Turn 状态和幂等策略决定。下一篇进入 Python 运行时，解释 API 进程如何同时处理网络、分词和多进程工作。
+可以从这些位置确认结果：`curl -N` 到达时间、客户端取消。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 结束连接发生时，先看 应用与代理
+
+发送 `[DONE]` 或业务终态，关闭上游并记录完整耗时。
+
+这里不靠猜测，优先读取 finish_reason、499、504、usage。
+
+## 反向代理为什么不只是转发地址
+
+这里先暂停操作，把容易混用的概念拆开。定义的价值在于划清责任，而不是增加名词数量。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| TLS Termination | 客户端 TLS 在代理结束，代理校验证书与解密 HTTP；代理到源站是否再次使用 TLS 是另一项独立策略。 |
+| Proxy Buffering | 代理先读取上游响应再成块发送给客户端，可提高普通响应效率，却可能推迟 SSE 事件可见时间。 |
+| SSE | 服务器以 `text/event-stream` 长时间发送 `data:` 事件的单向 HTTP 流。每个事件用空行结束，连接关闭不是唯一终态。 |
+| Hot Reload | 在配置语法和依赖检查通过后，让新 worker 接收新连接，旧 worker 完成已有连接；它不保证业务配置一定正确。 |
+
+::: tip 判断原则
+不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## SSE 的背压从哪里开始
+## 别让表面现象替你下结论
 
-客户端读取很慢时，浏览器、Nginx、内核 socket buffer 和上游应用都可能积压字节。应用若继续无限生成，会把资源花在已经不可消费的连接上。实时系统需要在写入超时、客户端断开或队列上限出现时向上游传递取消，而不是只在 Nginx 侧等待。
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| Token 最后一次性出现 | 常见于应用、压缩或代理缓冲，不一定是模型批量生成 | 用 `curl -N` 对比直连上游和代理入口的到达时间 |
+| 499 | Nginx 记录客户端先关闭连接，可能是用户取消、浏览器超时或中间网络断开 | 确认取消是否传到上游并释放生成 |
+| 502 | 上游拒绝、协议不匹配、提前关闭或返回无效响应 | 对齐 error log、upstream_addr 和源站退出日志 |
+| 504 | 等待连接或上游响应超过代理预算 | 区分 connect、read 和业务 deadline |
 
-因此验证 SSE 不只看“能否看到第一条 Token”，还要模拟中途断开并检查 Serving 是否收到了取消、usage 如何结算、Turn 是否进入终态。代理日志只有 499 还不够，它只能说明客户端离开，不能说明模型资源已经释放。
+::: warning 先保留现场
+如果先重启、扩容或删除对象，最早失败可能被覆盖。先确认对象身份、版本和时间线，再决定处理动作。
+:::
 
-## 静态文件和 API 的缓存边界
+## 把普通 API 与 SSE 的策略明确分开
 
-单页应用的 index.html、带 hash 的静态资源和模型 API 需要不同缓存策略。带内容哈希的 JS/CSS 可以长期缓存，入口 HTML 应较快更新，包含用户数据、SSE 或模型结果的 API 默认不应被共享缓存。
+下面是解释性 Nginx 片段，域名、证书、上游名称和超时必须按环境替换。输入是 `/v1/chat/completions` 的流式请求，输出应是不被代理聚合的事件流。
 
-路径匹配顺序、try_files 回退和 Cache-Control 一起决定客户端看到的是新版本还是旧页面。发布后若页面正常但 API 路径被静态回退吞掉，日志会表现成 200 HTML 而不是 404，这正是入口层值得单独观察的原因。
+```nginx
+map $http_x_request_id $request_trace_id {
+  default $http_x_request_id;
+  ""      $request_id;
+}
+location = /v1/chat/completions {
+  proxy_pass http://ai_backend;
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Request-ID $request_trace_id;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_buffering off;
+  proxy_read_timeout 120s;
+}
+# 应先执行：nginx -t；通过后再 reload
+```
+
+`proxy_buffering off` 只关闭 Nginx 这一层，应用框架、压缩中间件和客户端仍可能缓冲。`proxy_read_timeout` 是两次上游读取之间的等待，不等于整个回答最多 120 秒；若模型长时间没有事件，可发送业务允许的心跳注释。`Authorization` 默认会转发，但显式白名单更便于审计敏感头。
+
+
+
+## 把结论限制在证据范围内
+
+禁用缓冲会增加长连接数量、内存和慢客户端影响，不能对所有静态资源和普通 JSON 一刀切。TLS 私钥只属于入口进程，日志不得记录 Authorization、完整 Prompt 或响应正文。修改配置前先 `nginx -t`，热加载失败时旧 worker 可能仍服务，不能仅凭命令返回判断新配置已生效。
+
+到这里，一条请求已经能稳定进入 AI Backend。下一阶段从 Python Runtime 开始，解释异步函数、线程、多进程和阻塞调用为什么会直接改变并发与取消行为。

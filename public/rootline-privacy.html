@@ -1,0 +1,99 @@
+# Rootline 隐私政策
+
+本隐私政策说明 Rootline Chrome 扩展如何处理用户数据。Rootline 的单一用途是在用户主动操作后采集当前网页的运行态证据，并生成保存在用户本机的调试报告。
+
+## 1. 核心原则
+
+- Rootline 不提供账号、云端存储、广告、统计分析或 AI API。
+- Rootline 不把报告、截图、录屏、网页内容、文件路径或历史索引上传给开发者或第三方。
+- 采集只在用户点击“开始标注”或“录制页面”后开始。
+- 用户可以在结束前放弃采集，也可以在系统文件管理器中删除已导出的文件。
+
+## 2. Rootline 处理的数据
+
+用户主动开始采集后，Rootline 可能在当前标签页处理：
+
+- 页面 URL、标题、origin、viewport、设备像素比、User-Agent、语言和采集时间。
+- 用户主动选择元素的标签、文本摘要、属性、截断 DOM、祖先路径、CSS selector、XPath、关键 computed style、可读取的同源 CSS 规则和伪元素样式提示。
+- 可读取时的 React 组件名称链和 props key。Rootline 不保存完整 props value。
+- 采集开始后产生的 console、页面 error、未处理 Promise rejection、fetch、XHR 和 Resource Timing。
+- 结束采集时的当前可见区域截图，以及基于目标矩形生成的标注截图。
+- 用户填写的问题现象、预期结果和补充说明。
+- 用户主动点击“录制页面”并在 Chrome 系统选择器中授权后，所选择整屏的无音频录屏和最多 24 个关键帧时间点。
+
+控制台和网络信息只覆盖 Rootline 启动后的采集时间窗口。Rootline 不在后台持续监控浏览行为。
+
+## 3. Rootline 不主动采集的数据
+
+Rootline 不主动读取或保存：
+
+- Cookie、LocalStorage、SessionStorage 或 Chrome 浏览历史。
+- 密码字段值、麦克风、系统音频或摄像头。
+- 完整页面 HTML 或完整 React props value。
+- 跨域 iframe、跨域样式表或 closed shadow root 的内部内容。
+- 用户账号、联系人、精确位置、广告标识符或支付资料。
+
+网页截图和用户主动授权的整屏录制会包含录制范围内已经可见的内容。用户应在开始前关闭或遮挡不希望进入本地文件的通知、窗口和敏感信息。
+
+## 4. 脱敏和最小化
+
+Rootline 在数据进入扩展存储前处理敏感 Header、URL Query、JSON、URL-encoded Form 和嵌套对象。已知敏感字段包括但不限于：
+
+```text
+authorization
+cookie
+set-cookie
+token
+access_token
+refresh_token
+id_token
+api_key
+client_secret
+password
+passwd
+session_id
+```
+
+这些字段会替换为 `[REDACTED]`。请求体、响应体、控制台消息、DOM、网络记录、控制台记录和目标元素数量均有固定上限，超限内容会截断或丢弃。导出前会再次执行脱敏。
+
+自动脱敏无法识别所有业务字段或截图中的视觉信息。用户仍应只在有权限的页面上采集，并在分享本地文件前自行检查内容。
+
+## 5. 本地存储位置和保留期限
+
+- 活动采集会话保存在 `chrome.storage.session`，更新时间超过 24 小时后会自动清理，并且不会作为云端历史同步。
+- 浮动面板位置和录屏进行中状态保存在 `chrome.storage.local`。
+- 报告历史索引和标注截图缓存保存在扩展 IndexedDB，用于采集历史和完整证据页。
+- 录屏 Blob 和关键帧在成功写入本地文件前暂存在扩展 IndexedDB；成功写盘后对应临时录屏结果会清理。
+- 完成后的 `report.md`、`report.json`、`capture.png` 和可选 `capture.webm` 默认保存在 Chrome 下载目录下的 `Rootline/`。
+
+Rootline 不会自动删除用户下载目录中的报告。用户可以在系统文件管理器中删除文件，也可以通过 Chrome 的扩展管理页清除 Rootline 的站点数据或卸载扩展，以删除扩展存储和 IndexedDB 中的本地索引。
+
+## 6. 数据共享和传输
+
+Rootline 不把用户数据传输到开发者服务器，也不出售、出租、共享或交换用户数据。Rootline 不包含广告 SDK、分析 SDK、远程日志、崩溃上报、账号系统或云端同步。
+
+当用户复制 AI 上下文时，Rootline 只把文本写入本机剪贴板。用户自行将该文本或本地文件交给 Codex、Claude Code、Cursor 或其他第三方工具时，该第三方工具将按其自己的隐私政策处理数据，Rootline 无法控制该行为。
+
+## 7. Chrome 权限的使用
+
+Rootline 使用 `activeTab`、`tabs`、`scripting`、`storage`、`downloads`、`offscreen` 和 `alarms` 权限完成用户发起的采集、截图、录屏、本地保存和清理。Rootline 不申请全站永久访问、Cookie、webRequest、debugger 或浏览历史权限。完整说明见商店权限说明。
+
+## 8. 儿童隐私
+
+Rootline 面向软件开发人员，不面向儿童，也不会有意收集儿童个人信息。
+
+## 9. 安全和限制
+
+Rootline 采用本地保存、权限按需使用、字段脱敏、内容截断、消息来源校验和会话校验来降低风险。但任何软件都不能保证绝对安全，用户应妥善管理下载目录、剪贴板和共享给第三方工具的文件。
+
+## 10. 政策更新
+
+如果 Rootline 的数据处理方式、权限或功能发生实质变化，本政策将更新生效日期，并在发布新版本前同步更新 Chrome Web Store 的隐私披露。若未来增加任何云端服务，必须在启用前另行说明并获得适用的用户同意。
+
+## 11. 联系方式
+
+有关本政策或 Rootline 数据处理的问题，请联系：`[联系邮箱]`。
+
+## Chrome Web Store Limited Use 声明
+
+Rootline 对用户数据的使用仅限于提供其单一用途：在用户主动操作后采集当前网页的运行态证据，并生成保存在本机的调试报告。Rootline 不出售数据，不将数据用于广告、画像、信用评估或与该用途无关的分析，也不把数据传输给开发者或第三方。

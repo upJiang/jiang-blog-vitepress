@@ -24,51 +24,104 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # 多模型管理平台：注册、版本、路由、健康与切换
 
-模型服务已经上线，产品却不知道“默认模型”对应哪一份权重；切换版本后旧的 Agent 仍使用了不兼容的工具格式。多模型平台需要把模型注册、能力、部署实例和流量切换分开，控制面保存事实，数据面执行请求。
+业务配置写的是 `smart-chat`，平台切换 Qwen 新 revision 后，工具调用突然失效。健康检查仍返回 200，因为探针只问了普通文本。模型切换不只是换 endpoint：逻辑能力、制品 revision、Serving 配置和验证场景必须作为不同实体管理。
 
-## 模型注册表保存什么
 
-| 对象 | 字段示例 | 用途 |
-| --- | --- | --- |
-| Model | 公开名、模态、上下文、能力 | 给调用方稳定契约 |
-| Revision | 制品摘要、Tokenizer、策略版本 | 复现、评测和回滚 |
-| Deployment | 实例、节点、健康、容量 | 把 Revision 放到运行位置 |
-| Route | 租户、权重、条件、有效期 | 决定请求落点 |
-| Evaluation | 数据集、指标、风险备注 | 发布门槛和能力声明 |
+<InfraFigure src="/images/ai-infra/multi-model-platform/hero.png" alt="逻辑模型注册表连接多个版本、部署实例和健康路由的插画"
+  icon="models" caption="业务请求选择逻辑能力，控制面再把它解析为某个可验证的模型部署。" />
 
-公开模型名不应直接等于容器名或 Hub 路径。注册表中的“可用”还要区分制品已验证、实例 Ready、路由已启用和预算允许。
 
-## 一次切换的状态变化
+## 一次逻辑模型解析怎样避开错误切换
 
 ```mermaid
-stateDiagram-v2
-  [*] --> registered
-  registered --> verified: artifact + eval
-  verified --> deployed: instance ready
-  deployed --> serving: route enabled
-  serving --> draining: disable new requests
-  draining --> archived: streams finished
-  serving --> rollback: health/quality breach
+flowchart LR
+  S0["注册能力"]
+  S1["绑定候选"]
+  S2["持续探测"]
+  S3["数据面选择"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-切换不是修改一个字符串。先让新 Revision 在旁路或小流量下通过协议、延迟、质量和安全检查，再逐步改变 Route。旧实例要排空正在进行的流式连接，并保留可回退的制品和配置。
+先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-## 能力发现要比模型名更细
+### 注册能力发生时，先看 Control Plane
 
-“支持工具调用”“支持 JSON Schema”“上下文 128k”“可流式”都是能力声明，不能靠模型名字猜。Gateway 和 Agent Runtime 根据能力选择路径，模型平台提供版本化的 capability manifest。能力变化时要触发兼容性检查，而不是等线上 400。
+录入逻辑模型、允许能力、数据区域和策略版本。
 
-## 健康管理不只看 /health
+这里不靠猜测，优先读取 registry version、capability schema。
 
-实例可能进程健康但显存接近上限，或能生成文本却无法完成工具格式。健康信号应分为进程、协议、资源和质量四层。质量信号通常来自抽样评测或业务反馈，不适合直接做每秒探针，但可以触发降权、冻结发布或回滚。下一篇把模型候选交给 Agent Runtime，讨论状态、工具和取消。
+### 从 绑定候选 留下的证据回到 Release Controller
 
-## 路由变更也需要回滚边界
+关联 artifact revision、deployment 配置和验证结果。
 
-将 10% 流量切到新 Revision 时，路由配置本身应有版本、审批、有效期和变更记录。监控同时按旧/新 Revision 比较协议错误、TTFT、成本、格式质量和安全拒绝率，不能只看整个模型名的平均值。
+决定下一步前需要看到 digest、engine version、candidate state。
 
-发现问题时优先撤回新 Route，保留新实例和日志供分析；不要立刻删除制品，否则无法复现。对已有长连接和 Agent Turn，要定义继续使用旧 Revision 还是在下一个 Turn 切换，避免同一状态机中途改变能力。
+### 3. Health Controller 怎样完成持续探测
 
-## 模型下线前要检查引用关系
+执行基础健康与能力探针，聚合为可路由状态。
 
-一个 Revision 可能仍被历史 Turn、长连接、评测、回滚路由或离线任务引用。下线前先查询这些引用，再进入 draining，而不是直接删除镜像或对象。模型制品、部署实例和公开路由分别有不同生命周期。
+这一动作的可观察结果是 probe type、success window、last error。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-归档后仍保留 manifest、评测和审计摘要，允许在需要时重建候选实例。真正删除前要确认没有发布版本和保留策略依赖它，这和数据库迁移清理旧字段是同一种兼容性问题。
+### 4. 数据面选择：Gateway 持有当前状态
+
+按缓存的已发布快照选择 deployment 并记录决策版本。
+
+可以从这些位置确认结果：model alias、deployment_id、snapshot version。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+## 模型、版本和部署为何不能放在一张字符串表里
+
+这里先暂停操作，把容易混用的概念拆开。定义的价值在于划清责任，而不是增加名词数量。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Logical Model | 业务使用的稳定标识与能力契约，例如 chat、tool calling、context limit，不绑定供应商品牌。 |
+| Artifact Revision | 不可变模型制品版本，包含权重、Tokenizer、模板和许可证证据。 |
+| Deployment | 某个 revision 在具体区域、引擎、硬件和配置上的运行实例集合。 |
+| Capability Probe | 针对声明能力的最小确定性验证，比只检查 `/health` 更接近可路由状态。 |
+
+::: tip 判断原则
+不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
+:::
+
+## 别让表面现象替你下结论
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| HTTP health 成功 | 工具、结构化输出或长上下文能力可能已退化 | 按声明能力运行 probe |
+| 切换同名模型 | revision、Tokenizer 或模板实际变化 | 将制品摘要写入候选验证 |
+| 自动摘除抖动 | 单次探针失败导致频繁切换，放大流量波动 | 使用时间窗口、阈值和冷却 |
+| 控制面不可用 | 数据面若依赖实时查询会一起失败 | 保留最后已验证快照并设过期策略 |
+
+::: warning 先保留现场
+如果先重启、扩容或删除对象，最早失败可能被覆盖。先确认对象身份、版本和时间线，再决定处理动作。
+:::
+
+## 用分离的数据模型表达稳定标识与运行实例
+
+JSON 是控制面概念示例。输入为逻辑模型和一个候选 deployment；输出给网关的是已发布快照，不是边写边读的草稿。
+
+```json
+{
+  "logical_model": "smart-chat",
+  "capabilities": ["chat", "stream", "tools"],
+  "deployment": {
+    "id": "dep_20260817_a",
+    "artifact_revision": "sha256:...",
+    "engine": "vllm",
+    "region": "cn-east",
+    "state": "candidate"
+  }
+}
+```
+
+候选通过普通、流式、工具、长度与错误契约后才能进入 published snapshot。Gateway 不应每次请求查询多张控制面表，否则控制面抖动会进入数据面；它应消费有版本的快照，并在路由日志中写入 snapshot version。
+
+
+
+## 把结论限制在证据范围内
+
+模型能力不是营销名称，应由可测试契约支撑。供应商模型可能无法获得权重摘要，也要记录外部版本、区域、API 版本和核对时间。健康切换不得绕过租户区域和成本策略。
+
+模型平台提供稳定调用能力后，Agent Runtime 才能安全地执行多步任务。下一篇沿 Turn、工具、Checkpoint、取消和恢复追踪一个长任务。

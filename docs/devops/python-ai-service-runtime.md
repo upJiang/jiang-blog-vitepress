@@ -24,66 +24,108 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # Python AI 服务运行时：typing、asyncio、线程与多进程
 
-一个 Python 模型 API 在单请求时很快，两个并发请求却互相等待。原因可能不是模型变慢，而是事件循环被同步分词阻塞，或者多进程各自加载了一份权重。选择并发模型前，要先区分等待 I/O、消耗 CPU 和占用 GPU 的工作。
+一个 FastAPI 接口在单请求测试中只需 200 ms，上线并发十个请求后却全部超过两秒。代码里每个函数都写成了 `async def`，团队因此认定“异步已经做好”。剖析后发现，分词函数和同步 SDK 在事件循环线程里连续阻塞；函数签名是异步的，执行过程并没有让出控制权。
 
-## asyncio 只擅长把等待交错起来
 
-async def 让协程在 await I/O 时把执行权交给事件循环。它不会让 CPU 密集的分词、压缩或 Python 循环自动并行，也不会把一个同步 SDK 变成异步。阻塞事件循环时，健康检查、SSE 心跳和其他请求都会一起延迟。
+<InfraFigure src="/images/ai-infra/python-ai-service-runtime/hero.png" alt="Python 事件循环协调请求、线程池和多进程 Worker 的技术插画"
+  icon="code" caption="asyncio 提高的是等待期间的并发，不会让 CPU 计算自动并行。" />
+
+
+## 用一个心跳证明事件循环是否被阻塞
+
+这段 Python 3.11+ 代码可在本机运行。输入是一个错误的阻塞协程和一个心跳协程；预期输出中，`time.sleep` 的一秒内不会出现 heartbeat，说明整个事件循环被占住。
 
 ```python
 import asyncio
+import time
 
-async def fetch_and_stream(client, prompt: str):
-    response = await client.generate(prompt)
-    async for token in response:
-        yield token
+async def heartbeat():
+    for _ in range(5):
+        print("heartbeat", round(asyncio.get_running_loop().time(), 2))
+        await asyncio.sleep(0.2)
+
+async def blocking_call():
+    time.sleep(1)  # 错误：占住事件循环线程
 
 async def main():
-    await asyncio.gather(
-        consume(fetch_and_stream(client, "a")),
-        consume(fetch_and_stream(client, "b")),
-    )
+    await asyncio.gather(heartbeat(), blocking_call())
+
+asyncio.run(main())
 ```
 
-输入是两个独立 Prompt，执行过程是协程在网络等待处交错，输出是两条 Token 流。若 client.generate 内部执行同步 CPU 工作，gather 仍会被它阻塞，需要线程池或进程池，并为任务设置上限。
+把阻塞调用改成 `await asyncio.to_thread(time.sleep, 1)` 后，心跳应继续输出。这个结果只证明阻塞工作被移到线程，不代表线程无限可扩展，也不保证底层 SDK 可安全并发。CPU 密集分词若持续占用 Python 执行，应测量后考虑进程、原生库或单独 Worker。
 
-## 线程和多进程的代价不一样
+## Python 服务里的并发、并行和异步有何区别
 
-| 工作 | 合适的机制 | 主要代价 |
+理解下面这些词时，要同时回答输入、状态和输出分别在哪里。它们不是可以互换的产品标签。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Coroutine | 可暂停并由事件循环恢复的执行对象。只有遇到真正会挂起的 `await`，其他协程才有机会运行。 |
+| Event Loop | 在一个线程中调度就绪协程并监听 I/O 事件。它适合大量等待，不适合直接承载长时间 CPU 计算。 |
+| Thread Pool | 把阻塞函数放到其他线程，避免卡住事件循环；它仍共享进程内存，并受库线程安全与 GIL 行为影响。 |
+| Worker Process | 独立解释器和地址空间，可利用多核并隔离崩溃，但模型、连接池和缓存可能被每个进程重复创建。 |
+
+::: tip 判断原则
+遇到新术语，先问它改变了哪份状态；如果没有状态所有者，这个名词暂时不能指导排障。
+:::
+
+## 一次请求怎样在事件循环里获得执行时间
+
+```mermaid
+flowchart LR
+  S0["接收事件"]
+  S1["等待 I/O"]
+  S2["处理阻塞"]
+  S3["返回与清理"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+```
+
+图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
+
+### 从 接收事件 留下的证据回到 ASGI Server
+
+socket 可读时创建请求协程并交给事件循环。
+
+决定下一步前需要看到 active tasks、accept queue、请求开始时间。
+
+### 2. Coroutine 怎样完成等待 I/O
+
+数据库或 HTTP 客户端注册等待，主动让出事件循环。
+
+这一动作的可观察结果是 span 时长、连接池等待、timeout。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+### 3. 处理阻塞：Thread/Process Executor 持有当前状态
+
+同步 SDK 或 CPU 任务移出事件循环，并设置容量和取消边界。
+
+可以从这些位置确认结果：executor queue、线程数、任务 deadline。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 返回与清理发生时，先看 ASGI Task
+
+序列化响应，关闭生成器并传播客户端取消。
+
+这里不靠猜测，优先读取 响应状态、CancelledError、资源关闭日志。
+
+## 同一个症状，下一步证据可能完全不同
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
-| 网络 I/O、连接等待 | asyncio 协程 | 事件循环不能被同步代码堵住 |
-| 短 CPU 解析、压缩 | 受控线程池 | 共享状态、上下文切换 |
-| 长 CPU 计算 | 多进程或独立 Worker | 内存复制、进程生命周期 |
-| GPU 推理 | Serving 引擎的批处理 | 显存、队列和模型实例数 |
+| async def 很多 | 协程内部仍可能调用同步 I/O 或 CPU 密集函数 | 用慢调用栈与事件循环延迟确认是否真正让出 |
+| 增加 Worker 后吞吐下降 | 每个进程重复加载模型或创建过多数据库连接 | 计算进程数乘以单进程资源 |
+| 客户端取消但后台仍运行 | 取消未传播到线程、子进程或上游 HTTP 请求 | 记录 deadline 与资源释放终态 |
+| 线程池耗尽 | 阻塞调用进入 executor 队列，表现为接口整体排队 | 观测队列等待而非只看函数执行时间 |
 
-多进程能绕开 Python GIL 的部分限制，但每个进程可能独立加载 tokenizer、权重和缓存。GPU 服务不能只看 CPU 核数决定 worker 数量。
+::: warning 结论的边界
+示例输出用于建立判断路径，不应被当成目标环境的真实结果。版本、硬件和请求形状变化后要重新验证。
+:::
 
-## typing 是运行边界的说明书
 
-类型标注不能替你验证请求，却能把“可能为空”“必须带 tenant_id”“流式事件有哪些 kind”写进接口。对 AI 服务尤其重要，因为字符串和字典很容易在层间丢失状态所有权。运行时仍需要 Pydantic 或显式检查，类型检查通过不等于输入可信。
 
-## 取消必须传到最深处
+## 哪些结论还需要真实环境验证
 
-客户端断开后，API 层收到取消，应该停止等待模型、释放队列槽和关闭上游连接。只取消最外层协程而不通知同步线程或 GPU 请求，会让用户看不到结果，但资源仍被占用。给每个请求记录 deadline、取消原因和清理完成时间，才能判断“取消成功”还是“超时后遗留”。
+GIL 不等于 Python 不能并发：I/O 等待、释放 GIL 的原生计算和多进程都有不同路径。也不能为了吞吐无限增加 Worker，因为数据库连接、内存、模型副本和上下文切换会成为新瓶颈。
 
-## 本地验证看什么
-
-```bash
-python -m asyncio your_probe.py
-python -X dev your_service.py
-ps -o pid,ppid,pcpu,pmem,cmd -C python
-```
-
-这些命令只能帮助观察事件循环警告、进程数量和资源趋势。真实吞吐要在固定请求分布、模型版本和硬件上测量，不能从开发机的单次结果推导生产容量。下一篇把这些运行时边界放进 FastAPI 和 OpenAI 兼容协议。
-
-## 不要把 ContextVar 当成持久状态
-
-request_id、tenant_id 等短生命周期上下文可以用 ContextVar 在协程链路中传播，但线程池、子进程、后台任务和消息队列不会天然继承它。真正需要恢复和审计的字段，必须显式写入任务消息、数据库或结构化事件。
-
-同样，asyncio.CancelledError 不是普通业务错误。捕获它做清理后应继续传播取消语义，不能吞掉后把请求标成成功。连接池、流式生成器和临时文件都应在 finally 中关闭，使取消成为可验证的资源释放过程。
-
-## 进程模型还决定了连接的归属
-
-Web 服务器创建多个 worker 时，每个进程都有自己的事件循环、连接池和内存。启动前初始化的全局客户端在 fork 后可能带着不安全的连接状态，模型对象也可能被重复加载。初始化时机要按运行模型设计，而不是只看代码能否 import。
-
-对数据库、HTTP 和 Redis 客户端，通常让每个 worker 在自身生命周期内创建和关闭。对 GPU 模型，先明确是否只允许一个 Serving 进程拥有设备，再让 API worker 通过网络调用它。这样避免多个 Python worker 无意竞争同一张卡。
+明确 Python 的执行边界后，下一篇把它放进 FastAPI：从请求校验到依赖注入，再到普通响应、SSE、取消和错误契约。

@@ -23,54 +23,104 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # vLLM 服务、OpenAI 兼容接口与故障定位
 
-vLLM 进程显示 Ready，调用 /v1/models 却返回模型名不一致；换了 --tensor-parallel-size 后服务能启动，但请求一来就 OOM。vLLM 的参数不是一张“性能开关表”，每个参数都在改变模型身份、调度预算、并行布局或接口契约。
+vLLM 进程打印了 HTTP server started，但 `/v1/models` 返回的名称与客户端请求不一致；修正名称后，第二条长请求又触发 OOM。接口问题和容量问题发生在不同边界，不能都归结为“vLLM 没启动好”。排查应按制品、设备、引擎、HTTP 协议和请求形状分层。
 
-## 启动参数怎样映射到运行状态
 
-| 参数/配置 | 影响的状态 | 核对方式 |
-| --- | --- | --- |
-| model + revision | 权重、Tokenizer 和公开身份 | 记录制品摘要与 config |
-| dtype / quantization | 权重与激活的表示 | 确认引擎支持和质量边界 |
-| max-model-len | 上下文上限、KV 预算 | 与业务输入分布对照 |
-| tensor-parallel-size | 设备分片和通信 | GPU 数量、拓扑和日志 |
-| gpu-memory-utilization | KV/工作区可用余量 | 观察加载和第二请求行为 |
+<InfraFigure src="/images/ai-infra/vllm-openai-compatible-serving/hero.png" alt="vLLM 加载模型后通过调度器处理普通与流式请求的插画"
+  icon="rocket" caption="启动参数共同决定模型制品、并行方式、缓存预算和对外契约。" />
 
-启动成功只证明初始化路径完成，不能证明配置适合第二个长请求。公开 model id 也不应随意从本地目录名推导，Gateway 需要稳定别名和 Revision 记录。
 
-## OpenAI 兼容请求的最小链路
+## 一条 vLLM 启动命令实际上固定了哪些契约
 
-```bash
-curl https://model.example.test/v1/models
-curl https://model.example.test/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"my-model","messages":[{"role":"user","content":"hi"}],"stream":true}'
+先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| served-model-name | 暴露给兼容 API 的逻辑模型名，可与本地路径不同；客户端路由应以明确名称匹配。 |
+| tensor-parallel-size | 把单个模型的张量计算分布到多设备，要求拓扑和通信支持，不等于启动多个独立副本。 |
+| gpu-memory-utilization | 引擎用于规划可占用显存比例的配置之一，不是“百分之百不会 OOM”的保证。 |
+| max-model-len | 允许的上下文上限，会影响 KV Cache 容量和请求准入；不应无条件沿用模型声明最大值。 |
+
+::: tip 判断原则
+定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+:::
+
+## 启动失败和请求失败要在哪一层分开
+
+```mermaid
+flowchart LR
+  S0["参数解析"]
+  S1["引擎初始化"]
+  S2["HTTP 就绪"]
+  S3["请求执行"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-第一条请求确认服务公布的模型身份，第二条确认协议和流式事件。示例没有伪造性能结果，也没有假定特定 vLLM 版本支持所有参数。实际使用要固定版本并核对官方启动参数和兼容性说明。
+箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-## 故障从日志和状态分层看
+### 1. 参数解析：vLLM CLI 持有当前状态
 
-| 症状 | 优先证据 | 常见根因 |
+解析模型、revision、精度、并行和服务名。
+
+可以从这些位置确认结果：命令行、版本、unknown argument。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 引擎初始化发生时，先看 Engine
+
+读取配置、加载权重、建立执行器和 KV Cache。
+
+这里不靠猜测，优先读取 load logs、device mapping、OOM。
+
+### 从 HTTP 就绪 留下的证据回到 API Server
+
+暴露模型列表和 Chat/Completions 兼容子集。
+
+决定下一步前需要看到 `/v1/models`、schema error。
+
+### 4. Scheduler 怎样完成请求执行
+
+校验长度、排队并流式输出，处理取消与终态。
+
+这一动作的可观察结果是 queue、TTFT、finish_reason、engine error。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+## 先验证接口契约，再扩大请求形状
+
+命令是解释性启动示例，需按目标 vLLM 版本核对参数；`REPLACE_WITH_COMMIT` 与 GPU 数量必须替换。未在本机 GPU 上执行。
+
+```bash
+vllm serve org/model \
+  --revision REPLACE_WITH_COMMIT \
+  --served-model-name internal-chat \
+  --dtype bfloat16 \
+  --max-model-len 8192 \
+  --tensor-parallel-size 2
+
+curl -sS http://127.0.0.1:8000/v1/models
+curl -N http://127.0.0.1:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"internal-chat","messages":[{"role":"user","content":"hello"}],"stream":true}'
+```
+
+先用最小输入确认模型名、响应字段和 `[DONE]`，再逐步增加输入长度、输出上限和并发，这样 OOM 才能关联到请求形状。参数随 vLLM 版本变化，应记录 `vllm --version` 和完整启动命令。命令成功不代表两张 GPU 的 P2P/NCCL 拓扑适合目标负载。
+
+## 看起来相似，故障边界却不同
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
-| 进程启动失败 | 加载日志、GPU 可见性、权重文件 | 路径、架构、驱动或显存 |
-| /health 正常但请求 503 | 队列、模型状态、上游连接 | Readiness 与请求准入不一致 |
-| 第二请求 OOM | 输入/输出 Token、KV 使用、显存快照 | max length、并发或碎片 |
-| 流式不增量 | 响应头、代理缓冲、客户端读取 | SSE/代理配置，不一定是 vLLM |
+| 404/model not found | 客户端 model 与 served name 不一致 | 比较 `/v1/models` 和路由配置 |
+| 启动时 OOM | 权重、工作区或 cache 初始化已超预算 | 减少并行/长度前先建立显存账本 |
+| 第二请求 OOM | 并发 KV Cache 或峰值工作区超过预算 | 记录每个请求 token 数和 block 使用 |
+| 流突然断开 | 引擎错误、客户端取消、代理超时或进程退出均可能 | 对齐 API、engine、代理和系统日志 |
 
-把 nvidia-smi、Serving 日志、网关 trace 和请求形状放在同一时间线上，才知道是模型加载、调度还是入口问题。
+::: warning 容易误判
+一条成功命令只能证明它覆盖的那一层。重启后的短暂恢复也不是根因已经消失，改变状态前先保存最早证据。
+:::
 
-## 模型切换不能只替换目录
 
-切换模型需要更新制品摘要、能力声明、Tokenizer、上下文上限、成本和健康检查。旧实例要继续服务已有流式连接，新实例通过最小推理和合同测试后再接流量。下一篇把权重精度、量化和制品版本放到显存账本中。
 
-## 从“可启动”到“可接流量”之间还差什么
+## 这套判断方法的边界
 
-候选实例至少要通过四类检查：模型身份与 tokenizer 一致，兼容接口能完成非流式和流式请求，取消能停止生成，观测能关联 request_id、model_revision 和 usage。只有这些条件都通过，Readiness 才有资格把实例加入网关路由。
+vLLM 的 OpenAI 兼容能力取决于版本和端点，不应承诺所有字段完全一致。模型热切换可能需要新进程与显存双占，最稳妥的发布通常是候选实例加载验证后切流。本章没有真实 GPU 或多卡实测数字。
 
-多卡配置还要额外核对 rank、可见 GPU、通信路径和故障时的清理。单次启动日志没有错误不代表第二个实例、第二个请求或模型切换稳定。把失败样本和启动参数放进 Release Manifest，回滚时才能还原同一运行条件。
-
-## 故障定位要从请求形状回到启动参数
-
-当 OOM 或拒绝发生时，把 prompt/output Token、并发、model_revision、max-model-len、dtype、tensor parallel 和 GPU 状态写到同一条诊断记录。这样才能判断是某一长请求突破上限，还是参数为所有请求预留了过多 KV。
-
-只调低 gpu-memory-utilization 可能减少引擎可用缓存，也可能让其他工作区有余量。每个调整都有代价，候选环境应以同一请求集比较 TTFT、TPOT、错误和显存峰值，再决定是否提升。
+Serving 能否装下模型，最终回到制品字节和数值格式。下一篇拆开 FP32、FP16、BF16、INT8、INT4、量化校准与质量验证。

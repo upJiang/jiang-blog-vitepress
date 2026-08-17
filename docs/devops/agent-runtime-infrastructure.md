@@ -24,76 +24,103 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # Agent Runtime 基础设施：LangGraph、MCP、工具与恢复
 
-Agent 生成了删除工单的工具调用，参数完全合法，Runtime 却必须拒绝。随后用户取消任务，Worker 仍然调用了外部系统。Agent Runtime 的工作不是把模型输出变成执行，而是持有 Turn 状态、权限、预算、租约和终态，让每个候选动作回到确定性边界。
+用户点击取消后，界面显示任务已停止，几分钟后外部系统仍收到一次工具写入。Runtime 只取消了 SSE 连接，没有取消正在执行的 Worker；重试时又从对话开头重新运行。Agent 的“思考”不是可靠状态，Turn、工具调用、租约、Checkpoint 和取消必须由确定性 Runtime 管理。
 
-## 一次 Turn 里谁拥有状态
 
-```mermaid
-stateDiagram-v2
-  [*] --> created
-  created --> running
-  running --> waiting_tool
-  waiting_tool --> running: tool result
-  running --> completed
-  running --> cancelled
-  running --> failed
-  running --> expired
+<InfraFigure src="/images/ai-infra/agent-runtime-infrastructure/hero.png" alt="Agent Turn 在状态图中调用模型和工具、写入 Checkpoint 并响应取消的插画"
+  icon="workflow" caption="Agent Runtime 管理可恢复执行状态；模型只提出候选动作，不能决定权限与终态。" />
+
+
+## 用版本条件更新避免两个 Worker 同时推进 Turn
+
+SQL 为状态并发控制示例。输入 turn_id、旧版本和新 checkpoint；只有持有当前版本的 Worker 能成功写入，返回空行意味着租约或状态已变化。
+
+```sql
+UPDATE agent_turns
+SET state = $3::jsonb,
+    current_node = $4,
+    version = version + 1,
+    updated_at = now()
+WHERE id = $1
+  AND version = $2
+  AND status = 'running'
+RETURNING version;
 ```
 
-Conversation 负责归属，Turn 负责一次执行，Event 记录顺序，Checkpoint 保存可恢复的图状态，Task/Lease 负责 Worker 所有权。模型只产生下一步候选，Runtime 决定是否授权、是否还有预算、是否可以重试。
+乐观版本阻止旧 Worker 覆盖新状态，但工具副作用还要使用独立 idempotency key，例如 `(turn_id, tool_call_id)`。Checkpoint 不应保存明文 Secret；工具结果可保存受权限控制的引用和摘要。恢复必须从已提交安全点继续，而非重新让模型猜过去做了什么。
 
-## 工具调用要经过四道门
+## 一个 Agent Turn 需要保存哪些可恢复事实
 
-| 门 | 检查什么 | 失败时 |
-| --- | --- | --- |
-| Schema | 参数类型和必填字段 | 拒绝候选，不触发副作用 |
-| Policy | 用户、租户、作用域和审批 | 返回 policy_denied |
-| Budget | Turn、Token、工具次数、时间 | 终止或降级 |
-| Execution | 超时、幂等、出站和结果校验 | 记录 attempt，按规则重试 |
+理解下面这些词时，要同时回答输入、状态和输出分别在哪里。它们不是可以互换的产品标签。
 
-MCP 只描述能力和协议，不自动授予权限。LangGraph 可以表达节点和边，但状态保存、并发锁和最终业务事实仍由 Runtime 或数据库持有。
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Turn | 一次用户输入到确定终态的执行边界，可包含多个模型和工具步骤。 |
+| State Graph | 节点与边描述允许的控制路径；LangGraph 等框架帮助编排，但权限仍由外部策略决定。 |
+| Checkpoint | 在安全步骤后保存输入、状态版本、已完成动作和下一节点，使恢复不必重放副作用。 |
+| Tool Call | 模型提出的结构化候选，Runtime 必须校验 schema、权限、预算和幂等性后才能执行。 |
+| MCP | 连接工具与资源的协议边界，不自动使远端 Server 可信或让操作可恢复。 |
 
-## 取消和恢复怎样避免“幽灵工具调用”
-
-```python
-async def run_turn(turn_id):
-    state = await load_checkpoint(turn_id)
-    while True:
-        await ensure_lease(turn_id)
-        if await is_cancelled(turn_id):
-            return await finish(turn_id, "cancelled")
-        candidate = await model_next(state)
-        decision = policy_check(candidate, state.scope)
-        if decision.denied:
-            state = state.add_event("tool_denied")
-            continue
-        result = await execute_idempotent(candidate, turn_id)
-        state = state.apply(result)
-        await save_checkpoint(turn_id, state)
-```
-
-输入是可恢复的 checkpoint 和租约，输出是唯一终态。取消要在模型调用前、工具调用前和长工具内部检查；工具执行必须有幂等键，避免 Worker 重试造成重复副作用。代码展示控制边界，不代表任何具体 LangGraph API。
-
-## 并发不是把多个模型请求同时发出去
-
-同一个 Turn 通常需要单写者或版本号，多个独立 Turn 才可以并行。工具有自己的并发上限，外部系统有速率限制，模型上下文也会因为并行结果膨胀。把并发预算、取消传播和 checkpoint 写入放在一起设计，才能在超时后真正释放资源。
-
-## 终态要能解释
-
-::: tip
-**判断方法**
-
-completed、failed、cancelled、expired、denied 是不同事实，前端和计费不应靠一段自然语言猜。下一篇把 Agent 需要的文档、Embedding、权限和证据放进 RAG 发布链路。
+::: tip 判断原则
+遇到新术语，先问它改变了哪份状态；如果没有状态所有者，这个名词暂时不能指导排障。
 :::
 
-## Checkpoint 记录的是可恢复边界，不是聊天全文备份
+## 从用户消息到 cancelled 终态
 
-Checkpoint 至少需要版本化的状态、下一个节点、已完成工具的幂等结果、预算、租户范围和事件序号。恢复时先验证 schema 与 policy 是否兼容，再决定继续、失败或要求人工处理。只保存模型消息而不保存工具结果，会在恢复时重复副作用。
+```mermaid
+flowchart LR
+  S0["创建 Turn"]
+  S1["领取运行"]
+  S2["执行节点"]
+  S3["取消恢复"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+```
 
-LangGraph 等图框架能帮助表达节点，但持久化策略不能交给默认内存实现。生产 Runtime 要能回答某个 Turn 在崩溃前是否已经调用工具、当前 lease 属于谁、取消是否已传播到外部系统。
+图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
 
-## 事件序号让恢复不靠猜
+### 从 创建 Turn 留下的证据回到 API/Database
 
-每个 Turn 的事件应有单调序号或乐观版本。Worker 保存 checkpoint 时带上预期版本，若另一个 Worker 已经推进状态，当前写入就失败并重新读取。这种单写者约束比“希望只有一个 Worker”可靠。
+固定 tenant、thread、input、deadline 和 policy version。
 
-客户端订阅进度也可以用事件序号去重和断线续接。事件日志用于通知，不应反过来作为唯一业务真相；完成、取消和工具副作用仍需落到可事务化或可对账的状态中。
+决定下一步前需要看到 turn_id、version、queued。
+
+### 2. Worker Lease 怎样完成领取运行
+
+单个 Worker 获得执行租约并载入最近 checkpoint。
+
+这一动作的可观察结果是 worker_id、lease_until、state_version。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+### 3. 执行节点：Graph Runtime 持有当前状态
+
+调用模型得到候选，验证工具后执行并写 checkpoint。
+
+可以从这些位置确认结果：node、tool_call_id、result digest。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 取消恢复发生时，先看 Runtime
+
+观察 cancel_requested，取消上游与工具，在安全点写终态。
+
+这里不靠猜测，优先读取 cancel source、compensation、cancelled。
+
+## 同一个症状，下一步证据可能完全不同
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| SSE 断开 | 客户端连接结束，不等于 Turn 被取消 | 写入 cancel intent 并让 Worker 确认终态 |
+| 模型说已完成 | 只是文本候选，业务事实可能未提交 | 由工具结果和状态机决定 succeeded |
+| Worker 超时 | 任务可能仍在外部系统执行，结果未知 | 查 tool attempt 与幂等键再恢复 |
+| Checkpoint 存在 | 如果写在副作用之前或不原子，仍会重放 | 定义步骤提交顺序和补偿 |
+
+::: warning 结论的边界
+示例输出用于建立判断路径，不应被当成目标环境的真实结果。版本、硬件和请求形状变化后要重新验证。
+:::
+
+
+
+## 哪些结论还需要真实环境验证
+
+LangGraph 和 MCP 提供编排/协议能力，不代替租户隔离、审批、沙箱和审计。循环次数、Token、工具调用、wall-clock deadline 都应由 Runtime 预算限制。
+
+Agent 要回答企业知识问题，还需要一个权限可控、版本可发布的 RAG 平面。下一篇从文档准入开始，直到带引用回答。

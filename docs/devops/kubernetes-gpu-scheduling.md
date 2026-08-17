@@ -24,59 +24,91 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # Kubernetes GPU 调度、共享、MIG 与自动扩缩容
 
-两个 GPU Pod 都写了 nvidia.com/gpu: 1，却被安排到拓扑不合适的节点；开启共享后吞吐抖动，MIG 又让某些模型无法启动。GPU 调度首先是资源和隔离问题，其次才是扩缩容问题。
+两个各申请一张 GPU 的 Pod 被放到同一节点，单看资源数量完全合法；但它们需要跨 GPU 高频通信，而该节点两张卡只通过较慢路径连接。另一个 10 GB 模型任务因为资源名只表达“一张卡”，被调度到显存不足的设备。GPU 调度不能只数卡，还要把型号、显存、拓扑和共享模式变成可验证约束。
 
-## 设备、切片和共享是三种不同选择
 
-| 方式 | 隔离单位 | 适合的判断 |
+<InfraFigure src="/images/ai-infra/kubernetes-gpu-scheduling/hero.png" alt="Kubernetes 调度器根据 GPU 型号、MIG、拓扑与队列把工作负载放到节点的插画"
+  icon="scheduler" caption="调度器分配声明的资源；显存、拓扑和共享策略需要额外的设备与平台语义。" />
+
+
+## Kubernetes 默认 GPU 资源为什么不够表达推理需求
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Device Allocation | 默认扩展资源通常以整数独占分配设备，不允许 CPU 式小数 request。 |
+| MIG | 部分 NVIDIA GPU 可划分为具有独立计算与显存资源的硬件实例，profile 决定能力。 |
+| Time Slicing | 多个工作负载时间共享设备，增加并发可用性，但通常不提供硬件级显存隔离。 |
+| Topology | GPU 之间以及 GPU 到 CPU/NIC 的连接关系，会影响多卡通信和数据路径。 |
+| Autoscaling Signal | 触发扩缩容的观测量；CPU 利用率往往不能反映模型队列与首 Token 压力。 |
+
+## 排障时最容易走错的岔路
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
-| 整卡独占 | 一张 GPU | 模型占用大、需要稳定显存 |
-| 时间/进程共享 | 同一设备的调度份额 | 负载短、可接受争用，需限流 |
-| MIG | 硬件切片实例 | 需要显存/计算隔离且硬件支持 |
-| 队列排队 | 逻辑访问权，不改变设备容量 | 异步任务或昂贵模型启动 |
+| 申请 1 GPU | 没有表达型号、显存或互联要求 | 增加经治理的节点标签与准入规则 |
+| 共享后利用率提高 | 邻居干扰、显存 OOM 和尾延迟可能恶化 | 按租户与工作负载测隔离 |
+| 副本增加 | 模型加载慢或没有空闲 GPU，Ready 容量未增加 | 看 Pending 与 Ready 而非 desired replicas |
+| 队列有任务 | 可能任务需求永远无节点满足 | 暴露不可调度原因和最大等待时间 |
 
-共享不等于多了一张 GPU，MIG 也不等于任意模型都能放进每个切片。资源标签、请求、驱动和调度器的语义要逐一核对。
+::: warning 不要用重启代替诊断
+恢复服务和解释故障是两个目标。紧急止损后仍要回到原始日志、指标与状态转换，避免同类问题重复出现。
+:::
 
-## 拓扑会改变多卡结果
+## 一次 GPU Workload 放置要通过哪些过滤
 
 ```mermaid
 flowchart LR
-  P[Pod requests 4 GPUs] --> S[Scheduler]
-  S --> N1[Node: same NUMA/NVLink group]
-  S --> N2[Node: split topology]
-  N1 --> F[lower communication cost]
-  N2 --> H[higher transfer/collective cost]
+  S0["表达需求"]
+  S1["过滤节点"]
+  S2["分配设备"]
+  S3["运行扩缩"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-多卡 Serving 或训练需要通信，GPU 是否在同一节点、同一互联域会影响通信路径。调度满足数量不代表满足拓扑。Topology Manager、节点标签、亲和性和 taint 只能表达约束，实际通信仍要在目标硬件上验证。
+### 1. Workload Spec 怎样完成表达需求
 
-## 扩缩容看队列，不只看 GPU 百分比
+声明设备数量、型号/显存标签、MIG profile、亲和性和优先级。
 
-GPU 利用率高可能是离线大任务，利用率低也可能是请求在队列等待或被显存准入挡住。更贴近在线体验的信号包括排队长度、最老请求年龄、TTFT 分位数、KV Block 使用和错误率。扩容策略还要考虑模型加载时间和节点供应时间，避免短峰值触发大量冷启动。
+这一动作的可观察结果是 requests、node affinity、tolerations。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-## 一张调度决策表
+### 2. 过滤节点：Scheduler 持有当前状态
 
-| 问题 | 先问什么 | 可能的策略 |
-| --- | --- | --- |
-| 模型放不下 | 单请求显存还是并发导致？ | 量化、分片、拆队列或多卡 |
-| 延迟抖动 | 设备争用还是输入长尾？ | 独占/MIG、按长度分池 |
-| Pod Pending | 资源数量还是拓扑/taint？ | 节点池、亲和性、容忍度 |
-| 扩容无效 | 冷启动还是入口限流？ | 预热、队列扩容、检查上游 |
+排除资源不足、污点不容忍和拓扑不满足的节点。
 
-::: warning
-**未实测**
+可以从这些位置确认结果：FailedScheduling reason。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-调度 YAML 和信号选择需要目标集群、Operator、硬件与业务负载验证。下一阶段回到平台控制面，从 Gateway 统一身份、路由、限流、Token 和成本。
-:::
+### 分配设备发生时，先看 Kubelet/Device Plugin
 
-## 扩容之前先确认新增副本能否变成 Ready
+选择具体 GPU 或 MIG 实例并注入容器。
 
-GPU 节点供应、驱动就绪、镜像拉取和模型加载可能比流量峰值持续更久。若 HPA 只看短时利用率，副本还没加载就又被缩回，或者大量 Pending Pod 给控制面制造噪声。模型服务需要冷启动预算、预热容量和明确的最小副本。
+这里不靠猜测，优先读取 allocation、device IDs、plugin logs。
 
-扩缩容后验证的不只是 replicas 数字，还要看 Pending 原因、Ready 时间、Endpoints 增长、TTFT 是否改善和成本是否符合预期。否则“已经扩容”只是控制面的动作，不是用户体验的结果。
+### 从 运行扩缩 留下的证据回到 Queue/Autoscaler
 
-## 队列是 GPU 共享的第一道隔离
+根据等待工作、TTFT 与容量目标增加副本或节点。
 
-当多租户共用有限 GPU 时，先在网关或任务平面限制每个租户的并发、Token 预算和队列年龄，再决定是否采用 MIG 或时间共享。没有上层准入，任何底层共享都会把一个长请求的压力传给其他用户。
+决定下一步前需要看到 queue age、ready capacity、scale events。
 
-公平策略要可解释：谁在等、因为什么资源条件等、何时会超时或被拒绝。把这些信息返回给调用方和运维看板，比只让 Pod Pending 更能帮助业务选择重试、降级或异步执行。
+## 用决策表而不是一份万能 YAML 选择共享方式
+
+以下为机制决策推演，实际能力取决于 GPU 型号、Device Plugin 和集群配置。
+
+```text
+strict memory + failure isolation -> dedicated GPU or suitable MIG profile
+bursty low-duty development jobs  -> consider time slicing with quotas
+tensor parallel serving           -> require compatible GPU topology
+batch training waiting for cards  -> queue + priority + gang scheduling
+online inference autoscaling      -> queue/TTFT/readiness, not CPU alone
+```
+
+MIG profile 是明确资源单元，time slicing 多数情况下只是调度共享；两者不能混为“切显存”。多卡任务若不能同时获得全部设备，可能长期占住部分资源或启动失败，需要 gang/queue 语义。扩容新节点还包含驱动、镜像和模型加载时间，不能等 SLO 已经违约才触发。
+
+
+
+## 最后回到适用范围
+
+标签必须由可信节点发现和平台策略维护，不能让普通租户伪造。MIG、time slicing、MPS 等具体支持随硬件和插件版本变化；本章只讲决策语义，没有真实集群或性能实测。
+
+计算资源被集群正确安排后，平台层还要把多个模型和供应商统一成稳定入口。下一阶段从 LLM Gateway 的身份、路由、限流、用量与错误契约开始。

@@ -24,69 +24,91 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # 分布式训练：Data、Tensor、Pipeline Parallel、DDP 与 FSDP
 
-训练任务把 batch size 调大后，单卡显存不够；切到多卡后，GPU 利用率忽高忽低。分布式训练不是“把进程复制到更多 GPU”，而是决定数据、参数、激活和通信分别由谁持有，以及同步点怎样影响吞吐。
+单卡装不下模型，于是把训练进程扩到八张 GPU；显存问题缓解了，step time 却更长。原因是选择了与瓶颈不匹配的并行方式：数据并行复制整份模型，不能解决参数本身放不下；张量并行虽分片计算，却把高频通信放到了较慢的跨节点网络。
 
-## 四种并行思路在分什么
 
-| 方式 | 切分对象 | 主要代价 |
-| --- | --- | --- |
-| Data Parallel/DDP | 不同进程处理不同数据，参数复制 | 梯度 AllReduce 和模型复制 |
-| FSDP | 参数、梯度、优化器状态分片 | 前向/反向时通信与重组 |
-| Tensor Parallel | 单层矩阵或注意力张量 | 层内高频通信、拓扑敏感 |
-| Pipeline Parallel | 模型层分到不同 stage | 流水线气泡与调度复杂度 |
+<InfraFigure src="/images/ai-infra/distributed-training-infrastructure/hero.png" alt="训练数据、模型参数和流水线阶段分布到多张 GPU 的插画"
+  icon="training" caption="并行策略决定参数、梯度、激活和优化器状态分别存在哪里，以及何时通信。" />
 
-选择依据是显存、通信带宽、模型结构、批次和容错要求。组合并行时，要明确每个 rank 持有什么，checkpoint 如何保存，失败后能否从一致边界恢复。
 
-## 一次 DDP 迭代
+## 不同并行策略到底拆分了哪一种状态
 
-```mermaid
-sequenceDiagram
-  participant R0 as Rank 0
-  participant R1 as Rank 1
-  participant C as Collective
-  R0->>R0: forward local batch
-  R1->>R1: forward local batch
-  R0->>R0: backward gradients
-  R1->>R1: backward gradients
-  R0->>C: AllReduce gradients
-  R1->>C: AllReduce gradients
-  C-->>R0: averaged gradients
-  C-->>R1: averaged gradients
-  R0->>R0: optimizer step
-  R1->>R1: optimizer step
-```
-
-每个 Rank 必须以一致顺序进入 collective，否则一个进程等待另一个永远不会到来的通信。数据采样、随机种子、梯度累积和 checkpoint 步数都要与 rank 语义对齐。
-
-## FSDP 的显存交换
-
-FSDP 不让每个 Rank 永久持有完整参数，而是在需要某层时 all-gather，计算后释放或重新分片。这样减少常驻显存，却增加通信和调度开销。混合精度、预取和 CPU offload 会进一步改变峰值，不能只按参数量除以卡数估算。
-
-## 训练故障先分同步和数据
-
-| 症状 | 优先核对 |
+| 概念 | 在这条链路中的含义 |
 | --- | --- |
-| 某 rank 先退出，其他 rank 卡住 | 退出日志、collective 顺序、网络连接 |
-| Loss 突然 NaN | 数据批次、精度、梯度裁剪和溢出 |
-| 恢复后指标跳变 | checkpoint 是否包含 optimizer、scheduler、随机状态 |
-| 扩卡没有加速 | 通信占比、输入管线、global batch 和气泡 |
+| Data Parallel | 每个 rank 处理不同数据并持有模型副本，反向后同步梯度。DDP 是常见实现。 |
+| Tensor Parallel | 把单层矩阵等张量计算切到多个 rank，层内高频通信，对拓扑敏感。 |
+| Pipeline Parallel | 把不同层放到不同阶段，用 micro-batch 填充流水线，会产生 bubble 与阶段负载平衡问题。 |
+| FSDP | 在数据并行组内分片参数、梯度和优化器状态，并在需要计算时聚合相应参数。 |
+| Checkpoint | 足以恢复模型、优化器、调度器、随机状态和数据进度的一致快照，不只是权重文件。 |
 
-## 未实测边界
+## 排障时最容易走错的岔路
 
-::: warning
-**机制推演**
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| GPU 数增加 | 通信、数据读取和慢 rank 会限制扩展效率 | 拆开 compute、collective、input 时间 |
+| 显存下降 | 可能换来更频繁的参数聚合或 CPU offload | 测 step time 与带宽 |
+| loss 一致 | 数据采样、随机状态或梯度缩放仍可能不同 | 固定种子并核对全局 batch |
+| 保存了权重 | 优化器和 sampler 缺失时不能等价续训 | 演练从 checkpoint 恢复 |
 
-具体扩展比、吞吐和显存要在目标模型、GPU、网络和软件版本上测量。下一篇把训练状态拆开，解释 DeepSpeed ZeRO 如何分片参数、梯度和优化器状态。
+::: warning 不要用重启代替诊断
+恢复服务和解释故障是两个目标。紧急止损后仍要回到原始日志、指标与状态转换，避免同类问题重复出现。
 :::
 
-## Checkpoint 是训练恢复协议的一部分
+## 一次训练 step 中计算与通信如何交错
 
-一个可恢复 checkpoint 通常包含模型参数、优化器状态、学习率调度、当前步数、随机数状态和数据读取位置。分布式情况下还要记录 world size、分片格式、库版本和并行策略。只保存 model weights 可以用于推理，却往往不能无偏继续训练。
+```mermaid
+flowchart LR
+  S0["取数前向"]
+  S1["反向求梯度"]
+  S2["同步状态"]
+  S3["更新与保存"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+```
 
-保存频率在恢复点损失与 I/O 开销之间取舍。遇到节点故障时，先确认最近 checkpoint 是否完成且所有 rank 一致，再决定重启策略。把不完整 checkpoint 当作可用版本，常会把一次硬件故障扩散成数据污染。
+### 1. Data/Ranks 怎样完成取数前向
 
-## 数据输入也会限制扩展效率
+各 rank 读取不重复或按策略采样的数据，执行本地前向并保存激活。
 
-GPU 等待数据时，再增加 rank 只会让更多设备一起空转。数据读取、解压、tokenize、shuffle 和网络存储需要独立观测，分布式 sampler 要保证各 rank 在同一 epoch 覆盖正确样本且可恢复。
+这一动作的可观察结果是 sampler state、forward time、activation memory。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-训练吞吐下降时先拆为数据准备、前向反向、collective 和 optimizer 四段。这样能区分是通信瓶颈、输入管线瓶颈还是 global batch 选择不当，避免一遇到慢就盲目增加 GPU。
+### 2. 反向求梯度：Autograd 持有当前状态
+
+从 loss 反向计算梯度，可能触发分片参数聚合。
+
+可以从这些位置确认结果：backward spans、memory peak。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 同步状态发生时，先看 Collective Backend
+
+按策略执行 AllReduce、AllGather 或 ReduceScatter。
+
+这里不靠猜测，优先读取 collective duration、bytes、straggler。
+
+### 从 更新与保存 留下的证据回到 Optimizer/Checkpoint
+
+更新一致参数并在安全 step 写入可恢复快照。
+
+决定下一步前需要看到 global_step、optimizer state、manifest。
+
+## 先从瓶颈选择策略，而不是从框架名称开始
+
+决策表是机制推演。目标硬件、模型和网络未实测，不能把它当成配置推荐。
+
+```text
+model fits, need more samples/sec -> DDP candidate
+model states do not fit          -> FSDP/ZeRO candidate
+single layer compute too large   -> tensor parallel candidate
+many layers across devices       -> pipeline parallel candidate
+cross-node network is slow       -> keep high-frequency TP within node when possible
+```
+
+实际系统常组合策略，例如节点内 Tensor Parallel、节点间 Data Parallel。组合后 world size、进程组、检查点和容错更复杂。选择前要建立显存组成、每 step 通信量、拓扑和恢复时间目标，不能只比较“支持多少卡”。
+
+
+
+## 最后回到适用范围
+
+通信量公式和扩展效率必须结合实现版本、拓扑、dtype 与 overlap 行为。这里没有真实多机训练实验，也不提供未经测量的吞吐。
+
+分布式训练的状态分布明确后，下一篇深入 DeepSpeed ZeRO，逐级看优化器、梯度和参数怎样被分片，以及 Offload 把压力转移到哪里。

@@ -24,66 +24,98 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # DeepSpeed ZeRO：状态分片、Offload 与显存边界
 
-训练模型的参数本身能放进显存，Optimizer State 和梯度却让任务 OOM。ZeRO 的核心不是魔法压缩，而是改变这些状态由哪个 Rank 持有，并在需要计算时付出通信或 Offload 的代价。
+开启 ZeRO-3 后每张卡显存显著下降，训练却周期性停顿，检查点保存也比预期慢。参数不再常驻每个 rank，需要在层计算前 AllGather；同时 CPU Offload 让 PCIe 和主机内存成为新瓶颈。ZeRO 不是“免费显存”，而是用状态分片与数据移动换容量。
 
-## 训练显存里到底有什么
 
-| 状态 | 用途 | 常见占用来源 |
-| --- | --- | --- |
-| Parameters | 前向/反向计算 | 模型权重和混合精度副本 |
-| Gradients | 反向传播结果 | 每参数的梯度张量 |
-| Optimizer State | 动量、二阶矩等 | Adam 类优化器可能多份状态 |
-| Activations | 反向所需中间结果 | batch、序列长度和检查点策略 |
-| Workspace/通讯缓冲 | Kernel 和 collective | 临时峰值与分片重组 |
+<InfraFigure src="/images/ai-infra/deepspeed-zero-infrastructure/hero.png" alt="DeepSpeed ZeRO 将优化器状态、梯度与参数分片到多个 Rank 的插画"
+  icon="shards" caption="ZeRO 逐级消除数据并行中的状态复制，但每一次取回状态都需要通信或 Offload 带宽。" />
 
-只看参数大小会低估训练峰值。ZeRO-1 主要分片 Optimizer State，ZeRO-2 进一步分片 Gradients，ZeRO-3 连 Parameters 也分片。每一级都在显存收益和通信复杂度之间交换。
 
-## ZeRO-3 的一次参数访问
+## 参数、梯度和优化器状态为什么占用不同份额
 
-```mermaid
-sequenceDiagram
-  participant R0 as Rank 0
-  participant R1 as Rank 1
-  participant L as Layer
-  R0->>R0: owns parameter shard
-  R1->>R1: owns parameter shard
-  R0->>L: all-gather full layer
-  R1->>L: all-gather full layer
-  L-->>R0: forward/backward
-  L-->>R1: forward/backward
-  R0->>R0: release or re-shard
-  R1->>R1: release or re-shard
-```
+先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
 
-参数在层计算时短暂重组，完成后重新分片。通信峰值、预取和重叠策略会影响性能。Checkpoint 也要说明是每 rank 分片还是可直接加载的 consolidated 形式，否则恢复时可能出现版本和内存问题。
-
-## CPU/NVMe Offload 的代价
-
-把 Optimizer State 或参数放到 CPU/NVMe 可以降低 GPU 常驻显存，却引入 PCIe、内存带宽、IO 延迟和容量约束。Offload 适合容量优先的任务，不代表训练会更快。要记录数据搬运、预取、缓存和失败恢复的边界。
-
-## 配置阅读要问四个问题
-
-| 问题 | 对应证据 |
+| 概念 | 在这条链路中的含义 |
 | --- | --- |
-| 分片级别是什么？ | zero_stage、参数/梯度/优化器所有权 |
-| 谁持有完整权重？ | 前向/保存/评估时的 gather 行为 |
-| 峰值在哪里？ | 重组、激活、通信和 checkpoint |
-| 恢复需要什么？ | 分片文件、元数据、随机状态和版本 |
+| Parameters | 模型可训练权重；混合精度训练可能同时保留低精度计算副本和 FP32 master weights。 |
+| Gradients | 反向传播产生的参数更新方向，大小通常与可训练参数相关。 |
+| Optimizer State | Adam 等优化器为每个参数维护一阶、二阶矩等状态，常比权重本身占更多字节。 |
+| ZeRO-1/2/3 | 依次分片优化器状态、再分片梯度、再分片参数，级别越高通信和生命周期管理越复杂。 |
+| Offload | 把部分状态移到 CPU 或 NVMe，释放 GPU 显存但增加 PCIe、内存或存储访问。 |
 
-::: warning
-**未实测**
-
-DeepSpeed 配置字段和版本行为要以目标版本文档与实验为准，本文只解释状态流动。下一篇继续多卡通信，说明 NCCL Collective 为什么会让一个 rank 的问题扩散成全局挂起。
+::: tip 判断原则
+定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
 :::
 
-## 分片 Checkpoint 的可移植性需要设计
+## ZeRO-3 的一层参数怎样被取回又释放
 
-按 rank 保存的 ZeRO checkpoint 体积和恢复速度较好，但可能依赖相同或兼容的 world size、分片规则和 DeepSpeed 版本。用于发布或跨环境验证时，常需额外导出可加载的权重格式，并记录转换过程和哈希。
+```mermaid
+flowchart LR
+  S0["持有分片"]
+  S1["聚合计算"]
+  S2["归约梯度"]
+  S3["更新释放"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+```
 
-恢复脚本应先验证所有 shard、元数据和优化器状态是否齐全，再启动 collective。少一个 shard 时不能“尽量加载”，因为参数和状态的所有权已经不完整。这里的保守性是在保护训练正确性。
+箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-## 激活检查点与 ZeRO 解决的是不同账本项
+### 1. 持有分片：Each Rank 持有当前状态
 
-ZeRO 主要减少参数、梯度和优化器状态的复制，activation checkpointing 则以重新计算换取中间激活显存。两者可以组合，但会同时改变计算、通信和训练时间。只开一个开关却期待解决所有 OOM，常会误判峰值来源。
+每个 rank 常驻自己负责的参数、梯度与优化器分片。
 
-制定方案时先画出每个阶段的峰值：前向、反向、参数 gather、optimizer step 和 checkpoint 保存。针对最大的那一项选择分片、重算、Offload 或减小 batch，效果才可解释。
+可以从这些位置确认结果：partition map、resident bytes。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 聚合计算发生时，先看 Process Group
+
+层执行前 AllGather 所需参数，形成短期完整计算视图。
+
+这里不靠猜测，优先读取 allgather bytes、prefetch、peak memory。
+
+### 从 归约梯度 留下的证据回到 Collective
+
+反向后 ReduceScatter 梯度到所有者 rank。
+
+决定下一步前需要看到 reduce-scatter time、overlap。
+
+### 4. Optimizer/Runtime 怎样完成更新释放
+
+本地更新状态，释放非所有者参数并按 manifest 保存分片。
+
+这一动作的可观察结果是 optimizer step、checkpoint shards。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
+
+## 用状态表理解 ZeRO 级别，而不是背配置项
+
+表格描述概念所有权，实际内存还包含激活、通信 bucket、碎片和临时聚合。
+
+```text
+stage 0: parameters replicated, gradients replicated, optimizer replicated
+stage 1: parameters replicated, gradients replicated, optimizer sharded
+stage 2: parameters replicated, gradients sharded,   optimizer sharded
+stage 3: parameters sharded,   gradients sharded,   optimizer sharded
+```
+
+“sharded”不表示计算时永远只需要分片；ZeRO-3 会按层临时聚合参数，所以峰值取决于最大层、预取和 bucket。若 world size 或分片布局变化，检查点恢复可能需要转换或完整权重聚合，必须预先演练。
+
+## 看起来相似，故障边界却不同
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| 显存降低 | 通信和主机内存可能成为瓶颈 | 看 AllGather/ReduceScatter 与 offload I/O |
+| 开启 Offload | CPU RAM、NUMA、PCIe 或 NVMe 队列可能不足 | 建立主机侧容量和带宽账本 |
+| checkpoint 文件齐全 | 缺 manifest、版本或某 rank 分片仍不可恢复 | 隔离环境执行恢复 |
+| 增加 bucket | 可能提高带宽利用也可能抬高峰值显存 | 在目标模型和拓扑验证 |
+
+::: warning 容易误判
+一条成功命令只能证明它覆盖的那一层。重启后的短暂恢复也不是根因已经消失，改变状态前先保存最早证据。
+:::
+
+
+
+## 这套判断方法的边界
+
+DeepSpeed 配置项和默认行为随版本变化，必须对照目标版本官方文档。ZeRO 解决复制状态，不消除激活、通信和检查点成本。本章未进行真实训练性能测试。
+
+ZeRO 的核心操作依赖 Collective。下一篇沿一次梯度 AllReduce 进入 NCCL、Rank、Communicator、Ring/Tree 和多机网络故障。

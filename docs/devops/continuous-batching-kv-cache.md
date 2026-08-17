@@ -24,66 +24,92 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # Continuous Batching、PagedAttention 与 KV Cache
 
-一个长对话占满显存，后面短请求全部排队；静态 Batch 里短请求明明已经生成完，却还要等长请求结束。Continuous Batching 重新组织每个 Decode step 的活跃序列，PagedAttention 则把 KV Cache 从一整块连续内存变成可映射的 Block。它们改善利用率，却不会取消显存上限和公平性问题。
+一个长请求进入批次后，后来的短请求全部等它生成完，GPU 明明每轮仍有空位。静态批处理把一组请求从头到尾绑在一起；连续批处理则在每次迭代重新选择活跃序列，让完成的请求退出、新请求进入。代价是调度、公平性和 KV Cache 管理变得更复杂。
 
-## 静态 Batch 为什么让槽位空等
 
-```mermaid
-sequenceDiagram
-  participant B as Static Batch
-  participant A as short request
-  participant L as long request
-  B->>A: step 1
-  B->>L: step 1
-  A-->>B: finished at step 4
-  B->>A: idle until L finishes
-  L-->>B: finished at step 20
-```
+<InfraFigure src="/images/ai-infra/continuous-batching-kv-cache/hero.png" alt="长短请求在连续批处理中共享 GPU 轮次和分页 KV Cache 的插画"
+  icon="blocks" caption="连续批处理按迭代加入和移除请求，PagedAttention 用块管理不等长 KV Cache。" />
 
-静态 Batch 把请求集合绑定在一起，最慢的序列决定释放时间。Continuous Batching 在每个调度步重新查看完成、取消、等待和新到达的序列，让短请求离开后尽快补入新请求。调度器仍然要在 Prefill 和 Decode 之间分配预算。
 
-## KV Cache 为什么需要分页
+## 为什么生成批次不能照搬训练批次
 
-自回归生成需要保存每层注意力的 Key/Value。若每条序列都申请一段连续显存，长度差异会产生碎片，扩容和释放也不灵活。PagedAttention 把 KV 切成固定大小 Block，由逻辑序列到物理 Block 建立映射，序列增长时按需追加。
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Static Batching | 一批请求一起开始并等待最慢者结束，形状稳定但容易产生尾部空闲。 |
+| Continuous Batching | 在 Prefill/Decode 迭代边界动态准入和移除请求，提高设备利用，但需要调度策略。 |
+| KV Cache | 每层为已处理 Token 保存注意力 Key/Value，使 Decode 不必重复计算全部历史。 |
+| PagedAttention | 把逻辑连续的 KV 序列映射到固定大小物理块，减少外部碎片并支持灵活分配。 |
+| Prefix Cache | 复用完全一致且策略允许的前缀计算结果；命中依赖 token IDs、模型和相关配置一致。 |
 
-| 对象 | 保存什么 | 释放时机 |
+## 排障时最容易走错的岔路
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
-| 逻辑序列 | Token 顺序、长度和租户边界 | 完成、取消或过期 |
-| KV Block | 某段 Token 的 K/V 张量 | 不再被序列引用 |
-| Prefix Cache | 可复用前缀的 Block 引用 | 版本、权限或模型变更 |
-| 调度队列 | 等待原因和 deadline | 接纳、拒绝或超时 |
+| 吞吐提高 | 尾延迟和排队公平性可能同时恶化 | 按输入/输出长度分桶看分位数 |
+| KV 利用率高 | 可能接近 OOM，并不等于有效吞吐高 | 关联 free blocks、抢占与完成率 |
+| 前缀相同文本 | 模板、空格或 tokenizer revision 可产生不同 token IDs | 比较规范化后的 token 序列和 cache key |
+| 跨租户复用缓存 | 可能形成时序侧信道或错误共享策略 | 把模型、适配器和安全域纳入 key |
 
-## 一次调度推演
-
-| step | A | B | C | 调度动作 |
-| --- | --- | --- | --- | --- |
-| 1 | Prefill 2k | Prefill 512 | 等待 | 为 A/B 分配 Block |
-| 2 | Decode | Decode | 等待 | 输出 A1/B1 |
-| 3 | 完成 | Decode | Prefill 256 | 释放 A，接纳 C |
-| 4 | 空闲 | Decode | Decode | C 复用可用槽位 |
-
-表格是机制推演，不是某个引擎的实测轨迹。真实调度还要考虑最大批次、Block 数、优先级、抢占、prefix cache 命中和租户公平性。
-
-## 缓存复用不能越过安全边界
-
-只有模型 Revision、Tokenizer、系统前缀和权限范围都一致时，Prefix Cache 才可能复用。把不同租户的系统提示或受限文档放进全局缓存，会造成跨租户泄露。缓存 key 应包含能影响语义和权限的版本，而不是只包含文本前缀。
-
-## 吞吐和延迟的取舍
-
-::: warning
-**容易误判**
-
-Continuous Batching 提高的是设备工作密度，不保证单个请求 TTFT 或 TPOT 一定下降。长请求过多时仍需准入、分队列或最大序列长度。下一篇把这些调度概念落到 vLLM 的接口、启动参数和故障定位。
+::: warning 不要用重启代替诊断
+恢复服务和解释故障是两个目标。紧急止损后仍要回到原始日志、指标与状态转换，避免同类问题重复出现。
 :::
 
-## 公平性需要显式策略
+## 调度器每一轮在决定什么
 
-只追求总吞吐的调度器会偏爱短请求或热门前缀，长请求可能长期得不到 Prefill 机会。可以按租户、请求年龄、预计长度和优先级分队列，限制单个租户的活跃序列与最大上下文，并让超时请求在进入 GPU 前就失败。
+```mermaid
+flowchart LR
+  S0["准入"]
+  S1["分配缓存"]
+  S2["执行一步"]
+  S3["完成回收"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
+```
 
-策略的效果要看分位数而不是平均数：短请求是否抢占了长请求，低优先级队列是否无限老化，取消是否及时释放 Block。缓存命中也应记录在同一维度，否则容易把某个租户的前缀优势误读成引擎整体变快。
+### 1. Scheduler 怎样完成准入
 
-## Prefill 与 Decode 的争用需要被看见
+按 token budget、KV 空闲块和优先级选择新请求。
 
-长 Prompt 的 Prefill 会占用较多计算和 KV 分配，短 Decode 请求则希望及时得到下一个 Token。若调度器总是优先新 Prefill，已有流会出现 TPOT 尖峰；若只照顾 Decode，新请求 TTFT 会持续增加。
+这一动作的可观察结果是 waiting、admitted、rejected reason。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-因此看板应分别展示 Prefill 排队、Decode 活跃序列、Block 使用、取消率和两类延迟。调度策略的改变不是“更快”或“更慢”，而是在两种用户体验之间重新分配预算。
+### 2. 分配缓存：KV Block Manager 持有当前状态
+
+给输入与增长中的序列映射物理 block。
+
+可以从这些位置确认结果：free blocks、allocated blocks、preemption。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
+
+### 执行一步发生时，先看 Model Executor
+
+组合 Prefill chunk 或 Decode token 形成一次执行。
+
+这里不靠猜测，优先读取 batch tokens、kernel duration。
+
+### 从 完成回收 留下的证据回到 Scheduler
+
+结束、取消或抢占请求，回收 block 并选择下一轮。
+
+决定下一步前需要看到 finish_reason、freed blocks、queue age。
+
+## 用调度表推演长短请求交错
+
+表格是机制推演，不是 vLLM 固定日志。A 为长请求，B/C 为短请求；每轮容量仅为示意。关注请求何时进入和退出，而不是虚构吞吐数字。
+
+```text
+round 1: prefill A       active=[A]      free_blocks=18
+round 2: decode A + prefill B            free_blocks=12
+round 3: decode A,B + prefill C           free_blocks=7
+round 4: decode A,B,C; B finishes         free_blocks=10
+round 5: decode A,C;   C cancels          free_blocks=16
+round 6: decode A                           free_blocks=15
+```
+
+B 完成后下一轮即可释放其 KV block，不必等待 A；C 取消也必须及时回收。若 block 不足，调度器可能拒绝准入、抢占或重算，不同引擎和版本策略不同。Prefix Cache 命中只减少可复用前缀计算，不会免除新生成部分的 Decode。
+
+
+
+## 最后回到适用范围
+
+PagedAttention 解决缓存分配，不让显存无限，也不会消除模型权重和工作区。调度参数必须用真实请求分布验证；本章只做机制推演，不提供特定 GPU 上的 batch 或吞吐推荐值。
+
+机制已经具备，下一篇把它落到 vLLM 服务进程：怎样启动、检查兼容接口、切换模型并分层定位加载、显存和请求错误。

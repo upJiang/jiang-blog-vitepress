@@ -24,59 +24,96 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # RAG Infra：从文档发布到带证据回答
 
-RAG 检索到了内容，回答却引用了另一个租户刚发布的文档。向量相似度没有出错，错的是知识版本和权限没有进入检索条件。RAG Infra 是一条从文档发布到 Evidence 的数据链，检索器只负责候选，最终可见性和证据归属仍由平台决定。
+检索结果与问题高度相关，回答却引用了另一个租户的内部文档。向量库没有“越权”，因为查询根本没有带租户过滤；重排器只看相似度，又把错误结果排到了第一位。RAG 的正确性不止是召回率，首先是文档能否进入、属于谁、哪个版本已发布，以及证据是否可回到原文。
 
-## 文档如何成为可引用知识
+
+<InfraFigure src="/images/ai-infra/rag-infrastructure/hero.png" alt="文档经过解析、切片、向量化和版本发布后被带权限检索并形成引用的插画"
+  icon="search" caption="RAG 有离线发布平面和在线查询平面，权限与知识版本贯穿两者。" />
+
+
+## 为什么 RAG 不是“切片后存向量”
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Ingestion Plane | 离线接收文档、解析、切片、Embedding、建索引和发布知识版本的处理链。 |
+| Query Plane | 在线改写查询、带范围检索、重排、组装上下文并生成引用的链路。 |
+| Chunk | 带来源位置、文档版本和 ACL 的文本单元，不只是若干字符。 |
+| Embedding | 把文本映射到向量空间以便相似搜索；不同模型/版本的向量通常不能混用。 |
+| Evidence | 用户可见且可定位到文档版本和片段的依据，不等同检索器返回的任意文本。 |
+
+## 排障时最容易走错的岔路
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| 检索到正确文档 | 片段可能来自旧版本、撤回状态或错误权限 | 核对 manifest、ACL 和发布指针 |
+| 相似度很高 | 文本相似不等于回答问题或支持结论 | 重排并验证证据覆盖 |
+| 没有结果 | 不能回退到全租户或公开未知范围 | 安全返回无证据并记录范围 |
+| 重建索引 | 半成品若直接覆盖在线索引会产生混合版本 | staging 完整后原子切换 |
+
+::: warning 不要用重启代替诊断
+恢复服务和解释故障是两个目标。紧急止损后仍要回到原始日志、指标与状态转换，避免同类问题重复出现。
+:::
+
+## 一份文档怎样从上传走到可引用
 
 ```mermaid
 flowchart LR
-  D[Document] --> P[Parse] --> C[Chunk]
-  C --> E[Embedding]
-  E --> V[(Vector Index)]
-  V --> Q[Query + ACL Filter]
-  Q --> R[Rerank]
-  R --> X[Evidence]
-  X --> A[Answer]
+  S0["准入解析"]
+  S1["切片向量化"]
+  S2["索引发布"]
+  S3["检索回答"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-原始文档、解析结果、Chunk、Embedding 和发布版本都要有 ID。Chunk 记录 source_document、release_id、tenant_id、位置和 checksum，Embedding 记录模型版本。这样一个引用可以回到具体文档和版本，而不是只保存一段文本。
+### 1. Ingestion Worker 怎样完成准入解析
 
-## 检索的顺序决定安全边界
+校验文件、租户与权限，解析版面并保留页码/区块位置。
 
-| 步骤 | 输入/状态 | 必须保留 |
-| --- | --- | --- |
-| 查询改写 | 用户问题、租户、语言 | 原始问题和改写版本 |
-| 候选召回 | 向量/关键词、发布版本 | 候选 ID 与分数 |
-| 权限过滤 | tenant、ACL、有效期 | 过滤原因和规则版本 |
-| 重排 | 候选内容和查询 | 模型版本、排序分数 |
-| 证据编排 | 最终片段和位置 | 引用 ID、页码、截断信息 |
+这一动作的可观察结果是 document digest、parser version、parse errors。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-把 ACL 过滤放在向量近邻之后仍可能暴露候选数量、分数或缓存命中。安全要求高时，让权限条件进入索引查询，并在最终 Evidence 生成前再次检查。
+### 2. 切片向量化：Chunker/Embedding 持有当前状态
 
-## 切片不是按固定字符数切开
+按语义和结构切片，批量生成带模型版本的向量。
 
-段落、标题、表格和代码的边界影响检索可用性。切片过大，召回精度下降且上下文成本增加；切片过小，定义与条件被拆散。用重叠、父子 Chunk、表格结构和文档层级保留语义，同时为超限、重复、孤立和空内容设置质量门禁。
+可以从这些位置确认结果：chunk IDs、embedding model、failed batch。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-## 发布和回滚
+### 索引发布发生时，先看 Knowledge Control Plane
 
-新版本先写入索引并完成数量、重复、Embedding 和权限检查，再把 release 状态从 staging 改成 published。查询只读取一个明确的 published release，回滚是切换指针，不是删除新数据。缓存 key 要包含 release_id 和权限范围。
+在 staging 构建完整版本，校验计数后原子发布。
 
-## 错误证据比没有证据更危险
+这里不靠猜测，优先读取 knowledge_version、manifest、published。
 
-::: warning
-**容易误判**
+### 从 检索回答 留下的证据回到 Retriever/Reranker/LLM
 
-高相似度不代表事实正确、最新或有权限。答案必须把 Evidence ID 交给可观测和审计链，无法找到满足范围的证据时应拒答或说明不足。下一篇把这条请求链变成 Trace、Metric、Log 和质量信号。
-:::
+先按租户版本过滤，再相似检索、重排和引用。
 
-## Evidence 需要能回到原文的位置
+决定下一步前需要看到 filters、scores、citation spans。
 
-最终给模型的片段应带 evidence_id、document_id、release_id、页面或行区间、chunk hash 和检索/重排分数。前端引用、用户纠错、过期文档回收和离线评测都依赖这些定位信息。只保存一段拼接后的 prompt，之后无法证明它来自哪里。
+## 把权限过滤放到召回之前
 
-当文档重新解析或切片算法变化时，旧 Evidence 仍要能说明当时引用的版本。新的 release 可以生成新的 chunk_id，不必篡改旧记录。版本不可变、查询指针可切换，是 RAG 回滚比“重新建库”可靠的原因。
+伪代码强调顺序，不绑定特定向量库。输入是主体可见范围、已发布知识版本和 query vector；输出只包含可见候选。
 
-## 检索质量需要在发布后继续观察
+```python
+scope = {
+    "tenant_id": principal.tenant_id,
+    "knowledge_version": published_version,
+    "allowed_collection_ids": principal.collection_ids,
+}
+candidates = vector_store.search(
+    query_vector, filters=scope, limit=50
+)
+ranked = reranker.rank(query, candidates)[:8]
+assert all(item.tenant_id == principal.tenant_id for item in ranked)
+```
 
-离线评测能检查一组已知问题，但线上文档会变化，用户问法也会变化。可以采样匿名化的查询特征、空结果、引用点击/纠错和人工标注，按知识 release、语言和租户范围观察变化。
+先全局搜索再在应用层过滤可能泄露得分、元数据，也可能让正确租户结果在 top-k 前就被挤掉。生产代码不能只靠 assert，应在存储查询、Repository 和返回边界重复执行确定性范围约束。引用要包含 document_id、version 和位置，不能只返回模型编造的标题。
 
-质量下降先回看解析、切片、Embedding、过滤、重排还是上下文预算，不能直接替换一个“更强模型”。每个环节都保留版本后，回归才有可比较的候选。
+
+
+## 最后回到适用范围
+
+RAG 不能保证模型只使用证据，生成层仍需引用约束和回答评测。Embedding、切片和重排版本变化会使旧索引不可直接比较；所有质量结论要固定数据集与知识版本。
+
+请求现在跨过网关、Agent、RAG 和 Serving。下一篇把这些阶段连接成 Trace、Metric、Log、质量信号与 SLO。

@@ -24,54 +24,99 @@ updated: 2026-08-17T00:00:00.000Z
 ---
 # OpenTelemetry、Prometheus、Grafana、Langfuse 与 AI SLO
 
-接口返回 200，用户仍然认为系统失败：首 Token 等了二十秒，引用指向过期文档，答案还被截断。AI 可观测性要把一次请求的 Trace、Metric、Log、模型事件、证据和成本连起来，同时避免把 Prompt 和租户数据塞进高基数标签。
+Grafana 显示 API p95 低于目标，用户仍抱怨“经常等不到回答”。指标只统计了返回 HTTP 响应的请求，被代理超时和客户端取消的请求没有进入成功直方图；流式接口又把响应头时间当成完成时间。可观测性不是把更多数据送进平台，而是让终态和口径覆盖用户真实经历。
 
-## 一条 Trace 该包含哪些阶段
+
+<InfraFigure src="/images/ai-infra/ai-observability-slo/hero.png" alt="一次 AI 请求在网关、检索、模型与 GPU 之间形成 Trace、Metric 和 Log 的插画"
+  icon="observability" caption="Trace 解释单次路径，Metric 描述总体趋势，Log 保存离散事件，质量信号补足“答得对不对”。" />
+
+
+## Trace、Metric、Log 与 SLO 为什么不能互相替代
+
+先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+
+| 概念 | 在这条链路中的含义 |
+| --- | --- |
+| Trace | 用 trace/span 表示单次请求跨组件的因果和时间，适合回答这一条慢在哪里。 |
+| Metric | 对大量事件按低基数维度聚合的数值时间序列，适合趋势、告警和 SLO。 |
+| Log | 带时间和上下文的离散事件，适合保留错误细节与状态转换；检索成本和敏感性更高。 |
+| SLI/SLO | SLI 是用户相关的测量口径，SLO 是在时间窗口内期望达到的目标；GPU util 不是用户 SLI。 |
+| Quality Signal | 引用覆盖、任务成功、人工反馈或评测结果，用来补足协议成功不等于回答正确。 |
+
+::: tip 判断原则
+定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+:::
+
+## 一条流式请求怎样留下完整观测事实
 
 ```mermaid
 flowchart LR
-  R[request] --> G[gateway span]
-  G --> A[agent turn]
-  A --> Q[retrieval]
-  A --> M[model attempt]
-  M --> K[queue/prefill/decode]
-  Q --> E[evidence]
-  G -.usage.-> U[usage event]
-  R -.metrics.-> P[Prometheus]
+  S0["创建上下文"]
+  S1["传播阶段"]
+  S2["形成终态"]
+  S3["聚合 SLI"]
+  S0 --> S1
+  S1 --> S2
+  S2 --> S3
 ```
 
-Trace 用于解释单次请求的父子关系和耗时，Metric 用于趋势与 SLO，Log 用于详细错误，Business Event 用于 Turn、知识发布、计费和审计事实。OpenTelemetry 可以提供传播和语义，Prometheus 负责数值时序，Grafana 展示，Langfuse 等工具可承载模型调用和评测。
+箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-## 指标标签要稳定而克制
+### 1. 创建上下文：Gateway 持有当前状态
 
-| 适合做 label | 不适合做 label |
-| --- | --- |
-| service、model_revision、route、status_class | 完整 Prompt、文档正文、用户 ID |
-| tenant_tier、error_code、region | request_id、任意 Token 序列 |
-| stream、cache_hit、retrieval_mode | 高基数的原始 URL 或工具参数 |
+生成/接收 trace_id 与 request_id，记录租户匿名维度和逻辑模型。
 
-request_id 放在 Trace 和结构化 Log 中，用 exemplars 或关联字段从聚合指标跳到单次请求。把原始内容放进指标会造成内存和隐私风险，也会让 Prometheus 失去聚合价值。
+可以从这些位置确认结果：root span、route、admission。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-## AI SLO 不能只写可用率
+### 传播阶段发生时，先看 Backend/RAG/Serving
 
-在线聊天可以同时约束 HTTP 成功率、TTFT P95、TPOT P95、队列年龄、流式中断率和引用覆盖率。不同模型和请求档位要分开计算，否则短请求会掩盖长上下文的失败。SLO 窗口、排除条件和错误预算要写清楚，才能触发一致的发布或降级动作。
+通过标准上下文传播子 span，记录队列、检索、Prefill、Decode 事件。
 
-## 采集本身也有成本和边界
+这里不靠猜测，优先读取 span links、stage duration。
 
-Prompt、文档和工具参数可能含敏感信息。采集前做脱敏、采样和访问控制，原始内容与指标分开保存。Langfuse 或类似系统可以记录模型输入输出，但不能代替租户审计和数据库事实。
+### 从 形成终态 留下的证据回到 Runtime
 
-## 从症状回到责任层
+区分 succeeded、failed、cancelled、timeout 与 unknown，并记录 usage。
 
-TTFT 上升先看入口、队列、Prefill 和 KV；引用错误看 release、ACL 和 Evidence；成本异常看 usage、价格版本和重试。观测的价值是缩短判断路径，不是把所有日志堆在一个仪表盘。下一篇用这些指标和请求分布推导容量与成本。
+决定下一步前需要看到 finish_reason、error code、token counts。
 
-## 告警应该指向用户影响和下一步证据
+### 4. Telemetry Backend 怎样完成聚合 SLI
 
-“GPU 利用率高”适合容量看板，不一定适合作为用户告警。更直接的告警可以是某模型路由的 TTFT P95 超过目标且队列年龄上升，或 RAG 引用覆盖率在一个 release 后显著下降。告警正文附 Trace 查询、模型 Revision、时间窗口和 runbook 链接，值班人员才能快速定位。
+从完整终态计算可用率、TTFT、完成率和质量窗口。
 
-错误预算消耗时，平台可以冻结模型切换、限制低优先级请求或扩大预热容量。这样 SLO 不是周报里的数字，而是影响发布和过载策略的控制信号。
+这一动作的可观察结果是 histogram、counter、evaluation result。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-## 采样不能破坏根因链路
+## 指标标签为什么不能放 Prompt 和 request_id
 
-高流量系统不可能保留所有完整 Trace，但错误、慢请求、新 Revision 和安全事件应提高采样率。采样决策尽量在入口确定，并传播到子 span，避免只留下模型 span 却丢掉网关或 RAG 父链。
+Prometheus 指标示例展示低基数标签。输入是完成事件；输出按逻辑模型、状态和阶段聚合。request_id 留在 Trace/Log exemplar，而不是标签。
 
-聚合指标保持全量，详细内容按策略采样并脱敏。这样既能看见总体 SLO，又能在异常时找到代表请求。采样规则本身也要版本化，否则两周前后的趋势可能不可比。
+```text
+ai_requests_total{model="smart-chat",status="succeeded"} 18420
+ai_requests_total{model="smart-chat",status="cancelled"} 231
+ai_stage_duration_seconds_bucket{stage="queue",le="1"} 17002
+ai_ttft_seconds_bucket{model="smart-chat",le="2"} 17620
+# 不允许：prompt=..., request_id=..., document_text=...
+```
+
+request_id 几乎每次不同，会制造高基数时间序列；Prompt 和文档正文还会泄露敏感数据。正确做法是 Metric 保留有限维度，通过 exemplar 或 trace_id 在需要时跳到单请求证据。Langfuse 等 LLM 观测产品存储 Prompt 时也必须应用租户权限、脱敏和保留策略。
+
+## 看起来相似，故障边界却不同
+
+| 表面现象 | 实际可能发生的事 | 下一步证据 |
+| --- | --- | --- |
+| HTTP 可用率高 | 流开始后失败、取消和无终态可能未计入 | 以业务终态为分母 |
+| 平均 TTFT 正常 | 长尾和不同输入长度被平均掩盖 | 看分位数并按请求形状分桶 |
+| Trace 完整 | 采样可能遗漏低频严重错误或敏感内容越界 | 错误优先采样并执行隐私策略 |
+| GPU 指标正常 | 请求仍可能在网关、队列或客户端侧失败 | 从用户 SLI 反向定位资源 |
+
+::: warning 容易误判
+一条成功命令只能证明它覆盖的那一层。重启后的短暂恢复也不是根因已经消失，改变状态前先保存最早证据。
+:::
+
+
+
+## 这套判断方法的边界
+
+SLO 不是承诺所有请求都快，而是明确窗口、分母、排除项和错误预算。观测平台本身也要控制采样、存储成本和访问权限。本章示例数字仅为格式说明，不代表实测。
+
+有了统一口径，下一篇才能设计可信压测，把到达率、并发、服务时间、队列和单位成本连接起来。
