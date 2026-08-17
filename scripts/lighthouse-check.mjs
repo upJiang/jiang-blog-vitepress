@@ -12,7 +12,7 @@ const defaultRoutes = [
   '/docs/ai-agent/knowledge-agent-capstone',
   '/docs/ai-agent/prompt-cache-prefix-design',
   '/docs/ai-agent/python-openai-responses-first-call',
-  '/docs/ai-agent/agent-compose-local-runtime',
+  '/docs/ai-agent/agent-production-architecture',
   '/docs/seo/browser-page-seo-audit',
   '/docs/frontend/typescript-type-system-engineering',
   '/docs/backend/python-fastapi-runtime-layering',

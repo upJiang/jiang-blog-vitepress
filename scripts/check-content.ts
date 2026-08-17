@@ -8,7 +8,7 @@ const root = process.cwd()
 const errors: string[] = []
 const fail = (message: string): void => errors.push(message)
 const expectedCounts: Record<string, number> = {
-  "ai-agent": 70,
+  "ai-agent": 67,
   seo: 25,
   frontend: 104,
   algorithms: 21,
@@ -43,7 +43,7 @@ function dateText(value: unknown): string {
   return value instanceof Date ? value.toISOString().slice(0, 10) : String(value ?? "")
 }
 
-if (articles.length !== 336) fail(`当前全站完整重建应登记 336 篇文章，实际为 ${articles.length} 篇。`)
+if (articles.length !== 333) fail(`当前全站完整重建应登记 333 篇文章，实际为 ${articles.length} 篇。`)
 
 for (const [category, expected] of Object.entries(expectedCounts)) {
   const actual = articles.filter((article) => article.category === category).length
@@ -95,9 +95,9 @@ for (const article of articles) {
     part: article.part,
     chapter: article.chapter,
     tags: article.tags,
-    prerequisites: article.prerequisites,
-    outcomes: article.outcomes,
-    evidence: article.evidence
+    ...(article.prerequisites ? { prerequisites: article.prerequisites } : {}),
+    ...(article.outcomes ? { outcomes: article.outcomes } : {}),
+    ...(article.evidence ? { evidence: article.evidence } : {})
   }
   for (const [field, expected] of Object.entries(expectedFields)) {
     const actual = parsed.data[field]
@@ -105,9 +105,11 @@ for (const article of articles) {
       fail(`${relative} 的 ${field} 与文章清单不一致。`)
     }
   }
-  const practice = parsed.data.practice
-  if (!practice || practice.type !== article.practice.type || practice.result !== article.practice.result || JSON.stringify(practice.verify) !== JSON.stringify(article.practice.verify)) {
-    fail(`${relative} 的 practice 与文章清单不一致。`)
+  if (article.practice) {
+    const practice = parsed.data.practice
+    if (!practice || practice.type !== article.practice.type || practice.result !== article.practice.result || JSON.stringify(practice.verify) !== JSON.stringify(article.practice.verify)) {
+      fail(`${relative} 的 practice 与文章清单不一致。`)
+    }
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText(parsed.data.updated))) fail(`${relative} 的 updated 不是 YYYY-MM-DD。`)
   if (!/^#\s+\S/m.test(parsed.content)) fail(`${relative} 缺少一级标题。`)
@@ -132,7 +134,7 @@ for (const file of draftFiles) {
   if (!markdownFiles.includes(file)) fail(`草稿登记文件缺失：${file}`)
   if (expectedFiles.has(file)) fail(`草稿不能同时登记为正式文章：${file}`)
 }
-if (expectedFiles.size !== 344) fail(`docs 完整重建应发布 344 个 Markdown，实际登记为 ${expectedFiles.size} 个。`)
+if (expectedFiles.size !== 341) fail(`docs 完整重建应发布 341 个 Markdown，实际登记为 ${expectedFiles.size} 个。`)
 
 for (const file of markdownFiles) {
   if (contentLockedFiles.has(file)) continue
@@ -176,25 +178,28 @@ for (const slug of removedAiSlugs) {
 }
 const aiStageKeys = new Set(sectionStages['ai-agent'].map((stage) => stage.key))
 const expectedAiStageCounts: Record<string, number> = {
-  'model-foundations': 4,
-  'agent-loop': 3,
-  'tools-capabilities': 9,
-  'langchain-components': 8,
-  'langgraph-state': 7,
-  'context-memory': 8,
-  'rag-knowledge': 18,
-  'quality-safety': 5,
-  'runtime-delivery': 8
+  foundations: 6,
+  tools: 6,
+  'context-memory': 6,
+  'single-agent': 6,
+  'multi-agent': 5,
+  research: 3,
+  rag: 11,
+  'trust-safety': 8,
+  runtime: 10,
+  harness: 5,
+  capstone: 1
 }
+const sourceKeys = new Set<string>()
 for (const article of aiArticles) {
   if (!aiStageKeys.has(article.stageKey)) fail(`${article.slug} 缺少有效 stageKey。`)
   if (!Number.isInteger(article.sequence) || Number(article.sequence) !== article.chapter) fail(`${article.slug} 缺少规范顺序 sequence。`)
-  if (!article.milestone) fail(`${article.slug} 缺少 milestone。`)
-  if (!Array.isArray(article.dependsOn) || !Array.isArray(article.artifactIn) || !Array.isArray(article.artifactOut)) {
-    fail(`${article.slug} 缺少连续产物元数据。`)
-    continue
+  if (!article.sourceKey || sourceKeys.has(article.sourceKey)) {
+    fail(`${article.slug} 缺少唯一 sourceKey。`)
+  } else {
+    sourceKeys.add(article.sourceKey)
   }
-  for (const dependencySlug of article.dependsOn) {
+  for (const dependencySlug of article.dependsOn ?? []) {
     const dependency = aiBySlug.get(dependencySlug)
     if (!dependency) {
       fail(`${article.slug} 依赖未登记文章 ${dependencySlug}。`)
@@ -202,14 +207,6 @@ for (const article of aiArticles) {
     }
     if (dependency.chapter >= article.chapter) fail(`${article.slug} 倒序依赖 ${dependencySlug}。`)
   }
-  for (const artifact of article.artifactIn) {
-    const produced = article.dependsOn.some((dependencySlug) => aiBySlug.get(dependencySlug)?.artifactOut?.includes(artifact))
-    if (!produced) fail(`${article.slug} 消费的产物 ${artifact} 未由直接依赖产生。`)
-  }
-  for (const artifact of article.artifactIn) {
-    if (!article.artifactOut.includes(artifact)) fail(`${article.slug} 丢失了上一步产物 ${artifact}。`)
-  }
-  if (article.artifactOut.length === 0) fail(`${article.slug} 没有可由读者验证的连续产物。`)
 }
 
 for (const stage of sectionStages['ai-agent']) {
@@ -245,23 +242,20 @@ for (const article of aiArticles) {
 
 const focusHeadingSequences: Record<string, string[]> = {
   'llm-workflow-rag-agent': [
-    '先用同一个问题看四条执行路径',
-    '四个概念分别负责什么',
-    'LLM 的职责与四条边界',
-    '工作流为什么由程序控制',
-    'RAG 怎样把外部知识带进回答',
-    'Agent 怎样在受限循环中选择下一步',
-    '怎样选择最小可行方案'
+    '同一个问题会经过四条不同路径',
+    'LLM 负责生成候选',
+    '工作流把确定步骤写进程序',
+    'RAG 为回答补充外部证据',
+    'Agent 在受限循环中选择动作',
+    '选择能完成任务的最小方案'
   ],
   'python-openai-responses-first-call': [
-    'Responses API 解决什么问题',
-    '请求由哪些字段组成',
-    '准备 Python 环境和凭证',
+    '请求由模型、指令和输入组成',
     '发出第一次同步请求',
-    '读取文本、响应状态和 usage',
-    '流式事件怎样到达',
-    '认证、限流、超时和空响应怎样区分',
-    '用 Fake Adapter 测试无密钥路径'
+    '读取正文、状态和 usage',
+    '流式事件按类型到达',
+    '四类失败的证据不同',
+    '无密钥测试验证的是适配层'
   ],
   'python-agent-loop-from-scratch': [
     'Agent 循环的定义与作用',

@@ -24,13 +24,13 @@ const availableArticles = articles.filter((article) =>
 )
 const representativeRoutes = [
   '/docs/ai-agent/llm-workflow-rag-agent',
-  '/docs/ai-agent/embedding-vector-space',
+  '/docs/ai-agent/pgvector-index-recall',
   '/docs/ai-agent/mcp-protocol-lifecycle',
   '/docs/ai-agent/rag-evaluation-recall-mrr-ndcg',
   '/docs/ai-agent/knowledge-agent-capstone',
   '/docs/ai-agent/agent-request-lifecycle-runtime',
   '/docs/ai-agent/python-openai-responses-first-call',
-  '/docs/ai-agent/agent-compose-local-runtime',
+  '/docs/ai-agent/agent-production-architecture',
   '/docs/ai-agent/prompt-cache-prefix-design',
   '/docs/ai-practice/mcp-design-workflow-mining',
   '/docs/ai-practice/python-mcp-server-practice',
@@ -568,7 +568,7 @@ try {
     await removedPage.close()
   }
 
-  await page.goto(`${baseURL}/docs/ai-agent/agent-request-lifecycle-runtime`, { waitUntil: 'networkidle' })
+  await page.goto(`${baseURL}/docs/ai-agent/agent-production-architecture`, { waitUntil: 'networkidle' })
   await page.locator('.mermaid svg').first().waitFor({ timeout: 10_000 })
   assert((await page.locator('.mermaid svg').count()) > 0, 'Agent 文章 Mermaid 未渲染')
   const mermaidPreview = page.locator('.mermaid-preview').first()
