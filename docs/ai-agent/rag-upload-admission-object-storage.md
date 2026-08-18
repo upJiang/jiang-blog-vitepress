@@ -1,19 +1,19 @@
 ---
-title: "文件上传、准入与对象存储"
-description: "设计上传协议、文件校验、内容哈希、Manifest、重复上传、对象生命周期和失败清理。"
+title: 文件上传、准入与对象存储
+description: 设计上传协议、文件校验、内容哈希、Manifest、重复上传、对象生命周期和失败清理。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 40
 sequence: 40
 slug: rag-upload-admission-object-storage
 tags:
-  - "RAG"
-  - "Upload"
-  - "Object Storage"
+  - RAG
+  - Upload
+  - Object Storage
 sourceKey: ai-rag-upload-admission-object-storage
 dependsOn:
-  - "rag-strategy-map"
+  - rag-strategy-map
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -28,6 +28,19 @@ lastUpdated: false
 上传成功表示原始对象已通过入口检查并被安全保存。它不表示解析成功、索引完成或新知识版本已经生效。客户端应看到明确阶段，而不是一个覆盖整条链路的 `success`。
 
 :::
+
+```mermaid
+flowchart LR
+  A[上传请求] --> B[文件准入]
+  B -->|拒绝| X[rejected]
+  B -->|通过| C[隔离对象]
+  C --> D[Manifest]
+  D --> E[候选版本]
+  E -->|门禁失败| F[旧版本继续服务]
+  E -->|校验通过| G[原子激活]
+```
+
+这张图把三个容易混淆的完成点分开：对象写入只代表 `stored`，候选索引通过检查才代表 `staging_validated`，事务切换后才是 `active`。任何中间状态失败，都不能把旧版本指针改掉。
 
 本文用一份名为 `remote-access-policy.docx` 的制度文档贯穿整条链路。文件包含普通段落和表格，大小约 2 MB，用户希望替换知识库中的旧版本。正常路径要留下原始对象、准入结论、Manifest、入库版本和激活记录；失败路径则必须指出停在哪一步，并保证旧版本仍可查询。
 

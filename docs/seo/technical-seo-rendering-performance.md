@@ -29,6 +29,18 @@ Core Web Vitals（核心网页指标，CWV）是一组描述页面加载、交�
 
 [原始响应与渲染对照](/docs/seo/http-javascript-rendering-seo)提供 URL、资源和失败链路。性能诊断先解释指标代表的观察对象，再把候选根因交给开发处理服务器、媒体和代码。
 
+```mermaid
+flowchart LR
+  A[真实用户 Field] --> C[按周期与分位数汇总]
+  B[受控 Lab] --> D[资源与主线程证据]
+  E[单次访问] --> D
+  C --> F[体验结论]
+  D --> F
+  F --> G[页面级修复与回归]
+```
+
+Field、Lab 和单次访问是三种不同证据。图中的汇合只表示它们共同服务诊断，不表示一次 Lighthouse 结果可以代替真实用户数据。
+
 ## CWV 包含哪三项
 
 截至 2026 年 8 月，Google 定义的核心集合是：

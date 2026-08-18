@@ -1,262 +1,342 @@
 ---
-title: "用 FastMCP 实现一个可测试的只读 Server"
-description: "实现公开包信息查询，验证发现、Schema、Transport、超时、缓存和错误映射。"
+title: 用 FastMCP 实现一个可测试的只读 Server
+description: 实现公开包信息查询，验证发现、Schema、Transport、超时、缓存和错误映射。
 category: ai-practice
-part: "MCP 实践"
+part: MCP 实践
 stageKey: mcp-practice
 chapter: 4
 sequence: 4
 slug: fastmcp-server-practice
 tags:
-  - "MCP"
-  - "FastMCP"
-  - "Python"
+  - MCP
+  - FastMCP
+  - Python
 sourceKey: practice-fastmcp-server
 dependsOn:
-  - "mcp-opportunity-analysis"
+  - mcp-opportunity-analysis
 updated: '2026-08-17'
 lastUpdated: false
 ---
 # 用 FastMCP 实现一个可测试的只读 Server
 
-实现公开包信息查询，验证发现、Schema、Transport、超时、缓存和错误映射。**MCP**、**FastMCP**、**Python** 分别指向同一条执行链上的不同对象：公开包名称、Client 会话、工具 Schema、请求 ID、超时和缓存策略进入系统，Server 生命周期、Transport、工具目录、调用参数、上游响应、缓存项、错误类型和清理状态保存处理中间状态，最终得到包的公开元数据、明确的 not_found、invalid_argument、upstream_timeout 或协议错误。
+这篇实践文章做一件范围很窄的事：写一个 MCP Server，根据公开的软件包名称返回版本和主页。它不修改包信息，不访问用户私有数据，也不让模型决定权限。范围越窄，越容易把协议、业务函数、错误和测试分开，读者可以先掌握一条完整链路，再把同样的边界带到真实工具。
 
-用 FastMCP 实现一个可测试的只读 Server 位于把窄业务能力暴露为可发现 MCP 工具的协议适配层，主要机制是 FastMCP 注册只读工具并从类型声明生成 Schema，Client 初始化后发现工具再调用；业务函数与 Transport 分离，便于无网络测试参数和错误映射。工具描述含糊、网络请求没有超时、上游 404 被包装成空成功、缓存永久保存、Transport 关闭不完整和测试只能启动真实 Client 会让链路在不同位置停止，错误记录必须保留发生阶段、当时的状态和终止原因。
+输入是包名，例如 `requests`；输出是带 `name`、`version` 和 `homepage` 的结构化结果。非法名称、上游 404、网络超时、返回内容不符合 Schema 和客户端断开，都要有不同的终态。工具返回 200 只证明网络请求成功，不能证明业务结果可信。
 
-::: info 贯穿示例
+::: info 贯穿示例的责任边界
 
-用 FastMCP 实现一个可测试的只读 Server 场景：实现一个只读工具，根据公开软件包名称读取版本与主页；输入非法或上游超时时必须返回可区分错误。用 FastMCP 实现一个可测试的只读 Server 需要的身份、权限、版本和业务事实由应用提供，模型与外部内容只产生候选。
-
-:::
-
-这次推演用需求假设、文件定位、差异、命令输出、失败说明和回滚入口把请求和终态关联起来。与普通 Python 函数、REST Client、MCP Tool、stdio 与 Streamable HTTP 比较时，重点看输入来源、状态所有者、下一步的决策者和失败终点。
-
-用 FastMCP 实现一个可测试的只读 Server 的执行顺序是“读取任务约束 → 收集仓库证据 → 选择能力 → 执行最小改动 → 验证并交付”。公开包名称从入口进入，Server 生命周期记录进度，包的公开元数据通过当前主题的校验条件后才会交付。
-
-工具描述含糊与网络请求没有超时会产生不同证据。前者先检查 Server 生命周期和输入来源，后者沿调用记录定位依赖或状态冲突；不区分发生位置，重试会掩盖原始原因。
-
-用 FastMCP 实现一个可测试的只读 Server 与普通 Python 函数的共同点不代表它们可以互换。当前主题拥有 Transport，相邻组件只通过契约读取或提交候选，不能直接修改这个状态。
-
-实现用 FastMCP 实现一个可测试的只读 Server 时，代码顺序应与状态顺序一致：入口拒绝不会调用依赖，正常分支保存工具目录，错误分支返回稳定类型，测试分别断言调用次数、参数、输出和清理结果。
-
-## 先把任务和约束写清
-
-实现公开包信息查询，验证发现、Schema、Transport、超时、缓存和错误映射。在“用 FastMCP 实现一个可测试的只读 Server 场景：实现一个只读工具，根据公开软件包名称读取版本与主页；输入非法或上游超时时必须返回可区分错误”这类任务里，用 FastMCP 实现一个可测试的只读 Server 负责把公开包名称带入处理链，并明确包的公开元数据可以交付的条件。
-
-用 FastMCP 实现一个可测试的只读 Server 位于把窄业务能力暴露为可发现 MCP 工具的协议适配层。它处理 FastMCP 注册只读工具并从类型声明生成 Schema，Client 初始化后发现工具再调用；业务函数与 Transport 分离，便于无网络测试参数和错误映射，身份认证、授权结果和最终业务状态仍由应用中的确定性组件负责。
-
-公开包名称是这条链路的起点；来源缺失时，程序只能拒绝请求或采用明确记录的默认值，模型补出的字段不能继续驱动收集仓库证据。
-
-工具描述含糊会破坏 Server 生命周期与包的公开元数据之间的对应关系，排查时先保留原始输入摘要和发生阶段，再判断是否允许重试。
-
-网络请求没有超时影响 Transport 或下游解释，不能和工具描述含糊共用“重新调用一次模型”的处理方式。
-
-用 FastMCP 实现一个可测试的只读 Server 完成时至少留下 Server 生命周期、Transport、包的公开元数据和检查结论；只有最终文字，无法证明结果来自本次请求。
-
-Server 生命周期在单进程 Demo 中可以留在内存，跨进程、带权限或有副作用的任务则要持久化输入、状态转移和停止原因，不能依赖 Prompt 保存状态。
-
-用 FastMCP 实现一个可测试的只读 Server 还要把业务条件写成状态条件：工具 Schema 何时就绪，包的公开元数据何时允许交付，工具描述含糊发生后是否还能继续。
-
-用 FastMCP 实现一个可测试的只读 Server 对外区分完成、部分完成和无法确认，三个状态若都包装成包的公开元数据，上层界面无法采用不同处理方式。
-
-## 用 FastMCP 实现一个可测试的只读 Server 适合解决什么
-
-用 FastMCP 实现一个可测试的只读 Server 接收公开包名称、Client 会话、工具 Schema、请求 ID、超时和缓存策略，向下游交付包的公开元数据、明确的 not_found、invalid_argument、upstream_timeout 或协议错误，输入与输出之间用明确契约连接，调用方不能把一句含糊目标直接交给底层适配器。
-
-执行者拥有计划和改动，工具提供证据，自动化脚本负责可重复检查。因此 Server 生命周期与 Transport 要有唯一写入方，其他组件只能通过版本化命令申请修改。
-
-普通 Python 函数与用 FastMCP 实现一个可测试的只读 Server 解决的问题相邻，但控制权不同，比较时要看谁选择选择能力、谁保存 Server 生命周期、谁确认包的公开元数据。
-
-REST Client 可以参与同一请求，却不能替代用 FastMCP 实现一个可测试的只读 Server；组合后仍要单独检查 Client 会话的可信来源和工具描述含糊的终止规则。
-
-工具目录若只保存在 SDK 对象里，重试或进程退出后就失去解释依据；需要恢复或审计的字段进入持久层，体积较大的包的公开元数据只保存稳定引用。
-
-用 FastMCP 实现一个可测试的只读 Server 使用的身份、范围和版本来自可信运行时，公开包名称可以表达意图，但不能提升权限或改写活动 Release。
-
-网络请求没有超时发生时，错误回到 Transport 的所有者处理，上游缺输入、当前组件违反不变量和下游不可用分别形成不同终态。
-
-用 FastMCP 实现一个可测试的只读 Server 的确定性边界位于 Server 生命周期写入之前。模型可以建议值，应用核对来源和当前版本；涉及权限、金额、发布或不可逆动作时，再进入策略或人工批准。
-
-用 FastMCP 实现一个可测试的只读 Server 内部可以使用更细的临时对象，跨边界只暴露稳定协议。替换普通 Python 函数时，调用方不需要理解内部缓存和 SDK 响应。
-
-## 证据、权限与状态
-
-用 FastMCP 实现一个可测试的只读 Server 的输入合同至少列出公开包名称、Client 会话和工具 Schema，每项都注明来源、是否必需、允许的缺省值，以及缺失后是在入口拒绝还是进入降级路径。
-
-状态合同中的 Server 生命周期表示当前进度，Transport 保存本次执行依赖的快照，工具目录关联前后动作，三者不能合并成一段自由文本。
-
-并发分支按稳定身份合并工具目录，完成顺序只反映耗时，不能决定结果属于哪个请求，更不能让迟到的旧状态覆盖新修订。
-
-输出合同同时描述包的公开元数据和明确的 not_found，并为拒绝、取消、部分完成和未知状态提供固定形状，调用方据此分支，无需解析错误文案猜测结果。
-
-Transport 参与乐观并发检查；处理开始后若版本变化，旧候选只保留作审计，不能继续写入 Server 生命周期。
-
-公开包名称里若包含模型填写的同名字段，应用会丢弃它，再从认证、配置或活动版本中补入可信值，因为结构校验通过不等于授权或业务校验通过。
-
-需求假设、文件定位、差异、命令输出、失败说明和回滚入口组成用 FastMCP 实现一个可测试的只读 Server 的最小追踪材料，日志只保存稳定 ID、版本和错误类，完整 Prompt、文档正文与凭证不进入指标标签。
-
-撤回或删除 Client 会话时，相关缓存、候选和未完成任务按版本失效；稳定 ID 可以保留审计关系，已撤回内容不能继续进入包的公开元数据。
-
-契约还需要描述新鲜度。Transport 对应的数据发生变化后，旧缓存、旧候选和未完成任务怎样失效，应由版本或时间规则直接判断，不能依赖模型注意到矛盾。
-
-删除和撤回也属于数据生命周期。用 FastMCP 实现一个可测试的只读 Server 引用的原始对象被移除时，稳定 ID 可以保留审计关系，正文与派生结果则按策略失效，避免继续向用户展示过期内容。
-
-::: warning 用 FastMCP 实现一个可测试的只读 Server 的可信边界
-
-包的公开元数据通过结构校验后仍是候选。用 FastMCP 实现一个可测试的只读 Server 使用的身份、权限、知识版本与业务事实由应用从可信服务读取，核对完成后才能执行或交付。
+FastMCP 负责把 Python 类型和函数暴露成可发现工具。业务函数负责调用公开包索引并归一化响应。客户端负责初始化会话、发现工具和提交参数。策略、身份、审计和生产凭证仍由应用 Runtime 管理，不由 Server 自行推断。
 
 :::
 
-## 执行步骤和工具边界
+## 先准备 Python、FastMCP 和测试环境
 
-用 FastMCP 实现一个可测试的只读 Server 按“FastMCP 注册只读工具并从类型声明生成 Schema，Client 初始化后发现工具再调用；业务函数与 Transport 分离，便于无网络测试参数和错误映射”推进，这段机制必须落成 Server 生命周期和 Transport 的实际变化，不能只列框架节点名称。
+Python 从 [官方下载页](https://www.python.org/downloads/) 选择维护中的版本。MCP Python SDK 的安装说明见 [官方文档](https://modelcontextprotocol.io/docs/sdk/python)，FastMCP 的 API 和版本要求以当前包文档为准。下面用 `uv` 管理隔离环境，方便锁定依赖并重复运行测试。
 
-读取任务约束接收公开包名称并建立 Server 生命周期，入口校验未通过就地结束，后续模型、检索器或工具调用次数保持为零。
+<figure class="doc-shot">
+  <img src="/images/install/python-downloads.png" alt="Python 官方下载页，展示各平台安装入口" loading="lazy">
+  <figcaption>Python 官方下载入口。先选择操作系统和维护中的版本，再让虚拟环境使用同一个解释器。</figcaption>
+</figure>
 
-收集仓库证据固定身份、范围、配置版本和绝对 Deadline，后续子步骤只继承剩余时间，不能各自重新获得完整超时。
+<figure class="doc-shot">
+  <img src="/images/install/uv-installation.png" alt="uv 官方安装文档中的安装入口" loading="lazy">
+  <figcaption>uv 官方安装入口。安装脚本、包管理器和预构建二进制以当前文档列出的方式为准。</figcaption>
+</figure>
 
-选择能力读取 Transport 并执行主题逻辑，参数由应用组装，外部返回先保存为明确的 not_found，尚未获得修改领域状态的资格。
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv --version
+uv init fastmcp-readonly
+cd fastmcp-readonly
+uv add "mcp[cli]" httpx pydantic
+uv add --dev pytest
+uv run python --version
+```
 
-执行最小改动检查结构、范围、版本和主题不变量；包的公开元数据缺少来源、落在旧版本或越过权限时，Server 生命周期停在 rejected 或 failed。
+安装脚本来自 [uv 官方安装文档](https://docs.astral.sh/uv/getting-started/installation/)。如果团队不允许执行远程脚本，可以按文档选择包管理器或预构建二进制。`uv run python --version` 只证明环境可用，后续还要运行本地单元测试和协议发现测试。
 
-验证并交付先保存包的公开元数据与终止原因，再产生事件或通知，交付失败可以重放，核心状态写入失败则不能对外宣称完成。
+## FastMCP 在协议链路中做什么
 
-选择能力出现部分结果时，由任务合同决定保留、补偿还是整体丢弃；包的公开元数据若可重建就重新生成，外部副作用则查询回执或执行补偿。
+MCP Server 启动后先创建 Transport，再向客户端暴露能力目录。客户端初始化时协商协议版本和能力，随后调用 `tools/list` 读取工具名称、描述和输入 Schema。只有发现结果满足预期，客户端才提交 `tools/call`。这几个阶段属于协议生命周期，不应和包索引请求混成一个函数。
 
-实现可以使用函数、Graph、Middleware 或 Workflow，Server 生命周期的所有权和工具描述含糊的停止规则不会随框架改变。
+FastMCP 的装饰器可以从 Python 签名和类型注解生成工具 Schema。Schema 解决输入形状问题，例如 `package` 必须是字符串；它不能证明包存在、当前用户有权限访问，或者返回的主页属于正确项目。业务函数仍要做长度、字符集、上游状态和结果字段校验。
 
-部分成功需要在步骤边界处理。选择能力已经产生一部分包的公开元数据时，程序按任务合同决定保留、补偿或整体丢弃，并记录未完成项，不能默认为全部成功。
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant S as FastMCP Server
+  participant P as Package Gateway
+  C->>S: initialize
+  S-->>C: protocol and capabilities
+  C->>S: tools/list
+  S-->>C: get_package schema
+  C->>S: tools/call(package)
+  S->>P: GET public metadata
+  P-->>S: response or error
+  S-->>C: structured result
+```
+
+Server 只做协议适配和窄能力交付。不要在工具函数里读取环境中的任意凭证、拼接用户传入 URL、执行 Shell 或把完整上游响应原样交给模型。能力越窄，越容易配置超时、缓存和审计。
+
+## 设计工具输入和输出合同
+
+输入合同只有一个字段 `package`。先去掉首尾空白，再限制长度和允许字符，拒绝空字符串、路径分隔符和控制字符。不要接受一个“任意 URL”字段来替代包名，否则 SSRF、跨域和缓存污染会一起进入这个小实验。
 
-选择能力和执行最小改动都要写明逆向动作或不可逆原因，包的公开元数据若可重建就删除后重算，已发送的外部命令只能查询回执或补偿。
+输出合同区分三类结果：找到时返回包名、版本、主页和来源时间；上游确认不存在时返回 `not_found`；请求超时、响应格式错误或上游 5xx 时返回可重试的错误类型。客户端不应通过解析自然语言错误文案判断下一步。
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class PackageInfo:
+    name: str
+    version: str
+    homepage: str | None
+
+class PackageError(Exception):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+```
+
+业务函数只返回这些内部类型，Transport 层再把它们转换为 MCP 结果。这样单元测试不需要启动客户端，也不会因为 SDK 错误格式变化而修改核心逻辑。
 
-下面导入的共享示例只覆盖用 FastMCP 实现一个可测试的只读 Server 的本地控制逻辑，代码中的公开包名称、Server 生命周期、错误分支和包的公开元数据都有确定结果；真实模型、网络、数据库与供应商服务需要另做集成验证。
+### 代码怎样拆成可替换的边界
+
+把文件拆成四个小模块会更容易测试。`validation.py` 只负责包名规范化和输入错误；`gateway.py` 定义 `PackageGateway` 协议并实现 HTTP 适配；`service.py` 把 Gateway 响应转换为 `PackageInfo` 和 `PackageError`；`server.py` 只负责 FastMCP 装饰器和 Transport 启动。模块之间传递内部类型，不传递 `httpx.Response` 或 SDK 的原始对象。
+
+这种拆分有两个直接收益。第一，Fake Gateway 可以覆盖 404、超时和畸形数据，不需要模拟网络库的每个字段。第二，未来换成公司内部包索引时，只替换 Gateway 和允许主机策略，工具名称、Schema、错误码和客户端合同保持不变。模块拆分不是为了增加文件数量，而是把供应商协议、网络失败和业务校验放到各自拥有状态的位置。
+
+错误映射要在业务边界完成。Gateway 可以返回 `GatewayTimeout`、`GatewayNotFound` 或 `GatewayBadResponse`，Service 再转换成对客户端稳定的 `upstream_timeout`、`not_found` 和 `invalid_upstream`。这样上游库更换异常类型时，调用方不会被迫修改重试和交付逻辑。测试同时断言原始原因摘要被保留，避免排障只剩一个通用错误码。
+
+### 最小服务怎样启动和关闭
+
+本地运行时把 `server.py` 作为唯一入口，先构造 Gateway、注册工具，再启动 stdio 或 HTTP Transport。启动前检查配置和允许主机，失败就退出，不要在第一个工具调用时才发现环境变量缺失。关闭时先停止接收新调用，再等待当前请求在 Deadline 内结束，最后关闭 HTTP 客户端和缓存连接。
 
-<<< ../../examples/ai-agent/tool_runtime.py
+```bash
+uv run python server.py
+```
 
-接入生产环境后，用 FastMCP 实现一个可测试的只读 Server 还要补入鉴权、持久化、Trace、资源上限和真实依赖测试，内存仓库与 Fake Adapter 不承担这些职责。
+命令启动成功只说明进程进入事件循环。还要用真实客户端完成 initialize、tools/list 和一次故意的非法参数调用，观察是否得到稳定的 `invalid_argument`。如果 stdout 出现调试文本，先修复日志通道，再继续协议测试；否则后续的“工具不存在”可能只是帧被污染。
 
-## 沿一个真实任务推演
+## 实现一个带超时的只读工具
 
-沿“用 FastMCP 实现一个可测试的只读 Server 场景：实现一个只读工具，根据公开软件包名称读取版本与主页；输入非法或上游超时时必须返回可区分错误”推演用 FastMCP 实现一个可测试的只读 Server：入口创建 request_id，读取可信身份，把公开包名称和当前版本写入初始状态。
+下面的实现使用 `httpx.AsyncClient` 请求公共包索引。`PackageGateway` 是外部依赖的边界，测试时可以用 Fake Gateway 替换。真实服务必须固定允许的主机、总超时和响应字节上限，不能把工具调用的 Deadline 无限传给网络客户端。
 
-读取任务约束生成 Server 生命周期与输入摘要；若 Client 会话缺失，请求返回 rejected，并指出缺少哪项材料，不继续消耗模型或外部服务配额。
+```python
+import httpx
+from mcp.server.fastmcp import FastMCP
 
-收集仓库证据冻结 scope、release、policy 和 deadline_at，用户或模型在正文中提供的同名值只作为普通内容，不能覆盖这份运行时快照。
+mcp = FastMCP("package-readonly")
 
-选择能力按“FastMCP 注册只读工具并从类型声明生成 Schema，Client 初始化后发现工具再调用；业务函数与 Transport 分离，便于无网络测试参数和错误映射”推进，每次依赖调用保存 call_id、参数摘要、开始时间与状态版本，以便判断超时前是否已经产生结果。
+def validate_package(value: str) -> str:
+    package = value.strip()
+    if not package or len(package) > 100 or any(ch in package for ch in "/\\\x00"):
+        raise PackageError("invalid_argument", "package name is invalid")
+    return package
 
-候选结果对应包的公开元数据、明确的 not_found、invalid_argument、upstream_timeout 或协议错误，执行最小改动逐项检查权限、版本与领域约束，问题列表为空才允许形成下一状态。
+async def fetch_package(package: str) -> PackageInfo:
+    url = f"https://pypi.org/pypi/{package}/json"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(url, follow_redirects=False)
+    except httpx.TimeoutException as exc:
+        raise PackageError("upstream_timeout", "package index timed out") from exc
+    except httpx.HTTPError as exc:
+        raise PackageError("upstream_unavailable", "package index is unavailable") from exc
 
-验证并交付写入终态；客户端断开只影响交付通道，重新连接时读取已经保存的 Server 生命周期或事件游标，不重跑核心逻辑。
+    if response.status_code == 404:
+        raise PackageError("not_found", "package does not exist")
+    if response.status_code >= 500:
+        raise PackageError("upstream_unavailable", "package index returned server error")
+    if response.status_code != 200:
+        raise PackageError("upstream_rejected", "package index rejected the request")
 
-故障注入选择上游 404 被包装成空成功，程序保留原候选和错误位置，只重做失败边界，不能从入口复制整个任务并产生第二份状态。
+    try:
+        data = response.json()
+        info = data["info"]
+        return PackageInfo(
+            name=str(info["name"]),
+            version=str(info["version"]),
+            homepage=info.get("home_page") or info.get("project_url"),
+        )
+    except (ValueError, KeyError, TypeError) as exc:
+        raise PackageError("invalid_upstream", "package response has an invalid shape") from exc
 
-推演结束后用 request_id 关联 Server 生命周期、包的公开元数据与终止原因，测试据此排除并发请求串线，并确认失败路径没有遗留未关闭资源。
+@mcp.tool()
+async def get_package(package: str) -> dict[str, object]:
+    """Read public package metadata. This tool never changes package state."""
+    normalized = validate_package(package)
+    result = await fetch_package(normalized)
+    return {
+        "name": result.name,
+        "version": result.version,
+        "homepage": result.homepage,
+    }
+```
 
-用 FastMCP 实现一个可测试的只读 Server 在输入拒绝时不调用依赖，正常路径按 5 个阶段推进，有限修复只重做失败边界。调用次数是控制流断言，不是性能宣传。
+这段代码的输入是一个包名，输出是稳定字段。`follow_redirects=False` 把重定向保留给更外层的安全策略；超时和 404 被映射成不同错误；JSON 解析成功后还要检查字段，不把任意对象直接交给客户端。生产实现还应增加缓存键、缓存 TTL、来源时间和速率限制。
 
-用 FastMCP 实现一个可测试的只读 Server 的最终记录用 request_id 关联 Server 生命周期、包的公开元数据和失败问题，测试据此证明结果来自本次执行，没有混入并发请求。
+## 客户端初始化和工具发现
 
-## 正常交付包含什么
+客户端不能假定工具名称和参数永远存在。初始化后先调用工具列表，检查 `get_package` 的输入 Schema，再提交调用。协议级测试需要捕获初始化、发现和调用三个阶段的事件，便于区分“Server 没启动”“工具没有注册”和“上游包索引失败”。
 
-用 FastMCP 实现一个可测试的只读 Server 正常完成时，Server 生命周期、Transport 和包的公开元数据指向同一次执行，重复读取返回同一终态，未完成分支已经取消或有明确所有者。
+```python
+async def call_readonly_session(client, package: str):
+    await client.initialize()
+    tools = await client.list_tools()
+    tool = next((item for item in tools if item.name == "get_package"), None)
+    if tool is None:
+        raise RuntimeError("tool_not_found")
+    return await client.call_tool("get_package", {"package": package})
+```
 
-需求假设、文件定位、差异、命令输出、失败说明和回滚入口用于还原用 FastMCP 实现一个可测试的只读 Server 的处理过程，可以按阶段和版本聚合；敏感正文留在受控存储中，不复制到日志与指标。
+工具发现结果是客户端看到的协议快照。Server 在运行期间更新工具目录时，要使用版本或重新初始化，不能让旧客户端把旧 Schema 当成当前合同。客户端收到未知字段时，应按协议层的兼容规则处理，不把供应商对象直接传入业务层。
 
-明确的 not_found 可能是合法的空结果，但必须带范围、版本和原因；任务明确要求找到材料时，同一个空结果进入拒答而非成功。
+### 协议事件怎样转换成内部状态
 
-依赖返回成功状态只证明传输完成。用 FastMCP 实现一个可测试的只读 Server 还要检查包的公开元数据是否满足业务范围、质量阈值和当前版本，明确拒绝也可能是正确终态。
+协议层返回的是初始化响应、工具列表、调用结果和错误消息，业务层需要把它们转换成自己的事件类型。转换时保留协议版本、原始 request ID、工具名和终止原因，另外生成内部 `call_id`。不要把 SDK 异常的字符串直接写入领域状态，因为升级依赖后同一个异常可能换一种文案。
 
-选择能力并发完成时，每个分支保留自己的身份和局部预算，执行最小改动按任务合同接纳可用结果，慢分支不能抹掉已经确认的记录。
+一次调用可以用下面的状态变化表示：
 
-Server 生命周期的状态迁移必须单调：完成不能退回运行中，取消不能被迟到结果覆盖，失败重试也不能绕过入口已经固定的权限。
+| 内部状态 | 进入条件 | 离开条件 |
+| --- | --- | --- |
+| `discovered` | 初始化和工具列表成功 | Schema 通过 |
+| `validated` | 参数规范化完成 | Gateway 已开始 |
+| `running` | 记录开始时间和 Deadline | 收到响应、取消或超时 |
+| `completed` | 结果通过字段校验 | 写入缓存或交付 |
+| `failed` | 错误已归一化 | 重试、拒答或人工处理 |
 
-用 FastMCP 实现一个可测试的只读 Server 的成功证据最终要同时回答输入是什么、执行了哪些步骤、交付了什么以及为什么停止；任一项缺失都应留在未确认状态。
+状态转换由程序完成，模型只能决定是否提出下一次调用。客户端重新连接时读取 `call_id` 和最后事件，不根据界面上的“正在加载”猜测服务是否仍然运行。
 
-用 FastMCP 实现一个可测试的只读 Server 把业务验收与服务健康分开。依赖返回 200 只说明传输成功，包的公开元数据仍要满足当前范围和质量要求；明确拒答也可能是正确终态。
+### stdio 与 HTTP 的测试差异
 
-用 FastMCP 实现一个可测试的只读 Server 的观测指标按阶段和版本聚合。错误率、空结果率、拒绝率、恢复次数与资源消耗回答不同问题，不能压成一个成功率。
+stdio 测试最接近本地工具启动：父进程创建子进程，读取初始化响应，再发送工具调用。它要额外检查子进程退出码、stderr 是否包含日志、stdin 关闭后资源是否释放。HTTP 测试则检查认证、请求体大小、连接复用、超时和客户端取消。两种 Transport 可以共用 Fake Gateway，但不能共用所有生命周期断言。
 
-## 失败时怎样停下来
+测试覆盖协议兼容时，固定一组最小消息序列，再让两个 Transport 产生相同的内部事件。这样可以确认差异来自 Transport 适配，而不是业务函数。若协议版本不支持某项能力，应该在初始化阶段拒绝或降级，不要在真正调用后才发现。
 
-用 FastMCP 实现一个可测试的只读 Server 按输入、状态、依赖、结果和交付五个位置分类错误，发生位置决定恢复动作，不能用同一个重试循环处理全部失败。
+## 缓存、重复调用和资源清理
 
-遇到工具描述含糊时，系统要返回稳定的错误类型、发生阶段和可重试标记。用 FastMCP 实现一个可测试的只读 Server 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+公开包版本可以短暂缓存，但缓存键至少包括规范化包名、来源主机和解析器版本。缓存命中仍要检查当前请求是否有权看到结果，不能把缓存视为绕过授权的通道。上游 404 可以短暂负缓存，但 TTL 不能永久固定，因为包可能后来发布。
 
-用 FastMCP 实现一个可测试的只读 Server 遇到网络请求没有超时时，要同时记录开始时间、剩余时限和最后一次进展，随后停止新增工作，只允许释放资源、保存可恢复状态或返回已经确认的局部结果。
+网络异常重试要受调用预算和总 Deadline 约束。对 404、参数错误和 Schema 错误重试没有意义；对连接重置可以有限退避。若第一次请求的回执未知，不要并行发起第二个写操作，本例是只读查询，因此可以安全重试，但仍应记录尝试次数。
 
-遇到上游 404 被包装成空成功时，系统要返回稳定的错误类型、发生阶段和可重试标记。用 FastMCP 实现一个可测试的只读 Server 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+Transport 关闭时要等待正在处理的请求结束，取消异步任务并关闭 HTTP 客户端。标准输出只承载协议消息，调试日志写到 stderr 或结构化日志系统，否则客户端会把日志误判为协议帧。资源清理要放在 `finally`，测试要检查连接和任务没有泄漏。
 
-遇到缓存永久保存时，系统要返回稳定的错误类型、发生阶段和可重试标记。用 FastMCP 实现一个可测试的只读 Server 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+### 缓存条目也要有证据身份
 
-遇到 Transport 关闭不完整时，系统要返回稳定的错误类型、发生阶段和可重试标记。用 FastMCP 实现一个可测试的只读 Server 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+缓存值不能只有一段 JSON。至少保存规范化包名、来源 URL、抓取时间、解析器版本、响应摘要和过期时间。这样命中时可以回答“这条版本来自哪里”，失效时也能按来源和解析器版本清理。包索引返回新版本后，旧值在 TTL 内仍可能被使用，文档或产品必须接受这个新鲜度窗口。
 
-遇到测试只能启动真实 Client 时，系统要返回稳定的错误类型、发生阶段和可重试标记。用 FastMCP 实现一个可测试的只读 Server 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+缓存和权限要分开。公开包信息通常不需要租户 ACL，但调用者的速率限制、审计和网络出口策略仍然存在。未来如果工具改为查询私有仓库，缓存键必须加入租户和权限版本，并且在撤权时主动失效，不能因为对象名相同就复用。
 
-用 FastMCP 实现一个可测试的只读 Server 结束错误处理时保存终态、可重试性和资源清理结果，后台扫描器依靠 Server 生命周期和这些字段区分仍在运行、等待恢复和已经失败的任务。
+### Transport 选择不改变业务合同
 
-用 FastMCP 实现一个可测试的只读 Server 在执行前写入绝对 Deadline、最大动作数、重复签名、无进展阈值、预算和人工取消信号，任一条件触发后选择能力都不再创建新工作。
+stdio 适合本地客户端启动子进程，HTTP 适合独立服务。stdio 的日志污染会直接破坏协议，HTTP 则要额外处理认证、重放、连接关闭和请求大小。无论使用哪种 Transport，工具名称、Schema、错误类和终态都应该由同一套业务合同生成，测试不应把 Transport 细节复制进所有用例。
 
-用 FastMCP 实现一个可测试的只读 Server 把重试时间和次数计入总预算。依赖连续失败会减少后续额度，达到上限后保留原始错误，不再用模型重新措辞掩盖失败。
+独立 HTTP Server 还要限制来源和请求体，设置连接、读取和总 Deadline，拒绝任意重定向和内网地址。服务端不能因为客户端断开就立刻丢弃审计记录；如果没有外部副作用，可以取消上游读取，若已经产生不可逆动作则必须保留回执或未知状态。
 
-用 FastMCP 实现一个可测试的只读 Server 的清理动作可以重复执行。临时对象、文件句柄、子进程、连接或 Lease 仍被活动任务引用时，清理器必须拒绝删除。
+## 从协议回执定位 Server 责任层
 
-## 用测试证明改动
+| 现象 | 事件证据 | 责任位置 | 处理方式 |
+| --- | --- | --- | --- |
+| Server 进程退出 | 没有 `initialize` 响应 | 启动与 Transport | 先查解释器、入口和标准输出 |
+| 工具列表为空 | 初始化成功但没有目标名称 | 注册与能力目录 | 检查装饰器、导入和版本 |
+| 参数被拒绝 | `invalid_argument`，上游调用为零 | Schema 与输入验证 | 修正调用参数，不重试上游 |
+| 404 被正确返回 | `not_found`，HTTP 404 | 业务映射 | 交付明确空结果或换包名 |
+| 请求超时 | `upstream_timeout`，有开始时间无响应 | Gateway 与 Deadline | 在剩余预算内有限重试 |
+| JSON 形状错误 | HTTP 200 但 `invalid_upstream` | 解析器 | 保留摘要，等待兼容适配 |
+| 客户端断开 | Server 有调用回执，交付事件未发送 | 交付通道 | 关闭资源，按 request ID 重连读取 |
 
-用 Fake Package Gateway 覆盖发现、正常查询、非法名称、404、超时和缓存命中，再用本地 Client 做一次协议级发现与调用；测试显式给出公开包名称、初始 Server 生命周期、预期包的公开元数据和终止原因，不能只断言返回值非空。
+不要只看 HTTP 状态码。一次成功查询应能关联 request ID、规范化包名、工具版本、上游状态、解析结果和终态；一次失败也要说明有没有产生外部调用。日志中不保存完整凭证和不受控的上游正文。
 
-用 FastMCP 实现一个可测试的只读 Server 的单元测试用 Fake Adapter 固定包的公开元数据与错误，断言参数、调用顺序、状态修订和清理动作，这些结果只证明本地控制逻辑。
+### 取消、断开和未知结果
 
-契约测试围绕公开包名称、Server 生命周期和明确的 not_found 构造合法与非法样本，Schema 解析成功后继续检查权限、版本与领域不变量。
+客户端取消发生在 Gateway 请求之前时，Server 可以直接返回 `cancelled`，调用次数为零。请求已经发出后才收到取消，需要向 HTTP 客户端传播取消信号，并记录上游是否已经返回。若网络断开导致回执未知，Server 不能把它当作普通超时反复执行；本例是只读操作，可以查询或有限重试，但事件仍应保留 `unknown_outcome` 的原始事实。
 
-故障测试注入工具描述含糊和网络请求没有超时，记录选择能力是否被调用、Server 生命周期是否改变、资源是否释放，以及同一身份重试会不会重复执行。
+Transport 断开不等于业务任务失败。对于短查询，连接关闭后清理任务即可；对于后台或长轮询能力，应把核心状态与交付通道分离，客户端重连时按事件游标读取结果。只读 Server 不需要保存复杂的业务 Checkpoint，但仍要确保重复读取不会再次触发外部请求，缓存或回执表要有明确 TTL。
 
-在选择能力前后终止进程可以检查恢复边界：调用前退出允许重新领取，外部动作后退出先查回执，验证并交付完成后只重放交付。
+异常处理顺序也很重要。先捕获取消和超时，再捕获 HTTP 错误，最后处理解析错误；不要用宽泛的 `except Exception` 把 `not_found`、权限拒绝和代码缺陷都包装成可重试。每一种错误都应有稳定 code、阶段和资源清理结果，调用方才知道是否应该重试。
 
-用 FastMCP 实现一个可测试的只读 Server 的集成测试连接真实协议与隔离存储，检查序列化、约束、并发和超时；需要在线服务时另行记录服务版本、时间、配置与凭证条件。
+## 用 Fake Gateway 做单元测试
 
-用 FastMCP 实现一个可测试的只读 Server 的回归报告要保留失败类型分布。明确拒绝变成超时、权限错误变成普通空结果，都属于行为回归，即使总通过数没有变化。
+Fake Gateway 让测试只验证本地控制逻辑。它可以按包名返回成功、404、超时和畸形 JSON，断言工具参数、错误码、调用次数、缓存行为和清理动作。下面的命令执行共享示例和 MCP 子项目测试：
 
-用 FastMCP 实现一个可测试的只读 Server 的性质测试随机改变 Server 生命周期顺序、重复提交、完成顺序或状态版本，断言权限不扩大、终态不倒退、同一身份不产生两次副作用。
+```bash
+PYTHONPATH=examples/ai-agent \
+  python3 -m unittest discover \
+  -s examples/ai-agent/tests -p 'test_*.py'
 
-离线评测关注固定输入下的质量变化，运行时测试关注控制和恢复。用 FastMCP 实现一个可测试的只读 Server 只有两类证据都存在，才能同时回答“结果是否合格”和“系统是否安全完成”。
+uv run --project examples/ai-agent/mcp-python \
+  pytest examples/ai-agent/mcp-python/tests
+```
 
-## 协作、成本与维护
+这些测试证明 Fake Gateway、Schema 和状态转换按合同运行，不证明真实 PyPI、网络、认证或线上 Transport 的可用性。在线验证要记录服务版本、时间窗口、请求预算和实际响应；如果没有运行证据，只能写“需要验证”。
 
-用 FastMCP 实现一个可测试的只读 Server 长期运行后，输入 Schema、Server 生命周期结构和依赖配置可能独立升级，每次执行固定一组版本，旧记录才能被正确读取或迁移。
+测试分成三层会更容易定位问题。纯函数测试验证名称规范化、响应映射和错误分类；工具层测试用 Fake Gateway 验证超时、404、畸形 JSON、缓存和取消；协议层测试启动真实 FastMCP Server，检查初始化、工具发现、调用和关闭。三层不共享“万能成功 Fixture”，否则协议测试可能绕过业务分支。
 
-用 FastMCP 实现一个可测试的只读 Server 的容量主要受上下文大小、并行任务、外部工具、测试时长和审查成本影响，并发可能缩短单次等待，也会占用连接、配额、内存和下游吞吐，必须沿读取任务约束、收集仓库证据、选择能力、执行最小改动、验证并交付逐层核算。
+可以为每种故障写一条最小事件轨迹：
 
-用 FastMCP 实现一个可测试的只读 Server 的候选版本在固定样本上比较正确性、错误类型、延迟和资源消耗，工具描述含糊等安全红线回归时直接停止发布，不能用平均质量抵消。
+| Case | 应发生的事件 | 不应发生的事件 |
+| --- | --- | --- |
+| 空包名 | `CallRejected(invalid_argument)` | Gateway 请求 |
+| 公开包不存在 | `GatewayCompleted(404)`、`NotFound` | 成功缓存写入 |
+| 上游超时 | `GatewayStarted`、`GatewayTimeout` | 无限重试 |
+| Client 断开 | `CallStarted`、资源清理 | 未关闭的 HTTP 任务 |
 
-工具描述含糊的降级路径在发布前写好，可以减少非关键增强、返回已经确认的包的公开元数据，或明确暂时无法确认，缺失事实不能交给模型补写。
+测试还要检查输出是否可序列化、错误是否包含稳定 code、敏感 URL 是否已脱敏。只断言“抛出了异常”无法证明客户端能按类型恢复，也无法证明资源已经释放。
 
-用 FastMCP 实现一个可测试的只读 Server 的运行手册从 request_id 定位需求假设、文件定位、差异、命令输出、失败说明和回滚入口，再决定重试、补偿、取消或回滚，无需先展开完整的公开包名称。
+## 从本地 Server 走向生产
 
-用 FastMCP 实现一个可测试的只读 Server 的数据按证据用途分级保留，聚合字段可以留得更久，公开包名称和大体积包的公开元数据设置短期限、访问控制与删除通道。
+生产接入至少补四层约束。第一层是身份和权限，Server 不能从模型参数推断租户、用户或知识版本。第二层是网络出口，只允许访问明确的公共包索引主机，并重新检查重定向。第三层是观测，记录工具版本、请求 ID、耗时、错误类、缓存命中和上游状态。第四层是发布，Schema、工具描述和依赖版本要锁定，变更通过协议回归和安全测试。
 
-用 FastMCP 实现一个可测试的只读 Server 先在单进程实现 Server 生命周期、超时、错误和测试，只有恢复与容量证据提出要求时，再增加队列、Lease、分布式缓存或工作流引擎。
+只读能力适合先做成独立 Server，因为没有外部写入和补偿动作。若以后增加发布包、删除缓存或修改项目配置，必须重新设计审批、幂等回执、沙箱和回滚，不能只在函数上增加一个 `write=True` 参数。MCP 协议提供发现与调用，不会自动提供这些业务不变量。
 
-用 FastMCP 实现一个可测试的只读 Server 的监控阈值要对应可执行动作。上下文大小、并行任务、外部工具、测试时长和审查成本中的某项接近上限时，系统可以限流、排队、缩小候选或切换保守路径；只发送告警不会保护正在运行的任务。
+发布前可以做一次兼容矩阵检查：客户端使用的协议版本、Server 的 SDK 版本、工具 Schema 版本、Python 版本和上游 API 响应版本分别记录。旧客户端读取新字段通常可以兼容，但删除必需字段、改变错误 code 或把字符串改成数字，就需要版本升级或兼容转换。不要让业务代码同时处理多个供应商对象，先在适配层归一化。
 
-回滚要覆盖代码之外的状态。用 FastMCP 实现一个可测试的只读 Server 若改变 Schema、缓存键或持久化记录，旧版本是否还能读取新写入数据必须提前验证；无法双向兼容时采用候选版本隔离。
+运行中要观察初始化失败率、工具发现耗时、调用耗时、上游错误分布、缓存命中率、取消数和活动连接。指标只保存稳定标签，例如工具名、错误类和版本，不把包名、完整 URL 或用户输入放进高基数标签。Trace 关联 `request_id`、`call_id` 和上游请求，但正文和凭证保存在受控存储。
 
-## 何时换一种做法
+故障恢复要有明确的停止点。Server 重启后，客户端可以重新初始化并重新发现工具；只读查询可以在预算内重试，正在等待的协议调用要按 request ID 去重。升级期间如果 Schema 检查失败，宁可让工具不可用并返回稳定错误，也不要接受旧参数后静默改变含义。
 
-采用用 FastMCP 实现一个可测试的只读 Server 前先画出公开包名称到包的公开元数据的最小控制图；固定函数已经能完成任务时，新增模型决策和跨进程 Server 生命周期只会扩大测试与运维范围。
+生产发布还要区分制品和运行配置。Python 依赖、锁文件、Server 版本和工具 Schema 形成不可变制品，目标环境注入的超时、允许主机和日志级别属于配置。升级前用旧客户端和新客户端分别做发现、参数错误、404、超时和关闭测试；回滚时先恢复兼容的 Server，再处理缓存和事件保留，不要只替换一个 Python 文件。
 
-用 FastMCP 实现一个可测试的只读 Server 与普通 Python 函数的差别落在控制权：谁选择下一步，谁保存 Server 生命周期，谁确认包的公开元数据可信。
+如果工具需要访问私有索引，凭证应由服务端短时获取并按租户隔离。模型不能看到完整 Token，日志不能记录 Authorization，缓存不能跨权限复用。请求 URL 必须由包名映射到固定主机，拒绝用户直接提供的内网地址、非标准端口和带凭证重定向。即使 Server 只有只读动作，网络出口和数据边界仍然需要确定性策略。
 
-REST Client 可以与用 FastMCP 实现一个可测试的只读 Server 组合，但外部知识仍需授权，工具调用仍需校验，模型产生的包的公开元数据仍停留在候选状态。
+## 什么时候不该使用 FastMCP
 
-用 FastMCP 实现一个可测试的只读 Server 适合价值足够、工具描述含糊可观察且预算可接受的任务，高风险、不可逆的决定需要确定性规则或人工批准。
+如果调用方只有一个内部函数，输入和输出已经由同一进程控制，直接使用函数或普通 HTTP API 更简单。引入 MCP 的收益在于能力发现、跨客户端调用和协议边界；代价是初始化、Schema 兼容、Transport 生命周期、日志隔离和额外测试。不要因为“模型可以调用”就把每个函数都包装成工具。
 
-格式正确但事实错误的包的公开元数据是必要反例；若它直接进入成功，说明执行最小改动缺少业务验证，应保留候选并给出证据问题。
+如果能力包含写数据库、发消息、删除对象或修改权限，本例的只读结构也不够。需要加入审批事件、动作指纹、幂等键、回执查询、补偿和审计，并把执行器放进更严格的网络与凭证边界。工具描述写成“可以操作任何资源”也会扩大模型候选空间，应该按资源类型拆成窄能力。
 
-执行期间修改 Transport 可以检验并发设计，旧动作若仍能覆盖 Server 生命周期，说明版本或 Lease 有缺口，增加 Prompt 规则无法修复这类竞态。
+从只读查询升级到写能力时，建议保留原来的查询工具，另建明确的写工具和权限策略。写工具输入要包含目标资源、预期版本和幂等键，执行前保存候选动作，审批后再调用。结果返回外部系统的回执，不把“请求已经发出”写成“业务已经完成”。如果客户端在执行后断开，重新连接仍要能读取同一个 `call_id` 的终态。
 
-用 FastMCP 实现一个可测试的只读 Server 增加了 Server 生命周期、依赖调用、恢复责任和故障面，设计记录既要说明获得的能力，也要列出新增的退出、降级与回滚路径。
+对外暴露前还要做协议和安全回归：未知工具名不能被路由到默认函数，额外字段不能改变权限，超长包名不能触发大请求，错误响应不能泄露上游凭证或完整响应。每条回归都记录输入摘要、调用次数、终态和资源清理，才能证明边界没有被某个新 SDK 或配置悄悄绕过。
 
-用 FastMCP 实现一个可测试的只读 Server 从一个调用、一个 Server 生命周期、一组明确错误和几条确定性测试开始，真实 Trace 证明需要后再加入并发、缓存、队列或更复杂策略。
+### 一次调用的完整证据链
 
-普通 Python 函数只在能处理工具描述含糊时引入，不为目录完整强行组合；接口保持可替换，后续需求出现再扩展。
+以输入 `requests` 为例，入口先生成 `request_id`，记录规范化后的包名和调用 Deadline。客户端完成初始化后读取工具列表，发现 `get_package` 的 Schema 与预期版本相符，随后提交参数。Server 在 Gateway 开始前记录 `call_id`，把字符串交给校验器；校验器通过后才创建 HTTP 请求。
+
+Gateway 收到 PyPI 的 200 响应后，解析器只读取 `info.name`、`info.version` 和主页字段，并保存来源地址、响应时间和解析器版本。Service 把结果转换为 `PackageInfo`，Transport 再编码成 MCP 返回值。缓存写入发生在业务字段检查之后，不能把未经校验的上游 JSON 直接缓存。
+
+若输入是空字符串，事件链在 `CallRejected` 结束，Gateway 调用次数为零。若包不存在，事件包含 HTTP 404 和 `not_found`，客户端可以展示“没有这个包”，不能显示一个空的成功对象。若请求超时，事件包含开始时间、剩余 Deadline 和 `upstream_timeout`，有限重试仍使用同一个预算。若响应是 200 但字段缺失，解析器返回 `invalid_upstream`，旧缓存不能被新错误覆盖。
+
+这条链路可以直接转换成测试断言。断言不只看最终返回值，还要检查初始化和发现顺序、Gateway 调用次数、缓存是否写入、HTTP 客户端是否关闭以及错误 code 是否稳定。任何一步缺少事件，排障人员都只能重新猜测 Server 到底做了什么。
+
+### 把示例交给另一个客户端验证
+
+协议实践不能只在作者自己的脚本中通过。准备一个最小客户端或 MCP Inspector，先连接 stdio Server，再执行初始化、工具发现、合法调用和非法调用。把客户端版本、Server 版本、Python 解释器和命令写入验证记录。切换到 HTTP Transport 时重新执行同一组 Case，比较内部事件而不是比较日志文案。
+
+验证时故意关闭上游、缩短超时、发送未知工具名并中途断开连接。关闭上游应得到 `upstream_unavailable`，未知工具应在 Server 侧拒绝，断开连接应触发清理。若客户端显示“调用失败”但 Server 没有 `call_id`，先查 Transport 是否真正发出请求；若 Server 有 `call_id` 和上游回执，问题属于交付通道。
+
+读者完成这组练习后，应该能够回答四个问题：工具从哪里被发现，参数在哪里校验，外部请求什么时候发生，失败之后谁拥有状态。回答不了其中任何一个，就不要急着加入缓存、并行工具或模型自动选择。先把当前协议边界和证据链补齐，再扩大能力面。
+
+还可以把一次成功调用保存成脱敏 Fixture，供后续 SDK 升级回放。Fixture 只保留工具列表、字段类型、上游状态、解析后的业务结果和事件顺序，不保存完整响应中的无关描述或任何凭证。升级 FastMCP、httpx 或 Python 后，先用 Fixture 检查内部事件没有改变，再连接隔离的真实包索引做一次协议测试。这样可以把“依赖升级造成的行为变化”和“上游数据本身变化”分开。
+
+如果测试发现新版本把未知字段直接丢弃，先确认这是协议允许的兼容行为，还是业务字段被静默删除。对于主页、版本这类回答必需字段，缺失应进入 `invalid_upstream`，而不是返回部分成功。对可选字段可以返回 `null`，但输出 Schema 和文档要明确这一点，客户端不能自行猜测空字符串的含义。
+
+同样的原则适用于工具说明文字。描述应告诉客户端它读取什么、不会修改什么、参数怎样解释，以及哪些错误会返回；不要写“可以帮你处理包信息”这种无法用于决策的宣传句。描述过宽会让模型在不确定时反复尝试，描述过窄又会让客户端误以为某些字段一定存在。说明、Schema 和实际实现要由同一个测试样本核对。
+
+当这三者出现差异时，以可执行合同为准，先修实现或 Schema，再更新说明文字。这样客户端看到的能力、测试验证的行为和文档描述才会保持同一版本。
+
+MCP Server 不是自动的安全层，也不是任务调度器。它适合承载清晰的协议能力，长时间任务、重试和恢复仍由 Runtime 或工作流负责。先用本地 Fake Gateway 验证边界，再决定是否需要独立进程、HTTP 网关和多租户部署。
+
+FastMCP 的最小实践到此结束。读者应能从安装 Python 开始，启动一个只读 Server，看到工具发现和 Schema，区分正常结果、空结果、超时和解析错误，并用 Fake Gateway 在没有密钥的情况下重复验证。接下来可以回到 [MCP 协议生命周期](/docs/ai-agent/mcp-protocol-lifecycle) 了解取消、重连和能力协商，再决定是否需要更复杂的客户端或多工具编排。

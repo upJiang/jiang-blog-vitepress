@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 八个训练进程中七个卡在 AllReduce，一个进程日志里却先出现数据加载异常。大家只盯着 NCCL timeout，以为网络丢包。Collective 是同步协作：只要某个 rank 没有进入同一个操作，其他 rank 就会在通信点等待。通信故障的第一步是确认所有进程是否以相同顺序参加，而不是立即调整网卡参数。
 
 
-<InfraFigure src="/images/ai-infra/nccl-gpu-communication/hero.png" alt="多个 GPU Rank 通过 NVLink、PCIe 与网络执行 AllReduce 的插画"
-  icon="communication" caption="Collective 要求通信组中的 Rank 按一致顺序参与；一个 Rank 迟到会表现为所有 Rank 等待。" />
-
 
 ## 一次 AllReduce 如何跨过进程与物理拓扑
 
@@ -46,25 +43,25 @@ flowchart LR
 
 先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-### 组网初始化发生时，先看 Launcher/NCCL
+### 组网初始化：Launcher/NCCL
 
 为每个 rank 分配设备，交换唯一 ID 并建立 communicator。
 
 这里不靠猜测，优先读取 rank mapping、world size、init logs。
 
-### 从 提交 Collective 留下的证据回到 Training Process
+### 提交 Collective：Training Process
 
 各 rank 以相同顺序提交相同元素数与 dtype 的操作。
 
 决定下一步前需要看到 sequence number、tensor shape。
 
-### 3. NCCL/Links 怎样完成传输规约
+### 传输规约：NCCL/Links
 
 选择 NVLink、PCIe、共享内存或网络路径分块传输并规约。
 
 这一动作的可观察结果是 topology、transport、bytes。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 4. 完成传播：All Ranks 持有当前状态
+### 完成传播：All Ranks
 
 所有参与者完成后继续训练；异常被异步传播或在 watchdog 暴露。
 
@@ -86,7 +83,7 @@ flowchart LR
 不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## 别让表面现象替你下结论
+## 通信建立不等于训练效率
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

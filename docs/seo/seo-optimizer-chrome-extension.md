@@ -29,6 +29,24 @@ updated: '2026-08-11'
 
 浏览器审计工具可以承担其中可重复的采集和规则执行，但不能替代搜索引擎、广告平台、服务器日志和业务系统。下面以一个具备页面审计、站点抽样和数据导入能力的实现为例，解释工具在整条证据链中的位置，不展开具体界面操作。
 
+## 安装浏览器扩展并打开调试版本
+
+Chrome 的正式下载入口是[Chrome 官方下载页](https://www.google.com/chrome/)，扩展发布后的安装入口才是[Chrome Web Store](https://chromewebstore.google.com/)。如果扩展尚未发布，不要编造一个商店详情地址，开发者应按项目 README 构建后使用“加载已解压的扩展程序”。
+
+<figure class="doc-shot">
+  <img src="/images/install/chrome-web-store.png" alt="Chrome Web Store 官方入口页面" loading="lazy">
+  <figcaption>Chrome Web Store 是正式扩展的安装入口。未发布版本不能从这里直接安装，开发调试要使用构建目录和 Chrome 的开发者模式。</figcaption>
+</figure>
+
+```bash
+cd <seo-plugin-directory>
+npm install
+npm run generate:icons
+npm run dev:chrome
+```
+
+`dev:chrome` 会启动项目自己的调试 Chrome 并加载开发构建。需要使用已有浏览器时，打开 `chrome://extensions`，开启“开发者模式”，选择“加载已解压的扩展程序”，指向项目生成的 `.output/chrome-mv3-dev` 目录。命令能启动开发服务只证明构建和热更新链路可用，仍要在普通 HTTP/HTTPS 页面上验证授权、采集、证据保存和失败状态。
+
 ## 页面审计的证据采集问题
 
 人工检查很有价值，因为人能理解页面业务目标；人工检查也容易受时间、经验和注意力影响。同一位检查者上午看了 Title、H1 和图片，下午可能忘记响应头、Canonical 或页面内链接。另一个人接手时，又无法确认上一轮依据是什么。

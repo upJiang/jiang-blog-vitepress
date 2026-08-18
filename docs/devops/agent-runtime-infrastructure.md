@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 用户点击取消后，界面显示任务已停止，几分钟后外部系统仍收到一次工具写入。Runtime 只取消了 SSE 连接，没有取消正在执行的 Worker；重试时又从对话开头重新运行。Agent 的“思考”不是可靠状态，Turn、工具调用、租约、Checkpoint 和取消必须由确定性 Runtime 管理。
 
 
-<InfraFigure src="/images/ai-infra/agent-runtime-infrastructure/hero.png" alt="Agent Turn 在状态图中调用模型和工具、写入 Checkpoint 并响应取消的插画"
-  icon="workflow" caption="Agent Runtime 管理可恢复执行状态；模型只提出候选动作，不能决定权限与终态。" />
-
 
 ## 用版本条件更新避免两个 Worker 同时推进 Turn
 
@@ -80,31 +77,31 @@ flowchart LR
 
 图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
 
-### 从 创建 Turn 留下的证据回到 API/Database
+### 创建 Turn：API/Database
 
 固定 tenant、thread、input、deadline 和 policy version。
 
 决定下一步前需要看到 turn_id、version、queued。
 
-### 2. Worker Lease 怎样完成领取运行
+### 领取运行：Worker Lease
 
 单个 Worker 获得执行租约并载入最近 checkpoint。
 
 这一动作的可观察结果是 worker_id、lease_until、state_version。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 3. 执行节点：Graph Runtime 持有当前状态
+### 执行节点：Graph Runtime
 
 调用模型得到候选，验证工具后执行并写 checkpoint。
 
 可以从这些位置确认结果：node、tool_call_id、result digest。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 取消恢复发生时，先看 Runtime
+### 取消恢复：Runtime
 
 观察 cancel_requested，取消上游与工具，在安全点写终态。
 
 这里不靠猜测，优先读取 cancel source、compensation、cancelled。
 
-## 同一个症状，下一步证据可能完全不同
+## Worker 运行中不等于任务可执行
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

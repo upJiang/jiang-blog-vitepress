@@ -26,9 +26,6 @@ updated: 2026-08-17T00:00:00.000Z
 昨天还能启动的模型，今天重新拉取后提示 tokenizer vocabulary 不匹配。仓库名没变，`main` 分支却更新了配置和权重；本地缓存里又混有旧文件。开源模型部署的第一步不是挑一个热门名字，而是确定许可证、架构、revision、文件完整性和目标硬件是否同时成立。
 
 
-<InfraFigure src="/images/ai-infra/open-model-huggingface-deployment/hero.png" alt="开源模型仓库的配置、Tokenizer 和权重分片被校验后部署的插画"
-  icon="package" caption="模型名不是制品版本；真正可复现的是 revision、文件集合、许可证与运行配置。" />
-
 
 ## 首个开源模型部署要先跨过四道门
 
@@ -45,25 +42,25 @@ flowchart LR
 
 先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-### 选型准入发生时，先看 Model Owner
+### 选型准入：Model Owner
 
 核对许可证、用途限制、语言、上下文和架构支持。
 
 这里不靠猜测，优先读取 license、model card、serving support。
 
-### 从 固定制品 留下的证据回到 Artifact Pipeline
+### 固定制品：Artifact Pipeline
 
 按 commit 下载 config、Tokenizer、权重索引与分片并计算摘要。
 
 决定下一步前需要看到 revision、manifest、sha256。
 
-### 3. Platform 怎样完成容量预检
+### 容量预检：Platform
 
 估算权重、KV Cache、工作区与并行需求，确认驱动和精度支持。
 
 这一动作的可观察结果是 bytes/parameter、VRAM budget。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 4. 候选启动：Serving 持有当前状态
+### 候选启动：Serving
 
 离线或受控环境加载，验证最小普通/流式请求与终止行为。
 
@@ -84,7 +81,7 @@ flowchart LR
 不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## 别让表面现象替你下结论
+## 仓库可下载不等于可部署
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
@@ -99,10 +96,34 @@ flowchart LR
 
 ## 先下载到可审计目录，再让 Serving 加载
 
-命令需要安装 `huggingface_hub` CLI 并具有仓库访问权。输入是仓库 ID 与不可变 commit；输出是本地制品目录。示例 revision 是占位符，不可直接当真实版本。
+Hugging Face 的命令行工具随 `huggingface_hub` 安装，官方入口是 [Hugging Face CLI 文档](https://huggingface.co/docs/huggingface_hub/guides/cli)。在独立 Python 虚拟环境中安装并确认命令可用：
+
+![Hugging Face CLI 官方文档，显示安装和 hf download 导航](/images/install/huggingface-cli.png)
+
+截图只帮助定位文档入口，登录方式、CLI 版本和命令参数仍要以当前官方页面为准。
 
 ```bash
-huggingface-cli download org/model \
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip huggingface_hub
+hf --help
+hf download --help
+```
+
+Windows PowerShell 的激活命令是 `.venv\Scripts\Activate.ps1`。私有或受限仓库还要运行 `hf auth login`，Token 只写入本机凭证存储或受控密钥环境，不能出现在命令历史、Dockerfile 和文章示例里。
+
+下载前先用 `--dry-run` 查看文件数量和总字节，确认磁盘与网络预算。输入是仓库 ID 与不可变 commit，输出是即将下载的文件清单；示例 revision 是占位符，不可直接当真实版本：
+
+```bash
+hf download org/model \
+  --revision REPLACE_WITH_COMMIT \
+  --dry-run
+```
+
+确认清单后再下载到独立目录，并为权重记录摘要：
+
+```bash
+hf download org/model \
   --revision REPLACE_WITH_COMMIT \
   --local-dir /srv/models/org-model/revision
 find /srv/models/org-model/revision -maxdepth 1 -type f -print
@@ -110,7 +131,7 @@ sha256sum /srv/models/org-model/revision/*.safetensors > weights.sha256
 sha256sum -c weights.sha256
 ```
 
-下载成功后应检查 `config.json` 的架构、`tokenizer_config.json`、特殊 Token、权重索引和所有分片。校验摘要证明本地字节未变化，不证明许可证适用或模型安全。Qwen、Llama、DeepSeek 各系列的具体类名、许可证和上下文能力会变化，必须以目标 revision 的官方材料为准。
+命令成功后应检查 `config.json` 的架构、`tokenizer_config.json`、特殊 Token、权重索引和所有分片。校验摘要证明本地字节未变化，不证明许可证适用或模型安全。Qwen、Llama、DeepSeek 各系列的具体类名、许可证和上下文能力会变化，必须以目标 revision 的模型卡和许可证为准。
 
 
 

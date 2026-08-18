@@ -30,6 +30,41 @@ VS Code 扩展要先在 **Extension Development Host** 中调试和测试，再�
 
 下面用一个包含命令和只读面板的扩展走完调试、测试、打包、安装和回滚。重点是验证同一制品的发布链路，不把一次本地点击当成发布证据。
 
+## 准备 VS Code、Node 与打包工具
+
+从 [VS Code 官方下载页](https://code.visualstudio.com/download)安装桌面版，再从 [Node.js 官方下载页](https://nodejs.org/en/download)安装维护中的 LTS 版本。安装完成后重新打开终端，确认编辑器命令、Node 和 npm 都能找到：
+
+<figure class="doc-shot">
+  <img src="/images/install/vscode-download.png" alt="Visual Studio Code 官方下载页" loading="lazy">
+  <figcaption>Visual Studio Code 官方下载页。按操作系统选择安装包，完成后再配置 `code` 命令进入 PATH。</figcaption>
+</figure>
+
+<figure class="doc-shot">
+  <img src="/images/install/node-download.png" alt="Node.js 官方下载页，展示维护中的 LTS 版本入口" loading="lazy">
+  <figcaption>Node.js 官方下载页。打包工具和测试脚本共享 Node Runtime，先固定维护中的 LTS 版本。</figcaption>
+</figure>
+
+![VS Code 官方扩展发布文档，显示 vsce 安装和打包命令](/images/install/vsce-publishing.png)
+
+截图用于定位官方发布文档中的 `vsce` 安装段落，Node、VS Code 和扩展 API 版本以页面当前内容为准。
+
+```bash
+code --version
+node --version
+npm --version
+```
+
+macOS 如果找不到 `code`，在 VS Code 命令面板执行 `Shell Command: Install 'code' command in PATH`，再打开新终端。Windows 安装器可以选择把 `code` 加入 PATH。
+
+**VSCE** 是 VS Code 官方用于打包和发布扩展的命令行工具。本文使用 `npx` 临时执行，避免全局版本和项目声明分叉；长期维护的扩展应把 `@vscode/vsce` 固定在开发依赖中：
+
+```bash
+npm install --save-dev @vscode/vsce
+npx vsce --version
+```
+
+版本命令成功，只表示打包器可运行。扩展仍需要自己的依赖安装、类型检查、测试和 Extension Development Host 验证。发布规则以 [VS Code 官方发布文档](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)为准。
+
 ## 从源码到 VSIX 的制品链
 
 ~~~mermaid
@@ -85,6 +120,14 @@ VS Code 扩展版本遵循 SemVer 只是协作约定，真正的破坏变化仍�
 贡献点改名时保留兼容命令或提供迁移提示，不要让旧 key 静默失效。配置默认值变化要在清单与文档中同步。
 
 ## 候选安装与回滚
+
+打包后的 VSIX 可以从命令行安装：
+
+```bash
+code --install-extension extension-candidate.vsix --force
+```
+
+也可以在 Extensions 视图右上角的更多操作菜单中选择 `Install from VSIX...`。两条路径安装的是同一个本地制品，候选验证不能改为从市场重新下载同版本扩展。
 
 候选验证顺序：
 

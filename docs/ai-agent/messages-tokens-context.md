@@ -1,19 +1,19 @@
 ---
-title: "Message、Token 与上下文：模型一次调用看到了什么"
-description: "沿一条请求解释消息角色、分词、输入窗口、输出预算和停止原因。"
+title: Message、Token 与上下文：模型一次调用看到了什么
+description: 沿一条请求解释消息角色、分词、输入窗口、输出预算和停止原因。
 category: ai-agent
-part: "模型、调用与 Agent 基础"
+part: 模型、调用与 Agent 基础
 stageKey: foundations
 chapter: 2
 sequence: 2
 slug: messages-tokens-context
 tags:
-  - "Message"
-  - "Token"
-  - "Context"
+  - Message
+  - Token
+  - Context
 sourceKey: ai-messages-tokens-context
 dependsOn:
-  - "llm-workflow-rag-agent"
+  - llm-workflow-rag-agent
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -56,7 +56,7 @@ Message 是应用提交给模型的协议项，记录角色、内容和顺序。
 
 ## Message 保存角色、内容与顺序
 
-Message 可以理解为带元数据的内容容器。文本只是其中一部分，角色和顺序决定模型应当怎样解释这段文本。以 OpenAI 当前的文本生成接口为例，应用可以通过 `instructions` 提供本次请求的高层指令，也可以在输入数组中使用 developer、user 和 assistant 等角色。官方文档明确说明，developer 消息优先于 user 消息；`instructions` 只作用于当前响应请求，使用 `previous_response_id` 管理后续轮次时，上一轮的 `instructions` 不会自动出现在新一轮上下文中。
+Message 可以理解为带元数据的内容容器。文本只是其中一部分，角色和顺序决定模型应当怎样解释这段文本。以 OpenAI 当前的文本生成接口为例，应用可以通过 `instructions` 提供本次请求的高层指令，也可以在输入数组中使用 developer、user 和 assistant 等角色。关于文本输入、角色和上下文的字段边界，可以对照 [OpenAI 文本生成指南](https://developers.openai.com/api/docs/guides/text)。官方文档明确说明，developer 消息优先于 user 消息；`instructions` 只作用于当前响应请求，使用 `previous_response_id` 管理后续轮次时，上一轮的 `instructions` 不会自动出现在新一轮上下文中。
 
 这意味着应用不能把“上一轮发过规则”当成持久保证。若后续请求仍依赖那条规则，就要根据所用 API 的状态管理方式重新提供，或者确认服务端保存的会话状态确实包含它。接口帮应用保存响应链，不等于替应用维护业务规则。
 

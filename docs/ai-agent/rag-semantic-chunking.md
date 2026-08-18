@@ -1,18 +1,18 @@
 ---
-title: "语义切块怎样保留章节与邻接关系"
-description: "按语义边界、目标长度和最大长度生成 Chunk，保留父节点、相邻关系和稳定身份。"
+title: 语义切块怎样保留章节与邻接关系
+description: 按语义边界、目标长度和最大长度生成 Chunk，保留父节点、相邻关系和稳定身份。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 43
 sequence: 43
 slug: rag-semantic-chunking
 tags:
-  - "Chunking"
-  - "Semantic Boundary"
+  - Chunking
+  - Semantic Boundary
 sourceKey: ai-rag-semantic-chunking
 dependsOn:
-  - "rag-block-document-model"
+  - rag-block-document-model
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -23,6 +23,20 @@ lastUpdated: false
 切块也不是把字符串每 1000 字截一次。固定窗口会从句子中间断开，把章节标题留在上一块，把审批条件和例外拆到两个块里。后续即使召回其中一块，也可能只看到“需要批准”，看不到“仅生产权限”这个范围。
 
 本文仍用远程访问制度。章节里有三段正文、一组设备条件、一张审批表和一段配置代码。切块器要输出有版本、有来源、有章节路径的 Chunk，任何内容不能无声丢失；检索命中某个叶子后，还能按父章节和前后邻居补上下文。
+
+```mermaid
+flowchart LR
+  A[Block] --> B{加入后超过目标长度}
+  B -->|否| C[继续合并语义单元]
+  B -->|是| D[生成 Chunk]
+  A --> E{单元超过最大长度}
+  E -->|是| F[按安全边界兜底拆分]
+  D --> G[写入父章节与邻接]
+  F --> G
+  G --> H[质量门禁]
+```
+
+目标长度只影响常规合并，最大长度负责最后的硬约束。父章节、前后邻居和稳定身份都在叶子生成后补齐，避免切分过程中的临时顺序被误当成最终引用关系。
 
 ## 目标长度控制形状，最大长度负责兜底
 

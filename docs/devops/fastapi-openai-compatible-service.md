@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 客户端把 `messages` 写成字符串，服务端在访问 `message.role` 时抛出 500；另一个请求已经收到三个 Token，上游超时后服务又试图返回 JSON 错误。两个故障都来自边界不清：输入没有在进入业务前完成校验，流开始后也没有定义错误如何表达。
 
 
-<InfraFigure src="/images/ai-infra/fastapi-openai-compatible-service/hero.png" alt="FastAPI 请求经过校验、鉴权、模型适配器并返回流式事件的插画"
-  icon="api" caption="兼容接口是一组可测试契约，不是把路由命名为 OpenAI 风格。" />
-
 
 ## 一个兼容接口需要兼容哪些可观察行为
 
@@ -66,25 +63,25 @@ flowchart LR
   S2 --> S3
 ```
 
-### 1. FastAPI/Pydantic 怎样完成解析校验
+### 解析校验：FastAPI/Pydantic
 
 解析 Content-Type 与 JSON，验证 model、messages、stream 等字段。
 
 这一动作的可观察结果是 422 字段路径、request_id。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 建立主体：Auth Dependency 持有当前状态
+### 建立主体：Auth Dependency
 
 解析 API Key，得到 tenant_id、权限和预算，不信任客户端租户字段。
 
 可以从这些位置确认结果：401/403、主体 ID、审计事件。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 规范化调用发生时，先看 Model Adapter
+### 规范化调用：Model Adapter
 
 把兼容请求转换为内部结构并应用 deadline、模型路由和取消。
 
 这里不靠猜测，优先读取 selected_deployment、上游 trace。
 
-### 从 编码响应 留下的证据回到 Route/StreamingResponse
+### 编码响应：Route/StreamingResponse
 
 普通请求返回完整 JSON，流式请求逐事件发送并在终态释放资源。
 

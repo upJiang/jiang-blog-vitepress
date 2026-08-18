@@ -134,6 +134,9 @@
 }
 
 .vp-doc .custom-block .custom-block-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   margin: 0 0 10px;
   color: var(--vp-c-text-1);
   font-size: 15px;
@@ -142,13 +145,99 @@
   letter-spacing: 0;
 }
 
+.vp-doc .custom-block .custom-block-title::before {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(--xj-custom-block-info-border);
+  content: "";
+}
+
+.vp-doc .custom-block.tip .custom-block-title::before {
+  background: var(--vp-c-tip-1, #16a34a);
+}
+
+.vp-doc .custom-block.warning .custom-block-title::before {
+  background: var(--vp-c-warning-1, #d97706);
+}
+
+.vp-doc .custom-block.danger .custom-block-title::before {
+  background: var(--vp-c-danger-1, #dc2626);
+}
+
+.vp-doc .custom-block p,
+.vp-doc .custom-block li {
+  line-height: 1.75;
+}
+
+.vp-doc > p {
+  max-width: 78ch;
+}
+
+.vp-doc > p + p {
+  margin-top: 18px;
+}
+
+.vp-doc blockquote {
+  margin: 26px 0;
+  border-left-width: 3px;
+  border-left-color: color-mix(in srgb, var(--vp-c-brand-1) 55%, var(--vp-c-divider));
+  background: color-mix(in srgb, var(--vp-c-brand-1) 4%, var(--vp-c-bg));
+  padding: 14px 18px;
+}
+
 .vp-doc .custom-block p,
 .vp-doc .custom-block ul {
   margin: 8px 0;
 }
 
+.vp-doc .custom-block ul,
+.vp-doc .custom-block ol {
+  padding-left: 1.25rem;
+}
+
+.vp-doc .custom-block,
+.vp-doc blockquote,
+.vp-doc td,
+.vp-doc th {
+  overflow-wrap: anywhere;
+}
+
+.vp-doc h1 + p {
+  max-width: 78ch;
+  margin: 0 0 28px;
+  border-left: 3px solid color-mix(in srgb, var(--vp-c-brand-1) 58%, var(--vp-c-divider));
+  background: color-mix(in srgb, var(--vp-c-brand-1) 4%, var(--vp-c-bg));
+  padding: 14px 18px;
+  color: var(--vp-c-text-1);
+  font-size: 18px;
+  line-height: 1.8;
+}
+
 .vp-doc .custom-block strong {
   color: inherit;
+}
+
+.vp-doc > p > img,
+.vp-doc > img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 24px auto;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+}
+
+.vp-doc > p > img + em,
+.vp-doc > p > img + br + em {
+  display: block;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
 }
 
 * {
@@ -211,7 +300,7 @@ a {
 }
 
 .vp-doc h1 {
-  font-size: clamp(30px, 5vw, 42px);
+  font-size: 40px;
   line-height: 1.2;
   margin-bottom: 24px;
 }
@@ -245,12 +334,149 @@ a {
   width: 100%;
   max-width: 100%;
   margin: 24px 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   overscroll-behavior-inline: contain;
+  background: var(--vp-c-bg-elv);
+}
+
+.vp-doc th,
+.vp-doc td {
+  min-width: 9rem;
+  border-right: 1px solid var(--vp-c-divider);
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding: 11px 14px;
+  vertical-align: top;
+  line-height: 1.65;
 }
 
 .vp-doc th {
   background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.vp-doc tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--vp-c-bg-soft) 42%, var(--vp-c-bg-elv));
+}
+
+.vp-doc tr:last-child td {
+  border-bottom: 0;
+}
+
+.vp-doc th:last-child,
+.vp-doc td:last-child {
+  border-right: 0;
+}
+
+/* Long tutorials need visible rhythm between actions. Keep the treatment
+ * deliberately quiet so the page still reads like documentation rather than
+ * a dashboard full of cards. */
+.vp-doc > ol {
+  counter-reset: article-step;
+  display: grid;
+  gap: 9px;
+  margin: 24px 0 28px;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-doc > ol > li {
+  position: relative;
+  min-height: 42px;
+  margin: 0;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--vp-c-bg-elv) 82%, var(--vp-c-bg-soft));
+  padding: 10px 16px 10px 50px;
+  line-height: 1.75;
+}
+
+.vp-doc > ol > li::before {
+  position: absolute;
+  top: 11px;
+  left: 16px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--vp-c-brand-1) 42%, var(--vp-c-divider));
+  border-radius: 50%;
+  color: var(--vp-c-brand-1);
+  content: counter(article-step);
+  counter-increment: article-step;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.vp-doc > ul {
+  margin: 22px 0 28px;
+  padding-left: 1.35rem;
+}
+
+.vp-doc > ul > li {
+  margin: 8px 0;
+  padding-left: 4px;
+}
+
+.vp-doc > ul > li::marker {
+  color: var(--vp-c-brand-1);
+  font-size: 0.8em;
+}
+
+.vp-doc h2 + p,
+.vp-doc h3 + p {
+  max-width: 78ch;
+}
+
+.vp-doc .custom-block + .custom-block {
+  margin-top: 16px;
+}
+
+.vp-doc .custom-block ul > li + li,
+.vp-doc .custom-block ol > li + li {
+  margin-top: 6px;
+}
+
+.vp-doc .doc-shot + p,
+.vp-doc .mermaid-wrapper + p {
+  margin-top: 18px;
+}
+
+.vp-doc .doc-shot {
+  margin: 26px 0 30px;
+}
+
+.vp-doc .doc-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg-soft);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 10%);
+}
+
+.vp-doc .doc-shot figcaption {
+  margin-top: 8px;
+  color: var(--vp-c-text-3);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.vp-doc .mermaid-wrapper {
+  margin: 28px 0 32px;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--xj-diagram-border);
+  border-radius: 8px;
+  background: var(--xj-diagram-canvas);
 }
 
 .vp-doc div[class*="language-"] {
@@ -1805,6 +2031,15 @@ a {
 
   .home-summary {
     font-size: 17px;
+  }
+
+  .vp-doc h1 {
+    font-size: 32px;
+  }
+
+  .vp-doc h1 + p {
+    font-size: 17px;
+    padding: 12px 14px;
   }
 
   .home-section,

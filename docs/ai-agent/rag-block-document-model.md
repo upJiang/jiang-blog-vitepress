@@ -1,19 +1,19 @@
 ---
-title: "Block 文档模型怎样保留结构与来源"
-description: "定义段落、标题、代码、表格和页码等 Block，区分显示文本、检索文本和稳定来源 ID。"
+title: Block 文档模型怎样保留结构与来源
+description: 定义段落、标题、代码、表格和页码等 Block，区分显示文本、检索文本和稳定来源 ID。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 42
 sequence: 42
 slug: rag-block-document-model
 tags:
-  - "Block"
-  - "Document Model"
-  - "Source ID"
+  - Block
+  - Document Model
+  - Source ID
 sourceKey: ai-rag-block-document-model
 dependsOn:
-  - "rag-document-parsing-ocr"
+  - rag-document-parsing-ocr
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -41,6 +41,17 @@ Source 的身份应跨同一逻辑来源的版本保持稳定。它保存类型�
               -> Chunk
                   -> Evidence
 ```
+
+```mermaid
+flowchart LR
+  A[解析结果] --> B[Block 分类]
+  B --> C[章节路径与顺序]
+  C --> D[显示文本与检索文本]
+  D --> E[稳定 Block 或 Chunk ID]
+  E --> F[Evidence 定位]
+```
+
+图中的箭头表示数据依赖，不表示每一层都必须单独建表。紧凑实现可以让 Block 只存在于切块过程，但章节、来源版本和可重建所需的身份仍要进入持久化 Chunk。
 
 当前配套实现采用了一个较紧凑的版本：Source Version 和 Chunk 会持久化，`SemanticBlock` 只在切块过程中存在内存里，并没有独立 Block 表。页码由解析器生成的标题行传递，Chunk 最终保存 Source Version、章节路径和邻接关系。这个实现能验证结构切块主线，却不能声称已经持久化页面坐标或 Block 历史。需要精确版面引用时，应扩展模型并补迁移与回归。
 

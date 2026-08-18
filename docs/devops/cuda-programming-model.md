@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 一个向量加法 Kernel 在数据量变大后没有继续加速。代码创建了很多 Thread，但每个 Block 使用过多寄存器，导致一个 SM 同时驻留的 Block 变少；分支又让同一 Warp 内线程走不同路径。线程数量只是工作描述，硬件能否并行执行还受 SM 资源和访存方式约束。
 
 
-<InfraFigure src="/images/ai-infra/cuda-programming-model/hero.png" alt="CUDA Grid 中的 Block 和 Thread 被调度到多个 SM 与 Warp 的插画"
-  icon="grid" caption="Grid 描述工作，SM 承载 Block，Warp 是实际调度的一组线程。" />
-
 
 ## Thread、Block、Grid、Warp 与 SM 如何对应
 
@@ -67,25 +64,25 @@ flowchart LR
   S2 --> S3
 ```
 
-### 1. Host CUDA Runtime 怎样完成配置启动
+### 配置启动：Host CUDA Runtime
 
 指定 gridDim、blockDim、stream 和参数并提交 Kernel。
 
 这一动作的可观察结果是 launch config、runtime error。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 放置 Block：GPU Scheduler 持有当前状态
+### 放置 Block：GPU Scheduler
 
 按寄存器、shared memory 与线程上限把 Block 分配到 SM。
 
 可以从这些位置确认结果：resident blocks、resource limit。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 调度 Warp发生时，先看 SM Warp Scheduler
+### 调度 Warp：SM Warp Scheduler
 
 选择就绪 Warp 发射指令，等待内存时切换其他 Warp。
 
 这里不靠猜测，优先读取 eligible warps、stall reason。
 
-### 从 完成同步 留下的证据回到 Stream/Host
+### 完成同步：Stream/Host
 
 Kernel 按依赖完成，错误可能在之后同步点才暴露。
 
@@ -93,7 +90,19 @@ Kernel 按依赖完成，错误可能在之后同步点才暴露。
 
 ## 从线程索引读懂最小 Kernel
 
-CUDA C++ 示例展示一维映射，需 NVIDIA CUDA Toolkit 和真实 GPU 才能编译运行；这里仅解释语义，不报告运行结果。输入为两个长度 n 的 float 数组，输出为逐元素和。
+CUDA C++ 示例展示一维映射，需 NVIDIA CUDA Toolkit 和真实 GPU 才能编译运行。Toolkit 的安装步骤随系统和发行版变化，应从 [CUDA Toolkit 官方安装指南](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)选择对应路径，不要混用其他发行版的仓库命令。安装完成后先检查编译器和驱动：
+
+<figure class="doc-shot">
+  <img src="/images/install/cuda-installation.png" alt="NVIDIA CUDA Toolkit 官方 Linux 安装指南" loading="lazy">
+  <figcaption>CUDA Toolkit 官方安装指南。选择与发行版、驱动和目标架构匹配的路径后，再运行下面的版本检查。</figcaption>
+</figure>
+
+```bash
+nvcc --version
+nvidia-smi
+```
+
+`nvcc --version` 证明 Toolkit 编译器可用，`nvidia-smi` 证明宿主机驱动能识别设备；它们都成功仍不代表 Kernel 正确。下面只解释线程索引语义，不报告当前机器未执行过的结果。输入为两个长度 n 的 float 数组，输出为逐元素和。
 
 ```cpp
 __global__ void add(const float* a, const float* b, float* out, int n) {

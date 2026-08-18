@@ -29,6 +29,29 @@ VS Code 扩展是安装到编辑器中的功能包，由扩展清单声明能力
 
 功能不复杂，刚好可以把插件最容易混淆的三个位置串起来：`package.json` 声明命令，`activate` 注册实现，`context.subscriptions` 管理生命周期。理解这条链后，再做 Webview、代码生成和 AI 助手才不会只会复制脚手架。
 
+## 安装 VS Code 与扩展开发工具
+
+VS Code 从[官方下载页](https://code.visualstudio.com/download)选择对应系统；扩展脚手架需要 Node.js，安装入口是[Node.js 官方下载页](https://nodejs.org/en/download)。先完成桌面程序和 LTS Runtime 安装，再用版本命令确认终端没有调用旧 Node。
+
+<figure class="doc-shot">
+  <img src="/images/install/vscode-download.png" alt="Visual Studio Code 官方下载页" loading="lazy">
+  <figcaption>VS Code 官方下载页。安装完成后可在命令面板启用 `code` 命令，之后的脚手架和调试命令都从项目目录执行。</figcaption>
+</figure>
+
+<figure class="doc-shot">
+  <img src="/images/install/node-download.png" alt="Node.js 官方下载页，展示维护中的 LTS 版本入口" loading="lazy">
+  <figcaption>Node.js 官方下载页。扩展脚手架依赖 Node 与 npm，版本验证必须在同一个终端完成。</figcaption>
+</figure>
+
+```bash
+code --version
+node --version
+npm --version
+npm install --global yo generator-code
+```
+
+`code --version` 只证明编辑器命令已进入 PATH，`yo` 和 `generator-code` 才负责生成扩展骨架。生成器版本变化会改变模板，团队应记录版本并在空目录中先完成一次 F5 调试。
+
 ## VS Code 插件运行在哪里
 
 扩展代码通常不直接运行在编辑器页面的 DOM 中，而是运行在 Extension Host。Extension Host 为插件提供 `vscode` API，并将插件与编辑器 UI 隔离。

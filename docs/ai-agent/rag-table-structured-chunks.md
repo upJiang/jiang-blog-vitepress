@@ -1,19 +1,19 @@
 ---
-title: "表格怎样生成可检索的结构化 Chunk"
-description: "保留表头、行字段、整表内容和业务编号，并处理超大表、空列和重复行。"
+title: 表格怎样生成可检索的结构化 Chunk
+description: 保留表头、行字段、整表内容和业务编号，并处理超大表、空列和重复行。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 44
 sequence: 44
 slug: rag-table-structured-chunks
 tags:
-  - "Table"
-  - "Structured Chunk"
-  - "RAG"
+  - Table
+  - Structured Chunk
+  - RAG
 sourceKey: ai-rag-table-structured-chunks
 dependsOn:
-  - "rag-semantic-chunking"
+  - rag-semantic-chunking
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -24,6 +24,17 @@ lastUpdated: false
 另一种极端是每个单元格生成一个 Chunk。值虽然精确，表头、同行字段和所属章节都丢了。“负责人”列里的“李某”会和多个权限项混在一起，最终引用也无法展示完整记录。可检索表格需要同时保留整表语境与行级结构，并让它们指向同一个 Table 身份和 Source Version。
 
 本文用一张远程访问审批表推演。表头是“编号、权限类型、适用对象、是否审批、审批角色、有效期”，其中有重复行、两侧空列和一条很长的说明。处理结果要支持主题问题、精确编号、字段过滤和原表引用，任何归一化都不能改变字段对应关系。
+
+```mermaid
+flowchart TD
+  A[原始表格] --> B[恢复行列矩形]
+  B --> C[整表视图]
+  B --> D[行级视图]
+  C --> E[结构字段与原文引用]
+  D --> E
+  E --> F[编号、字段与邻接关系]
+  F --> G[检索与证据包]
+```
 
 ## 表格进入 Chunker 前先恢复矩形
 

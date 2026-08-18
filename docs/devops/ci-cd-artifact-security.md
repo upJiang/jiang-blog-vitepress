@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 测试环境通过后，生产流水线重新执行构建，拉到了更新后的基础镜像；代码 commit 相同，最终 digest 却不同，回滚时也找不到测试过的那份制品。CI/CD 的核心不是自动运行命令，而是让源码、依赖、构建身份、模型和最终摘要形成可验证链。
 
 
-<InfraFigure src="/images/ai-infra/ci-cd-artifact-security/hero.png" alt="代码、依赖、模型和配置经过测试、SBOM、签名成为不可变候选制品的插画"
-  icon="pipeline" caption="环境之间提升的是同一个已验证制品摘要，不是在生产重新构建一个“差不多”的版本。" />
-
 
 ## 发布记录至少要能回答四个问题
 
@@ -79,31 +76,31 @@ flowchart LR
 
 图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
 
-### 从 锁定输入 留下的证据回到 Source/Build
+### 锁定输入：Source/Build
 
 固定 commit、依赖锁、基础镜像 digest 与模型 revision。
 
 决定下一步前需要看到 source digest、lockfiles、input manifest。
 
-### 2. CI Builder 怎样完成隔离构建
+### 隔离构建：CI Builder
 
 在受控环境执行测试与构建，不把长期 Secret 写入层。
 
 这一动作的可观察结果是 build identity、test result、artifact digest。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 3. 生成证据：Supply Chain Tools 持有当前状态
+### 生成证据：Supply Chain Tools
 
 产生 SBOM、漏洞报告、签名与 provenance 并关联 digest。
 
 可以从这些位置确认结果：attestations、policy result。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 提升发布发生时，先看 Release Controller
+### 提升发布：Release Controller
 
 验证签名和环境策略，把同一 digest 交给候选验证。
 
 这里不靠猜测，优先读取 approval、deployment record、rollback digest。
 
-## 同一个症状，下一步证据可能完全不同
+## 构建通过不等于制品可发布
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

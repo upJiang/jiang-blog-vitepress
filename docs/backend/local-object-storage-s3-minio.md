@@ -29,6 +29,28 @@ updated: 2026-08-12
 
 开发机把上传文件写进 `./uploads`，单实例能下载；容器滚动发布后文件消失，换到另一个副本也找不到。容器可写层和进程本地磁盘不适合作为多副本业务文件真相。
 
+## 安装 MinIO 并确认对象端点
+
+MinIO 的下载和部署入口在[官方文档](https://min.io/docs/minio/linux/index.html)。本地学习可以用隔离容器启动一个私有实例；生产环境应改用固定版本或发布摘要，并把数据目录挂载到受控磁盘。
+
+<figure class="doc-shot">
+  <img src="/images/install/minio-download.png" alt="MinIO 官方下载页面，展示 Server、Client 与 SDK 安装入口" loading="lazy">
+  <figcaption>MinIO 官方下载入口。Server、Client 和 SDK 是不同组件，先确认教程需要哪一层，再按目标平台选择安装方式。</figcaption>
+</figure>
+
+```bash
+docker run --name minio-learning \
+  -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=change-me-now \
+  -v "$PWD/.minio-data:/data" \
+  quay.io/minio/minio:latest server /data --console-address ":9001"
+
+curl -fsS http://127.0.0.1:9000/minio/health/live
+```
+
+`curl` 返回成功只证明 S3 API 端口存活；Bucket、访问策略、上传和下载仍要按后面的状态链路验证。不要把示例 root 凭证用于公网，也不要把 `MINIO_ROOT_PASSWORD` 写进仓库。
+
 ## 本地文件系统与对象存储的寻址方式不同
 
 本地文件按目录路径打开，支持随机读写、rename 和文件锁；S3/MinIO 通过 bucket + key 操作整个对象，目录通常只是 key 前缀。对象 metadata、版本、ETag 和生命周期由服务管理。

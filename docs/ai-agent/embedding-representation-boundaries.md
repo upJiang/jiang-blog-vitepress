@@ -1,19 +1,19 @@
 ---
-title: "Embedding 表示什么，不能证明什么"
-description: "解释向量空间、相似度和语义邻近，说明权限、时效、精确编号与事实正确性不能由距离替代。"
+title: Embedding 表示什么，不能证明什么
+description: 解释向量空间、相似度和语义邻近，说明权限、时效、精确编号与事实正确性不能由距离替代。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 46
 sequence: 46
 slug: embedding-representation-boundaries
 tags:
-  - "Embedding"
-  - "Vector Space"
-  - "Similarity"
+  - Embedding
+  - Vector Space
+  - Similarity
 sourceKey: ai-embedding-representation-boundaries
 dependsOn:
-  - "rag-chunk-quality-gates"
+  - rag-chunk-quality-gates
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -21,7 +21,7 @@ lastUpdated: false
 
 搜索“远程访问申请需要谁审批”时，关键词检索会寻找“远程访问”“审批”等词。可文档里也许写的是“生产环境的外部连接须由系统负责人确认”，字面不同，意思却很接近。Embedding 的用途就在这里：它把查询与知识片段映射为一组数，让检索器能够寻找语义邻近的候选。
 
-这组数没有保存句子的逐字翻译，也没有把知识压缩成一张可以精确读取的事实表。向量距离只能回答一个受限问题：**在当前模型、当前输入文本和当前距离规则下，这两个对象有多接近**。用户是否有权读取文档、文档是不是最新版本、编号是否完全相等、候选里的结论是否真实，都要由向量之外的系统确认。
+这组数没有保存句子的逐字翻译，也没有把知识压缩成一张可以精确读取的事实表。向量距离只能回答一个受限问题：**在当前模型、当前输入文本和当前距离规则下，这两个对象有多接近**。模型接口的输入和返回约束可以对照 [OpenAI Embeddings 指南](https://developers.openai.com/api/docs/guides/embeddings)，用户是否有权读取文档、文档是不是最新版本、编号是否完全相等、候选里的结论是否真实，都要由向量之外的系统确认。
 
 ::: info Embedding 在 RAG 中的位置
 

@@ -27,8 +27,25 @@ updated: 2026-08-17T00:00:00.000Z
 一个 FastAPI 接口在单请求测试中只需 200 ms，上线并发十个请求后却全部超过两秒。代码里每个函数都写成了 `async def`，团队因此认定“异步已经做好”。剖析后发现，分词函数和同步 SDK 在事件循环线程里连续阻塞；函数签名是异步的，执行过程并没有让出控制权。
 
 
-<InfraFigure src="/images/ai-infra/python-ai-service-runtime/hero.png" alt="Python 事件循环协调请求、线程池和多进程 Worker 的技术插画"
-  icon="code" caption="asyncio 提高的是等待期间的并发，不会让 CPU 计算自动并行。" />
+## 准备 Python 运行环境
+
+本章示例只使用 Python 标准库。尚未安装 Python 时，从 [Python 官方下载页](https://www.python.org/downloads/)选择当前仍受支持的版本；Linux 服务器应优先使用发行版包管理器或团队统一的运行时镜像，避免让多个手工安装覆盖同一个 `python3`。
+
+<figure class="doc-shot">
+  <img src="/images/install/python-downloads.png" alt="Python 官方下载页，展示安装包和平台入口" loading="lazy">
+  <figcaption>Python 官方下载页。服务器环境优先采用团队锁定的发行版包或运行时镜像，避免手工安装覆盖系统解释器。</figcaption>
+</figure>
+
+安装后先确认解释器版本，再创建独立虚拟环境：
+
+```bash
+python3 --version
+python3 -m venv .venv
+source .venv/bin/activate
+python -c "import asyncio, sys; print(sys.version); print(asyncio.__name__)"
+```
+
+Windows PowerShell 的激活命令是 `.venv\Scripts\Activate.ps1`。最后一条能输出 Python 版本和 `asyncio`，说明本文所需标准库可以导入；它不能证明事件循环没有被业务代码阻塞，后面的心跳示例才验证这一点。
 
 
 ## 用一个心跳证明事件循环是否被阻塞
@@ -85,31 +102,31 @@ flowchart LR
 
 图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
 
-### 从 接收事件 留下的证据回到 ASGI Server
+### 接收事件：ASGI Server
 
 socket 可读时创建请求协程并交给事件循环。
 
 决定下一步前需要看到 active tasks、accept queue、请求开始时间。
 
-### 2. Coroutine 怎样完成等待 I/O
+### 等待 I/O：Coroutine
 
 数据库或 HTTP 客户端注册等待，主动让出事件循环。
 
 这一动作的可观察结果是 span 时长、连接池等待、timeout。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 3. 处理阻塞：Thread/Process Executor 持有当前状态
+### 处理阻塞：Thread/Process Executor
 
 同步 SDK 或 CPU 任务移出事件循环，并设置容量和取消边界。
 
 可以从这些位置确认结果：executor queue、线程数、任务 deadline。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 返回与清理发生时，先看 ASGI Task
+### 返回与清理：ASGI Task
 
 序列化响应，关闭生成器并传播客户端取消。
 
 这里不靠猜测，优先读取 响应状态、CancelledError、资源关闭日志。
 
-## 同一个症状，下一步证据可能完全不同
+## 进程存活不等于依赖可用
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

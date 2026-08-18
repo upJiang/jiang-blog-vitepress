@@ -29,6 +29,23 @@ updated: 2026-08-12
 
 Go Worker 收到 SIGTERM 后停止 ACK，却没有取消 MinIO 上传；`WaitGroup.Wait` 一直不返回，编排器最终强杀。外部调用都要接收 Context，Consumer 要停止拉取、等待有限在途工作，再关闭 Channel、Redis、MinIO Transport 和数据库。
 
+## 安装 Go 并准备本地依赖
+
+Go 的官方二进制和安装说明在 [go.dev/dl](https://go.dev/dl/)；按系统和架构选择安装包后，重新打开终端确认版本。页面截图只用于定位下载区域，版本和校验值以当前官方页面为准。
+
+<figure class="doc-shot">
+  <img src="/images/install/go-download.png" alt="Go 官方下载页，展示 Windows、macOS、Linux 和源码下载入口" loading="lazy">
+  <figcaption>Go 官方下载页。优先选择与本机架构匹配的安装包，安装后用 `go version` 验证 PATH 和架构。</figcaption>
+</figure>
+
+```bash
+go version
+go env GOMODCACHE GOPATH
+go mod download
+```
+
+`go version` 只验证编译器可用；`go mod download` 才会验证当前模块依赖能从配置的代理或缓存取得。Redis、RabbitMQ 和 MinIO 可以使用项目隔离的 Compose 服务，连接地址、凭证和端口必须从环境变量注入，不能写死在适配器里。
+
 ## 适配器接口由业务动作定义
 
 Cache 暴露 GetProject/Invalidate，Publisher 暴露 PublishOutboxEvent，ObjectStore 暴露 Presign/Head/Put，不把 redis.Client/amqp.Channel/minio.Client 传遍 Service。实现统一 timeout、错误分类、Tracing 和前缀。

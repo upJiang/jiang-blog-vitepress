@@ -27,13 +27,10 @@ updated: 2026-08-17T00:00:00.000Z
 一家团队准备建设“企业 AI 平台”，架构图第一版列出了 Gateway、LangGraph、向量库、vLLM、Kubernetes 和 Grafana，却回答不了一个用户问题失败后由谁恢复。综合设计应从具体旅程开始：用户带身份提问，检索已发布知识，Agent 可选调用工具，Serving 输出 Token，用量结算，取消能传播，候选版本可以切回。组件只是这条旅程的实现。
 
 
-<InfraFigure src="/images/ai-infra/enterprise-ai-platform-capstone/hero.png" alt="企业 AI 平台中 Gateway、Agent、RAG、Serving、GPU、存储与观测串联的全景插画"
-  icon="platform" caption="平台的核心不是组件数量，而是每条状态链都有所有者、证据、权限和恢复动作。" />
-
 
 ## 怎样把平台拆成可演进而不是互相绑死的边界
 
-先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+综合平台先画清请求、知识、模型、工具和交付的边界，再决定哪些状态需要跨进程持久化。
 
 | 概念 | 在这条链路中的含义 |
 | --- | --- |
@@ -44,7 +41,7 @@ updated: 2026-08-17T00:00:00.000Z
 | Evolution Path | 按已出现的风险加入能力，从单体到队列、Serving、GPU 集群和多区域，而非预先部署所有组件。 |
 
 ::: tip 判断原则
-定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+平台验收要同时检查答案质量和控制面状态，只有 HTTP 成功不能覆盖权限、证据和恢复问题。
 :::
 
 ## 一次企业问答怎样穿过整个平台
@@ -66,37 +63,37 @@ flowchart LR
 
 箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-### 1. 准入路由：Gateway 持有当前状态
+### 准入路由：Gateway
 
 认证租户、限流预算并把逻辑模型解析为已发布 deployment。
 
 可以从这些位置确认结果：request_id、policy/snapshot version。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 编排状态发生时，先看 Agent Runtime
+### 编排状态：Agent Runtime
 
 创建 Turn，读取 checkpoint，决定是否检索或调用受限工具。
 
 这里不靠猜测，优先读取 turn_id、node、lease、deadline。
 
-### 从 知识证据 留下的证据回到 RAG Plane
+### 知识证据：RAG Plane
 
 在已发布知识版本和 ACL 内检索、重排并返回可定位证据。
 
 决定下一步前需要看到 knowledge_version、citations。
 
-### 4. Serving/GPU 怎样完成模型生成
+### 模型生成：Serving/GPU
 
 排队、Prefill、Decode 与流式发送，取消后释放 KV Cache。
 
 这一动作的可观察结果是 TTFT、TPOT、finish_reason。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 5. 结算观测：Ledger/Telemetry 持有当前状态
+### 结算观测：Ledger/Telemetry
 
 保存 usage、成本、终态和跨组件 Trace，更新 SLI。
 
 可以从这些位置确认结果：usage state、trace_id、SLO。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 发布恢复发生时，先看 Release Platform
+### 发布恢复：Release Platform
 
 用不可变制品启动候选，旁路验证后切流，保留旧版本和数据恢复点。
 
@@ -116,7 +113,7 @@ recovery: retry, resume, rollback and restore have different conditions
 
 例如用户取消时，Gateway 停止客户端流只是第一步；Runtime 写 cancel_requested，Serving 终止生成并释放 KV，工具停止或完成补偿，Ledger 记录实际 usage，最终 Turn 才能变为 cancelled。任何一段没有所有者，就会出现界面已结束但资源仍消费的悬挂状态。
 
-## 看起来相似，故障边界却不同
+## 平台通过不等于业务可交付
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

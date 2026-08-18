@@ -27,13 +27,10 @@ updated: 2026-08-17T00:00:00.000Z
 Grafana 显示 API p95 低于目标，用户仍抱怨“经常等不到回答”。指标只统计了返回 HTTP 响应的请求，被代理超时和客户端取消的请求没有进入成功直方图；流式接口又把响应头时间当成完成时间。可观测性不是把更多数据送进平台，而是让终态和口径覆盖用户真实经历。
 
 
-<InfraFigure src="/images/ai-infra/ai-observability-slo/hero.png" alt="一次 AI 请求在网关、检索、模型与 GPU 之间形成 Trace、Metric 和 Log 的插画"
-  icon="observability" caption="Trace 解释单次路径，Metric 描述总体趋势，Log 保存离散事件，质量信号补足“答得对不对”。" />
-
 
 ## Trace、Metric、Log 与 SLO 为什么不能互相替代
 
-先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+可观测性设计从一次请求开始：把入口、依赖、模型、工具和交付的时间线串起来，再为每个阶段定义可行动的指标。
 
 | 概念 | 在这条链路中的含义 |
 | --- | --- |
@@ -44,7 +41,7 @@ Grafana 显示 API p95 低于目标，用户仍抱怨“经常等不到回答”
 | Quality Signal | 引用覆盖、任务成功、人工反馈或评测结果，用来补足协议成功不等于回答正确。 |
 
 ::: tip 判断原则
-定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+指标只有对应到限流、降级、重试或人工介入等动作，才是运行控制，不是事后报表。
 :::
 
 ## 一条流式请求怎样留下完整观测事实
@@ -62,25 +59,25 @@ flowchart LR
 
 箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-### 1. 创建上下文：Gateway 持有当前状态
+### 创建上下文：Gateway
 
 生成/接收 trace_id 与 request_id，记录租户匿名维度和逻辑模型。
 
 可以从这些位置确认结果：root span、route、admission。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 传播阶段发生时，先看 Backend/RAG/Serving
+### 传播阶段：Backend/RAG/Serving
 
 通过标准上下文传播子 span，记录队列、检索、Prefill、Decode 事件。
 
 这里不靠猜测，优先读取 span links、stage duration。
 
-### 从 形成终态 留下的证据回到 Runtime
+### 形成终态：Runtime
 
 区分 succeeded、failed、cancelled、timeout 与 unknown，并记录 usage。
 
 决定下一步前需要看到 finish_reason、error code、token counts。
 
-### 4. Telemetry Backend 怎样完成聚合 SLI
+### 聚合 SLI：Telemetry Backend
 
 从完整终态计算可用率、TTFT、完成率和质量窗口。
 
@@ -100,7 +97,7 @@ ai_ttft_seconds_bucket{model="smart-chat",le="2"} 17620
 
 request_id 几乎每次不同，会制造高基数时间序列；Prompt 和文档正文还会泄露敏感数据。正确做法是 Metric 保留有限维度，通过 exemplar 或 trace_id 在需要时跳到单请求证据。Langfuse 等 LLM 观测产品存储 Prompt 时也必须应用租户权限、脱敏和保留策略。
 
-## 看起来相似，故障边界却不同
+## 延迟、错误与业务结果不能混成一个指标
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

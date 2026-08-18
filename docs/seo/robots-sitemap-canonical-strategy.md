@@ -30,6 +30,21 @@ updated: '2026-08-11'
 
 [媒体资源表](/docs/seo/media-video-structured-data)与页面树共同构成索引治理的输入。创业者、SEO 和内容负责人先做页面治理决策，开发负责把决策稳定输出。结果不是一份孤立的 robots.txt，而是一张 URL 类型、抓取、索引、Canonical、内链和 Sitemap 保持一致的矩阵。
 
+```mermaid
+flowchart LR
+  A[页面类型与业务目标] --> B[预期索引状态]
+  B --> C[robots 抓取规则]
+  B --> D[noindex 页面信号]
+  B --> E[Canonical 规范地址]
+  B --> F[Sitemap 与内链]
+  C --> G[抽样 GET 与爬虫回归]
+  D --> G
+  E --> G
+  F --> G
+```
+
+四类信号要围绕同一个页面治理决定。Sitemap 提供发现线索，robots 控制请求许可，Canonical 和 noindex 处理索引意图，任何一个都不能单独保证收录。
+
 ## 四个概念分别解决什么问题
 
 | 概念 | 全称或含义 | 主要问题 | 不是用来做什么 |

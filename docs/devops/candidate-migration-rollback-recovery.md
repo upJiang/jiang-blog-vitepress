@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 新版本已经通过单元测试，数据库迁移却删除了旧代码仍需要的列。应用切流失败后虽然镜像能回滚，旧进程也无法读取新 schema。应用回滚、数据回退和灾难恢复是三件事：只有在设计兼容迁移、备份恢复和旧版本可运行路径后，“可以回滚”才不是口号。
 
 
-<InfraFigure src="/images/ai-infra/candidate-migration-rollback-recovery/hero.png" alt="新旧候选并存，通过备份、旁路验证、切流与回滚保护服务的插画"
-  icon="recovery" caption="低风险发布保持旧版本可用，先验证候选，再用最小流量变更完成切换。" />
-
 
 ## 一次发布需要哪些相互独立的回退点
 
@@ -69,31 +66,31 @@ flowchart LR
   S3 --> S4
 ```
 
-### 1. Release Controller/DBA 怎样完成预检备份
+### 预检备份：Release Controller/DBA
 
 核对 digest、容量、兼容矩阵，创建并校验可恢复备份。
 
 这一动作的可观察结果是 preflight、backup manifest、restore check。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 兼容迁移：Migration Job 持有当前状态
+### 兼容迁移：Migration Job
 
 执行可重复 expand 迁移，记录 schema version 并保持旧代码可读。
 
 可以从这些位置确认结果：migration id、lock time、old-version probe。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 旁路验证发生时，先看 Candidate
+### 旁路验证：Candidate
 
 在隔离入口连接真实依赖的受控范围，验证健康、鉴权、流式与状态写入。
 
 这里不靠猜测，优先读取 candidate trace、test identities、cleanup。
 
-### 从 切流观察 留下的证据回到 Router
+### 切流观察：Router
 
 最小修改 upstream/权重，持续比较 SLO 与业务终态，旧实例保持待命。
 
 决定下一步前需要看到 traffic event、error budget、rollback target。
 
-### 5. Operations 怎样完成恢复收束
+### 恢复收束：Operations
 
 稳定后执行 contract；异常先切回，再分析候选，定期隔离恢复演练。
 

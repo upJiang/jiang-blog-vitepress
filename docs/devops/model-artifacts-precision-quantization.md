@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 一个 7B 模型按 4 bit 粗算只要约 3.5 GB，部署到 8 GB GPU 仍然 OOM。粗算只包含权重有效位数，没有包括量化 scale/zero point、KV Cache、激活、工作区和框架开销；更重要的是，文件标为 INT4 不代表当前 GPU 和引擎会用高效 INT4 Kernel 执行。
 
 
-<InfraFigure src="/images/ai-infra/model-artifacts-precision-quantization/hero.png" alt="同一模型权重以不同精度与量化格式占用不同存储和显存的插画"
-  icon="sliders" caption="量化改变表示与执行路径，收益必须与质量、内核支持和运行显存一起验证。" />
-
 
 ## 从模型文件到实际显存不能只乘一个位数
 
@@ -46,25 +43,25 @@ flowchart LR
 
 先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-### 核对制品发生时，先看 Artifact Pipeline
+### 核对制品：Artifact Pipeline
 
 确认 config、Tokenizer、权重格式、量化配置和 revision 匹配。
 
 这里不靠猜测，优先读取 manifest、tensor dtype、quant config。
 
-### 从 估算权重 留下的证据回到 Capacity Planner
+### 估算权重：Capacity Planner
 
 参数量乘以每参数存储并加入分组元数据、未量化层与分片缓冲。
 
 决定下一步前需要看到 文件大小、理论 bytes、加载峰值。
 
-### 3. Serving/GPU 怎样完成估算运行态
+### 估算运行态：Serving/GPU
 
 加入 KV Cache、激活、workspace、通信与碎片预算。
 
 这一动作的可观察结果是 VRAM ledger、max context、concurrency。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 4. 对比候选：Evaluation 持有当前状态
+### 对比候选：Evaluation
 
 在相同模型版本、输入集和终止参数上比较质量、延迟与成本。
 
@@ -85,7 +82,7 @@ flowchart LR
 不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## 别让表面现象替你下结论
+## 文件完整不等于制品可加载
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

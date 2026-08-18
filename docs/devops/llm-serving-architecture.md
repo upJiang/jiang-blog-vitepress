@@ -25,14 +25,36 @@ updated: 2026-08-17T00:00:00.000Z
 
 健康检查返回 200，第一条真实请求却等待一分钟后 OOM。原因是探针只检查 HTTP 进程存在，权重仍在加载；加载完成后，默认最大上下文又让 KV Cache 预留吃掉剩余显存。模型服务“启动了”和“能按目标请求形状稳定服务”是两个状态。
 
+## 先准备模型下载与运行时工具
 
-<InfraFigure src="/images/ai-infra/llm-serving-architecture/hero.png" alt="模型制品进入 Serving 进程后经过队列、调度和流式输出的插画"
-  icon="server" caption="Serving 的责任从加载可用模型开始，到每个请求释放计算与缓存资源结束。" />
+模型 Serving 文章后面的命令依赖 Python、模型仓库客户端和 GPU 运行时。模型文件应从对应项目的官方发布页或受控镜像下载，并记录 revision、摘要和许可证；不要直接复制未固定的下载地址。
+
+<figure class="doc-shot">
+  <img src="/images/install/huggingface-cli.png" alt="Hugging Face CLI 官方文档，展示安装与下载入口" loading="lazy">
+  <figcaption>模型仓库客户端的官方入口。先确认 CLI、模型仓库、revision 和许可证，再把文件下载到可审计目录。</figcaption>
+</figure>
+
+Hugging Face CLI 的安装说明见 [官方命令行文档](https://huggingface.co/docs/huggingface_hub/guides/cli)。下面的命令只安装客户端并检查帮助信息，不能替代模型权重的哈希、许可证和硬件兼容检查：
+
+```bash
+python -m pip install --upgrade huggingface_hub
+hf --help
+```
+
+```bash
+python3 --version
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+这几条命令只建立隔离 Python 环境，不代表 CUDA、驱动、权重或推理引擎已经兼容。后续文章会分别验证 GPU、模型制品和引擎启动，先把运行时边界分开，排障时才不会把“下载成功”当作“服务可用”。
+
 
 
 ## Serving 层拥有哪段生命周期
 
-先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+推理服务的组件名很多，先沿一条请求确认输入在哪一层变化、状态由谁保存、结果如何返回，后面的容量和失败分析才不会串层。
 
 | 概念 | 在这条链路中的含义 |
 | --- | --- |
@@ -42,7 +64,7 @@ updated: 2026-08-17T00:00:00.000Z
 | TTFT/TPOT | TTFT 是请求到首个 Token 的时间；TPOT 描述首 Token 之后相邻输出 Token 的平均或分位时间，二者瓶颈不同。 |
 
 ::: tip 判断原则
-定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+把 Tokenize、Prefill、Decode、Scheduler 和 API 层的证据分开记录，任何一层都不能替另一层宣布成功。
 :::
 
 ## 从冷启动到请求资源释放
@@ -60,25 +82,25 @@ flowchart LR
 
 箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-### 1. 准备制品：Artifact Loader 持有当前状态
+### 准备制品：Artifact Loader
 
 校验配置、Tokenizer、权重分片和架构兼容性。
 
 可以从这些位置确认结果：revision、digest、缺失文件。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 加载设备发生时，先看 Serving Process
+### 加载设备：Serving Process
 
 分配权重、运行时工作区与缓存预算，执行最小预热。
 
 这里不靠猜测，优先读取 显存账本、load duration、ready=false。
 
-### 从 调度请求 留下的证据回到 Scheduler
+### 调度请求：Scheduler
 
 根据输入长度、并发与预算安排 Prefill/Decode。
 
 决定下一步前需要看到 queue_ms、running/waiting、batch tokens。
 
-### 4. Output Processor 怎样完成流式完成
+### 流式完成：Output Processor
 
 采样、解码、发送事件并在取消或终态释放 KV block。
 
@@ -100,7 +122,7 @@ readiness=true
 
 若 process alive 但 weights.loaded=false，liveness 应保持成功以免加载被反复重启，readiness 则必须失败。预热只能验证一组受控输入，不代表最大上下文、峰值并发或所有采样参数可用；这些属于容量和兼容测试。
 
-## 看起来相似，故障边界却不同
+## 模型加载成功不等于请求可用
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

@@ -1,260 +1,264 @@
 ---
-title: "一次 Agent 请求怎样穿过 API 与 Runtime"
-description: "从创建 Turn 到异步执行、事件持久化、流式读取和终态查询，解释每层职责。"
+title: 一次 Agent 请求怎样穿过 API 与 Runtime
+description: 从创建 Turn 到异步执行、事件持久化、流式读取和终态查询，解释每层职责。
 category: ai-agent
-part: "Runtime 与异步执行"
+part: Runtime 与异步执行
 stageKey: runtime
 chapter: 70
 sequence: 70
 slug: agent-request-lifecycle-runtime
 tags:
-  - "Request Lifecycle"
-  - "API"
-  - "Runtime"
+  - Request Lifecycle
+  - API
+  - Runtime
 sourceKey: ai-agent-request-lifecycle-runtime
 dependsOn:
-  - "agent-runtime-domain-model"
+  - agent-runtime-domain-model
 updated: '2026-08-17'
 lastUpdated: false
 ---
 # 一次 Agent 请求怎样穿过 API 与 Runtime
 
-从创建 Turn 到异步执行、事件持久化、流式读取和终态查询，解释每层职责。**Request Lifecycle**、**API**、**Runtime** 分别指向同一条执行链上的不同对象：用户请求、幂等键、身份范围、知识 Release、Policy、截止时间和执行资源进入系统，request_id、turn_id、task_id、lease、event sequence、checkpoint、delivery cursor 和 final status 保存处理中间状态，最终得到有序事件、最终答案、失败原因、取消确认、可恢复检查点和审计轨迹。
+用户点击发送后，页面很快拿到 `turn_id`，答案却要过一会儿才出现。中间不只是“把问题放进队列”：API 要确认身份和知识库权限，避免重复请求，分配并发容量，准备 Conversation 与 Message，固定知识 Release、Policy 和 ACL，写入首个 Event，提交数据库事务，再把 Turn 交给 Worker。任何一步失败，都要能说明请求有没有被受理、是否可能继续执行、客户端下一步该读取什么。
 
-一次 Agent 请求穿过 API 与 Runtime 位于 API 请求之外负责长期状态、异步执行、控制信号和结果交付的运行时层，主要机制是 API 校验身份和幂等键后创建 Turn，提交异步 Task；Worker 领取并推进 Agent，事件先持久化再推送，读取端可流式订阅或查询终态。API 等待完整模型调用、队列成功但 Turn 未创建、推送先于落库、Worker 崩溃丢状态和读取端只依赖长连接会让链路在不同位置停止，错误记录必须保留发生阶段、当时的状态和终止原因。
+这条生命周期可以分成五段：**入口准备**决定请求能否创建；**持久化受理**生成可恢复 Turn；**异步调度**把稳定 ID 交给 Worker；**运行时执行**产生 Evidence、Claim 和 Event；**结果交付**通过状态查询、SSE 或轮询把同一终态交给客户端。每段有自己的成功条件，HTTP 200、队列 ACK 和模型返回都不能替代 Turn Completed。
 
-::: info 贯穿示例
+```mermaid
+flowchart LR
+    A[Client Request] --> B[Auth 与 KB Permission]
+    B --> C[Idempotency Lookup]
+    C --> D[Admission]
+    D --> E[Conversation 与 Message]
+    E --> F[ACL / Release / Policy Snapshot]
+    F --> G[Turn + turn.created]
+    G --> H[Commit]
+    H --> I[Dispatch turn_id]
+    I --> J[Worker 领取]
+    J --> K[Agent Runtime 执行]
+    K --> L[Evidence / Claim / Validation]
+    L --> M[Terminal State + Event]
+    M --> N[SSE Replay 或 Status Query]
+```
 
-一次 Agent 请求穿过 API 与 Runtime 场景：一个研究型回答需要运行数分钟，期间用户断开连接、重新打开页面，并在第二次连接中请求取消。一次 Agent 请求穿过 API 与 Runtime 需要的身份、权限、版本和业务事实由应用提供，模型与外部内容只产生候选。
+## 请求契约先给 Runtime 足够的确定性输入
 
-:::
+创建请求包含知识库 ID、问题、幂等键、请求模式和 Deadline。已有 Conversation 时还带 Conversation ID 与 Nonce；页面选定文档范围时，提交 Scope Node、范围来源和修订。问题可以表达目标，身份、角色、知识权限和当前活动版本不能从问题文本推断。
 
-这次推演用幂等键、状态版本、Lease、Event 序号、Checkpoint 和终止原因把请求和终态关联起来。与同步 HTTP、异步任务、SSE、事件存储和 Agent Runtime 比较时，重点看输入来源、状态所有者、下一步的决策者和失败终点。
+幂等键由调用方为一次用户动作生成，同一次点击的网络重试沿用原值，新问题使用新值。它的作用域至少包含知识库和用户，避免不同租户碰巧使用相同字符串后共享 Turn。键需要足够长度并限制最大长度，空字符串不能绕过唯一约束。
 
-一次 Agent 请求穿过 API 与 Runtime 的执行顺序是“创建 Turn → 领取执行权 → 推进状态 → 写入事件或检查点 → 形成终态”。用户请求从入口进入，request_id 记录进度，有序事件通过当前主题的校验条件后才会交付。
+Deadline 是从受理时刻计算的绝对执行期限。客户端提交的是允许区间内的秒数，Turn 保存 `deadline_at`。排队、重试、模型等待和恢复都消耗这段时间；Worker 不能在每次重试时重新得到完整期限。
 
-API 等待完整模型调用与队列成功但 Turn 未创建会产生不同证据。前者先检查 request_id 和输入来源，后者沿调用记录定位依赖或状态冲突；不区分发生位置，重试会掩盖原始原因。
+请求模式只是候选偏好。`auto`、`fast`、`standard` 或 `deep` 经过 Policy 和问题特征后得到 Resolved Mode，用户不能通过模式字段扩大研究轮数、工具权限或 Token 预算。Scope 同样经过服务端权限求交，传入的文档 ID 不会直接成为检索授权。
 
-一次 Agent 请求穿过 API 与 Runtime 与同步 HTTP 的共同点不代表它们可以互换。当前主题拥有 turn_id，相邻组件只通过契约读取或提交候选，不能直接修改这个状态。
+入口返回契约需要明确 `created`。首次受理返回 Turn、Conversation Nonce、固定 Release、Policy、当前 Status 和 Event URL；重复请求返回原 Turn，并把 `created=false`。客户端据此复用事件连接，不再启动第二个进度面板。
 
-一次 Agent 请求穿过 API 与 Runtime 的架构图要标出组件职责、request_id 的唯一所有者、幂等键经过的接口，以及 API 等待完整模型调用怎样传播。架构取舍需要说明新增状态和恢复成本，只列组件名称无法用于故障定位。
+若接口使用 202，它只表示 Turn 已经持久化并进入调度链。模型尚未返回，检索和验证也可能失败；客户端要以 Event 或状态查询确认业务终态。
 
-## 长任务为什么需要独立运行时
+## 鉴权与权限检查发生在任何持久化之前
 
-从创建 Turn 到异步执行、事件持久化、流式读取和终态查询，解释每层职责。在“一次 Agent 请求穿过 API 与 Runtime 场景：一个研究型回答需要运行数分钟，期间用户断开连接、重新打开页面，并在第二次连接中请求取消”这类任务里，一次 Agent 请求穿过 API 与 Runtime 负责把用户请求带入处理链，并明确有序事件可以交付的条件。
+API 先验证用户身份，再确认对目标知识库的访问权限。失败时不创建 Conversation、Message、Turn、Event 或队列任务，也不消耗模型配额。外部响应可以统一隐藏资源存在性，审计日志保留是身份无效还是知识库拒绝。
 
-一次 Agent 请求穿过 API 与 Runtime 位于 API 请求之外负责长期状态、异步执行、控制信号和结果交付的运行时层。它处理 API 校验身份和幂等键后创建 Turn，提交异步 Task；Worker 领取并推进 Agent，事件先持久化再推送，读取端可流式订阅或查询终态，身份认证、授权结果和最终业务状态仍由应用中的确定性组件负责。
+权限检查分两层。知识库访问决定能否创建请求，检索访问解析当前用户的 Subject 与 Group，并与页面范围求交，形成 ACL Snapshot。服务身份可能负责执行 Worker，但 Snapshot 仍记录原用户的有效范围，不能把后台权限当作检索范围。
 
-用户请求是这条链路的起点；来源缺失时，程序只能拒绝请求或采用明确记录的默认值，模型补出的字段不能继续驱动领取执行权。
+如果请求引用已有 Conversation，Conversation 还要属于当前用户和知识库，Nonce 与修订满足并发条件。一个合法用户不能把自己的新 Turn 挂到别人的会话，也不能用旧页面状态覆盖对话中后来出现的 Message。
 
-API 等待完整模型调用会破坏 request_id 与有序事件之间的对应关系，排查时先保留原始输入摘要和发生阶段，再判断是否允许重试。
+输入校验失败与依赖暂时不可用要分开。问题为空、幂等键过短和 Deadline 越界返回不可重试的 4xx；权限服务超时或数据库不可用可能返回 5xx，但服务端只有在确认没有持久化 Turn 时，调用方才能安全重发。无法确认时，先按幂等键查询。
 
-队列成功但 Turn 未创建影响 turn_id 或下游解释，不能和 API 等待完整模型调用共用“重新调用一次模型”的处理方式。
+## 幂等快速路径在准入之前返回
 
-一次 Agent 请求穿过 API 与 Runtime 完成时至少留下 request_id、turn_id、有序事件和检查结论；只有最终文字，无法证明结果来自本次请求。
+入口先按知识库、用户和幂等键查询已存在 Turn。命中后直接返回原状态，不再次申请并发额度，不新建 Message，也不重复投递 Worker。Completed、Failed、Cancelled 和 Expired 都按原样返回，幂等不等于“失败后自动再试”。
 
-request_id 在单进程 Demo 中可以留在内存，跨进程、带权限或有副作用的任务则要持久化输入、状态转移和停止原因，不能依赖 Prompt 保存状态。
+这条快速路径还解决客户端超时后的不确定性。第一次请求可能已经提交数据库，只是响应丢失；第二次请求查到原 Turn，就能继续读取。若每次都先做准入，重复请求可能因用户并发额度已被原 Turn 占用而返回 429，客户端反而找不到正在运行的任务。
 
-一次 Agent 请求穿过 API 与 Runtime 还要把业务条件写成状态条件：身份范围何时就绪，有序事件何时允许交付，API 等待完整模型调用发生后是否还能继续。
+快速查询不是唯一保护。两个首次请求可以同时查到空，因此事务内还要锁定幂等作用域，并在取得锁后再次查询。数据库使用部分唯一约束处理最后竞态，冲突事务重新读取已有 Turn。三层保护分别优化常见路径、串行化并发和保证最终一致性。
 
-一次 Agent 请求穿过 API 与 Runtime 对外区分完成、部分完成和无法确认，三个状态若都包装成有序事件，上层界面无法采用不同处理方式。
+幂等重放不能接受冲突输入。同一键再次提交不同知识库或用户会落在不同作用域；同一作用域下问题、模式或 Scope 明显不同，应返回原 Turn 并提示键已使用，或记录请求摘要冲突。不能用新内容静默修改已经固定版本的 Turn。
 
-## 一次 Agent 请求穿过 API 与 Runtime 在执行链中的位置
+## 准入控制只预留容量，不创建业务结果
 
-一次 Agent 请求穿过 API 与 Runtime 接收用户请求、幂等键、身份范围、知识 Release、Policy、截止时间和执行资源，向下游交付有序事件、最终答案、失败原因、取消确认、可恢复检查点和审计轨迹，输入与输出之间用明确契约连接，调用方不能把一句含糊目标直接交给底层适配器。
+没有现有 Turn 后，API 为一个预生成的 Turn ID 申请用户级和系统级容量。用户进行中的任务达到上限，返回用户限额；全局容量不足，返回系统繁忙。准入拒绝发生在 Conversation 与 Turn 创建之前，数据库不会留下半条聊天记录。
 
-Runtime 拥有 Turn 和状态机，Worker 只在有效 Lease 内推进一次状态修订。因此 request_id 与 turn_id 要有唯一写入方，其他组件只能通过版本化命令申请修改。
+预生成 ID 让准入 Lease 与稍后持久化的 Turn 使用同一身份。创建事务失败时立即释放；幂等二次查询发现并发请求已经创建 Turn，也释放本次预留。成功后 Lease 由 Worker 定期续期，在终态、Dispatch 失败或 Pending Cancel 时释放。
 
-同步 HTTP 与一次 Agent 请求穿过 API 与 Runtime 解决的问题相邻，但控制权不同，比较时要看谁选择推进状态、谁保存 request_id、谁确认有序事件。
+准入服务不可用时采用哪种策略取决于风险和容量。高成本模型通常失败关闭，避免失控并发；低成本只读任务可以有受限降级。无论选择哪种，数据库中的活动 Turn 数与准入存储都需要恢复校准，不能把 Redis Lease 当成唯一业务事实。
 
-异步任务可以参与同一请求，却不能替代一次 Agent 请求穿过 API 与 Runtime；组合后仍要单独检查幂等键的可信来源和 API 等待完整模型调用的终止规则。
+准入成功不代表任务已经受理。此时还没有持久化 Turn，API 进程退出后预留会过期，客户端可以重试。只有数据库事务提交后，系统才向外承诺这个 `turn_id` 可查询。
 
-task_id 若只保存在 SDK 对象里，重试或进程退出后就失去解释依据；需要恢复或审计的字段进入持久层，体积较大的有序事件只保存稳定引用。
+## 一个事务创建 Conversation、Message、Turn 与首个 Event
 
-一次 Agent 请求穿过 API 与 Runtime 使用的身份、范围和版本来自可信运行时，用户请求可以表达意图，但不能提升权限或改写活动 Release。
+Conversation Service 先准备已有或新会话，验证 Nonce、Scope 与归属。随后创建 User Message、占位 Assistant Message 和 Trace 身份。显式记忆提取只处理用户明确表达的偏好或约束，并使用当前用户与知识库范围；失败策略要明确，不能让非关键记忆功能破坏核心问答而不留原因。
 
-队列成功但 Turn 未创建发生时，错误回到 turn_id 的所有者处理，上游缺输入、当前组件违反不变量和下游不可用分别形成不同终态。
+Runtime 在事务内取得幂等锁并二次查询。仍未命中时，解析检索权限，把身份、角色、Subject、Group、文档 Scope、范围来源和修订写入 ACL Snapshot。新 Conversation 也作为快照字段记录，方便后续判断上下文装配方式。
 
-一次 Agent 请求穿过 API 与 Runtime 的确定性边界位于 request_id 写入之前。模型可以建议值，应用核对来源和当前版本；涉及权限、金额、发布或不可逆动作时，再进入策略或人工批准。
+接着选择活动知识 Release 和 Policy。Policy 若处于灰度，按知识库、用户和幂等键做稳定分桶。Turn 写入问题、Conversation、Message、Trace、Deadline 和这三类快照，Status 初始为 Pending。任何一个版本不存在或不属于当前知识库，事务失败。
 
-一次 Agent 请求穿过 API 与 Runtime 内部可以使用更细的临时对象，跨边界只暴露稳定协议。替换同步 HTTP 时，调用方不需要理解内部缓存和 SDK 响应。
+首个 `turn.created` Event 与 Turn 在同一事务中持久化。Payload 包含 Conversation、Nonce、Assistant Message、Release 和 Policy ID，事件序号来自 Turn 的原子计数。此时不包含问题正文、ACL 列表或凭证，避免事件流扩大敏感数据范围。
 
-## 领域状态与唯一所有者
+事务提交使 Conversation、Message、Turn 和 Event 一起可见。提交失败时全部回滚并释放准入，客户端不会看到只有 Message 没有 Turn 的半成品。提交成功后，API 发布一个轻量事件序号通知；通知失败不回滚权威数据，SSE 仍可通过数据库轮询补到 Event。
 
-一次 Agent 请求穿过 API 与 Runtime 的输入合同至少列出用户请求、幂等键和身份范围，每项都注明来源、是否必需、允许的缺省值，以及缺失后是在入口拒绝还是进入降级路径。
+## 组件职责和状态所有者不能重叠
 
-状态合同中的 request_id 表示当前进度，turn_id 保存本次执行依赖的快照，task_id 关联前后动作，三者不能合并成一段自由文本。
+API Controller 的职责是解析协议、鉴权、调用领域服务和返回受理结果。它不在请求协程里运行 Agent Graph，也不直接拼装管理员权限。Conversation Service 拥有会话、Message 和 Nonce；Runtime Repository 拥有 Turn 状态、版本快照和 Event Sequence；Admission Controller 拥有临时容量 Lease；Worker 只在有效执行权内推进一次 Turn。
 
-并发分支按稳定身份合并 task_id，完成顺序只反映耗时，不能决定结果属于哪个请求，更不能让迟到的旧状态覆盖新修订。
+| 组件 | 读取 | 写入 | 失败后保留什么 |
+| --- | --- | --- | --- |
+| API Controller | 认证上下文、Create Request | 无长期业务状态 | HTTP 错误与 Trace ID |
+| Conversation Service | 会话、Nonce、页面 Scope | Conversation、Message | 事务回滚或冲突原因 |
+| Runtime Repository | Release、Policy、ACL | Turn、Event、Artifact | 状态修订与错误码 |
+| Admission Controller | 用户与系统容量 | Lease、取消信号 | 拒绝原因或过期 Lease |
+| Dispatcher | 已提交的 `turn_id` | Queue Message | Dispatch 结果 |
+| Worker Runtime | 固定执行上下文 | Evidence、Claim、终态候选 | Checkpoint 与阶段错误 |
+| Event Delivery | Event Cursor、通知序号 | 无权威 Turn 状态 | 重连游标与回退状态 |
 
-输出合同同时描述有序事件和最终答案，并为拒绝、取消、部分完成和未知状态提供固定形状，调用方据此分支，无需解析错误文案猜测结果。
+状态所有者通过接口协作。API 可以请求 Runtime 创建 Turn，不能绕过状态条件把它改成 Completed；Worker 可以提交答案，不能修改 Release 与 ACL；SSE 只读 Event，不能因为客户端断开而取消 Turn。职责分开后，页面、队列和 Worker 可以独立重启。
 
-turn_id 参与乐观并发检查；处理开始后若版本变化，旧候选只保留作审计，不能继续写入 request_id。
+事务边界也跟所有权一致。Conversation、Message、Turn 和首个 Event 在同一数据库事务中创建，因为它们共同定义“已受理”；Admission Lease 与数据库不在同一事务，通过过期时间和补偿释放协调；Queue 与数据库通过 Dispatch 补偿或 Outbox 协调。试图用一个分布式事务包住所有系统，会增加锁持有时间和故障面。
 
-用户请求里若包含模型填写的同名字段，应用会丢弃它，再从认证、配置或活动版本中补入可信值，因为结构校验通过不等于授权或业务校验通过。
+审查调用链时可以问三遍“谁有权写”。谁能修改 Turn Status，谁能改变 Policy Allocation，谁能确认工具副作用。答案如果是“任何拿到数据库 Session 的服务”，领域边界还没有建立，重复投递和迟到结果迟早会覆盖彼此。
 
-幂等键、状态版本、Lease、Event 序号、Checkpoint 和终止原因组成一次 Agent 请求穿过 API 与 Runtime 的最小追踪材料，日志只保存稳定 ID、版本和错误类，完整 Prompt、文档正文与凭证不进入指标标签。
+## 数据库提交后才投递 Worker
 
-撤回或删除幂等键时，相关缓存、候选和未完成任务按版本失效；稳定 ID 可以保留审计关系，已撤回内容不能继续进入有序事件。
+队列 Payload 只需要 `turn_id`。Worker 从数据库读取执行上下文，避免把 ACL、Policy 配置和问题复制进一条可能长期滞留的消息。消息中的快照容易过期，也增加泄露面；稳定 ID 让恢复任务和正常任务使用同一入口。
 
-契约还需要描述新鲜度。turn_id 对应的数据发生变化后，旧缓存、旧候选和未完成任务怎样失效，应由版本或时间规则直接判断，不能依赖模型注意到矛盾。
+Celery Task ID 可以由 Turn ID 派生，便于观测和减少明显重复。队列仍然可能至少一次投递，Task ID 不能取代 Runtime 的状态条件。两个 Worker 收到相同 Turn 时，只有一个能从 Pending 进入执行。
 
-删除和撤回也属于数据生命周期。一次 Agent 请求穿过 API 与 Runtime 引用的原始对象被移除时，稳定 ID 可以保留审计关系，正文与派生结果则按策略失效，避免继续向用户展示过期内容。
+Dispatch 发生在数据库提交之后，因此存在“Turn 已受理，队列发送失败”的窗口。API 捕获错误，开启新事务把 Turn 标为 Failed，错误码为 `dispatch_failed`，追加唯一 `turn.failed` Event，发布事件通知并释放准入。客户端收到 503 后再按幂等键查询，会看到同一个 Failed Turn。
 
-::: warning 一次 Agent 请求穿过 API 与 Runtime 的可信边界
+直接删除 Dispatch 失败的 Turn 会制造歧义。调用方不知道第一次有没有产生 Message 和版本快照，也无法区分安全重试与重复执行。保留失败 Turn 后，产品可以提供显式“重新运行”动作，它使用新幂等键创建新 Turn，并关联原失败原因。
 
-有序事件通过结构校验后仍是候选。一次 Agent 请求穿过 API 与 Runtime 使用的身份、权限、知识版本与业务事实由应用从可信服务读取，核对完成后才能执行或交付。
+更严格的实现可以使用 Transactional Outbox，把待投递记录与 Turn 同事务提交，再由投递器重复发送直到成功。这样 API 不需要同步依赖队列，代价是增加 Outbox 表、扫描器、延迟和清理。无论采用哪种方案，数据库状态是事实来源，通知与队列负责唤醒。
 
-:::
+## Worker 先重新读取状态和快照
 
-## API、Worker 与存储怎样协作
+Worker 收到 `turn_id` 后创建独立数据库 Session，读取 Turn、Conversation、知识库 Dataset、Policy Config、Quality Gates 与 ACL Snapshot。Turn 不存在或已经终态时直接结束；Deadline 已到则写 Expired；Pending 或可恢复 Running 才进入 Runtime。
 
-一次 Agent 请求穿过 API 与 Runtime 按“API 校验身份和幂等键后创建 Turn，提交异步 Task；Worker 领取并推进 Agent，事件先持久化再推送，读取端可流式订阅或查询终态”推进，这段机制必须落成 request_id 和 turn_id 的实际变化，不能只列框架节点名称。
+执行开始时取得执行 Lease，并用条件更新记录 Started At。主循环装配问题、历史 Message、记忆与权限范围，选择 Resolved Mode 和 Search Plan。状态进入 Running 后，每个阶段在模型或工具调用前检查 Deadline、取消信号和剩余预算。
 
-创建 Turn 接收用户请求并建立 request_id，入口校验未通过就地结束，后续模型、检索器或工具调用次数保持为零。
+检索生成 Candidate，证据预算选出进入 Prompt 的 Evidence；模型产生候选答案，验证器生成 Claim、Citation 与 Validation Issue。有限修复完成后，Runtime 把最终 Evidence 和 Claim 结构化持久化，再更新 Assistant Message 与 Turn。依赖返回成功只表示调用完成，不能提前标记 Completed。
 
-领取执行权固定身份、范围、配置版本和绝对 Deadline，后续子步骤只继承剩余时间，不能各自重新获得完整超时。
+运行事件使用短事务单独持久化：先追加 Event 并提交数据库，再发布 Redis 序号。Redis 只通知 SSE 有新序号，不保存权威 Event。事件持久化记录 Append、Commit、Publish 各阶段耗时，某一阶段变慢时能定位数据库与通知层。
 
-推进状态读取 turn_id 并执行主题逻辑，参数由应用组装，外部返回先保存为最终答案，尚未获得修改领域状态的资格。
+流式 Delta 需要节流或批量写入，阶段、引用就绪、答案替换和终态单独保存。高风险答案可以先发内部候选事件，验证完成后再对客户端发布 Replace 或最终内容。不能为了流畅先输出受限 Evidence，再用删除事件假装没有泄露。
 
-写入事件或检查点检查结构、范围、版本和主题不变量；有序事件缺少来源、落在旧版本或越过权限时，request_id 停在 rejected 或 failed。
+### 预处理和主循环怎样交接
 
-形成终态先保存有序事件与终止原因，再产生事件或通知，交付失败可以重放，核心状态写入失败则不能对外宣称完成。
+Worker 进入 Graph 前可以并行准备会话历史、用户记忆、模型配置和知识访问参数。每个预处理结果带 Kind、状态、耗时和错误，合并时按身份取值，不能依赖完成顺序。必要输入失败就终止，非关键记忆不可用可以降级为空，但 Event 和 Trace 要记录降级。
 
-推进状态出现部分结果时，由任务合同决定保留、补偿还是整体丢弃；有序事件若可重建就重新生成，外部副作用则查询回执或执行补偿。
+预处理读取的是 Turn 固定快照。会话历史可以截止到创建本轮 User Message，后来追加的 Message 不会自动混入；知识访问使用 ACL Snapshot 与 Release；模型路由使用 Policy。若主循环再次读取活动指针，预处理与执行会在同一 Turn 中使用两套版本。
 
-实现可以使用函数、Graph、Middleware 或 Workflow，request_id 的所有权和 API 等待完整模型调用的停止规则不会随框架改变。
+主循环接收一个结构化初始状态：`turn_id`、用户、问题、请求模式、Release、Policy、ACL、Deadline、Conversation 和预处理结果。模型只能在其中生成 Search Plan、Tool Call 和候选答案。Runtime 在每个节点前后执行取消、Deadline、状态修订和事件持久化。
 
-部分成功需要在步骤边界处理。推进状态已经产生一部分有序事件时，程序按任务合同决定保留、补偿或整体丢弃，并记录未完成项，不能默认为全部成功。
+恢复路径读取 Checkpoint 时，Graph Input 可以为空，让引擎从原 Thread 恢复；首次运行才传完整 Initial State。恢复后先发答案重置或修订事件，避免客户端把上次未完成 Delta 和新输出拼接。已经完成的节点不重放，仍要重新确认权限、租约与剩余期限。
 
-推进状态和写入事件或检查点都要写明逆向动作或不可逆原因，有序事件若可重建就删除后重算，已发送的外部命令只能查询回执或补偿。
+### Artifact 完成先于终态
 
-下面导入的共享示例只覆盖一次 Agent 请求穿过 API 与 Runtime 的本地控制逻辑，代码中的用户请求、request_id、错误分支和有序事件都有确定结果；真实模型、网络、数据库与供应商服务需要另做集成验证。
+Evidence、Claim 与关系写入可以在一个产物事务中替换本 Turn 的候选集合。稳定 Evidence Key 映射到持久 Row ID，重复对象去重；Claim 按 Index 排序，再写支持关系。某条 Claim 引用不存在的 Evidence 时，关系不能凭字符串补造。
 
-<<< ../../examples/ai-agent/runtime.py
+Assistant Message、Answer 与 Validation Summary 要指向同一修订。若先发 Completed Event 再写 Message，客户端会在终态后读到空答案；若先写 Message 而状态提交失败，查询可能展示一条尚未验证的结果。提交顺序和事务根据数据库模型设计，但对外可见条件必须同时满足。
 
-接入生产环境后，一次 Agent 请求穿过 API 与 Runtime 还要补入鉴权、持久化、Trace、资源上限和真实依赖测试，内存仓库与 Fake Adapter 不承担这些职责。
+## 完成、失败、取消和过期各走不同终点
 
-## 沿断线和取消推演一个 Turn
+正常路径先持久化 Evidence、Claim、Validation Summary 和最终 Message，再把 Turn 从 Pending 或 Running 更新为 Completed，最后追加 `turn.completed`。状态更新失败说明取消或其他终态先发生，迟到答案不会覆盖当前事实。
 
-沿“一次 Agent 请求穿过 API 与 Runtime 场景：一个研究型回答需要运行数分钟，期间用户断开连接、重新打开页面，并在第二次连接中请求取消”推演一次 Agent 请求穿过 API 与 Runtime：入口创建 request_id，读取可信身份，把用户请求和当前版本写入初始状态。
+依赖异常按稳定错误类型写 Failed。错误消息限制长度并脱敏，完整堆栈留在内部 Trace。Runtime 追加 `turn.failed`，释放 Lease 和准入。可以恢复的 Worker 丢失不立即写 Failed，恢复扫描器先判断 Lease 与 Deadline，再重新投递同一 Turn。
 
-创建 Turn 生成 request_id 与输入摘要；若幂等键缺失，请求返回 rejected，并指出缺少哪项材料，不继续消耗模型或外部服务配额。
+Pending Turn 被用户取消时可以直接进入 Cancelled，追加终态事件并释放容量。Running Turn 先进入 Cancel Requested，同时向快速控制通道写取消信号。Worker 在阶段边界确认后清理资源、写 Cancelled；Redis 不可用时，从数据库状态读取取消请求。
 
-领取执行权冻结 scope、release、policy 和 deadline_at，用户或模型在正文中提供的同名值只作为普通内容，不能覆盖这份运行时快照。
+Deadline 到达后，过期任务把非终态 Turn 更新为 Expired，保存 `deadline_exceeded`，追加 `turn.expired` 并释放容量。过期与取消都不是普通模型错误，重试不会自动获得新 Deadline。用户决定重新运行时创建新 Turn。
 
-推进状态按“API 校验身份和幂等键后创建 Turn，提交异步 Task；Worker 领取并推进 Agent，事件先持久化再推送，读取端可流式订阅或查询终态”推进，每次依赖调用保存 call_id、参数摘要、开始时间与状态版本，以便判断超时前是否已经产生结果。
+终态 Event 使用幂等锁保护。Worker 异常处理、恢复扫描器和 API 补偿可能同时尝试写失败或过期事件，持久层只返回已有终态序号。客户端最终只看到一个业务终点。
 
-候选结果对应有序事件、最终答案、失败原因、取消确认、可恢复检查点和审计轨迹，写入事件或检查点逐项检查权限、版本与领域约束，问题列表为空才允许形成下一状态。
+## 事务外故障窗口需要明确补偿
 
-形成终态写入终态；客户端断开只影响交付通道，重新连接时读取已经保存的 request_id 或事件游标，不重跑核心逻辑。
+数据库 Commit 成功、Redis 通知失败时，不回滚 Turn。通知层记录失败，SSE 定期读数据库；下一条 Event 通知也会让客户端发现最新序号。权威 Event 没丢，故障只增加交付延迟。
 
-故障注入选择推送先于落库，程序保留原候选和错误位置，只重做失败边界，不能从入口复制整个任务并产生第二份状态。
+Commit 成功、Queue Dispatch 失败时，补偿事务写 Failed。若补偿事务也失败，恢复扫描器会发现 Pending Turn 没有活动执行 Lease，再次投递或标记失败。监控需要单独统计“已创建但从未开始”的年龄，不能只看队列长度。
 
-推演结束后用 request_id 关联 request_id、有序事件与终止原因，测试据此排除并发请求串线，并确认失败路径没有遗留未关闭资源。
+Queue 已接收、API 响应丢失时，客户端重发同一幂等键，返回原 Turn。Queue 重复投递时，状态条件拦住第二个 Worker。Worker 在模型成功后、产物 Commit 前退出，恢复可以重做模型调用；在工具副作用后退出，则依赖动作幂等记录查询原结果。
 
-一次 Agent 请求穿过 API 与 Runtime 在输入拒绝时不调用依赖，正常路径按 5 个阶段推进，有限修复只重做失败边界。调用次数是控制流断言，不是性能宣传。
+终态 Commit 成功、Redis 通知失败时，客户端轮询能看到完成，SSE 的数据库回退也会读到终态 Event。终态状态成功但 Event 缺失属于数据不变量错误，由修复 Job 追加同类型 Event；不能重新执行整个 Turn 来“补一条流消息”。
 
-一次 Agent 请求穿过 API 与 Runtime 的最终记录用 request_id 关联 request_id、有序事件和失败问题，测试据此证明结果来自本次执行，没有混入并发请求。
+Admission Release 失败不会改变终态。Lease 有 TTL，后台校准以非终态 Turn 为准清理孤儿；释放错误进入容量告警。反过来，Lease 提前丢失也不授权另一个 Worker 重做副作用，新的执行者还要通过数据库状态和执行锁。
 
-## 终态、事件和恢复证据
+这些窗口适合用故障注入验证。测试在每个 Commit、Publish、Send、Tool Result 与 Terminal Write 之后主动退出进程，再检查可观察状态。只测试函数抛异常，覆盖不到“外部已经成功、调用方没收到确认”的不确定结果。
 
-一次 Agent 请求穿过 API 与 Runtime 正常完成时，request_id、turn_id 和有序事件指向同一次执行，重复读取返回同一终态，未完成分支已经取消或有明确所有者。
+## 客户端用状态查询和 SSE 读取同一事实
 
-幂等键、状态版本、Lease、Event 序号、Checkpoint 和终止原因用于还原一次 Agent 请求穿过 API 与 Runtime 的处理过程，可以按阶段和版本聚合；敏感正文留在受控存储中，不复制到日志与指标。
+状态查询先验证 Turn 属于当前用户，再检查知识库权限，返回持久化记录。它适合页面恢复、SSE 不可用时轮询和终态确认。查询不触发模型重跑，也不刷新 Deadline。
 
-最终答案可能是合法的空结果，但必须带范围、版本和原因；任务明确要求找到材料时，同一个空结果进入拒答而非成功。
+SSE 连接使用 `Last-Event-ID` 作为游标。服务从数据库读取大于游标的 Event，按 Sequence 输出 `id`、`event` 和 JSON `data`。终态已经重放后关闭连接；没有新事件时发送注释 Heartbeat，代理不会把它当业务消息。
 
-依赖返回成功状态只证明传输完成。一次 Agent 请求穿过 API 与 Runtime 还要检查有序事件是否满足业务范围、质量阈值和当前版本，明确拒绝也可能是正确终态。
+Redis 提供“最新序号变了”的提示，减少数据库高频轮询。Redis 失败后，SSE 按受限间隔直接查询数据库；即使 Redis 丢掉通知，定期数据库检查仍能发现新 Event。把 Redis Pub/Sub 当唯一事件存储，会让断线期间的消息无法重放。
 
-推进状态并发完成时，每个分支保留自己的身份和局部预算，写入事件或检查点按任务合同接纳可用结果，慢分支不能抹掉已经确认的记录。
+客户端收到 Delta 后只更新当前答案修订，收到 Replace 时替换未验证内容，收到 References Ready 后绑定 Citation。Completed、Failed、Cancelled 与 Expired 都结束当前流。网络断开再连接时沿用同一 Turn 和最后游标，不重新提交问题。
 
-request_id 的状态迁移必须单调：完成不能退回运行中，取消不能被迟到结果覆盖，失败重试也不能绕过入口已经固定的权限。
+## 用一个真实时序检查各层责任
 
-一次 Agent 请求穿过 API 与 Runtime 的成功证据最终要同时回答输入是什么、执行了哪些步骤、交付了什么以及为什么停止；任一项缺失都应留在未确认状态。
+用户第一次提交“远程访问多久生效”，幂等键为 `request-123`。鉴权和知识库权限通过，快速查询未命中，准入预留 `turn-1`。Conversation Service 创建 User Message 与占位 Assistant Message；Runtime 固定 Release 7、Policy 3 和员工范围，写入 Turn 与 Event 1，事务提交。
 
-一次 Agent 请求穿过 API 与 Runtime 把业务验收与服务健康分开。依赖返回 200 只说明传输成功，有序事件仍要满足当前范围和质量要求；明确拒答也可能是正确终态。
+队列成功接收 `turn-1`，API 返回 Pending 与 Event URL。Worker 把状态改为 Running，Event 2 表示开始；检索与验证产生 Event 3 到 6。用户断开后又带 `Last-Event-ID: 2` 重连，SSE 从数据库补发 3 到 6，不影响 Worker。
 
-一次 Agent 请求穿过 API 与 Runtime 的观测指标按阶段和版本聚合。错误率、空结果率、拒绝率、恢复次数与资源消耗回答不同问题，不能压成一个成功率。
+模型答案缺少审批前提，验证器执行一次有限修复。Evidence、Claim 和修订答案持久化后，Turn 进入 Completed，Event 7 关闭流。用户刷新页面，Status Query 和 Message 都返回同一答案；同一幂等键再次 POST 只返回 `turn-1`，Dispatcher 不再发送任务。
 
-## 重复投递、竞态与失联处理
+若队列在首个请求中不可用，事务已经保存 `turn-1`，补偿事务把它标成 Failed 并写 Dispatch Failed Event。客户端重试相同键得到原失败记录。产品要重新执行时生成 `request-124`，新 Turn 可以沿用同一 Conversation，但拥有新的 Deadline、Release 与 Policy 快照。
 
-一次 Agent 请求穿过 API 与 Runtime 按输入、状态、依赖、结果和交付五个位置分类错误，发生位置决定恢复动作，不能用同一个重试循环处理全部失败。
+## 最小示例验证入口的四条分支
 
-遇到 API 等待完整模型调用时，系统要返回稳定的错误类型、发生阶段和可重试标记。一次 Agent 请求穿过 API 与 Runtime 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+示例把持久 Store 和 Dispatcher 分开。第一次请求先创建可查询 Turn，再发送 `turn_id`；相同幂等键返回原对象；准入拒绝不创建记录；Dispatch 失败保留 Failed Turn 与错误 Event。
 
-遇到队列成功但 Turn 未创建时，系统要返回稳定的错误类型、发生阶段和可重试标记。一次 Agent 请求穿过 API 与 Runtime 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+<<< ../../examples/ai-agent/request_lifecycle.py
 
-遇到推送先于落库时，系统要返回稳定的错误类型、发生阶段和可重试标记。一次 Agent 请求穿过 API 与 Runtime 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+运行示例和测试：
 
-遇到 Worker 崩溃丢状态时，系统要返回稳定的错误类型、发生阶段和可重试标记。一次 Agent 请求穿过 API 与 Runtime 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+```bash
+python3 examples/ai-agent/request_lifecycle.py
 
-遇到读取端只依赖长连接时，系统要返回稳定的错误类型、发生阶段和可重试标记。一次 Agent 请求穿过 API 与 Runtime 保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+PYTHONPATH=examples/ai-agent \
+  python3 -m unittest examples/ai-agent/tests/test_request_lifecycle.py
+```
 
-一次 Agent 请求穿过 API 与 Runtime 结束错误处理时保存终态、可重试性和资源清理结果，后台扫描器依靠 request_id 和这些字段区分仍在运行、等待恢复和已经失败的任务。
+内存 Store 没有事务锁和数据库唯一约束，Dispatcher 也不实现 Celery ACK、Lease 与恢复。四条测试只验证入口控制顺序。生产验证还要并发提交相同键、让进程在 Commit 后和 Dispatch 前退出、关闭 Redis 通知、让 Worker 在终态前崩溃，并确认客户端仍能从持久状态恢复。
 
-一次 Agent 请求穿过 API 与 Runtime 在执行前写入绝对 Deadline、最大动作数、重复签名、无进展阈值、预算和人工取消信号，任一条件触发后推进状态都不再创建新工作。
+## 故障定位沿生命周期逐段检查
 
-一次 Agent 请求穿过 API 与 Runtime 把重试时间和次数计入总预算。依赖连续失败会减少后续额度，达到上限后保留原始错误，不再用模型重新措辞掩盖失败。
+没有 Turn 的 4xx 查看认证、权限和输入 Schema；没有 Turn 的 429 查看用户或系统准入；已经有 Turn 且 Pending 无 Task，查看 Dispatch、Outbox 和队列路由；Running 长时间无 Event，查看 Lease、Worker 当前阶段和下游调用。
 
-一次 Agent 请求穿过 API 与 Runtime 的清理动作可以重复执行。临时对象、文件句柄、子进程、连接或 Lease 仍被活动任务引用时，清理器必须拒绝删除。
+有 Event 但 SSE 不更新，比较数据库最新 Sequence、Redis 通知和客户端 Cursor。数据库没有新 Event，问题在 Runtime 持久化；数据库有而 Redis 没有，SSE 应通过回退读到；服务已输出而浏览器没显示，再查代理缓冲、连接和前端解析。
 
-## 崩溃注入和并发测试
+Turn Completed 但答案缺 Citation，检查 Evidence、Claim 与 Message 完成事务；答案正确却出现两次工具副作用，检查动作幂等和 Worker 恢复；取消后继续产生新调用，对照取消时间与动作创建时间，定位 Worker 是否漏掉控制检查。
 
-模拟重复提交、进程崩溃、断线重连和过期租约，断言只有一个逻辑 Turn、事件序号连续且副作用幂等；测试显式给出用户请求、初始 request_id、预期有序事件和终止原因，不能只断言返回值非空。
+每条告警带 `turn_id`、阶段、Release、Policy、状态修订、Event Sequence 和错误类。问题正文、ACL 详情、Evidence 内容与凭证不进入普通指标标签，需要排查时通过受控权限读取。
 
-一次 Agent 请求穿过 API 与 Runtime 的单元测试用 Fake Adapter 固定有序事件与错误，断言参数、调用顺序、状态修订和清理动作，这些结果只证明本地控制逻辑。
+## 指标要对应生命周期中的动作
 
-契约测试围绕用户请求、request_id 和最终答案构造合法与非法样本，Schema 解析成功后继续检查权限、版本与领域不变量。
+入口指标区分 Auth Rejected、Permission Rejected、Idempotent Replay、Admission Rejected、Created 和 Dispatch Failed。它们的分母是创建请求，不能与 Agent 答案成功率混在一起。Idempotent Replay 增多可能来自客户端网络重试，不等于业务请求增长。
 
-故障测试注入 API 等待完整模型调用和队列成功但 Turn 未创建，记录推进状态是否被调用、request_id 是否改变、资源是否释放，以及同一身份重试会不会重复执行。
+队列与 Worker 观察 Pending Age、Queue Wait、Running Duration、Lease Renew Failure、Recovery Queued 和 Attempt Count。Pending Age 高而 Queue Depth 低，可能是 Dispatch 或路由问题；Queue Depth 高且 Worker Saturated 才指向容量。Running Duration 还要按 Resolved Mode 和当前阶段拆分。
 
-在推进状态前后终止进程可以检查恢复边界：调用前退出允许重新领取，外部动作后退出先查回执，形成终态完成后只重放交付。
+Event 交付记录 Append、Commit、Publish 和总耗时，SSE 记录活跃连接、重放数量、数据库回退与 Cursor Lag。Redis 错误增加但 Cursor Lag 稳定，说明回退生效；Event 已写而 Lag 持续扩大，再检查轮询与代理缓冲。
 
-一次 Agent 请求穿过 API 与 Runtime 的集成测试连接真实协议与隔离存储，检查序列化、约束、并发和超时；需要在线服务时另行记录服务版本、时间、配置与凭证条件。
+终态按 Completed、Failed、Cancelled 和 Expired 分开，Failed 再按稳定错误类聚合。质量指标读取 Agent Eval 与反馈，不用 HTTP 2xx 或 Celery Success 代替。安全拒答可以是正确 Completed Contract，权限泄露即使返回流畅答案也是质量失败。
 
-一次 Agent 请求穿过 API 与 Runtime 的回归报告要保留失败类型分布。明确拒绝变成超时、权限错误变成普通空结果，都属于行为回归，即使总通过数没有变化。
+告警必须有处理动作。Pending Age 超限触发恢复扫描，Lease 续期失败检查活动执行，SSE Lag 触发数据库回退，Dispatch Failed 检查队列并保留 Turn。只有一条“Agent Success Rate 下降”无法决定该扩 Worker 还是修 Citation。
 
-一次 Agent 请求穿过 API 与 Runtime 的性质测试随机改变 request_id 顺序、重复提交、完成顺序或状态版本，断言权限不扩大、终态不倒退、同一身份不产生两次副作用。
+## 发布前怎样验证完整请求链
 
-离线评测关注固定输入下的质量变化，运行时测试关注控制和恢复。一次 Agent 请求穿过 API 与 Runtime 只有两类证据都存在，才能同时回答“结果是否合格”和“系统是否安全完成”。
+单元测试覆盖输入 Schema、幂等快速路径、准入释放、状态条件和 Event 编码。数据库集成测试并发创建同一键，检查 Conversation、Message、Turn 与首个 Event 是否原子出现，并验证终态 Event 唯一。
 
-## 容量、Lease 与版本演进
+队列测试使用隔离 Broker，确认 Queue Name、Task ID、重复投递和 Worker 丢失后的行为。故障用例在 Dispatch 前后退出，验证 Failed 补偿或恢复投递；工具适配器记录 Action Fingerprint，证明重试不会执行两次。
 
-一次 Agent 请求穿过 API 与 Runtime 长期运行后，输入 Schema、request_id 结构和依赖配置可能独立升级，每次执行固定一组版本，旧记录才能被正确读取或迁移。
+浏览器测试创建 Turn，断开 SSE 后用 Last Event ID 重连，检查只补缺失事件；随后触发取消，确认页面最终显示 Cancelled，状态查询一致。禁用 Redis 后重复同一流程，数据库回退仍应完成交付。
 
-一次 Agent 请求穿过 API 与 Runtime 的容量主要受队列积压、Worker 并发、租约时长、事件吞吐和恢复扫描影响，并发可能缩短单次等待，也会占用连接、配额、内存和下游吞吐，必须沿创建 Turn、领取执行权、推进状态、写入事件或检查点、形成终态逐层核算。
+安全测试用两个用户访问同一 `turn_id`，非所有者得到统一拒绝，Event 与 Status 都不泄露对象存在。页面 Scope 超出权限时，Turn Snapshot 只保存求交结果；Worker、恢复和 Eval 一直使用该范围。
 
-一次 Agent 请求穿过 API 与 Runtime 的候选版本在固定样本上比较正确性、错误类型、延迟和资源消耗，API 等待完整模型调用等安全红线回归时直接停止发布，不能用平均质量抵消。
+测试证据记录环境、依赖版本和注入位置。Fake Queue 与内存 Store 只证明控制顺序，真实数据库、Redis 和 Broker 测试才覆盖事务与协议。外部模型未调用时，报告不能写“端到端答案已验证”。
 
-API 等待完整模型调用的降级路径在发布前写好，可以减少非关键增强、返回已经确认的有序事件，或明确暂时无法确认，缺失事实不能交给模型补写。
+## 同步调用、队列与工作流引擎怎样取舍
 
-一次 Agent 请求穿过 API 与 Runtime 的运行手册从 request_id 定位幂等键、状态版本、Lease、Event 序号、Checkpoint 和终止原因，再决定重试、补偿、取消或回滚，无需先展开完整的用户请求。
+任务能在普通请求时限内完成，没有断线恢复、取消和外部副作用时，同步调用减少数据库与队列成本。仍应保留请求级幂等和错误分类，但不必为了统一架构强行创建大量 Event。
 
-一次 Agent 请求穿过 API 与 Runtime 的数据按证据用途分级保留，聚合字段可以留得更久，用户请求和大体积有序事件设置短期限、访问控制与删除通道。
+队列适合把 API 与耗时 Worker 解耦，提供并发控制和至少一次投递。应用需要自己实现 Turn 状态、动作幂等、Deadline、恢复扫描和事件交付。Celery Task 成功不等于业务答案合格。
 
-一次 Agent 请求穿过 API 与 Runtime 先在单进程实现 request_id、超时、错误和测试，只有恢复与容量证据提出要求时，再增加队列、Lease、分布式缓存或工作流引擎。
+工作流引擎适合跨小时或跨天、等待人工信号和多 Activity 的流程，能持久化事件历史并重放。它增加确定性代码、版本演进和运维约束；面向产品的 Conversation、Turn、Message、Evidence 和 Policy 仍需单独建模。
 
-一次 Agent 请求穿过 API 与 Runtime 的监控阈值要对应可执行动作。队列积压、Worker 并发、租约时长、事件吞吐和恢复扫描中的某项接近上限时，系统可以限流、排队、缩小候选或切换保守路径；只发送告警不会保护正在运行的任务。
-
-回滚要覆盖代码之外的状态。一次 Agent 请求穿过 API 与 Runtime 若改变 Schema、缓存键或持久化记录，旧版本是否还能读取新写入数据必须提前验证；无法双向兼容时采用候选版本隔离。
-
-## 何时需要队列或工作流引擎
-
-采用一次 Agent 请求穿过 API 与 Runtime 前先画出用户请求到有序事件的最小控制图；固定函数已经能完成任务时，新增模型决策和跨进程 request_id 只会扩大测试与运维范围。
-
-一次 Agent 请求穿过 API 与 Runtime 与同步 HTTP 的差别落在控制权：谁选择下一步，谁保存 request_id，谁确认有序事件可信。
-
-异步任务可以与一次 Agent 请求穿过 API 与 Runtime 组合，但外部知识仍需授权，工具调用仍需校验，模型产生的有序事件仍停留在候选状态。
-
-一次 Agent 请求穿过 API 与 Runtime 适合价值足够、API 等待完整模型调用可观察且预算可接受的任务，高风险、不可逆的决定需要确定性规则或人工批准。
-
-格式正确但事实错误的有序事件是必要反例；若它直接进入成功，说明写入事件或检查点缺少业务验证，应保留候选并给出证据问题。
-
-执行期间修改 turn_id 可以检验并发设计，旧动作若仍能覆盖 request_id，说明版本或 Lease 有缺口，增加 Prompt 规则无法修复这类竞态。
-
-一次 Agent 请求穿过 API 与 Runtime 增加了 request_id、依赖调用、恢复责任和故障面，设计记录既要说明获得的能力，也要列出新增的退出、降级与回滚路径。
-
-一次 Agent 请求穿过 API 与 Runtime 从一个调用、一个 request_id、一组明确错误和几条确定性测试开始，真实 Trace 证明需要后再加入并发、缓存、队列或更复杂策略。
-
-同步 HTTP 只在能处理 API 等待完整模型调用时引入，不为目录完整强行组合；接口保持可替换，后续需求出现再扩展。
+选择依据来自执行时长、失败代价、控制需求和恢复证据，不是框架流行度。无论采用哪种基础设施，请求生命周期都要回答四个问题：何时算受理，哪个稳定 ID 代表任务，失败后怎样确认是否执行，客户端怎样读到同一终态。

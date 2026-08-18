@@ -87,10 +87,10 @@ export const aiAgentCurriculum: AiAgentArticleSpec[] = [
   ...stage('single-agent', [
     article('agent-router-mode-selection', 'Router 怎样选择执行模式', '根据任务范围、时限、风险和证据要求选择固定回答、快速检索或研究循环。', ['Router', 'Mode Selection'], 'implementation', ['wl-13-routing', 'kb-mode-routing'], ['agent-fit-deterministic-workflow']),
     article('agent-planner-search-plan', 'Planner 怎样生成受限的 SearchPlan', '让计划描述目标、分支、依赖、范围、预算和停止条件，执行权仍留在运行时。', ['Planning', 'SearchPlan'], 'implementation', ['wl-10-planning', 'kb-search-plan'], ['agent-router-mode-selection']),
-    article('agent-reflection-repair', 'Reflection 怎样验证结果并做有限修复', '将可观察问题反馈给修复步骤，限制轮数、保留原证据并处理评估器失真。', ['Reflection', 'Repair', 'Validation'], 'implementation', ['wl-11-reflection', 'kb-answer-repair'], ['agent-planner-search-plan']),
+    article('agent-reflection-repair', 'Reflection 如何验证答案并限制修复', '从可观察问题、证据绑定和停止条件出发，解释 Reflection 如何检查答案、生成具体反馈并完成一次受限修复。', ['Reflection', 'Repair', 'Validation'], 'implementation', ['wl-11-reflection', 'kb-answer-repair'], ['agent-planner-search-plan']),
     article('chain-of-thought-boundaries', '推理过程的使用边界与审计记录', '区分模型内部推理、可公开解释和运行时决策记录，避免把隐式理由当事实证据。', ['Reasoning', 'Chain of Thought', 'Trace'], 'concept', ['wl-12-chain-of-thought', 'official-reasoning-boundary'], ['python-agent-loop-from-scratch']),
-    article('tree-of-thoughts-search', 'Tree of Thoughts 怎样搜索候选路径', '从候选生成、评分、剪枝、回溯和预算耗尽理解树搜索的控制过程。', ['Tree of Thoughts', 'Search', 'Pruning'], 'implementation', ['wl-17-tree-of-thoughts', 'appendix-pattern-selection'], ['agent-planner-search-plan']),
-    article('debate-pattern', 'Debate 模式怎样处理有证据的分歧', '让不同角色提出和质询证据，再由独立规则裁决，避免多数票替代事实验证。', ['Debate', 'Evidence', 'Multi Agent'], 'implementation', ['wl-18-debate', 'appendix-pattern-selection'], ['agent-reflection-repair']),
+    article('tree-of-thoughts-search', 'Tree of Thoughts：候选路径如何搜索', '把 Tree of Thoughts 拆成状态、候选生成、评分、剪枝、回溯与预算控制，并用可运行的 Best-first 搜索验证停止条件。', ['Tree of Thoughts', 'Search', 'Pruning'], 'implementation', ['wl-17-tree-of-thoughts', 'appendix-pattern-selection'], ['agent-planner-search-plan']),
+    article('debate-pattern', 'Debate 模式：如何用证据处理分歧', '从独立立场、交叉质询到证据裁决实现 Debate，说明为什么共识和多数票不能替代事实、权限与业务验证。', ['Debate', 'Evidence', 'Multi Agent'], 'implementation', ['wl-18-debate', 'appendix-pattern-selection'], ['agent-reflection-repair']),
   ]),
   ...stage('multi-agent-research', [
     article('multi-agent-orchestration', '多 Agent 编排的职责、状态与成本', '从单循环拆出多个角色，明确输入输出、共享状态、预算和失败责任。', ['Multi Agent', 'Orchestration', 'State'], 'architecture', ['wl-13-orchestration', 'kb-runtime-state'], ['agent-planner-search-plan']),

@@ -29,6 +29,49 @@ Bun 是一套 JavaScript/TypeScript 工具链，分别提供 Runtime、包管理
 
 `bun run dev` 能启动 Vite，不代表项目已经把生产 Runtime 从 Node 迁到 Bun。Bun 同时提供 JavaScript Runtime、包管理器、脚本运行器、测试器和 Bundler，评估时必须逐层说明替换了哪一部分。
 
+## 安装 Bun 并确认命令可用
+
+安装入口是 [Bun 官方安装页](https://bun.com/docs/installation)。macOS 与 Linux 可以使用官方脚本，Windows 需要在 PowerShell 中执行对应安装命令：
+
+![Bun 官方安装页面，展示 macOS/Linux、Windows、包管理器和 Docker 安装方式](/images/install/bun-installation.png)
+
+截图用于帮助读者定位官方页面中的安装标签，命令以页面当前版本为准。
+
+::: code-group
+
+```bash [macOS / Linux]
+curl -fsSL https://bun.com/install | bash
+```
+
+```powershell [Windows PowerShell]
+powershell -c "irm bun.sh/install.ps1|iex"
+```
+
+:::
+
+安装脚本会把可执行文件放到用户目录。关闭并重新打开终端后，检查版本和对应的源码修订：
+
+```bash
+bun --version
+bun --revision
+```
+
+第一条应输出语义化版本号，第二条会带出当前构建的修订标识。出现 `command not found` 时，先检查 `~/.bun/bin` 是否进入 `PATH`，不要在不同包管理器之间反复安装。Linux 还需要 `unzip`；Windows 要求 Windows 10 1809 或更高版本，具体要求以官方安装页为准。
+
+接着跑一个不依赖框架的 TypeScript 文件，确认生效的是 Runtime，而不只是安装器：
+
+```ts
+// hello.ts
+const runtime = `Bun ${Bun.version}`
+console.log(runtime)
+```
+
+```bash
+bun run hello.ts
+```
+
+输出包含 `Bun` 和当前版本后，才进入项目依赖安装。这个结果只能证明 Runtime 能执行当前文件，不能证明现有仓库的 Node API、原生扩展或构建插件兼容。
+
 ## 五个角色
 
 Runtime 执行 JavaScript/TypeScript 并提供 Web/Node 兼容 API；`bun install` 解析依赖并写锁文件；脚本运行器执行 package scripts；test 提供测试 API；build 把模块转换和打包。项目完全可以只采用其中一层，例如使用 Bun 安装依赖但仍由 Vite 构建浏览器应用。
@@ -76,6 +119,7 @@ Bun 的兼容层会随版本变化，尤其是 Node API、Web API、测试 mock 
 
 ## 官方依据
 
+- [Bun 安装](https://bun.com/docs/installation)
 - [Bun Runtime](https://bun.sh/docs/runtime)
 - [Bun Package Manager](https://bun.sh/docs/pm)
 - [Bun Bundler](https://bun.sh/docs/bundler)

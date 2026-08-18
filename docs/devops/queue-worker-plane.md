@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 用户上传文档后 API 立刻返回任务 ID，几分钟后数据库里却出现两份切片；另一个任务长期停在 running，重启 Worker 也没有恢复。队列只负责传递工作，不会自动提供 exactly-once。只要 ack 可能丢、Worker 可能崩溃，重复执行和租约过期就必须成为业务状态。
 
 
-<InfraFigure src="/images/ai-infra/queue-worker-plane/hero.png" alt="任务从 API 进入队列，被 Worker 领取、续租、重试并写入终态的插画"
-  icon="queue" caption="队列把接收请求与执行任务分开，可靠性取决于状态机而不是“异步”二字。" />
-
 
 ## 用条件更新阻止两个 Worker 同时拥有任务
 
@@ -79,31 +76,31 @@ flowchart LR
 
 图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
 
-### 从 创建任务 留下的证据回到 API/Database
+### 创建任务：API/Database
 
 事务内生成 task_id 和 queued 记录，再通过 outbox 或可靠发布进入队列。
 
 决定下一步前需要看到 唯一 task_id、outbox 状态。
 
-### 2. Worker 怎样完成领取执行
+### 领取执行：Worker
 
 获取消息并条件更新为 running，记录 attempt 与 lease_until。
 
 这一动作的可观察结果是 worker_id、attempt、租约。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 3. 写入结果：Worker/Storage 持有当前状态
+### 写入结果：Worker/Storage
 
 按内容摘要和目标知识版本幂等写入中间结果。
 
 可以从这些位置确认结果：唯一约束、阶段 checkpoint。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 确认终态发生时，先看 Worker/Broker
+### 确认终态：Worker/Broker
 
 事务提交后 ack；失败按分类重试或进入 dead letter。
 
 这里不靠猜测，优先读取 succeeded/failed、ack、retry_at。
 
-## 同一个症状，下一步证据可能完全不同
+## 队列有消息不等于 Worker 能处理
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

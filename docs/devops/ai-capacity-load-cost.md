@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 压测工具设置 20 个并发用户，结果显示服务每秒能处理 30 个请求，于是团队按这个数字规划生产。真实流量到来后，用户输入更长、输出上限更高，开放到达率在过载时继续施压，队列迅速增长。固定并发的闭环压测会在服务变慢时自动减少新请求，恰好掩盖了过载。
 
 
-<InfraFigure src="/images/ai-infra/ai-capacity-load-cost/hero.png" alt="请求到达率经过队列进入有限 GPU 容量并转化为延迟与成本的插画"
-  icon="chart" caption="容量判断要同时描述请求分布、排队、完成率和每个成功结果的成本。" />
-
 
 ## 一次容量实验要固定哪些变量
 
@@ -46,25 +43,25 @@ flowchart LR
 
 先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-### 建立样本发生时，先看 Workload Designer
+### 建立样本：Workload Designer
 
 固定模型版本并从真实分布抽样输入/输出长度、stream 和能力。
 
 这里不靠猜测，优先读取 scenario mix、token histogram。
 
-### 从 施加到达 留下的证据回到 Load Generator
+### 施加到达：Load Generator
 
 用明确 open/closed 模型和阶梯负载发送带 deadline 请求。
 
 决定下一步前需要看到 offered rate、client errors。
 
-### 3. Telemetry 怎样完成观察系统
+### 观察系统：Telemetry
 
 记录准入、队列、TTFT、TPOT、完成率、GPU 与依赖。
 
 这一动作的可观察结果是 per-stage histogram、saturation。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 4. 形成决策：Capacity Planner 持有当前状态
+### 形成决策：Capacity Planner
 
 在 SLO 和质量门槛内选择可持续区间并计算冗余与单位成本。
 
@@ -86,7 +83,7 @@ flowchart LR
 不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## 别让表面现象替你下结论
+## 平均吞吐不能代表尾延迟
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 模型容器显示 Running，宿主机却访问不到 8000 端口；进入容器能看到进程，挂载目录又报 Permission denied。把这些现象分成“网络问题”“权限问题”“Docker 问题”会错过共同根因：同一个进程正同时处在独立的 network namespace、受 cgroup 限制，并通过挂载看到来自宿主机的文件所有权。容器只是把这些约束组合起来。
 
 
-<InfraFigure src="/images/ai-infra/oci-container-runtime/hero.png" alt="容器镜像被展开为 rootfs 并通过 namespace 与 cgroup 隔离进程的插画"
-  icon="container" caption="容器不是轻量虚拟机，而是受一组 Linux 隔离与资源规则约束的进程。" />
-
 
 ## 镜像、容器和进程分别是什么
 
@@ -69,31 +66,31 @@ flowchart LR
   S3 --> S4
 ```
 
-### 1. 镜像客户端与 Registry 怎样完成解析制品
+### 解析制品：镜像客户端与 Registry
 
 按 digest 拉取 manifest、config 与各层并校验内容。
 
 这一动作的可观察结果是 `docker image inspect`、digest、架构与入口。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 准备文件系统：Snapshotter 持有当前状态
+### 准备文件系统：Snapshotter
 
 展开只读镜像层，添加容器可写层和显式挂载。
 
 可以从这些位置确认结果：mount 信息、overlay 层、卷来源。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 建立边界发生时，先看 Runtime 与内核
+### 建立边界：Runtime 与内核
 
 创建 namespace、cgroup、capability 和安全策略。
 
 这里不靠猜测，优先读取 `docker inspect`、`nsenter`、cgroup 文件。
 
-### 从 启动进程 留下的证据回到 Runtime
+### 启动进程：Runtime
 
 在新边界中执行 Entrypoint，首进程成为容器 PID 1。
 
 决定下一步前需要看到 `ps`、命令行、退出码、信号处理。
 
-### 5. 容器引擎 怎样完成停止与清理
+### 停止与清理：容器引擎
 
 先发送停止信号，等待超时，再强制结束并回收临时状态。
 

@@ -1,20 +1,20 @@
 ---
-title: "Chunk 质量门禁与回归检查"
-description: "检查内容保留、重复、孤立邻接、超限切块和失败记录，让切块变化可回归。"
+title: Chunk 质量门禁与回归检查
+description: 检查内容保留、重复、孤立邻接、超限切块和失败记录，让切块变化可回归。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 45
 sequence: 45
 slug: rag-chunk-quality-gates
 tags:
-  - "Chunking"
-  - "Quality Gate"
-  - "Regression"
+  - Chunking
+  - Quality Gate
+  - Regression
 sourceKey: ai-rag-chunk-quality-gates
 dependsOn:
-  - "rag-semantic-chunking"
-  - "rag-table-structured-chunks"
+  - rag-semantic-chunking
+  - rag-table-structured-chunks
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -25,6 +25,17 @@ lastUpdated: false
 质量门禁位于候选构建和活动版本切换之间。它读取 ParsedDocument、Source、Chunk、向量状态与 Coverage Manifest，验证结构和存储结果；任何不变量失败，事务回滚，新候选保持不可见，旧活动版本继续服务。门禁本身不修复内容，也不调用模型判断“看起来差不多”。
 
 本文用远程访问制度的一次更新做诊断。旧版本可以正常回答，新版本增加一张生产权限表。候选构建后出现三个症状：召回里同一句话重复，表格编号查不到，一次邻接扩展返回空。我们会从 Coverage 和候选记录定位原因，再验证修复没有改变旧版本的活动指针。
+
+```mermaid
+flowchart TD
+  A[候选 Chunk] --> B[内容保留率]
+  B --> C[重复与孤立关系]
+  C --> D[长度与结构限制]
+  D --> E[存储数量与版本核对]
+  E --> F{全部通过}
+  F -->|是| G[允许进入候选 Release]
+  F -->|否| H[记录失败并保留旧版本]
+```
 
 ## 门禁先检查候选是否具备可验证条件
 

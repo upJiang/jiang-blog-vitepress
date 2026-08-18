@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 业务配置写的是 `smart-chat`，平台切换 Qwen 新 revision 后，工具调用突然失效。健康检查仍返回 200，因为探针只问了普通文本。模型切换不只是换 endpoint：逻辑能力、制品 revision、Serving 配置和验证场景必须作为不同实体管理。
 
 
-<InfraFigure src="/images/ai-infra/multi-model-platform/hero.png" alt="逻辑模型注册表连接多个版本、部署实例和健康路由的插画"
-  icon="models" caption="业务请求选择逻辑能力，控制面再把它解析为某个可验证的模型部署。" />
-
 
 ## 一次逻辑模型解析怎样避开错误切换
 
@@ -46,25 +43,25 @@ flowchart LR
 
 先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-### 注册能力发生时，先看 Control Plane
+### 注册能力：Control Plane
 
 录入逻辑模型、允许能力、数据区域和策略版本。
 
 这里不靠猜测，优先读取 registry version、capability schema。
 
-### 从 绑定候选 留下的证据回到 Release Controller
+### 绑定候选：Release Controller
 
 关联 artifact revision、deployment 配置和验证结果。
 
 决定下一步前需要看到 digest、engine version、candidate state。
 
-### 3. Health Controller 怎样完成持续探测
+### 持续探测：Health Controller
 
 执行基础健康与能力探针，聚合为可路由状态。
 
 这一动作的可观察结果是 probe type、success window、last error。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 4. 数据面选择：Gateway 持有当前状态
+### 数据面选择：Gateway
 
 按缓存的已发布快照选择 deployment 并记录决策版本。
 
@@ -85,7 +82,7 @@ flowchart LR
 不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## 别让表面现象替你下结论
+## 路由命中不等于模型成功
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

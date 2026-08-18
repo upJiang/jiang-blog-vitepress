@@ -27,6 +27,22 @@ updated: 2026-08-12
 
 `GET project:42` 返回的是字符串，`HGETALL user:7` 返回字段集合，`ZRANGE rank 0 9` 按分数取有序成员。Redis 不是只有 GET/SET 的内存对象，它的数据类型决定原子操作、内存布局和访问成本；TTL 与持久化则决定进程重启和时间到期后还剩什么。
 
+## 安装 Redis 并验证连接
+
+Redis 的下载和安装入口在[官方文档](https://redis.io/downloads/)。本地实验可以运行隔离容器，生产环境应固定镜像版本、配置认证、持久化和内存上限。
+
+<figure class="doc-shot">
+  <img src="/images/install/redis-download.png" alt="Redis 官方下载页面" loading="lazy">
+  <figcaption>Redis 官方下载入口。选择平台后再核对版本和部署方式，客户端可连接不等于持久化和淘汰策略符合业务要求。</figcaption>
+</figure>
+
+```bash
+docker run --name redis-learning -p 6379:6379 -d redis:7
+redis-cli -h 127.0.0.1 ping
+```
+
+返回 `PONG` 只证明 TCP、认证配置和 Redis 命令端点可用；TTL、重启恢复和淘汰要在隔离数据集上单独观察。实验结束后删除容器前，先确认其中没有需要保留的数据。
+
 ## 数据类型应匹配要执行的原子操作
 
 String 可保存文本、JSON、计数器和二进制，`INCR` 能原子递增；Hash 适合字段级读写；Set 表达无序唯一成员；Sorted Set 用 score 排序；List 适合两端操作；Stream 保存带 ID 的追加事件。

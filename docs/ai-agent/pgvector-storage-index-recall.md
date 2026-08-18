@@ -1,19 +1,19 @@
 ---
-title: "pgvector 存储、索引与向量检索"
-description: "从查询向量、距离函数和精确基线进入 HNSW、IVFFlat、过滤、Top K、邻接补全、召回验证与降级。"
+title: pgvector 存储、索引与向量检索
+description: 从查询向量、距离函数和精确基线进入 HNSW、IVFFlat、过滤、Top K、邻接补全、召回验证与降级。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 50
 sequence: 50
 slug: pgvector-storage-index-recall
 tags:
-  - "pgvector"
-  - "Vector Retrieval"
-  - "Recall"
+  - pgvector
+  - Vector Retrieval
+  - Recall
 sourceKey: ai-pgvector-storage-index-recall
 dependsOn:
-  - "rag-version-atomic-activation"
+  - rag-version-atomic-activation
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -21,7 +21,7 @@ lastUpdated: false
 
 向量已经生成，接下来要把它放进数据库，查询时找到相近的 Chunk。看起来只是给 embedding 建一个索引，实际同时涉及距离函数、活动版本、租户范围、权限、过滤选择性、Top K、邻接补全和召回评测。任何一层不匹配，都会得到“SQL 成功但答案不对”的结果。
 
-当前参考迁移把 tp_rag_chunks.embedding 定义为固定 1024 维的 pgvector，并创建带 vector_cosine_ops 的 HNSW 索引，条件是 Chunk active 且 embedding 非空。表中还保存全文搜索、精确字段、结构字段、Source Version 和 Release。**IVFFlat 在本文作为比较路线，不是当前迁移已经创建的索引**。
+当前参考迁移把向量列定义为固定维度的 pgvector，并创建带余弦距离操作符的 HNSW 索引，条件是 Chunk active 且 embedding 非空。表中还保存全文搜索、精确字段、结构字段、Source Version 和 Release。pgvector 的距离运算、HNSW 与 IVFFlat 参数应以其[官方实现与说明](https://github.com/pgvector/pgvector)为准，并用目标数据集建立精确基线。**IVFFlat 在本文作为比较路线，不是当前迁移已经创建的索引**。
 
 ::: info 先区分三个数字
 
@@ -30,6 +30,16 @@ lastUpdated: false
 :::
 
 本文用三个 Chunk 推演：A 是“生产外部连接须由系统负责人批准”，B 是同一制度的故障处理，C 是办公用品采购。查询“外部连接由谁审批”应优先得到 A；查询 RA-204 时，精确字段比距离更可靠；无权用户即使与 A 的向量最近，也不能看到 A。
+
+```mermaid
+flowchart LR
+  A[Query] --> B[Embedding]
+  B --> C[精确或近似 KNN]
+  C --> D[Release 与 ACL 过滤]
+  D --> E[Top K 候选]
+  E --> F[邻接补全或重排]
+  F --> G[召回评测与降级]
+```
 
 ## 向量列与活动版本怎样配套
 
@@ -214,3 +224,9 @@ Schema 测试确认向量列维度、余弦操作符、HNSW 条件和全文、�
 回归样本至少包含“外部连接由谁审批”“RA-204 的状态”“这个范围内的负责人”和一个没有答案的问题。分别断言目标 Source、精确编号、显式范围和安全空结果。再次执行时记录模型、维度、距离、索引、Release 和查询集版本。
 
 pgvector 的职责是把向量比较变成可过滤、可评测的数据库查询。索引类型解决访问路径，Release 与 ACL 决定可见集合，混合通道补足精确和结构问题，Recall 回归决定近似代价是否值得。少掉其中任一层，距离再漂亮也不能独立构成答案证据。
+
+## 一次索引参数变更怎样安全验证
+
+改变距离函数、HNSW 的连接数或查询 `ef` 前，先固定同一批带标注查询和精确扫描结果，把精确扫描当作召回基线。实验组只替换索引或参数，保持 Release、Scope、过滤条件和 Top K 不变；比较 Recall@K、延迟分位数、过滤后的空结果率和不同文档类型的差异。若整体召回上升，却让表格编号查询下降，不能用平均值掩盖这个回归，应按查询桶分别决定是否启用。
+
+索引重建期间让旧活动版本继续服务。候选索引完成构建后执行抽样校验，确认向量维度、模型版本、Chunk 身份和 ACL 字段一致，再在事务中切换活动指针。构建失败、资源不足或校验不通过时删除候选索引并保留旧版本，恢复过程不需要重新生成文档向量。这样数据库索引的实验不会扩大为一次不可逆的知识发布。

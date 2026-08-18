@@ -1,19 +1,19 @@
 ---
-title: "多格式文档解析与 OCR"
-description: "统一处理 Markdown、HTML、PDF、Office 和扫描件，记录解析警告并在 OCR 不可用时失败关闭。"
+title: 多格式文档解析与 OCR
+description: 统一处理 Markdown、HTML、PDF、Office 和扫描件，记录解析警告并在 OCR 不可用时失败关闭。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 41
 sequence: 41
 slug: rag-document-parsing-ocr
 tags:
-  - "Parsing"
-  - "OCR"
-  - "Document"
+  - Parsing
+  - OCR
+  - Document
 sourceKey: ai-rag-document-parsing-ocr
 dependsOn:
-  - "rag-upload-admission-object-storage"
+  - rag-upload-admission-object-storage
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -24,6 +24,25 @@ lastUpdated: false
 RAG 后面的切块、Embedding 和检索都依赖解析结果。这里遗漏一张关键表，向量模型不可能把它补回来；页序错了，检索器只会更稳定地召回错误上下文；扫描页被当成空白页，最终答案很可能用其余材料猜一个看似合理的结论。因此，多格式解析需要同时输出内容和损失说明，调用方再按任务要求决定继续、人工复核或停止发布。
 
 本文继续使用上一节准入后的制度文档。它有五页：前两页是可复制正文，第三页含一张审批条件表，第四页是扫描页，第五页只有装饰图片。我们会跟踪每个格式分支的输入、统一输出、警告、OCR 决策和失败结果，再用回归样本检查解析器升级有没有悄悄改变知识含义。
+
+```mermaid
+flowchart TD
+  A[已准入原件] --> B{文件类型}
+  B --> C[文本或 Markdown]
+  B --> D[HTML DOM]
+  B --> E[DOCX XLSX PPTX]
+  B --> F[PDF 文本层]
+  F --> G{存在无文本图片页}
+  G -->|否| H[ParsedDocument]
+  G -->|是| I[受限 OCR]
+  I -->|成功| H
+  I -->|禁用 超限 空结果| J[候选失败]
+  C --> H
+  D --> H
+  E --> H
+```
+
+解析分支最后都要回到同一个 `ParsedDocument` 合同。OCR 只补齐被证据标记为缺失的页面，不能绕过准入、覆盖原始 PDF，或把空结果当成成功。
 
 ## 统一输出先承认格式之间并不等价
 

@@ -27,13 +27,10 @@ updated: 2026-08-17T00:00:00.000Z
 开启 ZeRO-3 后每张卡显存显著下降，训练却周期性停顿，检查点保存也比预期慢。参数不再常驻每个 rank，需要在层计算前 AllGather；同时 CPU Offload 让 PCIe 和主机内存成为新瓶颈。ZeRO 不是“免费显存”，而是用状态分片与数据移动换容量。
 
 
-<InfraFigure src="/images/ai-infra/deepspeed-zero-infrastructure/hero.png" alt="DeepSpeed ZeRO 将优化器状态、梯度与参数分片到多个 Rank 的插画"
-  icon="shards" caption="ZeRO 逐级消除数据并行中的状态复制，但每一次取回状态都需要通信或 Offload 带宽。" />
-
 
 ## 参数、梯度和优化器状态为什么占用不同份额
 
-先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+ZeRO 的阶段改变的是参数、梯度和优化器状态的存放位置，先画出一次训练步的数据流，再比较显存和通信代价。
 
 | 概念 | 在这条链路中的含义 |
 | --- | --- |
@@ -44,7 +41,7 @@ updated: 2026-08-17T00:00:00.000Z
 | Offload | 把部分状态移到 CPU 或 NVMe，释放 GPU 显存但增加 PCIe、内存或存储访问。 |
 
 ::: tip 判断原则
-定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+显存下降不等于训练更快。每次选型都要同时记录通信量、重建开销和故障恢复方式。
 :::
 
 ## ZeRO-3 的一层参数怎样被取回又释放
@@ -62,25 +59,25 @@ flowchart LR
 
 箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-### 1. 持有分片：Each Rank 持有当前状态
+### 持有分片：Each Rank
 
 每个 rank 常驻自己负责的参数、梯度与优化器分片。
 
 可以从这些位置确认结果：partition map、resident bytes。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 聚合计算发生时，先看 Process Group
+### 聚合计算：Process Group
 
 层执行前 AllGather 所需参数，形成短期完整计算视图。
 
 这里不靠猜测，优先读取 allgather bytes、prefetch、peak memory。
 
-### 从 归约梯度 留下的证据回到 Collective
+### 归约梯度：Collective
 
 反向后 ReduceScatter 梯度到所有者 rank。
 
 决定下一步前需要看到 reduce-scatter time、overlap。
 
-### 4. Optimizer/Runtime 怎样完成更新释放
+### 更新释放：Optimizer/Runtime
 
 本地更新状态，释放非所有者参数并按 manifest 保存分片。
 
@@ -99,7 +96,7 @@ stage 3: parameters sharded,   gradients sharded,   optimizer sharded
 
 “sharded”不表示计算时永远只需要分片；ZeRO-3 会按层临时聚合参数，所以峰值取决于最大层、预取和 bucket。若 world size 或分片布局变化，检查点恢复可能需要转换或完整权重聚合，必须预先演练。
 
-## 看起来相似，故障边界却不同
+## 显存下降不代表训练代价下降
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

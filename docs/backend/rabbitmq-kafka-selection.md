@@ -29,6 +29,32 @@ RabbitMQ 以交换机、队列、路由和 ACK 组织任务投递，Kafka 以持
 
 “消息多就用 Kafka，少就用 RabbitMQ”无法指导设计。订单异步邮件需要任务路由、ACK、延迟重试和 DLQ；行为日志需要长时间保留、分区吞吐和多个 Group 重放。二者的差异来自数据模型和消费语义，不只是吞吐数字。
 
+## 安装消息代理并确认管理端口
+
+RabbitMQ 的官方安装入口是[下载页](https://www.rabbitmq.com/download.html)，Kafka 的版本和二进制入口在[Apache Kafka 下载页](https://kafka.apache.org/downloads/)。本地比较可以用两个隔离容器，生产环境应改用固定版本、持久卷和受控凭证。
+
+<figure class="doc-shot">
+  <img src="/images/install/rabbitmq-download.png" alt="RabbitMQ 官方下载页，展示安装和部署入口" loading="lazy">
+  <figcaption>RabbitMQ 官方下载页。先选安装方式，再核对 Erlang 兼容范围；管理插件能打开不代表消息确认和恢复策略已经验证。</figcaption>
+</figure>
+
+<figure class="doc-shot">
+  <img src="/images/install/kafka-download.png" alt="Apache Kafka 官方下载页，展示二进制和源码下载入口" loading="lazy">
+  <figcaption>Kafka 官方下载页。二进制包、容器镜像和云服务的运维边界不同，教程中的本地命令只用于建立可重复的实验环境。</figcaption>
+</figure>
+
+```bash
+docker run --name rabbitmq-learning -p 5672:5672 -p 15672:15672 \
+  -e RABBITMQ_DEFAULT_USER=demo \
+  -e RABBITMQ_DEFAULT_PASS=change-me \
+  -d rabbitmq:management
+
+docker run --name kafka-learning -p 9092:9092 -d apache/kafka
+curl -fsS http://127.0.0.1:15672
+```
+
+RabbitMQ 管理端口返回页面只证明管理插件和 HTTP 监听，Kafka 容器启动也不等于 Topic、分区和 Consumer Group 已按目标配置。后面的选型仍以 ACK、Offset、回放和故障演练为准。
+
 ## 任务消息与可重放事实流
 
 任务强调某个消费者最终完成工作，常需要灵活路由、单条 ACK、重试队列、优先级或 RPC 风格；RabbitMQ 的 Exchange/Queue 模型直接表达这些需求。

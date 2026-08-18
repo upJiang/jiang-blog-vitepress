@@ -1,19 +1,19 @@
 ---
-title: "Embedding 批处理、重试与幂等"
-description: "处理批量并发、内容哈希、部分成功、失败重试和重复任务，避免重算污染候选版本。"
+title: Embedding 批处理、重试与幂等
+description: 处理批量并发、内容哈希、部分成功、失败重试和重复任务，避免重算污染候选版本。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 48
 sequence: 48
 slug: embedding-batch-idempotency
 tags:
-  - "Embedding"
-  - "Batch"
-  - "Idempotency"
+  - Embedding
+  - Batch
+  - Idempotency
 sourceKey: ai-embedding-batch-idempotency
 dependsOn:
-  - "embedding-text-model-design"
+  - embedding-text-model-design
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -30,6 +30,21 @@ lastUpdated: false
 参考实现没有逐批持久化部分成功，也没有并发发送批次。向量先写在内存 Chunk 上，全部完成后才进入数据库事务。它能验证批次拆分、响应数量、维度和版本重放；跨进程断点续算、供应方批任务和逐项缓存属于需要额外状态的生产扩展。
 
 :::
+
+```mermaid
+flowchart LR
+  A[待向量化 Chunk] --> B[按稳定身份分批]
+  B --> C[请求 Embedding]
+  C -->|完整成功| D[候选结果]
+  C -->|可重试错误| E[退避重试]
+  C -->|部分或不可重试| F[版本失败]
+  E --> C
+  D --> G[数量与维度校验]
+  G -->|通过| H[原子激活]
+  G -->|失败| F
+```
+
+批次完成不等于版本可查询。只有所有 Chunk 的身份、向量维度和版本归属都通过校验，候选结果才进入激活事务；重试始终复用同一个版本身份。
 
 ## 批处理先固定输入身份
 

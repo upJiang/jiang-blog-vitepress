@@ -1,19 +1,19 @@
 ---
-title: "结构化输出约束格式，不证明业务事实"
-description: "说明 JSON Schema 能保证什么，以及身份、权限、版本和证据为何仍由程序确认。"
+title: 结构化输出约束格式，不证明业务事实
+description: 说明 JSON Schema 能保证什么，以及身份、权限、版本和证据为何仍由程序确认。
 category: ai-agent
-part: "模型、调用与 Agent 基础"
+part: 模型、调用与 Agent 基础
 stageKey: foundations
 chapter: 4
 sequence: 4
 slug: structured-output-model-boundaries
 tags:
-  - "Structured Outputs"
-  - "JSON Schema"
-  - "Pydantic"
+  - Structured Outputs
+  - JSON Schema
+  - Pydantic
 sourceKey: ai-structured-output-model-boundaries
 dependsOn:
-  - "messages-tokens-context"
+  - messages-tokens-context
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -70,7 +70,7 @@ Schema 描述候选数据，不应包含模型无权提供的字段。把 `user_
 
 ## Schema 能保证哪些形状
 
-严格结构化输出支持 JSON Schema 的一个子集。官方文档要求根节点是 object，object 需要设置 `additionalProperties: false`，字段需要出现在 required 中；需要可选值时，可以用与 null 的联合类型表达。并非所有 JSON Schema 关键字都支持，提交不支持的 Schema 会在请求阶段报错。
+严格结构化输出支持 JSON Schema 的一个子集。可以对照 [OpenAI Structured Outputs 指南](https://developers.openai.com/api/docs/guides/structured-outputs) 检查目标接口支持的字段。官方文档要求根节点是 object，object 需要设置 `additionalProperties: false`，字段需要出现在 required 中；需要可选值时，可以用与 null 的联合类型表达。并非所有 JSON Schema 关键字都支持，提交不支持的 Schema 会在请求阶段报错。
 
 一份搜索参数 Schema 可以写成：
 

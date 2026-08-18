@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 单卡装不下模型，于是把训练进程扩到八张 GPU；显存问题缓解了，step time 却更长。原因是选择了与瓶颈不匹配的并行方式：数据并行复制整份模型，不能解决参数本身放不下；张量并行虽分片计算，却把高频通信放到了较慢的跨节点网络。
 
 
-<InfraFigure src="/images/ai-infra/distributed-training-infrastructure/hero.png" alt="训练数据、模型参数和流水线阶段分布到多张 GPU 的插画"
-  icon="training" caption="并行策略决定参数、梯度、激活和优化器状态分别存在哪里，以及何时通信。" />
-
 
 ## 不同并行策略到底拆分了哪一种状态
 
@@ -67,25 +64,25 @@ flowchart LR
   S2 --> S3
 ```
 
-### 1. Data/Ranks 怎样完成取数前向
+### 取数前向：Data/Ranks
 
 各 rank 读取不重复或按策略采样的数据，执行本地前向并保存激活。
 
 这一动作的可观察结果是 sampler state、forward time、activation memory。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 反向求梯度：Autograd 持有当前状态
+### 反向求梯度：Autograd
 
 从 loss 反向计算梯度，可能触发分片参数聚合。
 
 可以从这些位置确认结果：backward spans、memory peak。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 同步状态发生时，先看 Collective Backend
+### 同步状态：Collective Backend
 
 按策略执行 AllReduce、AllGather 或 ReduceScatter。
 
 这里不靠猜测，优先读取 collective duration、bytes、straggler。
 
-### 从 更新与保存 留下的证据回到 Optimizer/Checkpoint
+### 更新与保存：Optimizer/Checkpoint
 
 更新一致参数并在安全 step 写入可恢复快照。
 

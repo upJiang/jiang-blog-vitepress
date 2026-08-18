@@ -1,19 +1,19 @@
 ---
-title: "什么是 Agent 循环"
-description: "不用框架实现一次有限行动循环，观察决策、执行、状态更新、异常和终止。"
+title: 什么是 Agent 循环
+description: 不用框架实现一次有限行动循环，观察决策、执行、状态更新、异常和终止。
 category: ai-agent
-part: "模型、调用与 Agent 基础"
+part: 模型、调用与 Agent 基础
 stageKey: foundations
 chapter: 6
 sequence: 6
 slug: python-agent-loop-from-scratch
 tags:
-  - "Agent Loop"
-  - "Python"
-  - "ReAct"
+  - Agent Loop
+  - Python
+  - ReAct
 sourceKey: ai-python-agent-loop-from-scratch
 dependsOn:
-  - "agent-essence-autonomy-boundaries"
+  - agent-essence-autonomy-boundaries
 updated: '2026-08-17'
 lastUpdated: false
 ---

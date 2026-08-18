@@ -29,6 +29,23 @@ updated: 2026-08-11
 
 脚手架第一次生成很容易，难的是第二次运行不重复写配置、升级不覆盖用户代码、插件冲突可诊断。可靠 CLI 把参数解析、计划、文件变更和提交分阶段，并支持 dry-run。
 
+## 安装 Node.js 并运行第一个 CLI
+
+Node.js 的官方下载入口是[官方下载页](https://nodejs.org/en/download)。选择维护中的 LTS 版本后，重新打开终端确认 `node` 和 `npm` 来自同一个安装目录。
+
+<figure class="doc-shot">
+  <img src="/images/install/node-download.png" alt="Node.js 官方下载页，展示维护中的 LTS 安装入口" loading="lazy">
+  <figcaption>Node.js 官方下载页。脚手架会执行文件和依赖操作，先固定 Node 主版本，再测试模板的安装脚本。</figcaption>
+</figure>
+
+```bash
+node --version
+npm --version
+npm init -y
+```
+
+前三条命令只准备运行环境和一个空 Manifest。它们不能证明脚手架的模板、插件和构建产物可用，后面仍要在临时目录执行两次生成并比较 diff。
+
 ## 从命令到变更计划
 
 命令层解析 argv、交互输入和配置，转成与终端无关的 Command。规划器读取目标目录和模板，构造虚拟文件树；插件只操作虚拟树和结构化 Manifest；最后统一展示 diff、处理冲突并原子写入。

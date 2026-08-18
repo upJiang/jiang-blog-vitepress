@@ -312,7 +312,26 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
 ## 运行与验证这条链路
 
-示例约定 MySQL 监听本地 `3307`，NestJS 监听 `3001`，React Vite 监听 `5173`。环境变量中的密码与 JWT Secret 只用于本地，不能进入生产配置。
+示例需要 Docker、Node.js 和 Yarn Classic。Docker 的系统安装方式见 [Docker 官方安装入口](https://docs.docker.com/get-started/get-docker/)，Node.js 从[官方下载页](https://nodejs.org/en/download)选择仍在维护的版本。示例锁定 Yarn `1.22.22`；本机没有该命令时，可以通过 npm 安装同一版本：
+
+<figure class="doc-shot">
+  <img src="/images/install/node-download.png" alt="Node.js 官方下载页，展示维护中的 LTS 版本入口" loading="lazy">
+  <figcaption>Node.js 官方下载页。先选择维护中的 LTS，再用命令确认 Node、Yarn 和 Docker 由当前终端实际调用。</figcaption>
+</figure>
+
+<figure class="doc-shot">
+  <img src="/images/install/docker-get-docker.png" alt="Docker 官方安装页面，展示 Desktop 与 Engine 入口" loading="lazy">
+  <figcaption>Docker 官方安装入口。桌面系统与 Linux Engine 的安装路径不同，完成后再用 Compose 版本命令核对。</figcaption>
+</figure>
+
+```bash
+npm install --global yarn@1.22.22
+node --version
+yarn --version
+docker compose version
+```
+
+三个版本命令都成功后再运行项目。示例约定 MySQL 监听本地 `3307`，NestJS 监听 `3001`，React Vite 监听 `5173`。环境变量中的密码与 JWT Secret 只用于本地，不能进入生产配置。
 
 ```bash
 # 先启动 MySQL，再安装依赖、迁移并启动两端开发服务。

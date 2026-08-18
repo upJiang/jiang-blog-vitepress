@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 两个各申请一张 GPU 的 Pod 被放到同一节点，单看资源数量完全合法；但它们需要跨 GPU 高频通信，而该节点两张卡只通过较慢路径连接。另一个 10 GB 模型任务因为资源名只表达“一张卡”，被调度到显存不足的设备。GPU 调度不能只数卡，还要把型号、显存、拓扑和共享模式变成可验证约束。
 
 
-<InfraFigure src="/images/ai-infra/kubernetes-gpu-scheduling/hero.png" alt="Kubernetes 调度器根据 GPU 型号、MIG、拓扑与队列把工作负载放到节点的插画"
-  icon="scheduler" caption="调度器分配声明的资源；显存、拓扑和共享策略需要额外的设备与平台语义。" />
-
 
 ## Kubernetes 默认 GPU 资源为什么不够表达推理需求
 
@@ -67,25 +64,25 @@ flowchart LR
   S2 --> S3
 ```
 
-### 1. Workload Spec 怎样完成表达需求
+### 表达需求：Workload Spec
 
 声明设备数量、型号/显存标签、MIG profile、亲和性和优先级。
 
 这一动作的可观察结果是 requests、node affinity、tolerations。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 过滤节点：Scheduler 持有当前状态
+### 过滤节点：Scheduler
 
 排除资源不足、污点不容忍和拓扑不满足的节点。
 
 可以从这些位置确认结果：FailedScheduling reason。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 分配设备发生时，先看 Kubelet/Device Plugin
+### 分配设备：Kubelet/Device Plugin
 
 选择具体 GPU 或 MIG 实例并注入容器。
 
 这里不靠猜测，优先读取 allocation、device IDs、plugin logs。
 
-### 从 运行扩缩 留下的证据回到 Queue/Autoscaler
+### 运行扩缩：Queue/Autoscaler
 
 根据等待工作、TTFT 与容量目标增加副本或节点。
 

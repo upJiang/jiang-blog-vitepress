@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 检索结果与问题高度相关，回答却引用了另一个租户的内部文档。向量库没有“越权”，因为查询根本没有带租户过滤；重排器只看相似度，又把错误结果排到了第一位。RAG 的正确性不止是召回率，首先是文档能否进入、属于谁、哪个版本已发布，以及证据是否可回到原文。
 
 
-<InfraFigure src="/images/ai-infra/rag-infrastructure/hero.png" alt="文档经过解析、切片、向量化和版本发布后被带权限检索并形成引用的插画"
-  icon="search" caption="RAG 有离线发布平面和在线查询平面，权限与知识版本贯穿两者。" />
-
 
 ## 为什么 RAG 不是“切片后存向量”
 
@@ -67,25 +64,25 @@ flowchart LR
   S2 --> S3
 ```
 
-### 1. Ingestion Worker 怎样完成准入解析
+### 准入解析：Ingestion Worker
 
 校验文件、租户与权限，解析版面并保留页码/区块位置。
 
 这一动作的可观察结果是 document digest、parser version、parse errors。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 切片向量化：Chunker/Embedding 持有当前状态
+### 切片向量化：Chunker/Embedding
 
 按语义和结构切片，批量生成带模型版本的向量。
 
 可以从这些位置确认结果：chunk IDs、embedding model、failed batch。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 索引发布发生时，先看 Knowledge Control Plane
+### 索引发布：Knowledge Control Plane
 
 在 staging 构建完整版本，校验计数后原子发布。
 
 这里不靠猜测，优先读取 knowledge_version、manifest、published。
 
-### 从 检索回答 留下的证据回到 Retriever/Reranker/LLM
+### 检索回答：Retriever/Reranker/LLM
 
 先按租户版本过滤，再相似检索、重排和引用。
 

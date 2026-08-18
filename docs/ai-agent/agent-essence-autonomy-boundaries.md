@@ -1,19 +1,19 @@
 ---
-title: "Agent 的定义、自主性与责任边界"
-description: "把目标、状态、动作、观察和终止条件放回应用运行时，说明有限自主性怎样形成。"
+title: Agent 的定义、自主性与责任边界
+description: 把目标、状态、动作、观察和终止条件放回应用运行时，说明有限自主性怎样形成。
 category: ai-agent
-part: "模型、调用与 Agent 基础"
+part: 模型、调用与 Agent 基础
 stageKey: foundations
 chapter: 5
 sequence: 5
 slug: agent-essence-autonomy-boundaries
 tags:
-  - "Agent"
-  - "Autonomy"
-  - "Runtime"
+  - Agent
+  - Autonomy
+  - Runtime
 sourceKey: ai-agent-essence-autonomy-boundaries
 dependsOn:
-  - "structured-output-model-boundaries"
+  - structured-output-model-boundaries
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -30,6 +30,18 @@ Agent 因此是一套受限的运行系统，不是某个模型功能的别名�
 :::
 
 这个定义故意把“自主”限制在候选选择上。身份、权限、金额、知识版本和不可逆操作仍由确定性程序或人工确认。模型能力越强，也不会因此获得这些字段的所有权。
+
+```mermaid
+flowchart LR
+  A[目标] --> B[状态快照]
+  B --> C[模型提出候选动作]
+  C --> D{Runtime 校验}
+  D -->|允许| E[工具执行]
+  D -->|拒绝| F[安全终态]
+  E --> G[观察写回]
+  G --> B
+  B --> H[完成或停止]
+```
 
 ## Agent 由哪些部分组成
 

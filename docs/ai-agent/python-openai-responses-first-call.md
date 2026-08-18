@@ -1,19 +1,19 @@
 ---
-title: "用 Python 调用一次 Responses API"
-description: "从环境、凭证和请求字段走到同步输出、usage、流式事件和错误分类。"
+title: 用 Python 调用一次 Responses API
+description: 从环境、凭证和请求字段走到同步输出、usage、流式事件和错误分类。
 category: ai-agent
-part: "模型、调用与 Agent 基础"
+part: 模型、调用与 Agent 基础
 stageKey: foundations
 chapter: 3
 sequence: 3
 slug: python-openai-responses-first-call
 tags:
-  - "Python"
-  - "OpenAI"
-  - "Responses API"
+  - Python
+  - OpenAI
+  - Responses API
 sourceKey: ai-python-openai-responses-first-call
 dependsOn:
-  - "messages-tokens-context"
+  - messages-tokens-context
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -33,7 +33,7 @@ lastUpdated: false
 
 ## Responses API 解决什么问题
 
-Responses API 是模型服务的统一调用入口。调用方提交文本、图像或文件等输入，模型返回消息、文本、结构化内容、工具调用等输出项目。本文使用最小的文本输入，但响应对象仍按完整协议处理，因为将来加入工具或结构化输出后，`output` 不一定只有一段文本。
+Responses API 是模型服务的统一调用入口。调用方提交文本、图像或文件等输入，模型返回消息、文本、结构化内容、工具调用等输出项目。字段和状态的完整定义以 [Responses API 官方参考](https://developers.openai.com/api/docs/api-reference/responses) 为准。本文使用最小的文本输入，但响应对象仍按完整协议处理，因为将来加入工具或结构化输出后，`output` 不一定只有一段文本。
 
 它解决的是一次模型请求的传输与响应组织问题。应用把输入交给服务，服务生成 Response，并用 `status`、`error`、`incomplete_details` 和若干 Output Item 描述结果。SDK 提供 `output_text` 这样的便捷属性，将输出项目中的文本聚合起来，省去第一次调用时遍历多层对象的代码。
 
@@ -83,10 +83,35 @@ Responses API 还支持 `tools`、`tool_choice`、结构化文本格式、会话
 
 ## 准备 Python 环境和凭证
 
-安装官方 Python SDK 后，`OpenAI()` 默认从环境读取凭证。代码不接收明文密钥参数，仓库里也不保存 `.env` 的真实值。
+先准备 Python 3.10 或更高版本。没有 Python 时，从 [Python 官方下载页](https://www.python.org/downloads/)选择当前系统的安装包；macOS 安装后运行 `python3 --version`，Windows 安装器需要勾选把 Python 加入 PATH，并在新终端运行 `python --version`。
+
+<figure class="doc-shot">
+  <img src="/images/install/python-downloads.png" alt="Python 官方下载页，展示各平台安装入口" loading="lazy">
+  <figcaption>Python 官方下载入口。安装包只解决解释器，虚拟环境、SDK 和 API 凭证仍需按下面步骤单独确认。</figcaption>
+</figure>
+
+OpenAI 的 [Developer Quickstart](https://developers.openai.com/api/docs/quickstart#install-the-openai-sdk-and-run-an-api-call) 给出了 Python SDK 的安装和第一次 Responses 调用，[SDK 仓库](https://github.com/openai/openai-python) 记录版本变更和完整接口。下面先创建独立虚拟环境，避免把依赖写进系统 Python：
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install openai
+python -c "import openai; print(openai.__version__)"
+```
+
+Windows PowerShell 的激活命令是 `.venv\Scripts\Activate.ps1`。最后一条命令应输出已安装 SDK 的版本号；出现 `ModuleNotFoundError` 时，先确认当前终端已经激活 `.venv`，并检查 `python -m pip --version` 指向的路径，不要直接反复全局安装。
+
+下图截取自 OpenAI 官方 Quickstart 的 Python 标签，安装命令、最小调用和运行方式都在同一区域。官方页面会持续更新，复制代码时仍以链接中的当前内容为准。
+
+<figure class="doc-shot">
+  <img src="/images/ai-agent/openai-python-sdk-install.png" alt="OpenAI Developer Quickstart 中的 Python SDK 安装与 Responses API 示例" loading="lazy">
+  <figcaption>OpenAI Developer Quickstart 的 Python 安装与第一次 Responses 调用。</figcaption>
+</figure>
+
+SDK 安装成功后，`OpenAI()` 默认从环境读取凭证。代码不接收明文密钥参数，仓库里也不保存 `.env` 的真实值：
+
+```bash
 export OPENAI_API_KEY="..."
 export OPENAI_MODEL="当前账号可用的模型 ID"
 ```

@@ -56,6 +56,30 @@ WHERE email = 'reader@example.test';
 
 从零建立一个 MySQL 数据库，可以观察数据放在哪里、一条读写命令经过哪些组件、数据库怎样拒绝非法状态，以及应用如何判断写入是否真正发生。
 
+## 安装 MySQL 并确认客户端可用
+
+MySQL Community Server 的官方下载入口是 [MySQL Community Downloads](https://dev.mysql.com/downloads/mysql/)。页面会按操作系统、架构和版本列出安装包；截图中的版本只是采集时的页面状态，实际下载时以官方页面当前版本为准。
+
+<figure class="doc-shot">
+  <img src="/images/install/mysql-download.png" alt="MySQL Community Server 官方下载页，展示系统、架构和校验值选择" loading="lazy">
+  <figcaption>MySQL 官方下载页。先选择操作系统和 CPU 架构，再核对 SHA256 或签名，不要把示例版本当成固定版本。</figcaption>
+</figure>
+
+本地学习可以使用官方容器镜像，避免把系统服务和其他项目混在一起：
+
+```bash
+docker run --name mysql-learning \
+  -e MYSQL_ROOT_PASSWORD=change-me \
+  -e MYSQL_DATABASE=company_learning \
+  -p 3306:3306 \
+  -d mysql:8.4
+
+mysql --version
+mysql --host=127.0.0.1 --port=3306 --user=root --password
+```
+
+`mysql --version` 只证明客户端在 PATH 中；第二条命令能连上并显示 `mysql>`，才证明端口、凭证和服务端已经就绪。教程结束后可执行 `docker rm -f mysql-learning` 清理隔离容器，但不要对包含真实数据的容器照做。
+
 ## 数据库、DBMS 和 MySQL 分别是什么
 
 “数据库”在日常讨论中经常指三种不同东西：

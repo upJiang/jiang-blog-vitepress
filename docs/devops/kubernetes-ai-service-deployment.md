@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 Deployment 声明了 `nvidia.com/gpu: 1`，Pod 一直 Pending；节点明明有 GPU，`nvidia-smi` 在宿主机也正常。检查发现 Device Plugin 没有向 kubelet 注册扩展资源。硬件存在、驱动工作和 Kubernetes 可调度是三个不同状态。
 
 
-<InfraFigure src="/images/ai-infra/kubernetes-ai-service-deployment/hero.png" alt="GPU Operator 与 Device Plugin 将 GPU 能力注入模型 Pod 并加载模型卷的插画"
-  icon="deploy" caption="Pod 获得 GPU 之前，节点驱动、设备发现、Runtime 注入与调度声明必须连成一条链。" />
-
 
 ## 一份强调冷启动边界的解释性 Deployment
 
@@ -87,31 +84,31 @@ flowchart LR
 
 图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
 
-### 从 节点能力 留下的证据回到 Driver/Toolkit
+### 节点能力：Driver/Toolkit
 
 宿主机驱动识别设备，容器 Runtime 能注入设备与库。
 
 决定下一步前需要看到 node driver、runtime class。
 
-### 2. Device Plugin/Kubelet 怎样完成注册资源
+### 注册资源：Device Plugin/Kubelet
 
 把可分配 GPU 作为扩展资源写入 Node capacity。
 
 这一动作的可观察结果是 `kubectl describe node` allocatable。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 3. 调度启动：Scheduler/Kubelet 持有当前状态
+### 调度启动：Scheduler/Kubelet
 
 Pod 请求 GPU 和模型卷，满足节点条件后创建容器。
 
 可以从这些位置确认结果：events、volume mount、device env。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 加载就绪发生时，先看 Serving/Probe
+### 加载就绪：Serving/Probe
 
 加载指定 revision、预热并通过 startup/readiness 后接流量。
 
 这里不靠猜测，优先读取 probe status、model revision、EndpointSlice。
 
-## 同一个症状，下一步证据可能完全不同
+## Pod 就绪不等于服务可用
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

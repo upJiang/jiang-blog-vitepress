@@ -26,9 +26,23 @@ updated: 2026-08-17T00:00:00.000Z
 
 聊天接口返回状态是 200，服务端日志每 100 毫秒生成一个 Token，浏览器却十秒后一次性看到整段答案。这个现象常被误判为模型流式能力失效，其实 Token 已经离开模型，只是被应用服务器或 Nginx 缓冲。理解入口时必须同时看客户端到 Nginx、Nginx 到上游这两条连接。
 
+## 安装 Nginx 并确认热加载前的配置
 
-<InfraFigure src="/images/ai-infra/nginx-static-proxy-sse/hero.png" alt="Nginx 将网页、普通 API 与流式 Token 请求分流到不同后端的插画"
-  icon="route" caption="入口代理同时管理客户端连接和上游连接，流式响应需要不同的缓冲与超时策略。" />
+Nginx 的官方安装入口在[下载页](https://nginx.org/en/download.html)。本地实验可用 Homebrew 安装，Linux 服务器按发行版的官方包源执行；教程中的 `nginx -t` 是任何 reload 前的最低检查。
+
+<figure class="doc-shot">
+  <img src="/images/install/nginx-download.png" alt="Nginx 官方下载页，展示稳定版和主线版入口" loading="lazy">
+  <figcaption>先确认版本和编译模块，再检查 SSE 所需的超时、缓冲和 Header。不要用浏览器一次性看到文本来推断代理已经逐事件转发。</figcaption>
+</figure>
+
+```bash
+brew install nginx
+nginx -v
+nginx -t
+```
+
+命令成功只证明本机二进制和配置语法可用；SSE 还必须用 `curl -N` 对照上游事件时间戳、响应头和连接关闭原因。
+
 
 
 ## 一个 Token 在入口处会经过哪些缓冲区
@@ -48,31 +62,31 @@ flowchart LR
 
 先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-### 接收连接发生时，先看 Nginx listener
+### 接收连接：Nginx listener
 
 完成 TCP/TLS，按 server_name、路径和方法匹配 location。
 
 这里不靠猜测，优先读取 access log、证书、命中的 location。
 
-### 从 构造上游请求 留下的证据回到 Proxy module
+### 构造上游请求：Proxy module
 
 选择 upstream，设置 Host、Authorization 与转发头。
 
 决定下一步前需要看到 upstream_addr、request_id、连接错误。
 
-### 3. 上游与 Nginx 怎样完成读取流
+### 读取流：上游与 Nginx
 
 上游写出 SSE 事件，框架与代理缓冲策略决定何时继续发送。
 
 这一动作的可观察结果是 事件时间戳、响应头、proxy_buffering。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 4. 发送客户端：Nginx 与浏览器 持有当前状态
+### 发送客户端：Nginx 与浏览器
 
 保持连接并在空闲超时前持续发送字节。
 
 可以从这些位置确认结果：`curl -N` 到达时间、客户端取消。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 结束连接发生时，先看 应用与代理
+### 结束连接：应用与代理
 
 发送 `[DONE]` 或业务终态，关闭上游并记录完整耗时。
 
@@ -93,7 +107,7 @@ flowchart LR
 不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## 别让表面现象替你下结论
+## 连接保持不等于事件已送达
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

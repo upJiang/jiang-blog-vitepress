@@ -1,19 +1,19 @@
 ---
-title: "哪些任务不该使用 Agent"
-description: "从控制图、失败代价、审计要求和分支不确定性判断固定程序、工作流或 Agent。"
+title: 哪些任务不该使用 Agent
+description: 从控制图、失败代价、审计要求和分支不确定性判断固定程序、工作流或 Agent。
 category: ai-agent
-part: "模型、调用与 Agent 基础"
+part: 模型、调用与 Agent 基础
 stageKey: foundations
 chapter: 7
 sequence: 7
 slug: agent-fit-deterministic-workflow
 tags:
-  - "Agent"
-  - "Workflow"
-  - "Decision"
+  - Agent
+  - Workflow
+  - Decision
 sourceKey: ai-agent-fit-deterministic-workflow
 dependsOn:
-  - "python-agent-loop-from-scratch"
+  - python-agent-loop-from-scratch
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -33,6 +33,17 @@ Agent 能根据观察调整下一步，代价是路径不再完全确定。系�
 :::
 
 这四种方案可以组合，不存在“Agent 比工作流高级”这种排序。身份认证应该是确定性函数，审批流程适合工作流，非结构化文本分类可以由模型辅助，开放式研究才可能需要 Agent。
+
+```mermaid
+flowchart TD
+  A[任务目标] --> B{步骤能否提前枚举}
+  B -->|是| C[函数或固定工作流]
+  B -->|部分需要语言理解| D[模型辅助工作流]
+  B -->|否，观察会改变路径| E[受限 Agent]
+  C --> F[确定性验证]
+  D --> F
+  E --> G[预算、授权与终止]
+```
 
 ## 先画出任务的控制图
 

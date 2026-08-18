@@ -26,9 +26,29 @@ updated: 2026-08-17T00:00:00.000Z
 
 API 只有 30 个并发请求，PostgreSQL 却出现 300 个连接，偶发查询还报 prepared statement 不存在。扩容 API Worker 后问题更严重。数据库没有“突然变小”，而是每个进程都创建了独立连接池，PgBouncer 又使用 transaction pooling，客户端会话状态在下一次事务时换到了另一条服务器连接。
 
+## 安装 PostgreSQL 与 pgvector 的本地验证环境
 
-<InfraFigure src="/images/ai-infra/postgres-pgbouncer-operations/hero.png" alt="AI 请求经过 PgBouncer 连接池进入 PostgreSQL 表与向量索引的插画"
-  icon="database" caption="连接池控制连接成本，事务与索引控制数据正确性和查询路径。" />
+PostgreSQL 的官方下载入口是[官方下载页](https://www.postgresql.org/download/)，pgvector 的安装方式见[项目文档](https://github.com/pgvector/pgvector)。本地学习可以用带 pgvector 的镜像，先验证 SQL 和扩展是否可用，再讨论 PgBouncer 的连接池行为。
+
+<figure class="doc-shot">
+  <img src="/images/install/postgres-download.png" alt="PostgreSQL 官方下载页，展示各操作系统安装入口" loading="lazy">
+  <figcaption>PostgreSQL 官方下载页。按目标系统选择安装方式；生产环境不要直接把临时容器命令当作高可用部署方案。</figcaption>
+</figure>
+
+```bash
+docker run --name pgvector-learning \
+  -e POSTGRES_PASSWORD=change-me \
+  -e POSTGRES_DB=agent_learning \
+  -p 5432:5432 \
+  -d pgvector/pgvector:pg17
+
+psql --version
+psql postgresql://postgres:change-me@127.0.0.1:5432/agent_learning \
+  -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname = 'vector';"
+```
+
+`psql --version` 只证明客户端存在；`CREATE EXTENSION` 成功才证明当前数据库实例加载了向量扩展。容器标签、PostgreSQL 主版本和向量维度要在项目配置中固定，不能依赖 `latest` 长期漂移。
+
 
 
 ## 一次知识检索怎样占用连接并选择索引
@@ -46,25 +66,25 @@ flowchart LR
 
 先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-### 借连接发生时，先看 应用连接池/PgBouncer
+### 借连接：应用连接池/PgBouncer
 
 请求在截止时间内获得客户端槽位和服务器连接。
 
 这里不靠猜测，优先读取 pool wait、active/idle、server connections。
 
-### 从 建立事务 留下的证据回到 PostgreSQL
+### 建立事务：PostgreSQL
 
 设置事务范围并执行租户、知识版本与状态过滤。
 
 决定下一步前需要看到 txid、锁等待、statement timeout。
 
-### 3. Planner 怎样完成选择计划
+### 选择计划：Planner
 
 根据统计信息选择普通索引、向量索引或顺序扫描。
 
 这一动作的可观察结果是 `EXPLAIN (ANALYZE, BUFFERS)`。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 4. 提交归还：数据库与连接池 持有当前状态
+### 提交归还：数据库与连接池
 
 提交/回滚后释放连接，清理会话状态。
 
@@ -85,7 +105,7 @@ flowchart LR
 不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## 别让表面现象替你下结论
+## 连接池有连接不等于查询可用
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

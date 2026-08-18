@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 一个长请求进入批次后，后来的短请求全部等它生成完，GPU 明明每轮仍有空位。静态批处理把一组请求从头到尾绑在一起；连续批处理则在每次迭代重新选择活跃序列，让完成的请求退出、新请求进入。代价是调度、公平性和 KV Cache 管理变得更复杂。
 
 
-<InfraFigure src="/images/ai-infra/continuous-batching-kv-cache/hero.png" alt="长短请求在连续批处理中共享 GPU 轮次和分页 KV Cache 的插画"
-  icon="blocks" caption="连续批处理按迭代加入和移除请求，PagedAttention 用块管理不等长 KV Cache。" />
-
 
 ## 为什么生成批次不能照搬训练批次
 
@@ -67,25 +64,25 @@ flowchart LR
   S2 --> S3
 ```
 
-### 1. Scheduler 怎样完成准入
+### 准入：Scheduler
 
 按 token budget、KV 空闲块和优先级选择新请求。
 
 这一动作的可观察结果是 waiting、admitted、rejected reason。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 分配缓存：KV Block Manager 持有当前状态
+### 分配缓存：KV Block Manager
 
 给输入与增长中的序列映射物理 block。
 
 可以从这些位置确认结果：free blocks、allocated blocks、preemption。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 执行一步发生时，先看 Model Executor
+### 执行一步：Model Executor
 
 组合 Prefill chunk 或 Decode token 形成一次执行。
 
 这里不靠猜测，优先读取 batch tokens、kernel duration。
 
-### 从 完成回收 留下的证据回到 Scheduler
+### 完成回收：Scheduler
 
 结束、取消或抢占请求，回收 block 并选择下一轮。
 

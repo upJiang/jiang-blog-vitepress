@@ -28,6 +28,24 @@ Web Worker 是浏览器提供的后台 JavaScript 执行环境。Dedicated Worke
 
 解析几十 MB 数据让输入停顿时，把同一函数放进 Promise 不会离开主线程。Worker 才能把计算移到另一条线程，但“移走计算”不保证总耗时下降，是否值得迁移要用主线程响应和端到端耗时一起判断。
 
+```mermaid
+sequenceDiagram
+  participant UI as 主线程 UI
+  participant W as Worker
+  participant T as 定时器/取消
+  UI->>W: request(id, payload)
+  UI->>T: 记录 timeout(id)
+  alt 正常完成
+    W-->>UI: reply(id, ok, result)
+    UI->>T: 清理 timeout
+  else 超时或页面销毁
+    UI->>W: cancel(id) 或 terminate()
+    UI-->>UI: reject pending(id)
+  end
+```
+
+读图时先看 `id` 的所有权：主线程保存 Promise 和超时，Worker 只处理数据并回传结果。这样排障时能区分计算失败、消息丢失、Worker 崩溃和页面主动终止。
+
 ## 隔离边界
 
 主线程创建 Worker，通过 postMessage 发送结构化可克隆值。Worker 通过 onmessage 接收，计算后回复。函数、DOM 节点和多数平台句柄不能克隆。大 ArrayBuffer 可放 transfer list 转移所有权，避免复制；发送方 buffer 随后 detached，不能继续使用。

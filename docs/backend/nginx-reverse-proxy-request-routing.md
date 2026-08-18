@@ -27,6 +27,23 @@ updated: 2026-08-12
 
 浏览器收到 `502 Bad Gateway`，API 日志却没有这次请求。502 说明 Nginx 作为网关没有从 upstream 得到可用响应，问题可能是地址、端口、连接、协议或上游提前退出；它和应用已经返回的 500 不是一层错误。
 
+## 安装 Nginx 并先验证配置
+
+Nginx 的官方安装入口是[下载页](https://nginx.org/en/download.html)。macOS 可以用 Homebrew，Linux 服务器应按发行版和官方包源安装；下载后先查看版本和最终配置，再启动代理。
+
+<figure class="doc-shot">
+  <img src="/images/install/nginx-download.png" alt="Nginx 官方下载页，展示稳定版和主线版入口" loading="lazy">
+  <figcaption>Nginx 官方下载页。稳定版和主线版的变更节奏不同，生产环境应锁定版本并在变更前保留配置回滚点。</figcaption>
+</figure>
+
+```bash
+brew install nginx
+nginx -v
+nginx -t
+```
+
+`nginx -v` 只显示二进制版本，`nginx -t` 才会解析配置和证书路径。测试通过后再 reload；若机器没有 Homebrew，使用发行版包管理器安装，不要把 macOS 命令直接复制到 Linux 服务器。
+
 ## 反向代理同时建立两条连接
 
 客户端与 Nginx 建立一条 HTTP/TLS 连接，Nginx 再与应用建立另一条 upstream 连接。TLS 可以在入口终止，应用只监听内网 HTTP；也可以继续加密到上游。两条连接拥有各自的连接超时、读写超时和日志。

@@ -1,19 +1,19 @@
 ---
-title: "Embedding 文本、模型与版本元数据"
-description: "区分正文、显示文本、回答文本与 embedding_text，并保存模型、维度、规范化和版本信息。"
+title: Embedding 文本、模型与版本元数据
+description: 区分正文、显示文本、回答文本与 embedding_text，并保存模型、维度、规范化和版本信息。
 category: ai-agent
-part: "RAG 知识工程"
+part: RAG 知识工程
 stageKey: rag
 chapter: 47
 sequence: 47
 slug: embedding-text-model-design
 tags:
-  - "Embedding"
-  - "Model"
-  - "Metadata"
+  - Embedding
+  - Model
+  - Metadata
 sourceKey: ai-embedding-text-model-design
 dependsOn:
-  - "embedding-representation-boundaries"
+  - embedding-representation-boundaries
 updated: '2026-08-17'
 lastUpdated: false
 ---
@@ -30,6 +30,30 @@ lastUpdated: false
 :::
 
 本文继续使用编号为 `RA-204` 的远程访问规则。它位于“安全制度 > 远程访问 > 生产环境”，表格字段为环境、审批角色和有效期。用户可能问“生产连接找谁批准”，也可能直接查 `RA-204`。文本设计既要照顾语义召回，又不能破坏精确编号与原文引用。
+
+```mermaid
+flowchart LR
+  A[原始 Block] --> B[显示文本]
+  A --> C[检索文本]
+  A --> D[回答文本]
+  C --> E[embedding_text]
+  E --> F[模型与维度元数据]
+  F --> G[向量记录]
+  B --> H[用户引用]
+  D --> H
+```
+
+## 文本视图由谁生成和维护
+
+解析器是规范正文和结构字段的所有者。它读取原始 Source，产出 `content`、章节路径、表格字段与来源位置；显示层只能根据这些字段安全渲染，不能反向修改规范正文。切块器拥有 Chunk 边界与稳定身份，但不负责决定模型和向量维度。职责分开以后，页面样式变化不会触发内容重切，切块策略变化则会明确创建新的候选版本。
+
+表示构造器负责从规范字段生成 `embedding_text`。它读取标题、路径和正文，按照带版本的确定规则拼接，不自行调用生成模型补写事实。Embedding 适配器拥有模型请求、批次和返回维度校验，Repository 拥有向量记录与状态转换。查询服务只能读取已经 ready 且属于活动索引的向量，不能在请求期间临时改写表示文本。
+
+`display_content` 的维护者是呈现适配器，`answer_content` 的维护者是证据装配层。两者可以从同一规范正文派生，但每次派生都保留 Chunk 与 Source Version。若答案层为了节省上下文生成压缩文本，压缩结果属于运行时证据包，不应覆盖入库阶段的 `answer_content`。字段同名不等于所有组件都可以写入。
+
+索引配置拥有模型、维度、模板和规范化版本，发布服务拥有活动索引指针。这两个所有权也不能合并：修改配置只会创建候选，只有结构检查和检索评测通过后，发布服务才切换查询入口。活动指针切换失败时，旧索引继续服务；候选构建失败时，不会把半成品暴露给检索器。
+
+多文本视图的取舍是用更多字段、哈希和迁移成本换取接口稳定与可回滚。小型只读语料可以让四个视图暂时相同，但仍保存明确生成规则；规模较大后，再根据真实召回和展示问题拆分。反过来，为每种消费者提前生成大量派生文本会增加存储、重算和一致性代价，也可能让读者看到与原文不一致的内容，因此新增视图必须有具体消费者和回归证据。
 
 ## 一个 Chunk 为什么需要多种文本视图
 

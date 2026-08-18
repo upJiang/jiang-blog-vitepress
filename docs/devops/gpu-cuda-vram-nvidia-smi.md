@@ -27,13 +27,10 @@ updated: 2026-08-17T00:00:00.000Z
 容器里 `nvidia-smi` 能看到 GPU，Python 却提示 CUDA unavailable；修好兼容问题后模型又在加载完成时 OOM。前一个问题是驱动、容器设备和 Runtime 链路，后一个问题是显存容量。把它们都称为“CUDA 问题”会让排查从升级版本和调小 batch 之间来回摇摆。
 
 
-<InfraFigure src="/images/ai-infra/gpu-cuda-vram-nvidia-smi/hero.png" alt="驱动、CUDA Runtime 与 GPU 显存中的权重、KV Cache 和工作区层次插画"
-  icon="memory" caption="驱动负责控制设备，Runtime 提供执行接口，显存则被多种长期和峰值分配共同占用。" />
-
 
 ## Driver、CUDA Runtime 与显存各自负责什么
 
-先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+GPU 诊断先分三层：宿主驱动是否发现设备，容器是否注入设备，框架 Runtime 是否能初始化；显存账本在这之后才有意义。
 
 | 概念 | 在这条链路中的含义 |
 | --- | --- |
@@ -43,8 +40,35 @@ updated: 2026-08-17T00:00:00.000Z
 | OOM | 某次设备分配无法满足，不只取决于当前已用总量，还受连续块、缓存器和峰值临时分配影响。 |
 
 ::: tip 判断原则
-定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+`nvidia-smi` 只覆盖设备观察层，不能替代框架初始化、模型加载和请求峰值的证据。
 :::
+
+## 准备驱动、容器 Runtime 与框架环境
+
+GPU 环境没有一条适合所有机器的通用安装命令。先确认操作系统、GPU 型号和部署方式，再进入 [NVIDIA CUDA Linux 安装指南](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)选择对应发行版；容器部署还要按 [NVIDIA Container Toolkit 安装指南](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)配置 Docker 或 Containerd。Python 框架的安装命令由框架版本和 CUDA 后端共同决定，PyTorch 可以从[官方安装选择器](https://pytorch.org/get-started/locally/)生成当前命令。
+
+<figure class="doc-shot">
+  <img src="/images/install/cuda-installation.png" alt="NVIDIA CUDA Linux 官方安装指南" loading="lazy">
+  <figcaption>NVIDIA CUDA Linux 安装指南。驱动、Toolkit、容器运行时和 Python 框架不是同一个安装层，必须按目标环境分别核对。</figcaption>
+</figure>
+
+Ubuntu 主机可以先让系统列出推荐驱动，再安装并重启。下面的命令会修改主机驱动，不能在共享生产节点上直接执行：
+
+```bash
+sudo ubuntu-drivers list
+sudo ubuntu-drivers install
+sudo reboot
+```
+
+重启后依次检查宿主机、容器和 Python 进程，三层都通过才算链路可用：
+
+```bash
+nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu24.04 nvidia-smi
+python3 -c "import torch; print(torch.version.cuda); print(torch.cuda.is_available())"
+```
+
+示例镜像标签用于说明验证方式，执行前要在 NVIDIA 容器仓库确认它仍存在，并替换成项目锁定版本。宿主机失败先处理驱动；宿主机成功而容器失败，检查 Container Toolkit 和设备注入；前两层成功而 Python 返回 `False`，再核对框架包内 Runtime 与驱动兼容关系。
 
 ## 从设备发现到一次显存分配失败
 
@@ -61,25 +85,25 @@ flowchart LR
 
 箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-### 1. 发现设备：OS/Container Runtime 持有当前状态
+### 发现设备：OS/Container Runtime
 
 驱动识别 GPU，并把设备节点与库暴露给进程。
 
 可以从这些位置确认结果：`nvidia-smi`、device files、container runtime。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 初始化 Runtime发生时，先看 Framework/CUDA
+### 初始化 Runtime：Framework/CUDA
 
 加载兼容库、创建 context 并选择 device。
 
 这里不靠猜测，优先读取 driver/runtime version、初始化错误。
 
-### 从 建立显存账本 留下的证据回到 Serving
+### 建立显存账本：Serving
 
 依次分配权重、KV Cache、激活、workspace 和通信缓冲。
 
 决定下一步前需要看到 allocated/reserved、模型配置。
 
-### 4. Allocator 怎样完成执行与回收
+### 执行与回收：Allocator
 
 请求产生峰值分配，结束或取消后回收可复用块。
 
@@ -98,7 +122,7 @@ python3 -c "import torch; print(torch.version.cuda); print(torch.cuda.is_availab
 
 `nvidia-smi` 的 CUDA Version 通常表示驱动可支持的最高 CUDA 能力，不等于当前 Python 包内 Runtime 版本。memory.used 是设备级快照，难以直接拆成权重、KV Cache 和 allocator reserved；框架指标和 Serving 配置要一起看。utilization.gpu 是采样窗口活动比例，不等价于模型吞吐。
 
-## 看起来相似，故障边界却不同
+## 显存未满也可能分配失败
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

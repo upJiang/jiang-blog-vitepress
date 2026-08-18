@@ -26,14 +26,28 @@ updated: 2026-08-17T00:00:00.000Z
 
 同一租户一分钟内发送了 120 次请求，限流器却偶尔放过第 101 次；另一次 Redis 重启后，所有用户被迫重新登录，Worker 还重复执行了几个任务。把缓存、Session、限流和队列都理解为“放一个值到 Redis”会掩盖它们完全不同的正确性要求。
 
+## 安装 Redis 并确认开发端点
 
-<InfraFigure src="/images/ai-infra/redis-operations/hero.png" alt="Redis 中缓存、会话、限流计数和队列状态分区流动的插画"
-  icon="cache" caption="Redis 的速度来自内存数据结构，正确性来自 key、TTL、原子性和持久化边界。" />
+Redis 的官方入口是[下载页](https://redis.io/downloads/)。本地验证可以使用单独容器，先把连接和命令端点跑通，再为缓存、Session、限流和任务分别设置 TTL、持久化与恢复策略。
+
+<figure class="doc-shot">
+  <img src="/images/install/redis-download.png" alt="Redis 官方下载页面" loading="lazy">
+  <figcaption>Redis 官方下载入口。客户端连通只是起点，不能证明数据在重启后仍存在，也不能证明队列不会重复投递。</figcaption>
+</figure>
+
+```bash
+docker run --name redis-dev -p 6379:6379 -d redis:7
+redis-cli -h 127.0.0.1 ping
+redis-cli -h 127.0.0.1 INFO server | rg redis_version
+```
+
+`PONG` 和版本输出能确认服务端响应，后续仍要在隔离 key 上测试过期、重启、淘汰和恢复。生产环境不要使用没有密码、没有内存上限的默认容器。
+
 
 
 ## Redis 快，但哪些状态真的适合放进去
 
-先把术语放回系统位置。只记名字，遇到故障时仍然不知道应该去哪个进程或存储找证据。
+Redis 的数据结构、TTL、持久化和故障转移影响的是不同层，先确认业务状态是否允许丢失，再选择缓存、队列或持久存储语义。
 
 | 概念 | 在这条链路中的含义 |
 | --- | --- |
@@ -43,7 +57,7 @@ updated: 2026-08-17T00:00:00.000Z
 | Queue State | 任务待处理、处理中、重试和终态的协调信息；是否允许丢失、重复和恢复要由队列语义决定。 |
 
 ::: tip 判断原则
-定义一个组件时，同时说清它不负责什么。能回答输入从哪里来、状态存在哪里、输出交给谁，才算理解。
+先用只读证据确认键空间、命中率和过期行为，再决定清理或调整配置，避免把缓存问题误判成数据库故障。
 :::
 
 ## 一次限流判断为何需要原子更新
@@ -61,25 +75,25 @@ flowchart LR
 
 箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
 
-### 1. 构造 key：Gateway 持有当前状态
+### 构造 key：Gateway
 
 用租户、能力和窗口构造低歧义 key，不把原始 API Key 放入名称。
 
 可以从这些位置确认结果：key pattern、租户维度、过期策略。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 读取更新发生时，先看 Redis
+### 读取更新：Redis
 
 在一次原子操作中增加计数并设置首次 TTL。
 
 这里不靠猜测，优先读取 返回计数、PTTL、命令延迟。
 
-### 从 形成决定 留下的证据回到 Gateway Policy
+### 形成决定：Gateway Policy
 
 把计数与 limit 比较，返回通过或 429 和 Retry-After。
 
 决定下一步前需要看到 policy decision、剩余额度。
 
-### 4. Redis Expiration 怎样完成过期恢复
+### 过期恢复：Redis Expiration
 
 窗口结束后删除计数；故障恢复遵循明确持久化策略。
 
@@ -100,7 +114,7 @@ return {current, ttl}
 
 如果客户端先 `INCR` 后因网络中断没有执行 `EXPIRE`，计数会永久存在；脚本把两步放入 Redis 单线程执行的原子单元。调用方仍需判断返回计数是否大于上限，并把 Redis 不可用时的 fail-open 或 fail-closed 策略写清楚。
 
-## 看起来相似，故障边界却不同
+## 命中、过期与持久化是三条证据
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

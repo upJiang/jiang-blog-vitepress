@@ -18,8 +18,16 @@ const ngramOwner = new Map<string, string>()
 const overlapCounts = new Map<string, number>()
 const headingTreeOwners = new Map<string, Set<string>>()
 
+const tpKnowledgeCandidates = [
+  process.env.TP_KNOWLEDGE_ROOT,
+  path.resolve(root, '../../TPProject/tp-knowledge'),
+  path.resolve(root, '../../../TPProject/tp-knowledge'),
+].filter((candidate): candidate is string => Boolean(candidate))
+const tpKnowledgeRoot = tpKnowledgeCandidates.find((candidate) => fs.existsSync(candidate)) ?? null
+
 if (aiAgentCurriculum.length !== 97) fail(`课程应有 97 篇文章，实际为 ${aiAgentCurriculum.length} 篇。`)
 if (aiAgentStages.length !== 12) fail(`课程应有 12 个阶段，实际为 ${aiAgentStages.length} 个。`)
+
 if (aiAgentSourceLedger.length !== aiAgentCurriculum.length) fail('来源台账数量与课程文章数量不一致。')
 if (ledgerBySlug.size !== aiAgentSourceLedger.length) fail('来源台账存在重复 slug。')
 
@@ -124,6 +132,14 @@ function recordCrossArticleText(slug: string, content: string): void {
   }
 }
 
+function countChineseProse(content: string): number {
+  const prose = content
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/^\|.*$/gm, '')
+    .replace(/https?:\/\/\S+/g, '')
+  return [...prose].filter((character) => /^[\u3400-\u9fff]$/.test(character)).length
+}
+
 function checkArticleType(slug: string, type: string, content: string): void {
   const typeRequirements: Record<string, RegExp[]> = {
     concept: [/机制|过程|运行/, /区别|相邻|对比|比较|差别/, /适用|条件|场景/, /反例|不适用|不能/],
@@ -134,6 +150,17 @@ function checkArticleType(slug: string, type: string, content: string): void {
   }
   for (const pattern of typeRequirements[type] ?? []) {
     if (!pattern.test(content)) fail(`${slug} 的 ${type} 正文缺少 ${pattern.source} 相关展开。`)
+  }
+}
+
+function checkCrossArticleTemplatePhrases(slug: string, content: string): void {
+  const patterns = [
+    /状态合同中的[^。\n]{0,140}三者不能合并成一段自由文本/,
+    /按输入、状态、依赖、结果和交付五个位置分类错误/,
+    /不能只列框架节点名称/,
+  ]
+  for (const pattern of patterns) {
+    if (pattern.test(content)) fail(`${slug} 仍包含跨文章同构模板句：${pattern.source}`)
   }
 }
 
@@ -150,6 +177,41 @@ for (const [index, article] of aiAgentCurriculum.entries()) {
   if (seenSourceKeys.has(article.sourceKey)) fail(`${article.slug} 的 sourceKey 重复。`)
   seenSourceKeys.add(article.sourceKey)
 
+  if (ledger.waylandChapters.some((chapter) => !Number.isInteger(chapter) || chapter < 1 || chapter > 45)) {
+    fail(`${article.slug} 的 Wayland 章节编号必须位于 1 到 45。`)
+  }
+  if (ledger.waylandChapters.length === 0 && ledger.appendixTopics.length === 0) {
+    fail(`${article.slug} 缺少 Wayland 章节或附录映射。`)
+  }
+  if (ledger.waylandChapterTitles.length !== ledger.waylandChapters.length) {
+    fail(`${article.slug} 的 Wayland 章节标题映射不完整。`)
+  }
+
+  const kbCoverage = article.coverageKeys.filter((key) => key.startsWith('kb-'))
+  if (kbCoverage.length > 0 && ledger.knowledgeEvidence.length === 0) {
+    fail(`${article.slug} 的 kb 覆盖键没有源码与测试证据。`)
+  }
+  if (kbCoverage.length > 0 && !tpKnowledgeRoot) {
+    fail(`${article.slug} 无法定位只读 tp-knowledge 根目录，不能核对源码与测试证据。`)
+  }
+  for (const evidence of ledger.knowledgeEvidence) {
+    if (evidence.sourcePaths.length === 0 || evidence.testPaths.length === 0) {
+      fail(`${article.slug} 的知识证据必须同时登记源码路径和测试路径。`)
+    }
+    if (tpKnowledgeRoot) {
+      for (const sourcePath of evidence.sourcePaths) {
+        if (!fs.existsSync(path.join(tpKnowledgeRoot, sourcePath))) {
+          fail(`${article.slug} 的源码证据不存在：${sourcePath}`)
+        }
+      }
+      for (const testPath of evidence.testPaths) {
+        if (!fs.existsSync(path.join(tpKnowledgeRoot, testPath))) {
+          fail(`${article.slug} 的测试证据不存在：${testPath}`)
+        }
+      }
+    }
+  }
+
   for (const dependency of article.dependsOn) {
     const dependencyIndex = aiAgentCurriculum.findIndex((candidate) => candidate.slug === dependency)
     if (dependencyIndex < 0 || dependencyIndex >= index) fail(`${article.slug} 依赖未在前置位置：${dependency}。`)
@@ -165,6 +227,13 @@ for (const [index, article] of aiAgentCurriculum.entries()) {
   const parsed = matter(source)
   const content = parsed.content
   const prose = content.replace(/```[\s\S]*?```/g, '').replace(/^\s*<<<.*$/gm, '')
+  const zhCount = chineseCharacterCount(content)
+  if (zhCount < 6000) fail(`${article.slug} 的正文只有 ${zhCount} 个中文字符，低于 6000。`)
+  const titleInProse = prose.split(article.title).length - 1
+  if (titleInProse > 8) fail(`${article.slug} 在正文中机械复述完整标题 ${titleInProse} 次，应改用自然的主题指代。`)
+  if (!hasCompleteWalkthrough(content)) fail(`${article.slug} 缺少输入、状态、调用、输出、失败证据和验证结果组成的完整推演。`)
+  checkArticleType(article.slug, article.articleType, content)
+  checkCrossArticleTemplatePhrases(article.slug, content)
   const headings = [...prose.matchAll(/^(#{1,6})\s+(.+)$/gm)].map((match) => ({ level: match[1].length, text: match[2].trim() }))
   if (headings.filter((heading) => heading.level === 1).length !== 1) fail(`${article.slug} 必须只有一个 H1。`)
   if (headings[0]?.text !== article.title) fail(`${article.slug} 的 H1 与课程标题不一致。`)
@@ -172,6 +241,18 @@ for (const [index, article] of aiAgentCurriculum.entries()) {
     if (headings[headingIndex].level > headings[headingIndex - 1].level + 1) fail(`${article.slug} 的标题层级出现跳跃。`)
   }
   if (headings.filter((heading) => heading.level === 2).length < 5) fail(`${article.slug} 至少需要五个承接主题的 H2。`)
+  const headingTexts = headings.filter((heading) => heading.level >= 2).map((heading) => heading.text)
+  for (const anchor of ledger.headingAnchors) {
+    if (!headingTexts.includes(anchor)) fail(`${article.slug} 的台账标题锚点不存在：${anchor}`)
+  }
+  for (const evidence of ledger.knowledgeEvidence) {
+    if (evidence.headingTerms.length > 0 && !evidence.headingTerms.some((term) => headingTexts.some((heading) => heading.toLowerCase().includes(term.toLowerCase())))) {
+      fail(`${article.slug} 的知识证据没有对应 H2/H3：${evidence.headingTerms.join('、')}`)
+    }
+  }
+  for (const officialUrl of ledger.officialEvidence) {
+    if (!content.includes(officialUrl)) fail(`${article.slug} 缺少台账登记的官方资料链接：${officialUrl}`)
+  }
   const headingTree = headings
     .filter((heading) => heading.level >= 2)
     .map((heading) => `${heading.level}:${heading.text}`)
@@ -194,10 +275,6 @@ for (const [index, article] of aiAgentCurriculum.entries()) {
     }
   }
 
-  const zhCount = chineseCharacterCount(content)
-  if (zhCount < 6000) fail(`${article.slug} 的正文只有 ${zhCount} 个中文字符，低于 6000。`)
-  if (!hasCompleteWalkthrough(content)) fail(`${article.slug} 缺少输入、状态、调用、输出、失败证据和验证结果组成的完整推演。`)
-  checkArticleType(article.slug, article.articleType, content)
   recordCrossArticleText(article.slug, content)
 
   if (/^##\s+(?:参考资料|本文产物|本篇产物|阅读地图)/m.test(prose)) fail(`${article.slug} 仍有已删除的模板章节。`)
@@ -239,6 +316,8 @@ for (const [index, article] of aiPracticeCurriculum.entries()) {
   const source = fs.readFileSync(file, 'utf8')
   const parsed = matter(source)
   const content = parsed.content
+  const titleInProse = content.split(article.title).length - 1
+  if (titleInProse > 2) fail(`${article.slug} 在正文中机械复述完整标题 ${titleInProse} 次，应改用自然的主题指代。`)
   const headings = [...content.matchAll(/^(#{1,6})\s+(.+)$/gm)].map((match) => ({ level: match[1].length, text: match[2].trim() }))
   if (headings.filter((heading) => heading.level === 1).length !== 1) fail(`${article.slug} 必须只有一个 H1。`)
   if (headings[0]?.text !== article.title) fail(`${article.slug} 的 H1 与实践标题不一致。`)
@@ -246,6 +325,7 @@ for (const [index, article] of aiPracticeCurriculum.entries()) {
   if (chineseCharacterCount(content) < 6000) fail(`${article.slug} 的实践正文低于 6000 个中文字符。`)
   if (!hasCompleteWalkthrough(content)) fail(`${article.slug} 缺少完整推演。`)
   checkArticleType(article.slug, 'implementation', content)
+  checkCrossArticleTemplatePhrases(article.slug, content)
   recordCrossArticleText(article.slug, content)
 
   if (parsed.data.title !== article.title) fail(`${article.slug} 的 title 与实践清单不一致。`)
@@ -281,4 +361,4 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
-console.log('AI 内容检查通过：97 篇主课程、10 篇实践、12+6 个阶段、来源覆盖、深度推演与跨文重复均已验证。')
+console.log(`AI 内容检查通过：${aiAgentCurriculum.length} 篇主课程、${aiPracticeCurriculum.length} 篇实践、${aiAgentStages.length} 个阶段、来源覆盖、结构一致性与重复内容检查均已验证。`)

@@ -26,9 +26,6 @@ updated: 2026-08-17T00:00:00.000Z
 Pod 显示 Running，Service 却没有 Endpoint。应用团队认为集群网络坏了，真正原因是 readiness probe 仍失败，因此 EndpointSlice 控制器没有把 Pod 放入可接流量集合。Kubernetes 的状态不是一个“正常/异常”开关，而是多个控制器围绕期望状态产生的对象关系。
 
 
-<InfraFigure src="/images/ai-infra/kubernetes-ai-platform-basics/hero.png" alt="Kubernetes 控制面持续调谐 Deployment、Pod、Service 与 Ingress 的插画"
-  icon="cluster" caption="Kubernetes 保存期望状态并持续调谐对象，但不理解模型是否回答正确。" />
-
 
 ## 一个模型服务声明怎样变成可达 Endpoint
 
@@ -45,25 +42,25 @@ flowchart LR
 
 先看完整路径，再进入局部配置。这样即使组件名字变化，也能知道失败发生在交接之前还是之后。
 
-### 提交规格发生时，先看 API Server
+### 提交规格：API Server
 
 验证 Deployment、Service 和配置并持久化对象版本。
 
 这里不靠猜测，优先读取 resourceVersion、admission result。
 
-### 从 创建副本 留下的证据回到 Deployment/ReplicaSet Controller
+### 创建副本：Deployment/ReplicaSet Controller
 
 比较期望副本并创建 Pod。
 
 决定下一步前需要看到 conditions、events、ReplicaSet。
 
-### 3. Scheduler/Kubelet 怎样完成选择节点
+### 选择节点：Scheduler/Kubelet
 
 为 Pending Pod 选择节点并启动容器。
 
 这一动作的可观察结果是 scheduling events、container status。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 4. 加入流量：Readiness/EndpointSlice 持有当前状态
+### 加入流量：Readiness/EndpointSlice
 
 探针成功后把 Pod IP 纳入 Service 后端。
 
@@ -85,7 +82,7 @@ flowchart LR
 不要从产品名推断能力。把可观察输入、持久状态、失败终态和下游交接点写出来。
 :::
 
-## 别让表面现象替你下结论
+## Pod Running 不等于调度成功
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |

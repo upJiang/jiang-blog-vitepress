@@ -27,6 +27,28 @@ updated: 2026-08-12
 
 `docker compose up` 显示 API started，但 API 立刻因 MySQL connection refused 退出。Compose 的启动顺序只说明容器进程已创建，数据库完成初始化和接受连接是另一状态。可复现本地栈需要正确 Dockerfile、健康检查、依赖就绪和持久卷。
 
+## 安装 Docker 与 Compose
+
+macOS 和 Windows 可以从 [Docker Desktop 官方安装入口](https://docs.docker.com/get-started/get-docker/)选择对应系统；Linux 服务器或不使用桌面环境的机器应进入 [Docker Engine 安装文档](https://docs.docker.com/engine/install/)，按发行版安装。不要从不明镜像站下载二进制或安装脚本。
+
+![Docker 官方安装页面，选择 Docker Desktop 或 Docker Engine](/images/install/docker-get-docker.png)
+
+截图只用于确认下载入口和平台分流，页面中的商业条款、系统要求和版本会变化。真正安装完成仍以本机命令输出为准。
+
+Docker Desktop 已包含 Compose 插件。安装并启动 Docker 后，运行：
+
+```bash
+docker version
+docker compose version
+docker run --rm hello-world
+```
+
+`docker version` 应同时显示 Client 和 Server；只有 Client 通常表示 Docker Daemon 尚未启动或当前账号没有访问权限。`docker compose version` 要能输出 v2 版本，后续命令使用带空格的 `docker compose`，不使用旧的 `docker-compose`。最后一条会拉取公开测试镜像并创建临时容器，它能验证镜像拉取与容器启动，不能证明业务 Compose 文件正确。
+
+::: warning 先确认当前 Docker Context
+执行项目命令前运行 `docker context show`。它若指向远程主机，`docker compose up` 和数据卷操作都会发生在远端，不应继续照着本地教程执行。
+:::
+
 ## Dockerfile 把构建依赖与运行依赖分开
 
 多阶段构建在 builder 安装依赖、编译和测试，在 runtime 只复制生产产物与必要依赖。固定基础镜像版本/digest，设置非 root 用户、明确 WORKDIR 和 ENTRYPOINT，并让 PID 1 接收信号。
@@ -110,6 +132,18 @@ flowchart LR
 ```
 
 基础设施健康不代表迁移成功，迁移成功也不代表业务可用。启动脚本应分别报告每个阶段的失败。
+
+本地首次验证可以按以下顺序执行，失败时保留对应阶段的日志：
+
+```bash
+docker compose config
+docker compose build
+docker compose up -d
+docker compose ps
+docker compose logs --tail=120 mysql node-api
+```
+
+`config` 先解析变量和最终服务定义；`build` 验证 Dockerfile；`up -d` 创建服务；`ps` 查看容器与健康状态。API 未就绪时，最后一条同时查看数据库和应用日志，避免只凭 `running` 判断服务可用。
 
 ## 本地数据重置必须明确目标
 

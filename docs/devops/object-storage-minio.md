@@ -25,9 +25,28 @@ updated: 2026-08-17T00:00:00.000Z
 
 一个 12 GB 模型上传到 98% 时网络断开，重试后 bucket 里出现多个残留 multipart upload；另一个用户拿到旧的预签名 URL，仍能下载已撤回文档。对象存储不是“无限大的文件夹”，它有自己的对象身份、版本、校验、授权和生命周期。
 
+## 安装 MinIO 并检查健康端点
 
-<InfraFigure src="/images/ai-infra/object-storage-minio/hero.png" alt="文档与模型大对象从上传、分片、校验到版本发布的对象存储插画"
-  icon="storage" caption="对象存储保存字节，数据库保存业务身份、权限和发布状态。" />
+MinIO 的安装入口在[官方 Linux 文档](https://min.io/docs/minio/linux/index.html)。本地排障可以先用隔离容器启动单节点实例，生产环境应固定发布版本、挂载持久盘并按官方升级说明执行。
+
+<figure class="doc-shot">
+  <img src="/images/install/minio-download.png" alt="MinIO 官方下载页面，展示 Server、Client 与 SDK 安装入口" loading="lazy">
+  <figcaption>官方页面把 Server、Client 和 SDK 分开列出。教程需要的是服务端时，不要把客户端安装成功误当成对象服务已经可用。</figcaption>
+</figure>
+
+```bash
+docker run --name minio-dev \
+  -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=change-me-now \
+  -v "$PWD/.minio-dev:/data" \
+  quay.io/minio/minio:latest server /data --console-address ":9001"
+
+curl -fsS http://127.0.0.1:9000/minio/health/live
+```
+
+健康端点成功只证明进程和 API 监听，不能证明 Bucket、策略、磁盘空间或 multipart 清理规则正确。后面的上传、完成、撤回和生命周期检查要继续执行。
+
 
 
 ## Object 为什么不等于普通文件
@@ -65,25 +84,25 @@ flowchart LR
   S2 --> S3
 ```
 
-### 1. API/Policy 怎样完成准入
+### 准入：API/Policy
 
 校验租户、大小、类型和配额，生成不可猜测的 staging key。
 
 这一动作的可观察结果是 upload_id、tenant_id、expected_digest。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 2. 分片上传：Client/Object Storage 持有当前状态
+### 分片上传：Client/Object Storage
 
 并行上传 part，失败后按 upload_id 续传或主动 abort。
 
 可以从这些位置确认结果：part 列表、校验和、未完成 upload。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 完成验证发生时，先看 Worker
+### 完成验证：Worker
 
 合并对象并验证长度、摘要、扫描结果和模型清单。
 
 这里不靠猜测，优先读取 content_length、sha256、scan status。
 
-### 从 发布引用 留下的证据回到 Database
+### 发布引用：Database
 
 事务中把业务记录指向不可变 object version，再允许下载。
 

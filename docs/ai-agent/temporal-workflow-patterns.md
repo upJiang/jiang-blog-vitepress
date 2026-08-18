@@ -1,260 +1,289 @@
 ---
-title: "Temporal 怎样执行可恢复的长流程"
-description: "区分 Workflow 与 Activity，解释事件历史、确定性重放、重试、Signal、Query 和版本演进。"
+title: Temporal 怎样执行可恢复的长流程
+description: 区分 Workflow 与 Activity，解释事件历史、确定性重放、重试、Signal、Query 和版本演进。
 category: ai-agent
-part: "Runtime 与异步执行"
+part: Runtime 与异步执行
 stageKey: runtime
 chapter: 81
 sequence: 81
 slug: temporal-workflow-patterns
 tags:
-  - "Temporal"
-  - "Workflow"
-  - "Activity"
+  - Temporal
+  - Workflow
+  - Activity
 sourceKey: ai-temporal-workflow-patterns
 dependsOn:
-  - "deadline-cancel-checkpoint-recovery"
+  - deadline-cancel-checkpoint-recovery
 updated: '2026-08-17'
 lastUpdated: false
 ---
 # Temporal 怎样执行可恢复的长流程
 
-区分 Workflow 与 Activity，解释事件历史、确定性重放、重试、Signal、Query 和版本演进。**Temporal**、**Workflow**、**Activity** 分别指向同一条执行链上的不同对象：用户请求、幂等键、身份范围、知识 Release、Policy、截止时间和执行资源进入系统，workflow_id、run_id、event history、activity attempt、retry policy、signal、query result 和 version marker 保存处理中间状态，最终得到有序事件、最终答案、失败原因、取消确认、可恢复检查点和审计轨迹。
+一个知识 Agent 需要等待用户审批，随后再运行检索、生成答案和发送通知。等待可能跨越几小时，Worker 可能在中间升级，浏览器也可能完全断线。只在 HTTP 请求里写 `await`，进程退出后就丢掉下一步；只靠 Celery 重投，又要自己保存每个等待点、信号和补偿。
 
-Temporal 执行可恢复的长流程位于 API 请求之外负责长期状态、异步执行、控制信号和结果交付的运行时层，主要机制是 Workflow 保存确定性控制逻辑，Activity 承担外部副作用；事件历史驱动重放，Signal 改变运行状态，Query 读取状态，版本标记保护代码演进。Workflow 调用非确定性 API、Activity 没有幂等、历史无限增长、重试策略掩盖业务错误和代码升级破坏重放会让链路在不同位置停止，错误记录必须保留发生阶段、当时的状态和终止原因。
+Temporal 把一次长流程拆成两类代码：**Workflow** 描述确定性的控制逻辑，**Activity** 承担网络、数据库、模型和文件等外部动作。Temporal Server 保存事件历史，Worker 可以在另一台机器上根据历史重建 Workflow 内存状态。它解决的是流程状态的持久化与恢复，不会替 Agent 决定答案是否正确，也不会替外部动作提供幂等性。
 
-::: info 贯穿示例
+::: info 四个对象先分开
 
-Temporal 执行可恢复的长流程场景：一个研究型回答需要运行数分钟，期间用户断开连接、重新打开页面，并在第二次连接中请求取消。Temporal 执行可恢复的长流程需要的身份、权限、版本和业务事实由应用提供，模型与外部内容只产生候选。
-
-:::
-
-这次推演用幂等键、状态版本、Lease、Event 序号、Checkpoint 和终止原因把请求和终态关联起来。与 Celery、状态机、事件溯源、DAG 和持久化 Agent Loop 比较时，重点看输入来源、状态所有者、下一步的决策者和失败终点。
-
-Temporal 执行可恢复的长流程的执行顺序是“创建 Turn → 领取执行权 → 推进状态 → 写入事件或检查点 → 形成终态”。用户请求从入口进入，workflow_id 记录进度，有序事件通过当前主题的校验条件后才会交付。
-
-Workflow 调用非确定性 API 与 Activity 没有幂等会产生不同证据。前者先检查 workflow_id 和输入来源，后者沿调用记录定位依赖或状态冲突；不区分发生位置，重试会掩盖原始原因。
-
-Temporal 执行可恢复的长流程与 Celery 的共同点不代表它们可以互换。当前主题拥有 run_id，相邻组件只通过契约读取或提交候选，不能直接修改这个状态。
-
-Temporal 执行可恢复的长流程的架构图要标出组件职责、workflow_id 的唯一所有者、幂等键经过的接口，以及 Workflow 调用非确定性 API 怎样传播。架构取舍需要说明新增状态和恢复成本，只列组件名称无法用于故障定位。
-
-## 长任务为什么需要独立运行时
-
-区分 Workflow 与 Activity，解释事件历史、确定性重放、重试、Signal、Query 和版本演进。在“Temporal 执行可恢复的长流程场景：一个研究型回答需要运行数分钟，期间用户断开连接、重新打开页面，并在第二次连接中请求取消”这类任务里，Temporal 执行可恢复的长流程负责把用户请求带入处理链，并明确有序事件可以交付的条件。
-
-Temporal 执行可恢复的长流程位于 API 请求之外负责长期状态、异步执行、控制信号和结果交付的运行时层。它处理 Workflow 保存确定性控制逻辑，Activity 承担外部副作用；事件历史驱动重放，Signal 改变运行状态，Query 读取状态，版本标记保护代码演进，身份认证、授权结果和最终业务状态仍由应用中的确定性组件负责。
-
-用户请求是这条链路的起点；来源缺失时，程序只能拒绝请求或采用明确记录的默认值，模型补出的字段不能继续驱动领取执行权。
-
-Workflow 调用非确定性 API 会破坏 workflow_id 与有序事件之间的对应关系，排查时先保留原始输入摘要和发生阶段，再判断是否允许重试。
-
-Activity 没有幂等影响 run_id 或下游解释，不能和 Workflow 调用非确定性 API 共用“重新调用一次模型”的处理方式。
-
-Temporal 执行可恢复的长流程完成时至少留下 workflow_id、run_id、有序事件和检查结论；只有最终文字，无法证明结果来自本次请求。
-
-workflow_id 在单进程 Demo 中可以留在内存，跨进程、带权限或有副作用的任务则要持久化输入、状态转移和停止原因，不能依赖 Prompt 保存状态。
-
-Temporal 执行可恢复的长流程还要把业务条件写成状态条件：身份范围何时就绪，有序事件何时允许交付，Workflow 调用非确定性 API 发生后是否还能继续。
-
-Temporal 执行可恢复的长流程对外区分完成、部分完成和无法确认，三个状态若都包装成有序事件，上层界面无法采用不同处理方式。
-
-## Temporal 执行可恢复的长流程在执行链中的位置
-
-Temporal 执行可恢复的长流程接收用户请求、幂等键、身份范围、知识 Release、Policy、截止时间和执行资源，向下游交付有序事件、最终答案、失败原因、取消确认、可恢复检查点和审计轨迹，输入与输出之间用明确契约连接，调用方不能把一句含糊目标直接交给底层适配器。
-
-Runtime 拥有 Turn 和状态机，Worker 只在有效 Lease 内推进一次状态修订。因此 workflow_id 与 run_id 要有唯一写入方，其他组件只能通过版本化命令申请修改。
-
-Celery 与 Temporal 执行可恢复的长流程解决的问题相邻，但控制权不同，比较时要看谁选择推进状态、谁保存 workflow_id、谁确认有序事件。
-
-状态机可以参与同一请求，却不能替代 Temporal 执行可恢复的长流程；组合后仍要单独检查幂等键的可信来源和 Workflow 调用非确定性 API 的终止规则。
-
-event history 若只保存在 SDK 对象里，重试或进程退出后就失去解释依据；需要恢复或审计的字段进入持久层，体积较大的有序事件只保存稳定引用。
-
-Temporal 执行可恢复的长流程使用的身份、范围和版本来自可信运行时，用户请求可以表达意图，但不能提升权限或改写活动 Release。
-
-Activity 没有幂等发生时，错误回到 run_id 的所有者处理，上游缺输入、当前组件违反不变量和下游不可用分别形成不同终态。
-
-Temporal 执行可恢复的长流程的确定性边界位于 workflow_id 写入之前。模型可以建议值，应用核对来源和当前版本；涉及权限、金额、发布或不可逆动作时，再进入策略或人工批准。
-
-Temporal 执行可恢复的长流程内部可以使用更细的临时对象，跨边界只暴露稳定协议。替换 Celery 时，调用方不需要理解内部缓存和 SDK 响应。
-
-## 领域状态与唯一所有者
-
-Temporal 执行可恢复的长流程的输入合同至少列出用户请求、幂等键和身份范围，每项都注明来源、是否必需、允许的缺省值，以及缺失后是在入口拒绝还是进入降级路径。
-
-状态合同中的 workflow_id 表示当前进度，run_id 保存本次执行依赖的快照，event history 关联前后动作，三者不能合并成一段自由文本。
-
-并发分支按稳定身份合并 event history，完成顺序只反映耗时，不能决定结果属于哪个请求，更不能让迟到的旧状态覆盖新修订。
-
-输出合同同时描述有序事件和最终答案，并为拒绝、取消、部分完成和未知状态提供固定形状，调用方据此分支，无需解析错误文案猜测结果。
-
-run_id 参与乐观并发检查；处理开始后若版本变化，旧候选只保留作审计，不能继续写入 workflow_id。
-
-用户请求里若包含模型填写的同名字段，应用会丢弃它，再从认证、配置或活动版本中补入可信值，因为结构校验通过不等于授权或业务校验通过。
-
-幂等键、状态版本、Lease、Event 序号、Checkpoint 和终止原因组成 Temporal 执行可恢复的长流程的最小追踪材料，日志只保存稳定 ID、版本和错误类，完整 Prompt、文档正文与凭证不进入指标标签。
-
-撤回或删除幂等键时，相关缓存、候选和未完成任务按版本失效；稳定 ID 可以保留审计关系，已撤回内容不能继续进入有序事件。
-
-契约还需要描述新鲜度。run_id 对应的数据发生变化后，旧缓存、旧候选和未完成任务怎样失效，应由版本或时间规则直接判断，不能依赖模型注意到矛盾。
-
-删除和撤回也属于数据生命周期。Temporal 执行可恢复的长流程引用的原始对象被移除时，稳定 ID 可以保留审计关系，正文与派生结果则按策略失效，避免继续向用户展示过期内容。
-
-::: warning Temporal 执行可恢复的长流程的可信边界
-
-有序事件通过结构校验后仍是候选。Temporal 执行可恢复的长流程使用的身份、权限、知识版本与业务事实由应用从可信服务读取，核对完成后才能执行或交付。
+- **Workflow**：只做可重放的决策，保存流程状态。
+- **Activity**：执行不可重放的外部副作用，有自己的超时与重试。
+- **Signal**：外部向运行中的 Workflow 发送异步输入，例如取消或审批结果。
+- **Query**：读取当前 Workflow 状态，不推进历史。
 
 :::
 
-## API、Worker 与存储怎样协作
+## 长流程为什么需要持久化控制逻辑
 
-Temporal 执行可恢复的长流程按“Workflow 保存确定性控制逻辑，Activity 承担外部副作用；事件历史驱动重放，Signal 改变运行状态，Query 读取状态，版本标记保护代码演进”推进，这段机制必须落成 workflow_id 和 run_id 的实际变化，不能只列框架节点名称。
+普通队列任务适合“取消息、处理、确认”。当流程只有几个快速步骤时，Turn 状态机和数据库已够用。流程一旦包含长等待、人工信号、定时器、子流程、补偿和跨版本部署，恢复代码会不断增加：暂停时保存什么，重启时从哪里继续，旧版本怎样读取新状态，重复的邮件是否已经发送。
 
-创建 Turn 接收用户请求并建立 workflow_id，入口校验未通过就地结束，后续模型、检索器或工具调用次数保持为零。
+Temporal 将这些控制动作写入事件历史。Workflow 运行到某一步时，SDK 记录输入、Activity 调度、Activity 完成、Timer 触发和 Signal 到达。Worker 失联后，新 Worker 读取历史并重放 Workflow 函数，重放只恢复内存状态，不再次执行已经记录完成的 Activity。
 
-领取执行权固定身份、范围、配置版本和绝对 Deadline，后续子步骤只继承剩余时间，不能各自重新获得完整超时。
+这和普通事件日志有一个差别：事件历史不仅供 UI 重放，也驱动 Workflow 的下一次决策。因而 Workflow 代码必须满足确定性。外部 HTTP、随机数、当前系统时间、线程和不稳定的全局变量不能直接参与决策；它们应放到 Activity，或使用 SDK 提供的可重放时间与 ID 接口。
 
-推进状态读取 run_id 并执行主题逻辑，参数由应用组装，外部返回先保存为最终答案，尚未获得修改领域状态的资格。
+## Workflow 与 Activity 的边界决定恢复是否安全
 
-写入事件或检查点检查结构、范围、版本和主题不变量；有序事件缺少来源、落在旧版本或越过权限时，workflow_id 停在 rejected 或 failed。
+Workflow 适合比较状态、选择下一个 Activity、等待 Timer、处理 Signal、判断重试次数和返回最终结果。它不应该打开数据库连接、调用模型、读取环境变量或直接写文件。重放时这些动作会再次发生，结果与历史不一致，甚至产生重复副作用。
 
-形成终态先保存有序事件与终止原因，再产生事件或通知，交付失败可以重放，核心状态写入失败则不能对外宣称完成。
+Activity 可以访问网络和数据库，但不能假设只运行一次。Worker 在 Activity 完成后、结果写入历史前崩溃，Temporal 可能再次调度它；供应商超时也可能让本地不知道请求是否已到达。每个有副作用的 Activity 都要有 Action ID、下游幂等键或可查询回执。
 
-推进状态出现部分结果时，由任务合同决定保留、补偿还是整体丢弃；有序事件若可重建就重新生成，外部副作用则查询回执或执行补偿。
+Activity 的重试不等于 Workflow 重试。网络短暂失败可以重试同一个 Activity；权限撤销、输入非法和不可逆业务拒绝应直接让 Workflow 进入失败或人工处理。重试策略有间隔、最大尝试、总超时和不可重试异常列表，不能把所有异常都自动重做。
 
-实现可以使用函数、Graph、Middleware 或 Workflow，workflow_id 的所有权和 Workflow 调用非确定性 API 的停止规则不会随框架改变。
+```mermaid
+flowchart TD
+    W[Workflow 状态] --> A1[Activity: 读取权限与版本]
+    A1 --> W
+    W --> T[Timer: 等待审批]
+    T --> W
+    S[Signal: 审批或取消] --> W
+    W --> A2[Activity: 检索与生成]
+    A2 --> W
+    W --> E[完成或失败]
+```
 
-部分成功需要在步骤边界处理。推进状态已经产生一部分有序事件时，程序按任务合同决定保留、补偿或整体丢弃，并记录未完成项，不能默认为全部成功。
+图中的箭头回到 Workflow，表示 Activity 的结果要先写入历史，再由 Workflow 决定下一步。Activity 不能自己修改 Workflow 的终态；它返回结构化结果，Workflow 根据当前权限、Deadline 和策略快照判断是否继续。
 
-推进状态和写入事件或检查点都要写明逆向动作或不可逆原因，有序事件若可重建就删除后重算，已发送的外部命令只能查询回执或补偿。
+## 安装 Python SDK 与本地开发服务
 
-下面导入的共享示例只覆盖 Temporal 执行可恢复的长流程的本地控制逻辑，代码中的用户请求、workflow_id、错误分支和有序事件都有确定结果；真实模型、网络、数据库与供应商服务需要另做集成验证。
+Temporal 官方 Python SDK 入口是 [Python SDK developer guide](https://docs.temporal.io/develop/python)，安装说明在 [Python SDK installation](https://docs.temporal.io/develop/python/installation)。只写 Workflow 和 Activity 的 Python 项目可以先安装 SDK：
 
-<<< ../../examples/ai-agent/runtime.py
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install temporalio
+python -c "import temporalio; print(temporalio.__version__)"
+```
 
-接入生产环境后，Temporal 执行可恢复的长流程还要补入鉴权、持久化、Trace、资源上限和真实依赖测试，内存仓库与 Fake Adapter 不承担这些职责。
+<figure class="doc-shot">
+  <img src="/images/install/temporal-python-installation.png" alt="Temporal 官方 Python SDK 安装文档" loading="lazy">
+  <figcaption>Temporal Python SDK 的官方安装页。截图只用于定位安装入口，SDK 版本和兼容要求以页面当前内容为准。</figcaption>
+</figure>
 
-## 沿断线和取消推演一个 Turn
+本地开发需要 Temporal Server。官方 CLI 文档在 [Temporal CLI](https://docs.temporal.io/cli)，安装 CLI 后可以启动开发服务：
 
-沿“Temporal 执行可恢复的长流程场景：一个研究型回答需要运行数分钟，期间用户断开连接、重新打开页面，并在第二次连接中请求取消”推演 Temporal 执行可恢复的长流程：入口创建 request_id，读取可信身份，把用户请求和当前版本写入初始状态。
+```bash
+temporal server start-dev
+```
 
-创建 Turn 生成 workflow_id 与输入摘要；若幂等键缺失，请求返回 rejected，并指出缺少哪项材料，不继续消耗模型或外部服务配额。
+开发服务的端口、Namespace 和持久化方式以当前 CLI 输出为准。它适合验证 Worker、Workflow 和 Activity 的调用顺序，不代表生产集群的备份、权限、可用区和升级配置。
 
-领取执行权冻结 scope、release、policy 和 deadline_at，用户或模型在正文中提供的同名值只作为普通内容，不能覆盖这份运行时快照。
+Python Worker 的骨架如下，代码只展示组件关系：
 
-推进状态按“Workflow 保存确定性控制逻辑，Activity 承担外部副作用；事件历史驱动重放，Signal 改变运行状态，Query 读取状态，版本标记保护代码演进”推进，每次依赖调用保存 call_id、参数摘要、开始时间与状态版本，以便判断超时前是否已经产生结果。
+```python
+from temporalio.client import Client
+from temporalio.worker import Worker
 
-候选结果对应有序事件、最终答案、失败原因、取消确认、可恢复检查点和审计轨迹，写入事件或检查点逐项检查权限、版本与领域约束，问题列表为空才允许形成下一状态。
+async def run_worker() -> None:
+    client = await Client.connect("localhost:7233", namespace="default")
+    worker = Worker(
+        client,
+        task_queue="knowledge-agent",
+        workflows=[KnowledgeWorkflow],
+        activities=[load_context, run_retrieval, publish_answer],
+    )
+    await worker.run()
+```
 
-形成终态写入终态；客户端断开只影响交付通道，重新连接时读取已经保存的 workflow_id 或事件游标，不重跑核心逻辑。
+Worker 进程只注册已审核的 Workflow 和 Activity。Task Queue 名称是交付路由，不是权限边界；Activity 内部仍要验证用户范围、Release、Policy 和 Deadline。把模型 API Key 放在 Workflow 输入或事件历史里，会让历史和 UI 暴露凭证，凭证应由 Activity 运行环境读取。
 
-故障注入选择历史无限增长，程序保留原候选和错误位置，只重做失败边界，不能从入口复制整个任务并产生第二份状态。
+## 事件历史怎样驱动确定性重放
 
-推演结束后用 request_id 关联 workflow_id、有序事件与终止原因，测试据此排除并发请求串线，并确认失败路径没有遗留未关闭资源。
+第一次执行 `KnowledgeWorkflow` 时，Workflow 调度 `load_context`，历史记录 ActivityScheduled。Activity 完成后写入 ActivityCompleted，Workflow 继续执行并调度 `run_retrieval`。如果 Worker 此时退出，新 Worker 从头运行 Python 函数，但 SDK 在遇到已经存在的历史命令时返回历史结果，不重新调用 Activity。
 
-Temporal 执行可恢复的长流程在输入拒绝时不调用依赖，正常路径按 5 个阶段推进，有限修复只重做失败边界。调用次数是控制流断言，不是性能宣传。
+Workflow 的每个分支都必须由输入和历史决定。用 `datetime.now()` 判断是否超时，会让第一次运行和重放看到不同时间；用随机数选择检索策略，会让新 Worker 走另一分支。应让时间和随机 ID 通过 SDK 的可重放接口产生，或者把选择放在 Activity 并把结果写入历史。
 
-Temporal 执行可恢复的长流程的最终记录用 request_id 关联 workflow_id、有序事件和失败问题，测试据此证明结果来自本次执行，没有混入并发请求。
+代码重放检查会发现许多隐蔽问题：修改 Activity 名称、改变调用顺序、在条件前插入一个新的 Timer，都可能让旧历史无法匹配。日志打印、指标上报和纯内存缓存可以存在于 Workflow，但它们不能改变返回值、调用数量或分支。
 
-## 终态、事件和恢复证据
+Workflow 状态不是数据库的替代品。历史适合恢复控制逻辑，业务查询、权限撤销、答案引用和大文档仍存放在业务数据库或对象存储。Activity 每次读取时使用 Workflow 固定的 Release 与 Policy 版本，不能在重放时悄悄取“最新版本”。
 
-Temporal 执行可恢复的长流程正常完成时，workflow_id、run_id 和有序事件指向同一次执行，重复读取返回同一终态，未完成分支已经取消或有明确所有者。
+事件历史记录的是 Workflow 命令和结果，不是每一次 Python 函数执行的日志。第一次运行可能先产生 `ActivityScheduled`，几秒后才有 `ActivityCompleted`；重放时 SDK 读取这两条历史，直接把完成结果交给 Workflow。Workflow 代码必须继续发出同样的调度命令，事件类型、顺序和参数边界才能匹配。
 
-幂等键、状态版本、Lease、Event 序号、Checkpoint 和终止原因用于还原 Temporal 执行可恢复的长流程的处理过程，可以按阶段和版本聚合；敏感正文留在受控存储中，不复制到日志与指标。
+历史里的 Payload 需要控制体积。问题全文、检索文档和模型原始响应放入历史，会拖慢每次重放并增加保留成本。Workflow 输入只保留稳定 ID、版本、范围和必要摘要，Activity 结果保存受控引用；下次 Activity 根据引用读取正文，并再次检查当前用户是否仍有权限。
 
-最终答案可能是合法的空结果，但必须带范围、版本和原因；任务明确要求找到材料时，同一个空结果进入拒答而非成功。
+Workflow 失败时，历史保留了最后一个可解释的命令边界。若错误发生在 Workflow 代码，重放会立即复现；若错误发生在 Activity，历史会显示调度、超时和重试次数。排障先确认错误属于哪一类，再选择修复代码、补偿外部动作或让新 Run 接管，不能通过删除历史掩盖问题。
 
-依赖返回成功状态只证明传输完成。Temporal 执行可恢复的长流程还要检查有序事件是否满足业务范围、质量阈值和当前版本，明确拒绝也可能是正确终态。
+重放是恢复机制，也是发布门禁。发布前用代表性的旧历史在新 Worker 上运行，检查每个历史事件都能被消费；对新增分支使用版本标记或新 Task Queue。只跑新输入无法发现旧历史在条件分支、Timer 和 Signal 处理上的不兼容。
 
-推进状态并发完成时，每个分支保留自己的身份和局部预算，写入事件或检查点按任务合同接纳可用结果，慢分支不能抹掉已经确认的记录。
+Workflow Task 与 Activity Task 的失败位置也不同。Server 把历史变更交给 Workflow Worker，Worker 只需重放并产生下一批命令；Workflow Task 失败时可以重新从历史调度，不应重复外部动作。Activity Task 则由执行 Activity 的 Worker 领取，超时、心跳丢失或进程终止后按 Activity Retry Policy 再调度。两类任务都可能重复交付，只有 Activity 直接接触外部副作用。
 
-workflow_id 的状态迁移必须单调：完成不能退回运行中，取消不能被迟到结果覆盖，失败重试也不能绕过入口已经固定的权限。
+Workflow Task 队列积压时，流程状态不会因为客户端 Query 而改变，Signal 会先进入历史，等待 Worker 消费。Activity 队列积压时，Workflow 已经记录调度但还拿不到结果。监控要区分两条队列，否则只看到“Workflow 运行中”却不知道是控制逻辑没有 Worker，还是外部动作没有容量。
 
-Temporal 执行可恢复的长流程的成功证据最终要同时回答输入是什么、执行了哪些步骤、交付了什么以及为什么停止；任一项缺失都应留在未确认状态。
+Activity 结果经过 Payload Codec 或 Data Converter 序列化后进入历史。加密和压缩可以减少暴露与体积，但密钥轮换、旧历史解码和错误数据仍要测试。把用户问题、检索片段和模型原文全部写入历史，会让拥有 Temporal 运维权限的人看到超出业务范围的内容。更稳妥的做法是写稳定对象引用、摘要与哈希，Activity 读取正文时再次检查 ACL。
 
-Temporal 执行可恢复的长流程把业务验收与服务健康分开。依赖返回 200 只说明传输成功，有序事件仍要满足当前范围和质量要求；明确拒答也可能是正确终态。
+事件历史的保留与业务删除也要对齐。用户要求删除知识文档时，业务对象可以立即失效；历史里留下的引用 ID 仍可能属于审计记录，显示接口应隐藏正文。Temporal Server 的历史删除、归档和保留策略以部署能力为准，不能用业务表的删除语句假设历史已经消失。
 
-Temporal 执行可恢复的长流程的观测指标按阶段和版本聚合。错误率、空结果率、拒绝率、恢复次数与资源消耗回答不同问题，不能压成一个成功率。
+## Timer、Signal 和 Query 处理长等待
 
-## 重复投递、竞态与失联处理
+Timer 把“等到某个时刻再继续”写进历史。Worker 可以完全退出，时间到达后 Server 再把 Workflow 放回任务队列。不要让 Worker 线程睡眠数小时，也不要用外部 Cron 直接发一个可能重复的消息；外部 Cron 如果存在，应该发送带幂等 ID 的 Signal。
 
-Temporal 执行可恢复的长流程按输入、状态、依赖、结果和交付五个位置分类错误，发生位置决定恢复动作，不能用同一个重试循环处理全部失败。
+Signal 是异步输入。审批结果、用户取消和管理员暂停都可以作为 Signal 写入 Workflow；Workflow 在下一个安全点读取状态并决定是否停止。Signal 到达时，正在运行的 Activity 不会凭空被撤销，取消传播与 Activity Cancellation 配置仍需要单独处理。
 
-遇到 Workflow 调用非确定性 API 时，系统要返回稳定的错误类型、发生阶段和可重试标记。Temporal 执行可恢复的长流程保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+Query 只读取当前内存状态，不写事件、不推进 Activity，适合页面查看阶段、剩余预算和是否等待审批。Query 不是数据库事务快照，也不应返回未授权的上下文。服务端对 Query 请求重新做 Workflow 归属与业务权限检查。
 
-Temporal 执行可恢复的长流程处理 Activity 没有幂等时需要稳定身份和结果回执，再次收到同一请求先读取旧结果；外部结果未知就停在 unknown，不能猜测失败后重新执行。
+Signal 和 Query 的并发顺序由历史决定。取消 Signal 可能和 Activity 完成同时到达，Workflow 通过明确的状态机选择“已完成”还是“取消生效”；不能让两个 Handler 直接各自写数据库抢终态。终态写入由一个确定性分支负责，重复 Signal 只产生一次状态变化。
 
-历史无限增长会在 Temporal 执行可恢复的长流程的记录中留下动作签名重复、状态无变化或预算持续下降的迹象，控制器据此写入停止原因，取消未开始分支，并转交现有证据。
+启动 Workflow 时还要选择 Workflow ID 冲突策略。重复的业务请求可以复用已有运行、拒绝新请求，或在旧流程结束后排队启动；策略由业务 Idempotency Key 决定，不由客户端猜。Signal 也需要请求 ID，Workflow 在历史或状态中记录已处理的信号，重复投递只返回原处理结果。
 
-遇到重试策略掩盖业务错误时，系统要返回稳定的错误类型、发生阶段和可重试标记。Temporal 执行可恢复的长流程保存当时的输入摘要与状态版本，再由拥有该依赖的组件决定重试、降级或终止。
+有些 SDK 提供 Update 这类需要确认结果的同步输入，它比 Signal 更适合校验后立即返回，但仍然由 Workflow 代码串行处理。Query 适合读取，不应被用来写“已取消”或触发 Activity。无论使用 Signal 还是 Update，API 层都要先验证用户对 Workflow ID 对应 Turn 的权限，Handler 内再检查当前阶段是否接受该命令。
 
-Temporal 执行可恢复的长流程处理代码升级破坏重放时需要稳定身份和结果回执，再次收到同一请求先读取旧结果；外部结果未知就停在 unknown，不能猜测失败后重新执行。
+审批内容只保存必要字段和版本。原始表单放在业务存储，Workflow 历史记录审批 ID、决定和时间；后续 Activity 读取表单时重新检查是否撤回。这样既能重放控制逻辑，也不会让所有拥有历史读取权限的运维人员看到用户提交的完整材料。
 
-Temporal 执行可恢复的长流程结束错误处理时保存终态、可重试性和资源清理结果，后台扫描器依靠 workflow_id 和这些字段区分仍在运行、等待恢复和已经失败的任务。
+## Retry、Timeout 与取消传播
 
-Temporal 执行可恢复的长流程在执行前写入绝对 Deadline、最大动作数、重复签名、无进展阈值、预算和人工取消信号，任一条件触发后推进状态都不再创建新工作。
+Activity 至少设置 Start-to-Close Timeout，跨长排队的任务还要设置 Schedule-to-Start Timeout，心跳型长 Activity 可以配置 Heartbeat Timeout。不同 Timeout 暴露不同责任：任务未被 Worker 领取、领取后执行太久、或 Worker 长时间没有进度，排障入口不同。
 
-Temporal 执行可恢复的长流程把重试时间和次数计入总预算。依赖连续失败会减少后续额度，达到上限后保留原始错误，不再用模型重新措辞掩盖失败。
+Workflow 总 Deadline 包含等待 Timer、Activity Retry 和人工审批。Activity 的单次超时可以重试，但剩余 Workflow 时间不足时应停止重试。把 Activity 重试次数写在代码常量里而不关联业务 Deadline，容易让流程在用户已经取消后继续消耗模型。
 
-Temporal 执行可恢复的长流程的清理动作可以重复执行。临时对象、文件句柄、子进程、连接或 Lease 仍被活动任务引用时，清理器必须拒绝删除。
+取消 Workflow 时先请求 Activity Cancellation。可取消的 HTTP、数据库和模型调用在安全点结束；不可取消的外部请求可能继续运行，Activity 需要用 Action ID 记录结果。Workflow 收到取消后形成 Cancelled 或 Compensating 状态，补偿动作也要有独立幂等键。
 
-## 崩溃注入和并发测试
+补偿不是事务回滚。邮件已经发送不能撤回，工单已经创建只能调用关闭接口或人工处理。补偿失败要留在可观察状态，不能因为主流程取消就假装所有副作用都消失。
 
-模拟重复提交、进程崩溃、断线重连和过期租约，断言只有一个逻辑 Turn、事件序号连续且副作用幂等；测试显式给出用户请求、初始 workflow_id、预期有序事件和终止原因，不能只断言返回值非空。
+## Activity Heartbeat 与 Task Queue 负责另一种恢复
 
-Temporal 执行可恢复的长流程的单元测试用 Fake Adapter 固定有序事件与错误，断言参数、调用顺序、状态修订和清理动作，这些结果只证明本地控制逻辑。
+短 Activity 可以等待返回，长解析、批量 Embedding 和浏览器操作则需要 Heartbeat。Activity 在安全点发送进度与可恢复详情，Server 用 Heartbeat Timeout 判断 Worker 是否还活着。Heartbeat 不是 Workflow 事件，也不是对用户发送的进度；敏感正文和大对象仍应留在受控存储。
 
-契约测试围绕用户请求、workflow_id 和最终答案构造合法与非法样本，Schema 解析成功后继续检查权限、版本与领域不变量。
+Worker 在 Heartbeat 超时后可能重新调度 Activity。Activity 从 Heartbeat Details 或自己的 Checkpoint 恢复时，要先确认 Action ID、输入版本和外部回执。Checkpoint 只保存已完成的块，不能把“正在写入对象存储”的半个块当成完成，否则重试会遗漏内容或产生重复索引。
 
-故障测试注入 Workflow 调用非确定性 API 和 Activity 没有幂等，记录推进状态是否被调用、workflow_id 是否改变、资源是否释放，以及同一身份重试会不会重复执行。
+Task Queue 是 Workflow 和 Activity 的路由。高延迟模型 Activity 可以放在独立队列，OCR、检索和通知按资源池分开运行。Workflow 任务本身也需要有可用 Worker，否则 Activity 即使执行完，控制逻辑仍然没有机会消费结果。队列隔离能改善资源分配，却不替代用户、租户和模型并发准入。
 
-在推进状态前后终止进程可以检查恢复边界：调用前退出允许重新领取，外部动作后退出先查回执，形成终态完成后只重放交付。
+Schedule-to-Start Timeout 过期说明没有 Worker 在规定时间内领取，不等于 Activity 代码失败；Start-to-Close Timeout 过期说明已领取但执行超时；Heartbeat Timeout 说明长任务没有进度。三种超时写入不同错误类，重试和告警才能对应到容量、代码或外部依赖。
 
-Temporal 执行可恢复的长流程的集成测试连接真实协议与隔离存储，检查序列化、约束、并发和超时；需要在线服务时另行记录服务版本、时间、配置与凭证条件。
+Worker 关闭时先停止领取新任务，再让当前 Activity 在时间窗口内结束或取消。强制 Kill 后，Server 会按超时和重试策略重新调度，但外部动作可能已经发生。部署排空、Heartbeat、Action ID 和下游回执要一起验证，单独查看 Worker 进程是否退出没有意义。
 
-Temporal 执行可恢复的长流程的回归报告要保留失败类型分布。明确拒绝变成超时、权限错误变成普通空结果，都属于行为回归，即使总通过数没有变化。
+## Workflow ID、Run ID 与 Continue-As-New
 
-Temporal 执行可恢复的长流程的性质测试随机改变 workflow_id 顺序、重复提交、完成顺序或状态版本，断言权限不扩大、终态不倒退、同一身份不产生两次副作用。
+Workflow ID 表示业务上同一个长期流程，Run ID 表示某次具体执行。Continue-As-New 结束当前 Run，使用新的 Run ID 和精简输入开始下一段历史，Workflow ID 保持不变。它适合长期对话、周期同步和历史快到上限的流程。
 
-离线评测关注固定输入下的质量变化，运行时测试关注控制和恢复。Temporal 执行可恢复的长流程只有两类证据都存在，才能同时回答“结果是否合格”和“系统是否安全完成”。
+Continue-As-New 前要把下一段所需的状态压缩成明确输入：当前阶段、未完成 Action、版本快照、预算和必要的引用 ID。不能把完整对话或所有 Activity 结果无限复制到新 Run。前一 Run 的终态语义也要定义，外部查询按 Workflow ID 看到的是当前 Run 还是完整链路。
 
-## 容量、Lease 与版本演进
+Child Workflow 适合有独立生命周期、权限和重试策略的子任务。并行检索可以用多个 Activity，未必需要多个 Child Workflow；过度拆分会增加历史、信号和运维对象。选择边界看是否需要独立取消、超时、版本和结果契约。
 
-Temporal 执行可恢复的长流程长期运行后，输入 Schema、workflow_id 结构和依赖配置可能独立升级，每次执行固定一组版本，旧记录才能被正确读取或迁移。
+## 版本演进必须保护旧历史
 
-Temporal 执行可恢复的长流程的容量主要受队列积压、Worker 并发、租约时长、事件吞吐和恢复扫描影响，并发可能缩短单次等待，也会占用连接、配额、内存和下游吞吐，必须沿创建 Turn、领取执行权、推进状态、写入事件或检查点、形成终态逐层核算。
+Workflow 历史会在代码升级后继续被重放。直接改变分支、Activity 名称或参数结构，旧 Run 可能在新 Worker 上得到不同命令序列。官方提供版本管理和 Worker Versioning 等机制，具体 API 随 SDK 版本变化，实施时应以当前 [Workflow versioning](https://docs.temporal.io/develop/python/versioning) 文档为准。
 
-Temporal 执行可恢复的长流程的候选版本在固定样本上比较正确性、错误类型、延迟和资源消耗，Workflow 调用非确定性 API 等安全红线回归时直接停止发布，不能用平均质量抵消。
+版本切换先让新代码兼容旧历史，再让新 Run 使用新分支。旧分支排空后才能删除。新字段放入可选输入并给安全缺省值，旧字段移除前要完成历史迁移或 Continue-As-New。Activity 版本也需要路由或兼容适配，不能只升级 Workflow 文件。
 
-Workflow 调用非确定性 API 的降级路径在发布前写好，可以减少非关键增强、返回已经确认的有序事件，或明确暂时无法确认，缺失事实不能交给模型补写。
+部署回滚时，新历史可能已经写入新事件。回滚版本至少要能读取这些事件，或在发布前用 Worker Versioning 把新 Run 隔离到新 Worker。只验证“新代码能启动”不够，要回放一批旧历史、运行新历史，再模拟 Worker 在每个 Activity 边界退出。
 
-Temporal 执行可恢复的长流程的运行手册从 request_id 定位幂等键、状态版本、Lease、Event 序号、Checkpoint 和终止原因，再决定重试、补偿、取消或回滚，无需先展开完整的用户请求。
+## Namespace、Task Queue 与业务权限不是一回事
 
-Temporal 执行可恢复的长流程的数据按证据用途分级保留，聚合字段可以留得更久，用户请求和大体积有序事件设置短期限、访问控制与删除通道。
+Namespace 用来隔离 Temporal 的工作流、历史和运维配置，Task Queue 用来把任务交给一组 Worker。它们能减少不同环境或团队之间的误消费，但不等于业务 ACL。用户请求某个知识库前，API 和 Activity 仍要验证用户、租户、文档范围、Release 和 Policy；Workflow 输入中的 `user_id` 只是快照，不是授权证明。
 
-Temporal 执行可恢复的长流程先在单进程实现 workflow_id、超时、错误和测试，只有恢复与容量证据提出要求时，再增加队列、Lease、分布式缓存或工作流引擎。
+Temporal 的可见性查询适合按 Workflow ID、状态、时间和 Search Attribute 找运行记录，便于运维列出超时或等待审批的流程。它不是面向用户的答案接口，也不保证包含完整事件 Payload。对外状态接口读取业务投影，必要时再用 Temporal ID 关联历史。
 
-Temporal 执行可恢复的长流程的监控阈值要对应可执行动作。队列积压、Worker 并发、租约时长、事件吞吐和恢复扫描中的某项接近上限时，系统可以限流、排队、缩小候选或切换保守路径；只发送告警不会保护正在运行的任务。
+一个 Workflow ID 的启动策略要明确：拒绝同 ID 的并发启动、复用已完成流程、还是允许新 Run。知识问答通常用业务 Idempotency Key 把重复提交映射到同一 Turn，再由 Workflow ID 或外部映射决定是否复用。不要让客户端随意生成可猜的 Workflow ID 并借此读取别人的 Query。
 
-回滚要覆盖代码之外的状态。Temporal 执行可恢复的长流程若改变 Schema、缓存键或持久化记录，旧版本是否还能读取新写入数据必须提前验证；无法双向兼容时采用候选版本隔离。
+Namespace 和 Task Queue 的名称、连接地址、API Key、证书与 Worker 版本都进入部署配置。开发服务可以使用本地默认 Namespace，生产要单独设置权限和网络边界。把开发 Worker 连接到生产 Task Queue，会让测试 Activity 处理真实任务，发布门禁应检查队列和 Namespace 是否匹配。
 
-## 何时需要队列或工作流引擎
+## 用最小实现观察重放与 Signal
 
-采用 Temporal 执行可恢复的长流程前先画出用户请求到有序事件的最小控制图；固定函数已经能完成任务时，新增模型决策和跨进程 workflow_id 只会扩大测试与运维范围。
+下面的示例不连接 Temporal Server，它用事件列表模拟 Workflow 历史，用 Action Ledger 模拟 Activity 的幂等回执。示例只证明相同历史得到相同状态，以及取消和重试不会重复副作用。
 
-Temporal 执行可恢复的长流程与 Celery 的差别落在控制权：谁选择下一步，谁保存 workflow_id，谁确认有序事件可信。
+<<< ../../examples/ai-agent/temporal_workflow.py
 
-状态机可以与 Temporal 执行可恢复的长流程组合，但外部知识仍需授权，工具调用仍需校验，模型产生的有序事件仍停留在候选状态。
+第一次执行把 `activity.completed` 写入历史后崩溃，第二次重放读取同一结果，Action Ledger 的执行次数仍为一次。取消 Signal 进入历史后，Workflow 在下一步停止，不再调度生成答案。Continue-As-New 把未完成状态带入新历史，旧历史不再增长。
 
-Temporal 执行可恢复的长流程适合价值足够、Workflow 调用非确定性 API 可观察且预算可接受的任务，高风险、不可逆的决定需要确定性规则或人工批准。
+运行测试：
 
-格式正确但事实错误的有序事件是必要反例；若它直接进入成功，说明写入事件或检查点缺少业务验证，应保留候选并给出证据问题。
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=examples/ai-agent \
+  python3 -m unittest examples/ai-agent/tests/test_temporal_workflow.py
+```
 
-执行期间修改 run_id 可以检验并发设计，旧动作若仍能覆盖 workflow_id，说明版本或 Lease 有缺口，增加 Prompt 规则无法修复这类竞态。
+## 沿一次审批、检索和恢复推演
 
-Temporal 执行可恢复的长流程增加了 workflow_id、依赖调用、恢复责任和故障面，设计记录既要说明获得的能力，也要列出新增的退出、降级与回滚路径。
+Workflow ID 是 `knowledge:42`，第一次 Run ID 是 `run:a`。历史先写入 `workflow.started` 和 `approval.waiting`，Workflow 进入等待。用户在浏览器断线，不影响 Server 保存的 Timer 和等待状态。
 
-Temporal 执行可恢复的长流程从一个调用、一个 workflow_id、一组明确错误和几条确定性测试开始，真实 Trace 证明需要后再加入并发、缓存、队列或更复杂策略。
+审批 Signal 到达后，Workflow 读取权限快照仍然有效，调度 `retrieve` Activity。Activity 使用 Action ID `knowledge:42:retrieve:1` 查询知识库，写入候选引用并返回。模型生成 Activity 随后开始，Worker 在收到模型响应后、写入 ActivityCompleted 前退出。
 
-Celery 只在能处理 Workflow 调用非确定性 API 时引入，不为目录完整强行组合；接口保持可替换，后续需求出现再扩展。
+新 Worker 取得 `run:a` 的任务，按历史重放到模型 Activity。Server 历史里没有 ActivityCompleted，因此它重新调度 Activity；Action Ledger 或模型调用层按 Action ID 查询已有回执。若响应已经生成但回执丢失，结果进入 Unknown，Workflow 等待人工或补偿，不偷偷生成第二份答案。
+
+答案验证成功后，Workflow 写入 `answer.completed`，发送通知 Activity，再返回终态。若验证失败，有限修复可以重新调度一个有独立 Attempt 的 Activity；超过预算则写 `answer.refused`。页面通过 Query 或 SSE 查询 Workflow 状态，浏览器连接是否存在不影响流程。
+
+| 时刻 | 历史事件 | Workflow 状态 | 外部动作 |
+| --- | --- | --- | --- |
+| T1 | `approval.waiting` | 等待 Signal | 无 |
+| T2 | `approval.accepted` | 准备检索 | 无 |
+| T3 | `activity.scheduled` | 等待检索 | 查询知识库 |
+| T4 | `activity.completed` | 准备生成 | 已有引用 |
+| T5 | Worker 退出 | 等待生成完成 | 回执可能未知 |
+| T6 | 新 Worker 重放 | 恢复 Run | 按 Action ID 查询 |
+| T7 | `answer.completed` | 完成 | 发送通知 |
+
+这条推演里，Temporal 能恢复控制状态，却不能判断外部模型响应是否已经产生。回执、幂等键和 Unknown 状态仍然属于 Activity 与业务系统的职责。
+
+## 失败证据怎样定位到 Workflow 或 Activity
+
+| 现象 | 先看证据 | 责任层 |
+| --- | --- | --- |
+| 同一步在重放时分支不同 | Workflow History 与代码版本 | Workflow 确定性 |
+| Activity 重复创建外部对象 | Action ID 与下游回执 | Activity 幂等 |
+| 等待超时没有继续 | Timer、Deadline、Run 状态 | Workflow Timer |
+| 取消后仍有网络请求 | Cancellation 日志与请求状态 | Activity 可取消性 |
+| 新 Worker 无法读取旧 Run | Replay Error 与版本标记 | 发布兼容 |
+| 历史过大、重放变慢 | History 长度、Continue-As-New | 运行策略 |
+
+Workflow 重放错误不能靠重试 Activity 修复，因为控制代码本身已经和历史不一致。Activity 权限拒绝也不能让 Workflow 无限 Retry，错误要带入状态机的停止分支。页面没有更新先查 Query 与历史，再判断 SSE 或轮询交付，不能把 UI 断线归因给 Workflow。
+
+## 测试需要重放历史而不是只测函数返回
+
+Workflow 单元测试构造最小历史，执行两次并比较状态、Activity 命令和 Signal 处理顺序。任何非确定性时间、随机数、环境读取都在测试中固定或替换。重放旧历史时，断言新代码仍产生相同命令。
+
+Activity 测试验证超时、可重试错误、不可重试错误、取消和外部回执未知。调用 Fake 外部服务两次，Action ID 相同时第二次应读旧回执或返回已存在，不得增加副作用计数。
+
+集成测试启动本地 Temporal Server，注册真实 Worker，先在 Activity 完成前终止进程，再启动新 Worker，确认 Workflow 继续。Signal 在 Timer 前后、取消与 Activity 完成同时到达、Continue-As-New 临界点都要覆盖。
+
+版本测试保留一批旧历史，部署新 Worker 回放；再让新 Worker 写入新分支，切回兼容版本读取。若没有真实历史和版本切换证据，不要写“升级可安全回滚”。
+
+## Temporal 与 Celery、数据库状态机怎样取舍
+
+Celery + 数据库适合任务边界清晰、恢复扫描和事件表已经存在的系统。它的组件少，排障可以直接查 Turn、Lease 和 Broker；代价是需要自己实现 Timer、Signal、历史压缩、版本重放和恢复竞态。
+
+Temporal 把这些机制放入持久化工作流运行时，长等待与跨 Worker 恢复更直接；代价是引入 Server、Namespace、Worker 注册、历史存储、版本发布和新的运维指标。Workflow 代码也受确定性重放约束，团队要学习新的测试与部署方式。
+
+固定 DAG 或数据库状态机更容易画出流程，适合步骤少、分支稳定的入库任务；当人工信号、补偿和长时间等待不断增加时，Temporal 的收益才开始超过额外组件。不要因为任务里出现一个模型调用，就自动换成 Workflow。
+
+运行手册需要同时看 Workflow ID、Run ID、History、Activity Attempt、Task Queue、Signal、Timer、版本和业务 Turn。只看 Temporal UI 的“Completed”不能证明答案有证据、权限没有越界，也不能证明外部通知只发了一次。
+
+## 人工操作要有明确的恢复边界
+
+运维可以查询 Workflow、发送经过授权的 Signal、暂停某个 Task Queue 或让 Worker 排空，但不应直接修改历史。手动重试 Activity 前先查 Action ID 和下游回执；外部结果未知时，优先进入人工确认或补偿分支。直接删除 Workflow 可能丢失恢复线索，也不会撤回已经发出的邮件和工单。
+
+恢复扫描与 Temporal 的内置重试也可能同时发现同一个业务故障。外部系统要用 Turn ID、Workflow ID 和 Action ID 做幂等，业务状态以数据库终态为准。若数据库显示 Completed，恢复任务只做收尾；若 Workflow 已 Completed 但数据库事务未提交，补偿程序不能凭“历史完成”伪造业务答案。
+
+Workflow 终态事件和业务终态提交最好通过 Outbox 或可重试的同步步骤关联。Activity 写入答案后进程退出，Workflow 可能已经记录完成而业务库没有提交，下一次对账应查询 Action 回执并补写，或把 Turn 留在 Unknown。反过来业务库已经 Completed，Workflow 重放只应读取快照并结束，不能再次调用通知 Activity。
+
+检索返回数百个证据时，Activity 只把候选 ID、排序版本和对象引用交给 Workflow，正文留在受 ACL 保护的存储。Workflow 需要生成答案时再由 Activity 按固定 Release 读取，读取失败会形成可重试的依赖错误，不会把半截正文写进历史。这样重放只处理稳定的小状态，也便于撤回已删除文档。
+
+生成 Activity 返回的答案还要带 Evidence ID 和 Release ID，Workflow 只把通过验证的结果提交为终态。缺少任一绑定时进入拒答或人工处理，不能因为流程历史完整就直接展示模型文本。
+
+验证结果也要写入审计事件。
+
+可观测性至少关联三条线：Workflow History 的事件序列、Activity 的执行尝试和业务 Trace。Activity 日志保存输入摘要、Action ID、开始结束时间、错误类和回执引用；不保存完整 Prompt、凭证和未授权文档。告警按 Workflow Task 延迟、Activity 队列等待、心跳超时、重试耗尽、Signal 等待和重放错误分别设置，因为处理动作不同。
+
+容量规划要把历史重放成本算进去。大量小 Activity 会增加事件数量和调度开销，单个超大 Activity 又会让失败重试的成本过高。长流程通过批量 Activity、Checkpoint 和 Continue-As-New 控制历史长度；批量大小由外部 API 限制、可接受重试损失和单次超时共同决定。
+
+测试环境不要让开发 Worker 连接共享生产 Namespace。为本地服务设置独立 Task Queue，使用脱敏输入和可回收对象。部署脚本在启动前检查 Namespace、Task Queue、Worker 版本和凭证来源，启动后用无副作用 Workflow 验证 Signal、Query、Timer 与 Activity 路由，完成后清理测试历史。
+
+Temporal 让长流程在 Worker 重启、浏览器断线和等待数小时后仍能恢复，但恢复正确性仍由确定性 Workflow、幂等 Activity、版本策略和业务证据共同决定。下一篇进入生产架构，把 Runtime、队列、事件、检索与安全边界放在一张组件图上。

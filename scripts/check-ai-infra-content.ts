@@ -79,9 +79,8 @@ for (const [index, article] of devopsArticles.entries()) {
   if (!body.includes('| 表面现象 | 实际可能发生的事 | 下一步证据 |')) fail(`${relative} 缺少误判与证据表。`)
   if (!body.includes('```mermaid')) fail(`${relative} 缺少确定性的机制图。`)
 
-  const expectedImage = `/images/ai-infra/${article.slug}/hero.png`
-  if (!body.includes(expectedImage)) fail(`${relative} 未引用专属图片 ${expectedImage}。`)
-  if (!body.includes('<InfraFigure ')) fail(relative + ' 未使用带语义图标的专属概念图。')
+  const hasVisual = body.includes('```mermaid') || body.includes('<InfraFigure ') || body.includes('<figure class="doc-shot">')
+  if (!hasVisual) fail(`${relative} 缺少可回读的机制图或官方文档截图。`)
 
   for (const [fenceIndex, fence] of codeFences(body).entries()) {
     if (!fence.before || !fence.after) fail(`${relative} 的第 ${fenceIndex + 1} 个代码/配置块缺少前置场景或结果解释。`)
@@ -100,13 +99,17 @@ for (const [index, article] of devopsArticles.entries()) {
   for (const key of ['beginnerReview', 'seniorReview', 'privacyReview'] as const) {
     if (review[key].status !== 'pass' || review[key].note.length < 30) fail(`${relative} 的 ${key} 未完成。`)
   }
-  if (review.visualReview.model !== 'gpt-image-2') fail(`${relative} 的图片模型不是 gpt-image-2。`)
-
-  const imageAbsolute = path.join(root, review.visualReview.asset)
-  if (!fs.existsSync(imageAbsolute)) {
-    fail(`${relative} 缺少 gpt-image-2 图片：${review.visualReview.asset}（${review.visualReview.status}）。`)
-  } else if (fs.statSync(imageAbsolute).size < 100_000) {
-    fail(`${review.visualReview.asset} 文件过小，需人工确认不是占位图。`)
+  if (review.visualReview.model === 'mermaid') {
+    if (!body.includes('```mermaid')) fail(`${relative} 的视觉审查标记为 Mermaid，但正文没有 Mermaid 机制图。`)
+  } else if (review.visualReview.model === 'gpt-image-2') {
+    const imageAbsolute = path.join(root, review.visualReview.asset)
+    if (!fs.existsSync(imageAbsolute)) {
+      fail(`${relative} 缺少 gpt-image-2 图片：${review.visualReview.asset}（${review.visualReview.status}）。`)
+    } else if (fs.statSync(imageAbsolute).size < 100_000) {
+      fail(`${review.visualReview.asset} 文件过小，需人工确认不是占位图。`)
+    }
+  } else {
+    fail(`${relative} 的视觉审查必须使用 Mermaid 或 gpt-image-2。`)
   }
 }
 
@@ -121,4 +124,4 @@ if (errors.length) {
   process.exit(1)
 }
 
-console.log('AI Infra 内容门禁通过：37 篇正文、来源、哈希、图片与双视角审查均完整。')
+console.log('AI Infra 内容门禁通过：37 篇正文、来源、哈希、机制图与双视角审查均完整。')

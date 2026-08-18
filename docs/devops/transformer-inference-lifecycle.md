@@ -27,9 +27,6 @@ updated: 2026-08-17T00:00:00.000Z
 两个请求都要生成 100 个 Token：短问题很快出现首字，长文摘要却等了十几秒，但开始输出后速度接近。差异不是“模型突然变慢”，而是长输入先经过更重的 Prefill；流式只改变 Token 何时被客户端看见，不会减少模型必须完成的计算。
 
 
-<InfraFigure src="/images/ai-infra/transformer-inference-lifecycle/hero.png" alt="提示词被分词后经历 Prefill 与逐 Token Decode 的推理插画"
-  icon="activity" caption="Prefill 一次处理输入上下文，Decode 反复生成下一个 Token，两者计算形状不同。" />
-
 
 ## 用时间线区分排队、Prefill 和 Decode
 
@@ -77,31 +74,31 @@ flowchart LR
 
 图里每个节点都要产生可观察结果；没有结果时，上一节点是否真正交付就是第一项检查。
 
-### 从 格式化分词 留下的证据回到 Tokenizer
+### 格式化分词：Tokenizer
 
 应用 chat template，编码文本并检查最大上下文。
 
 决定下一步前需要看到 prompt_tokens、token IDs、truncation。
 
-### 2. Model Executor 怎样完成Prefill
+### Prefill：Model Executor
 
 并行处理输入矩阵并为每层写入 K/V。
 
 这一动作的可观察结果是 prefill tokens、TTFT 分解、KV bytes。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
 
-### 3. Decode 循环：Scheduler/Model 持有当前状态
+### Decode 循环：Scheduler/Model
 
 选中活跃请求，执行下一 Token 前向计算和采样。
 
 可以从这些位置确认结果：decode step、batch size、TPOT。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
 
-### 流式与停止发生时，先看 Output Processor
+### 流式与停止：Output Processor
 
 增量解码文本，判断 EOS、stop、length 或 cancel。
 
 这里不靠猜测，优先读取 delta、finish_reason、usage。
 
-## 同一个症状，下一步证据可能完全不同
+## 首 Token 变慢不一定是模型变大
 
 | 表面现象 | 实际可能发生的事 | 下一步证据 |
 | --- | --- | --- |
