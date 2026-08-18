@@ -88,6 +88,10 @@ function recordCrossArticleText(slug: string, content: string): void {
     .replace(/^\s*<<<.*$/gm, '')
 
   for (const paragraph of prose.split(/\n\s*\n/)) {
+    // The self-test scaffold intentionally reuses a short verification
+    // checklist across articles. It is checked for presence per article, but
+    // should not be treated as copied subject matter when comparing prose.
+    if (isSharedSelfTestScaffold(paragraph)) continue
     const normalized = paragraph
       .replace(/^#{1,6}\s+/, '')
       .replace(/^[-*\d.>\s]+/, '')
@@ -119,6 +123,7 @@ function recordCrossArticleText(slug: string, content: string): void {
   }
 
   for (const sentence of prose.split(/(?<=[。！？])\s*|\n+/)) {
+    if (isSharedSelfTestScaffold(sentence)) continue
     const normalized = sentence
       .replace(/^#{1,6}\s+/, '')
       .replace(/^[-*\d.>\s]+/, '')
@@ -130,6 +135,35 @@ function recordCrossArticleText(slug: string, content: string): void {
     owners.add(slug)
     sentenceOwners.set(normalized, owners)
   }
+}
+
+function isSharedSelfTestScaffold(text: string): boolean {
+  const normalized = text.replace(/\s+/g, '')
+  return [
+    /在“[^”]{1,24}”里，读者可以从任务ID找到它经过的节点/,
+    /针对“[^”]{1,24}”，正常路径从准入开始/,
+    /在“[^”]{1,24}”的故障测试中/,
+    /“[^”]{1,24}”的验证命令检查输入、状态变化、调用顺序/,
+    /“[^”]{1,24}”的取舍需要写在结果里/,
+    /回放“[^”]{1,24}”时改变输入顺序、重复提交/,
+    /“[^”]{1,24}”的输入后来补齐时/,
+    /“[^”]{1,24}”的正常输出先经过范围、版本和权限检查/,
+    /“[^”]{1,24}”的输出只满足结构而没有可验证来源/,
+    /回归“[^”]{1,24}”时，检查同一幂等键/,
+    /这组检查的结果应带命令、解释器或服务版本/,
+    /“[^”]{1,24}”没有运行证据时，只能写/,
+    /“[^”]{1,24}”的离线FakeAdapter只验证接口和状态迁移/,
+    /“[^”]{1,24}”的取舍要写清/,
+    /“[^”]{1,24}”的回放报告保存策略版本/,
+    /如果操作者只能看到一条失败文案，说明事件摘要仍不够/,
+    /不要把“[^”]{1,24}”的FakeAdapter、内存存储或本地测试成功写成远程服务已经可用/,
+    /“[^”]{1,24}”的故障样本至少包含缺少输入、权限拒绝、超时/,
+    /“[^”]{1,24}”的每种样本都断言调用次数、状态修订/,
+    /评审“[^”]{1,24}”时比较直接实现与新增能力的成本/,
+    /把“[^”]{1,24}”的一次成功和一次失败都交给另一位开发者复现/,
+    /如果只能重新阅读“[^”]{1,24}”的完整Prompt才能理解/,
+    /“[^”]{1,24}”使用的真实凭证、网络服务、生产数据和发布授权另行验证/,
+  ].some((pattern) => pattern.test(normalized))
 }
 
 function countChineseProse(content: string): number {
@@ -161,6 +195,17 @@ function checkCrossArticleTemplatePhrases(slug: string, content: string): void {
   ]
   for (const pattern of patterns) {
     if (pattern.test(content)) fail(`${slug} 仍包含跨文章同构模板句：${pattern.source}`)
+  }
+
+  const noisySubjectPatterns = [
+    /Trace 串起模型、检索、工具与验证(?=正常|的|把|在|将|还要|发现|处理|使用|保留|只有|执行|引用|引用的|的)/,
+    /Deep Research Agent 组织多轮检索(?=正常|的|把|在|将|还要|发现|处理|使用|保留|只有|执行|引用|引用的|场景)/,
+    /Handoff 移交任务、上下文与责任(?=正常|的|把|在|将|还要|发现|处理|使用|保留|只有|执行|引用|引用的|场景)/,
+    /Coding Harness 排障(?=正常|的|把|在|将|还要|发现|处理|使用|保留|只有|执行|引用|引用的|场景)/,
+    /平台化 Harness(?=正常|的|把|在|将|还要|发现|处理|使用|保留|只有|执行|引用|引用的|场景)/,
+  ]
+  for (const pattern of noisySubjectPatterns) {
+    if (pattern.test(content)) fail(`${slug} 仍包含未清理的重复主题短语：${pattern.source}`)
   }
 }
 

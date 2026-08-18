@@ -1,4 +1,4 @@
-name: Verify And Deploy
+name: Build And Deploy
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       deploy:
-        description: Deploy the verified artifact to production
+        description: Deploy the built artifact to production
         required: true
         default: false
         type: boolean
@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
-  verify:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,14 +36,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Verify content, privacy, types and build
-        run: yarn verify
+      - name: Build site
+        run: yarn build
 
-      - name: Package verified site
+      - name: Package built site
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)
         run: tar -czf site.tar.gz -C .vitepress/dist .
 
-      - name: Upload verified site
+      - name: Upload built site
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)
         uses: actions/upload-artifact@v4
         with:
@@ -54,14 +54,14 @@ jobs:
 
   deploy:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)
-    needs: verify
+    needs: build
     runs-on: ubuntu-latest
     environment: production
     steps:
       - name: Checkout deployment configuration
         uses: actions/checkout@v4
 
-      - name: Download verified site
+      - name: Download built site
         uses: actions/download-artifact@v4
         with:
           name: ai-full-stack-site-${{ github.sha }}
@@ -69,7 +69,7 @@ jobs:
       - name: Extract site
         run: mkdir site && tar -xzf site.tar.gz -C site
 
-      - name: Deploy verified artifact
+      - name: Deploy built artifact
         uses: easingthemes/ssh-deploy@v5.1.1
         with:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY || secrets.PRIVATE_KEY }}

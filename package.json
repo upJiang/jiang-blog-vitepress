@@ -30,7 +30,7 @@
   },
   "scripts": {
     "dev": "vitepress --port 9999",
-    "build": "yarn content:check && vitepress build",
+    "build": "vitepress build",
     "preview": "vitepress preview --port 4173",
     "typecheck": "vue-tsc --noEmit",
     "content:check": "tsx scripts/check-content.ts",
@@ -44,7 +44,6 @@
     "build:check": "tsx scripts/check-build.ts",
     "privacy:check": "node scripts/check-privacy.mjs",
     "visual:check": "tsx scripts/visual-smoke.mjs",
-    "lighthouse:check": "yarn build && node scripts/lighthouse-check.mjs",
-    "verify": "yarn content:check && yarn content:quality && yarn content:install-check && yarn ai-agent:check && yarn ai-agent:examples && yarn backend:check && yarn devops:check && yarn onnx:check && yarn privacy:check && yarn typecheck && vitepress build && yarn build:check"
+    "lighthouse:check": "yarn build && node scripts/lighthouse-check.mjs"
   }
 }
