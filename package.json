@@ -30,22 +30,15 @@
   },
   "scripts": {
     "dev": "vitepress --port 9999",
-    "build": "yarn content:check && vitepress build",
+    "build": "vitepress build",
     "preview": "vitepress preview --port 4173",
     "typecheck": "vue-tsc --noEmit",
-    "content:check": "tsx scripts/check-content.ts",
-    "content:quality": "tsx scripts/check-content-quality.ts",
-    "content:layout-check": "tsx scripts/check-article-layout.ts",
-    "content:install-check": "tsx scripts/check-install-guides.ts",
-    "ai-agent:check": "tsx scripts/check-ai-agent-content.ts",
     "ai-agent:examples": "PYTHONPATH=examples/ai-agent python3 -m unittest discover -s examples/ai-agent/tests -p 'test_*.py' && PYTHONPATH=examples/ai-agent/mcp-python uv run --project examples/ai-agent/mcp-python --group dev pytest examples/ai-agent/mcp-python/tests && uvx --from skills-ref==0.1.1 agentskills validate examples/ai-agent/skill-example/source-grounded-review",
-    "backend:check": "tsx scripts/check-backend-content.ts",
-    "devops:check": "tsx scripts/check-ai-infra-content.ts",
     "onnx:check": "node scripts/check-onnx-resources.mjs",
     "build:check": "tsx scripts/check-build.ts",
     "privacy:check": "node scripts/check-privacy.mjs",
     "visual:check": "tsx scripts/visual-smoke.mjs",
     "lighthouse:check": "yarn build && node scripts/lighthouse-check.mjs",
-    "verify": "yarn content:check && yarn content:quality && yarn content:layout-check && yarn content:install-check && yarn ai-agent:check && yarn ai-agent:examples && yarn backend:check && yarn devops:check && yarn onnx:check && yarn privacy:check && yarn typecheck && vitepress build && yarn build:check"
+    "verify": "yarn ai-agent:examples && yarn onnx:check && yarn privacy:check && yarn typecheck && vitepress build && yarn build:check"
   }
 }

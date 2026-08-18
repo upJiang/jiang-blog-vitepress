@@ -330,21 +330,21 @@ a {
 }
 
 .vp-doc table {
-  display: block;
+  display: table;
   width: 100%;
   max-width: 100%;
   margin: 24px 0;
   border: 1px solid var(--vp-c-divider);
   border-radius: 6px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-inline: contain;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
   background: var(--vp-c-bg-elv);
 }
 
 .vp-doc th,
 .vp-doc td {
-  min-width: 9rem;
+  min-width: auto;
   border-right: 1px solid var(--vp-c-divider);
   border-bottom: 1px solid var(--vp-c-divider);
   padding: 11px 14px;

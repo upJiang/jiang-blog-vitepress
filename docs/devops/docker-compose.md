@@ -64,6 +64,8 @@ flowchart TB
 
 图中 Compose CLI 只把声明变成 Engine 请求。API 请求数据库时直接走项目网络，不会经过 Compose CLI；数据库写数据时进入挂载卷，不会写回镜像。以后看到 `docker compose` 命令报错，可以先区分问题发生在 YAML 解析、Engine 创建资源，还是容器内应用运行。
 
+因此 Compose 的使用顺序可以从一个最小问题开始：先准备已有镜像，再在 YAML 中声明服务、网络和卷，执行 `docker compose config` 检查展开后的配置，最后用 `docker compose up` 创建资源。它保存的是本地环境的编排意图，不是生产集群的全套发布控制器。读者先掌握这个边界，才不会把 Compose 的 `depends_on` 当成数据库迁移或高可用方案。
+
 ## Compose 项目是什么，资源名称为什么会带前缀
 
 Compose Project 是一组由同一次 Compose 配置管理的资源。它包含 Service 创建的容器，也包含文件声明的网络、卷、配置和 Secret。Project 让同一台主机能够同时运行多套名字相似的环境，比如开发环境和一套隔离测试环境，不至于把两边容器混在一起。

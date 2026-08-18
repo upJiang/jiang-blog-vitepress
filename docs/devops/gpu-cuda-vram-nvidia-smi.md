@@ -1,144 +1,239 @@
 ---
-title: GPU Driver、CUDA Runtime、HBM/VRAM 与显存诊断
-description: 从 CUDA 不可用和 OOM 进入驱动兼容、权重、激活、工作区、KV Cache、数据搬运和多卡需求。
+title: 显存是什么？权重、激活、工作区与 KV Cache 为什么会导致 OOM
+description: 从显存和 HBM 的定义开始，拆解权重、激活、工作区、KV Cache、分配器与 CUDA 上下文的占用，并推演一次 OOM 诊断。
 category: devops
 part: 第四部分：GPU 基础
 chapter: 21
 tags:
-  - GPU
+  - GPU Memory
   - CUDA
-  - VRAM
+  - OOM
 prerequisites:
-  - Linux 与 CUDA 执行模型基础
+  - 理解 GPU 与 CUDA 执行模型
+  - 理解模型精度和 KV Cache
 outcomes:
   - 建立显存组成账本
-  - 按证据区分兼容问题和容量问题
+  - 按加载、运行、突发和碎片证据诊断 OOM
 practice:
   type: diagnosis
   result: 完成一张 GPU 预检与显存估算表
   verify:
-    - Driver 与 Runtime 关系正确
-    - 没有 NVIDIA GPU 时只解释命令字段
+    - Driver、Runtime 与显存容量没有混为一谈
+    - 未在真实 GPU 执行的数值只作为解释性估算
 evidence: official
-updated: 2026-08-17T00:00:00.000Z
+updated: 2026-08-18T00:00:00.000Z
 ---
-# GPU Driver、CUDA Runtime、HBM/VRAM 与显存诊断
+# 显存是什么？权重、激活、工作区与 KV Cache 为什么会导致 OOM
 
-容器里 `nvidia-smi` 能看到 GPU，Python 却提示 CUDA unavailable；修好兼容问题后模型又在加载完成时 OOM。前一个问题是驱动、容器设备和 Runtime 链路，后一个问题是显存容量。把它们都称为“CUDA 问题”会让排查从升级版本和调小 batch 之间来回摇摆。
+模型服务报 OOM 时，很多人先减小 Batch。这个动作有时有效，有时模型还没收到请求就已经失败。区别来自显存里放的东西不同：权重通常长期驻留，激活随当前计算变化，算子工作区由算法临时申请，KV Cache 跟正在生成的序列增长，CUDA 上下文和分配器还会保留一部分空间。只有把它们分开，才知道该改精度、上下文、并发还是部署形态。
 
+显存问题还容易和 CUDA 兼容问题混在一起。`nvidia-smi` 能看到设备，不能证明框架的 Runtime 和 Kernel 可用；框架能创建张量，也不能证明目标模型能装下。本文先解释显存，再沿加载和一次请求建立账本。所有容量示例都是公式推演，目标设备上的实际占用必须通过候选运行和监控填写。
 
+::: info 显存的准确含义
 
-## Driver、CUDA Runtime 与显存各自负责什么
+显存是 GPU 可直接访问、用于保存权重、张量、工作区和执行状态的设备内存。数据中心 GPU 常使用高带宽内存 HBM，消费级显卡常把板载显存称为 VRAM。名称和封装不同，不改变它们在程序里的主要角色：给 GPU Kernel 提供本地数据。
 
-GPU 诊断先分三层：宿主驱动是否发现设备，容器是否注入设备，框架 Runtime 是否能初始化；显存账本在这之后才有意义。
+显存容量回答“能不能放下”，显存带宽回答“每秒能搬多少”。已用 70 GB 不表示带宽接近上限，带宽繁忙也不要求容量一定占满。OOM 是分配请求无法满足，不等价于 GPU 计算利用率高。
 
-| 概念 | 在这条链路中的含义 |
-| --- | --- |
-| NVIDIA Driver | 宿主机内核模块和用户态库组成的设备控制层，向上提供 CUDA Driver API 能力。 |
-| CUDA Runtime | 应用或框架使用的运行库，版本需与驱动支持能力兼容；Toolkit 还包含编译器和开发工具。 |
-| VRAM/HBM | GPU 直接访问的设备内存。HBM 是常见高带宽实现，VRAM 是部署语境中的泛称。 |
-| OOM | 某次设备分配无法满足，不只取决于当前已用总量，还受连续块、缓存器和峰值临时分配影响。 |
-
-::: tip 判断原则
-`nvidia-smi` 只覆盖设备观察层，不能替代框架初始化、模型加载和请求峰值的证据。
 :::
 
-## 准备驱动、容器 Runtime 与框架环境
+## Driver、CUDA Runtime 和显存分别负责什么
 
-GPU 环境没有一条适合所有机器的通用安装命令。先确认操作系统、GPU 型号和部署方式，再进入 [NVIDIA CUDA Linux 安装指南](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)选择对应发行版；容器部署还要按 [NVIDIA Container Toolkit 安装指南](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)配置 Docker 或 Containerd。Python 框架的安装命令由框架版本和 CUDA 后端共同决定，PyTorch 可以从[官方安装选择器](https://pytorch.org/get-started/locally/)生成当前命令。
+GPU Driver 让操作系统和用户态程序管理设备。它负责设备发现、Context、地址空间、命令提交和错误传播等底层能力。宿主驱动不支持当前 GPU，`nvidia-smi` 可能看不到设备；容器没有映射设备节点和驱动库，容器内程序也不能使用宿主 GPU。
 
-<figure class="doc-shot">
-  <img src="/images/install/cuda-installation.png" alt="NVIDIA CUDA Linux 官方安装指南" loading="lazy">
-  <figcaption>NVIDIA CUDA Linux 安装指南。驱动、Toolkit、容器运行时和 Python 框架不是同一个安装层，必须按目标环境分别核对。</figcaption>
-</figure>
+CUDA Runtime 是应用常用的接口层，提供设备选择、内存申请、复制、Stream 和 Kernel Launch。PyTorch、vLLM 等框架再把 Runtime 封装成张量和引擎。Runtime 初始化失败可能报 CUDA unavailable、driver insufficient 或加载动态库失败，这时还没有进入模型显存估算。
 
-Ubuntu 主机可以先让系统列出推荐驱动，再安装并重启。下面的命令会修改主机驱动，不能在共享生产节点上直接执行：
+显存是 Driver 和 Runtime 管理的设备资源。框架调用分配器申请一块地址，分配器可能向 Driver 申请大块，再切分给张量。`nvidia-smi` 看到的是进程或设备级占用，框架的 `allocated`、`reserved` 和缓存字段则反映自己的分配视图，两套数字口径不同。
+
+三者的具体例子很清楚：宿主能执行 `nvidia-smi`，容器没配置 GPU Runtime 时，Python 看不到 CUDA；容器修好后可以创建一个小张量，但加载 70B 权重时 OOM。前者是设备进入进程的链路，后者才是容量。更新驱动不会凭空增加显存，减小 Batch 也不会修复缺失的设备节点。
+
+边界还包括其他后端。AMD、Apple 或其他加速器有自己的 Driver、Runtime 和内存工具，本文的显存账本思路仍适用，但命令和术语不能照搬 NVIDIA。`nvidia-smi` 只观察 NVIDIA 驱动视角，也不能替代框架和模型指标。
+
+## HBM、VRAM 和 CPU 主存有什么区别
+
+HBM 是高带宽内存的一类实现，通常与 GPU 封装靠得很近，使用宽接口提供高吞吐。VRAM 是更宽泛的显存称呼，消费级卡常见 GDDR。模型部署更关心容量、带宽、错误保护、互联和设备支持，不应把 HBM 当成“所有显存”的同义词。
+
+CPU 主存由 CPU 直接访问，容量通常更大，操作系统可以分页和管理。独立 GPU 的 Device Memory 通过 PCIe 或其他互联与主存交换。把权重放在 CPU 主存并不能让 GPU Kernel 无成本读取；Offload 会增加传输和同步，延迟与吞吐都可能下降。
+
+统一地址或 Unified Memory 让程序使用统一指针，运行时可以迁移页面。它解决编程便利和部分超额内存场景，不会让互联达到 HBM 带宽。工作集超过显存时，页面反复迁移可能产生抖动。低延迟 Serving 通常明确规划哪些数据常驻 Device。
+
+多张 GPU 的显存也不是自动拼成一块连续空间。两张 80 GB 卡有 160 GB 总容量，但单个未分片张量仍需要放在某个设备上。张量并行或流水线并行负责切分权重与计算，还会产生通信 Buffer。总容量够并不保证每个 Rank 的峰值都够。
+
+因此容量规划至少记录单卡容量、设备数、分片方式和互联。单写“节点 320 GB 显存”会隐藏某一 Rank 的不平衡，也无法解释一个 82 GB 临时张量为什么在四张 80 GB 卡上仍然失败。
+
+显存可以按一次请求的阶段来记账。加载阶段主要是权重和运行时初始化，Prefill 会增加输入相关激活与工作区，Decode 会让 KV Cache 随已处理 Token 继续增长，批次变化还会申请临时 Buffer。比如两条短请求能正常生成，第三条长上下文请求却 OOM，首先要看 Cache Block 和峰值工作区，而不是重新计算一遍静态权重大小。
+
+::: info 显存账本的读法
+
+同一张卡上可以同时出现持久状态和临时状态：权重长期存在，工作区在某个 Kernel 阶段短暂申请，KV Cache 按请求增长，分配器还可能保留已经释放的块。诊断要把 allocated、reserved、峰值和各阶段时间放在一起看，不能只取一次 `nvidia-smi` 输出。
+
+:::
+
+它与 CPU 主存的边界也会影响故障。Offload 可以把部分状态搬走，但 PCIe 传输和异步同步会改变延迟，CPU 主存不足时还可能被系统 OOM Kill。`nvidia-smi` 看到的显存数值只描述设备侧观测，不能单独解释进程为何没有释放、分配器是否碎片化或某个 Kernel 申请了多大的工作区。
+
+## 权重为什么通常是最先占用的显存
+
+模型权重是训练得到的参数。推理服务加载模型时，从磁盘或对象存储读取 Shard，在 CPU 解析后把张量放进一个或多个 GPU。权重在服务运行期间通常保持不变并长期驻留，所以模型刚加载就有一块稳定基线。
+
+理想权重大小可以用参数量乘每参数字节估算。70 亿参数使用 BF16，每个参数 2 字节，十进制约 14 GB；INT8 理想值约 7 GB，INT4 约 3.5 GB。实际制品和显存还包含量化比例尺、零点、未量化层、对齐、张量元数据及可能的重复 Buffer。
+
+权重加载峰值可能高于最终驻留。某些路径先在 CPU 或 GPU 构造完整张量，再切分或转换 dtype；加载多个 Shard 时可能短暂同时保留源与目标；即时量化还需要校准或转换空间。看到“最终估算 14 GB”却在加载到 12 GB 时 OOM，需要检查峰值，而不是只看最终公式。
+
+多卡分片不保证完全均匀。Embedding、输出头或某些层可能没有平均切分，Rank 0 还可能承担额外 Buffer。每张卡都要单独监控。一个 Rank 剩余 2 GB，其他 Rank 各剩 10 GB，服务的有效余量仍由最紧张的 Rank 决定。
+
+权重 Offload、量化和更小模型能减少这一项，但各有边界。Offload 用延迟换容量，量化要求 Kernel 支持并需要质量验证，更小模型改变能力。先确认 OOM 确实发生在权重阶段，再选择对应办法。
+
+## 激活是什么，训练与推理为何差别很大
+
+激活是模型前向计算产生的中间张量。输入经过线性层、注意力、归一化和非线性函数，每层都会产生结果。某些结果只在当前 Kernel 或下一层使用，某些需要保留到更晚。激活大小跟 Batch、Sequence、Hidden Size、dtype 和算子实现有关。
+
+训练为了反向传播，需要保存更多前向激活，随后计算梯度和参数更新。Activation Checkpointing 可以少保存一部分，反向时重新计算，节省显存但增加算力。推理不做反向，许多中间值用完即可释放，因此同一个模型训练需要的显存远高于普通推理。
+
+推理仍可能出现激活峰值。长 Prompt 的 Prefill 一次处理大量 Token，注意力和前馈网络会创建较大张量；并发 Batch 让 Token 数相加；多模态输入还可能有图像特征。平均请求短，偶尔一条超长请求仍能把峰值推高。
+
+激活与 KV Cache 要分开。激活属于当前层和当前计算步骤，生命周期较短；KV Cache 保存历史 Token 的 Key、Value，后续 Decode 每步都要读取，生命周期覆盖整条序列。降低 Batch 可能同时影响两者，但原因不同。
+
+监控激活通常依赖框架内存快照、Profiler 和已知执行阶段，`nvidia-smi` 只看到总量跳升。要记录请求输入长度、Batch Token、执行阶段和峰值时间，才能把 Prefill 激活与其他分配区分开。
+
+## 工作区为什么不是模型参数却会申请大量内存
+
+工作区是算子执行期间供算法临时使用的内存。矩阵乘、卷积、排序、Attention 和通信库可能有多个实现，某个实现为了更快会申请额外 Buffer。工作区用完可释放或复用，不写进模型权重文件，却参与运行峰值。
+
+算法选择常依赖 shape、dtype、硬件和库版本。同一个模型在另一张 GPU 或升级库后，选中的 Kernel 不同，工作区也可能变化。只凭参数量估算显存，容易在 Warmup 或第一条真实请求时 OOM。
+
+编译型框架还可能为 CUDA Graph、Kernel Cache 或静态输入池预留内存。Serving 引擎为了减少运行时分配，会在启动阶段 Profile 可用空间并建立 KV Block Pool。它们看起来像“还没请求就占了”，实际是用容量换稳定的运行路径。
+
+通信也需要 Buffer。张量并行中的 AllReduce、AllGather 或点对点传输会申请发送、接收和临时空间。多卡总权重减少到能装下后，通信工作区可能让某一 Rank 仍然 OOM。NCCL 日志和每 Rank 内存快照能提供证据。
+
+工作区通常不应简单禁用。限制它可能迫使库选择更慢算法，或者让某算子无可用实现。做法是记录哪个算子、哪个 shape 申请了多大空间，在延迟、吞吐和容量之间选择，并把版本固定。
+
+## KV Cache 为什么会随请求长度和并发增长
+
+自回归模型每生成一个 Token，都要用到前面 Token 的 Key 和 Value。若每步重新计算全部历史，成本会不断增加。KV Cache 把各层的 Key、Value 保存下来，下一步只计算新位置，再与历史缓存做注意力。这项内存与权重不同，会随着活跃序列增加和长度增长。
+
+一个简化公式是：每 Token Cache 字节约等于 `2 × 层数 × KV Head 数 × Head Dimension × 每元素字节`。前面的 2 表示 Key 和 Value。使用 Multi-Query 或 Grouped-Query Attention 时，KV Head 少于 Query Head，缓存会明显小于传统多头注意力。模型配置必须读取真实字段。
+
+最大上下文只给单序列上限，实际总占用还要乘活跃序列的已缓存 Token。十条各 1000 Token 的请求与一条 10000 Token 请求可能有相近缓存字节，但调度和块碎片不同。Prefix Cache 还能让相同前缀共享一部分块，命中率取决于真实输入。
+
+PagedAttention 一类分块管理把 Cache 分成固定 Block，减少需要连续大区间的问题，但最后一个 Block 仍可能有未用位置。请求结束或取消后，Scheduler 要归还 Block。HTTP 连接断开而 Engine 没收到取消，会让 Cache 继续占用到生成自然结束。
+
+限制 `max-model-len`、并发序列数、Batch Token 或使用 KV Cache 低精度都能影响容量。降低任何参数前要核对产品合同和质量。上下文上限调小会拒绝长请求，KV 低精度需要模型与引擎支持，不能只为消除 OOM 静默改变行为。
+
+## OOM 发生在哪个阶段分别说明什么
+
+加载前 OOM 常出现在设备上已有其他进程、Context 或旧实例。进程列表、部署副本和每卡已用显存是第一批证据。加载权重时 OOM 指向权重、加载峰值、dtype、分片或量化格式。此时减小请求 Batch 没有帮助，因为还没有请求进入。
+
+Warmup 或 Profile 阶段 OOM 常与工作区、CUDA Graph、引擎预留和最大长度规划有关。日志会出现权重已加载，随后在 Cache 初始化或 dummy run 失败。需要读取引擎实际生效参数，不能只看部署 YAML 中想要的值。
+
+Prefill OOM 与长输入、Batch Token 和激活峰值关系大。Decode 运行一段时间后 OOM，更可能是 KV Cache 增长、并发超预算、请求没有释放或额外 Adapter 加载。只看 OOM 最后一行无法区分，阶段日志和请求 shape 必须对齐。
+
+突发 OOM 可能来自临时工作区、碎片或多个 Stream 同时达到峰值。稳定运行后占用持续爬升，则要检查引用泄漏、取消路径和 Cache 回收。把一次峰值当成泄漏，或把泄漏当成正常缓存，都会选错修复。
+
+OOM 之后的恢复也不同。框架捕获一次分配失败并拒绝请求，进程可能仍健康；异步非法访问或设备错误可能污染 Context，需要重建 Worker。健康检查要执行引擎最小路径，而不是只让 HTTP 返回 200。
+
+## `nvidia-smi` 能看到什么，又看不到什么
+
+`nvidia-smi` 通过驱动读取设备、显存、利用率、功耗、温度和进程等信息。它适合确认宿主驱动看到哪些 GPU，哪个 PID 占用多少显存，设备是否出现错误或降频。采样字段和支持情况随 GPU、驱动与部署模式变化。
+
+下面命令只读查询，不会运行模型。没有 NVIDIA GPU 的机器只能检查命令结构，不能伪造输出。
 
 ```bash
-sudo ubuntu-drivers list
-sudo ubuntu-drivers install
-sudo reboot
-```
-
-重启后依次检查宿主机、容器和 Python 进程，三层都通过才算链路可用：
-
-```bash
-nvidia-smi
-docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu24.04 nvidia-smi
-python3 -c "import torch; print(torch.version.cuda); print(torch.cuda.is_available())"
-```
-
-示例镜像标签用于说明验证方式，执行前要在 NVIDIA 容器仓库确认它仍存在，并替换成项目锁定版本。宿主机失败先处理驱动；宿主机成功而容器失败，检查 Container Toolkit 和设备注入；前两层成功而 Python 返回 `False`，再核对框架包内 Runtime 与驱动兼容关系。
-
-## 从设备发现到一次显存分配失败
-
-```mermaid
-flowchart LR
-  S0["发现设备"]
-  S1["初始化 Runtime"]
-  S2["建立显存账本"]
-  S3["执行与回收"]
-  S0 --> S1
-  S1 --> S2
-  S2 --> S3
-```
-
-箭头表示状态的先后依赖，不表示所有步骤都在同一进程或同一台机器完成。下面沿链路逐段展开。
-
-### 发现设备：OS/Container Runtime
-
-驱动识别 GPU，并把设备节点与库暴露给进程。
-
-可以从这些位置确认结果：`nvidia-smi`、device files、container runtime。若完全没有证据，先判断请求是否到达本阶段；若记录冲突，则对齐 request_id、实例和时间窗口。
-
-### 初始化 Runtime：Framework/CUDA
-
-加载兼容库、创建 context 并选择 device。
-
-这里不靠猜测，优先读取 driver/runtime version、初始化错误。
-
-### 建立显存账本：Serving
-
-依次分配权重、KV Cache、激活、workspace 和通信缓冲。
-
-决定下一步前需要看到 allocated/reserved、模型配置。
-
-### 执行与回收：Allocator
-
-请求产生峰值分配，结束或取消后回收可复用块。
-
-这一动作的可观察结果是 peak memory、fragmentation、process list。处理动作应晚于取证，否则重启或重试可能覆盖最早的失败现场。
-
-## nvidia-smi 能回答什么，不能回答什么
-
-这些命令只有在安装 NVIDIA 驱动的主机或正确注入设备的容器中才有意义。本环境未执行真实 GPU 验证，示例用于解释字段。
-
-```bash
-nvidia-smi
-nvidia-smi --query-gpu=index,name,driver_version,memory.total,memory.used,utilization.gpu --format=csv
+nvidia-smi --query-gpu=index,name,uuid,memory.total,memory.used,memory.free,utilization.gpu,utilization.memory --format=csv
 nvidia-smi pmon -s um -c 1
-python3 -c "import torch; print(torch.version.cuda); print(torch.cuda.is_available())"
 ```
 
-`nvidia-smi` 的 CUDA Version 通常表示驱动可支持的最高 CUDA 能力，不等于当前 Python 包内 Runtime 版本。memory.used 是设备级快照，难以直接拆成权重、KV Cache 和 allocator reserved；框架指标和 Serving 配置要一起看。utilization.gpu 是采样窗口活动比例，不等价于模型吞吐。
+第一条按设备显示容量、使用和采样利用率；第二条尝试按进程展示利用和内存。MIG、容器 PID 命名空间和权限会影响可见结果。公开日志要去掉 UUID、主机名和内部进程参数。
 
-## 显存未满也可能分配失败
+`memory.used` 不能拆出权重、激活、KV Cache 和工作区，也不能区分框架已使用与保留缓存。GPU utilization 表示采样窗口内有 Kernel 活动的比例，不等于计算单元达到峰值。Memory utilization 更接近内存控制器活动，不是显存容量百分比。
 
-| 表面现象 | 实际可能发生的事 | 下一步证据 |
+框架指标要补上 `allocated`、`reserved`、峰值、Cache Block 数、活跃序列和请求 Token。Serving 引擎还应暴露 waiting/running 请求、抢占、取消和拒绝。设备、框架与业务三层按时间和实例标签对齐，才构成 OOM 诊断证据。
+
+## 一份显存账本怎样计算
+
+假设一个 70 亿参数模型用 BF16 权重，理想权重约 14 GB。若模型 32 层、8 个 KV Head、Head Dimension 128，KV 使用 BF16，则每 Token Cache 约为 `2 × 32 × 8 × 128 × 2 = 131072` 字节，也就是约 128 KiB。10000 个已缓存 Token 约 1.22 GiB。
+
+实际账本还要加入非量化层、量化元数据、Context、Runtime、工作区、激活、通信和引擎预留。下面的表把“公式可估”和“运行时测量”分开，避免把所有项写成一个精确常数。
+
+| 项目 | 估算依据 | 验证方式 |
 | --- | --- | --- |
-| nvidia-smi 正常 | 应用 Runtime、库搜索路径或容器设备仍可能错误 | 在同一进程环境检查框架版本和初始化 |
-| 显存未满仍 OOM | 峰值、碎片、其他进程或大连续分配可能失败 | 看峰值和进程列表，复现具体请求 |
-| 多卡总显存够 | 单个模型状态未按支持策略分片，显存不能自动相加 | 确认 tensor/data parallel 状态分布 |
-| 清缓存后恢复 | 缓存释放改变现场但未解释请求为何达到峰值 | 记录请求长度、并发与各组成 |
+| 权重 | 参数量、dtype、量化元数据 | 加载完成后的框架快照 |
+| 激活 | Batch Token、Hidden Size、算子 | Prefill 峰值与 Profiler |
+| 工作区 | Kernel、shape、库版本 | 算子日志与峰值差分 |
+| KV Cache | 层数、KV Head、维度、Token | Cache Block 与活跃 Token 指标 |
+| Context/分配器 | 进程与框架实现 | 空载基线、allocated/reserved |
 
-::: warning 容易误判
-一条成功命令只能证明它覆盖的那一层。重启后的短暂恢复也不是根因已经消失，改变状态前先保存最早证据。
-:::
+表格显示，14 GB 权重加 1.22 GiB Cache 仍不能直接得出“16 GB 卡能运行”。剩余空间还要容纳激活和工作区，并保留过载和加载峰值余量。十进制 GB 与二进制 GiB 也要统一，设备工具与模型文档可能采用不同单位。
 
+容量计划使用 p95 或明确上限的请求分布，不能只放平均 Token。目标是决定准入和部署，不是算出一个漂亮数字。实际候选加载后，把每项估算替换为测量区间，并保留误差来源。
 
+## 分配器缓存和碎片为何让“还有空闲”也可能失败
 
-## 这套判断方法的边界
+框架分配器常向 Driver 申请较大内存块，再切分给张量。张量释放后，内存可能留在框架缓存中，等待后续快速复用，所以 `reserved` 高于 `allocated`。这不一定是泄漏，也解释了 `nvidia-smi` 仍显示进程占用。
 
-显存估算必须写明模型 revision、dtype、层数、上下文、并发和引擎。多卡还引入 PCIe/NVLink/NCCL 通信，不是把容量数字简单相加。本章没有真实 GPU 诊断结果。
+碎片发生在空闲空间被分成许多不连续小块时。总空闲 4 GB，不代表能满足一个连续 3 GB 分配。不同 shape 的请求反复申请和释放，或者多个 Stream 的生命周期交错，会增加碎片。分块 Cache 和静态内存池能降低某些场景的波动。
 
-单机 GPU 链路清楚后，下一阶段进入 Kubernetes：先理解控制面的调谐模型，再看 GPU 资源怎样进入 Pod。
+清空框架缓存可能把未使用块还给 Driver，却不会释放仍被张量引用的内存，也可能让后续请求重新申请而变慢。生产服务不应在每条请求后盲目清缓存。先比较 allocated、reserved、最大连续块和请求结束后的基线。
+
+内存快照能找到仍有引用的张量和分配堆栈，前提是框架支持并且采集开销可接受。观察到请求取消后 Cache Block 不下降，要先检查状态所有权和引用；只有 reserved 保持而 allocated 回落，可能只是缓存策略。
+
+修复碎片可以固定 shape 范围、使用分块池、限制并发和重建 Worker。重启确实会清空 Context，却只是恢复动作，不说明根因。若每隔固定流量又复现，需要保留重启前快照和触发请求。
+
+## 容器和 Kubernetes 会怎样改变显存可见性
+
+容器不虚拟出一块新的物理显存。GPU Runtime 把设备节点和驱动库注入容器，进程仍与宿主其他进程共享设备。未设置隔离时，一个容器能占满整卡，另一个容器看到的可用显存随之减少。
+
+Kubernetes 的 `nvidia.com/gpu: 1` 常表示调度并分配一个设备，不表示自动限制进程最多使用多少 GiB。两个独占 Pod 通常不会拿到同一完整设备，但时间共享、MPS 或其他共享方案会改变隔离。MIG 把受支持 GPU 切成有固定计算和显存的实例，资源名和 Profile 决定容量。
+
+容器内 `nvidia-smi` 正常而框架失败，要检查库、环境变量和 Runtime。Pod Pending 则还没进入容器运行，应该查看扩展资源、Device Plugin 和调度事件。Pod Running 后 OOM，才沿框架和显存账本继续。
+
+共享模式下，`nvidia-smi` 进程视图可能看到宿主 PID 或多个容器进程，监控系统要补充 Pod、容器和 GPU UUID 映射。租户配额不能只靠设备利用率，准入层还要限制上下文、并发和模型。
+
+故障恢复不得重置一张仍被其他工作负载使用的 GPU。节点级操作前先列出设备上的全部进程与 Pod，确认共享关系。平台把单请求 OOM、Worker 重建和节点设备故障分成不同动作。
+
+## 量化、并行和 Offload 分别减少哪一部分
+
+量化主要减少权重，有些引擎还支持低精度 KV Cache。把 BF16 权重转成 INT4，理想字节数下降，但量化比例尺、零点和未量化层仍占空间。Kernel 若不支持目标格式，可能先反量化到更高精度，增加工作区，或者完全不能加载。质量和性能都要在目标硬件验证。
+
+张量并行把单层权重和计算分到多张 GPU，每个 Rank 只持有一部分权重，也可能只持有一部分 KV Head。它需要通信 Buffer，并受最紧张 Rank 限制。流水线并行按层切分，阶段间传激活，负载不均会让某一设备先 OOM。两种策略解决的是单卡装不下，不等于减少节点总字节。
+
+CPU Offload 把部分权重或状态留在主存，需要时再搬到 GPU。它适合容量优先、延迟要求较低的场景，也可用于训练优化器状态。在线 Decode 每层反复跨 PCIe 搬权重通常很慢。NVMe Offload 更远，主要用于训练或离线，不应当成 HBM 的透明替代。
+
+减小 Batch、最大 Batched Tokens 或并发序列会降低激活和 KV Cache，不能减少已驻留权重。缩短 `max-model-len` 限制单请求缓存上限，Prefix Cache 只在前缀命中时节省重复缓存。对应关系写清后，修复动作才不会误伤其他合同。
+
+选择方案时先标记 OOM 项目，再比较代价。权重不足评估量化、分片或小模型；Prefill 峰值评估 Batch Token 和 Kernel；KV Cache 不足评估上下文、并发和缓存精度；碎片问题评估内存池与进程生命周期。不能用同一个“减小 Batch”覆盖全部情况。
+
+## Adapter、CUDA Graph 和多模型为什么会改变基线
+
+LoRA Adapter 的参数远小于基础模型，但同时加载很多 Adapter 仍会占显存。引擎可能为每个 Adapter 保存权重、索引和工作区，Batch 中混合不同 Adapter 还会改变 Kernel。动态加载时要有数量、Rank 和总字节上限，请求结束并不一定立即卸载热 Adapter。
+
+CUDA Graph 会捕获一组固定或受限 shape 的执行，重放时减少 CPU Launch 开销。为了保证地址稳定，引擎可能为图使用静态 Buffer 或预留多个 Batch Shape。开启后空载基线上升不一定是泄漏，关闭后延迟也可能变化。配置记录要说明图覆盖哪些输入。
+
+一张 GPU 放多个模型，权重基线直接相加，Tokenizer 和 CPU 状态则不一定在显存。模型 A 空闲不代表它的权重自动释放，模型 B 的突发请求仍只能使用共同余量。动态卸载会带来重新加载时间和失败状态，Gateway 必须知道模型是否 Ready。
+
+多进程同样会复制 Context，并可能复制权重。两个 Worker 各加载同一模型，与一个 Engine 接多请求的内存性质不同。部署副本数增加前，先确认是进程级副本、张量并行 Rank，还是同一进程的 API Worker，不能只看容器数。
+
+基线账本因此要在“模型刚加载”“Warmup 后”“Adapter 热集完成”和“稳定流量”四个时刻采样。只保存最后一张 `nvidia-smi` 截图无法解释哪一项新增，也无法在版本升级后对比。
+
+## 准入和过载保护怎样把 OOM 变成可预期拒绝
+
+服务已知最大上下文和 Cache Pool 后，可以在请求进入 GPU 前估算 Token 成本。Gateway 限制请求体和声明的输出上限，Tokenizer 得到真实 Prompt Token，Scheduler 再根据可用 KV Block、运行序列和 Batched Token 决定接收、等待或拒绝。每一层保护的输入不同。
+
+仅靠 HTTP 并发数不够。一条 32000 Token 请求与一条 100 Token 请求都算一个并发，显存成本差异很大。配额应同时考虑输入 Token、最大输出、活跃 Cache 和租户公平；无法立即执行的请求进入有界队列，队列满后返回明确过载状态。
+
+拒绝发生在准入层时，GPU 没有新增 Cache，错误可以稳定复现，客户端也能按策略重试。让请求进入 Kernel 后才 OOM，可能影响同 Batch 其他序列并触发 Worker 重建。平台宁可在边界返回容量不足，也不要依赖分配器最后一刻报错。
+
+取消和超时是容量保护的一部分。客户端离开后，API 把取消传给 Scheduler，Scheduler 停止后续 Decode 并回收 KV Block。若请求已经提交的 Kernel 不能中断，至少不再排新一轮。监控应看到 canceled 增加、running 减少和 Cache 回落。
+
+验证过载保护要发三类输入：边界内请求成功，超过单请求上限的请求在准入层拒绝，队列满时得到稳定过载。再取消一个运行请求，确认资源回收并发起最小请求验证 Worker 健康。这样 OOM 从不可控进程错误变成了可测试的产品行为。
+
+## 一次模型加载到长请求 OOM 怎样完整推演
+
+输入是一份固定 Revision 的 7B BF16 模型、单张标称 24 GB GPU，以及最大上下文 8192 的 Serving 配置。宿主驱动和容器设备检查通过，框架能创建小张量。空载进程占用一部分 Context，权重加载后形成稳定基线，引擎再按剩余空间建立 KV Block Pool，最小 Warmup 成功后实例 Ready。
+
+客户端随后发送一条长 Prompt，并与其他序列同时 Decode。状态从 waiting 进入 Prefill，激活达到峰值，随后 KV Cache 随已处理 Token 增长。某一轮需要新的 KV Block 或工作区，分配器找不到满足请求的块，Engine 记录 OOM 并把该请求标为失败。其他请求是否继续，取决于 Context 是否仍健康。
+
+失败证据要包含 OOM 发生阶段、请求输入和输出 Token、当时 running/waiting 数、每卡 allocated/reserved、Cache Block 和设备进程。若权重阶段已经失败，调整请求长度无意义；若只有长请求 Prefill 失败，可先通过准入限制复现，再评估 Batch Token、上下文或显存更大的部署。
+
+验证修复时，用同一模型 Revision 和同一请求集运行。先发最小请求确认服务恢复，再发边界内长请求，最后发超过上限的请求，预期在准入层得到稳定错误而不是进入 GPU OOM。取消一条进行中的请求后，Cache Block 应回收，设备基线回到允许波动范围。
+
+当前文章只完成公式、命令和状态链的解释性验证，没有在目标 24 GB GPU 上运行这个候选。实际报告要填写驱动、Runtime、引擎版本、模型配置、设备型号、峰值、错误正文和回收结果。没有这些数据，结论只能是部署前假设。
