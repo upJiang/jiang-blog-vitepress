@@ -169,6 +169,20 @@ Offline Gate
 
 候选通过离线与影子阶段后成为 Challenger，并获得有限流量。分桶输入使用知识库、用户与请求的稳定标识，经过哈希映射到固定区间。相同输入重复请求时落到同一策略，进程重启也不能改变结果。直接用随机数会让同一会话在两个 Policy 间跳动，多轮状态与反馈因此失去对应关系。
 
+```mermaid
+flowchart LR
+  A[知识库、用户与请求的稳定标识] --> B[稳定哈希分桶]
+  B --> C{命中 Challenger 区间?}
+  C -- 否 --> D[固定 Champion Policy]
+  C -- 是 --> E[固定 Challenger Policy]
+  D --> F[Turn 保存 policy_version_id]
+  E --> F
+  F --> G[执行、恢复与反馈始终读取同一版本]
+  G --> H{观测窗口达到门禁?}
+  H -- 质量与样本满足 --> I[事务晋升]
+  H -- 红线触发或证据不足 --> J[回滚新请求流量]
+```
+
 灰度 Turn 在创建时固定 `policy_version_id`。后续 Worker、Checkpoint、恢复、SSE 和反馈记录都读取这个版本，不因 Challenger 晋升或回滚而切换。回滚只影响新请求的路由，已经运行的 Turn 按原快照完成或依据安全策略取消。
 
 观测窗口分别统计 Champion 与 Challenger 的 Turn 数、失败数、有效反馈数和拒绝数。错误率的分母是各自 Turn，拒绝率的分母是带活动反馈的 Turn。反馈数量太少时拒绝率没有稳定解释，监控任务继续观察；窗口到期仍未达到最小样本数，则回滚 Challenger，并把原因记录为证据不足。

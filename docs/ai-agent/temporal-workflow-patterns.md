@@ -108,6 +108,26 @@ Worker 进程只注册已审核的 Workflow 和 Activity。Task Queue 名称是�
 
 ## 事件历史怎样驱动确定性重放
 
+```mermaid
+sequenceDiagram
+  participant S as Temporal Server
+  participant W as Workflow Worker
+  participant A as Activity Worker
+  participant X as 外部系统
+
+  S->>W: 发送已有 History
+  W-->>S: 产生相同命令序列
+  S->>A: 调度 Activity Task
+  A->>X: 使用 Action ID 执行外部动作
+  X-->>A: 返回业务回执
+  A-->>S: ActivityCompleted
+  Note over S,W: Worker 重启后再次回放 History
+  S->>W: 发送相同 History
+  W-->>S: 不重复已经完成的 Activity
+```
+
+Workflow Worker 根据历史重建控制状态，Activity Worker 才接触网络、数据库和其他外部副作用。两者都可能重新收到任务，但只有 Activity 需要用 Action ID 和业务回执抵御重复执行。
+
 第一次执行 `KnowledgeWorkflow` 时，Workflow 调度 `load_context`，历史记录 ActivityScheduled。Activity 完成后写入 ActivityCompleted，Workflow 继续执行并调度 `run_retrieval`。如果 Worker 此时退出，新 Worker 从头运行 Python 函数，但 SDK 在遇到已经存在的历史命令时返回历史结果，不重新调用 Activity。
 
 Workflow 的每个分支都必须由输入和历史决定。用 `datetime.now()` 判断是否超时，会让第一次运行和重放看到不同时间；用随机数选择检索策略，会让新 Worker 走另一分支。应让时间和随机 ID 通过 SDK 的可重放接口产生，或者把选择放在 Activity 并把结果写入历史。

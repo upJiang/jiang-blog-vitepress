@@ -162,6 +162,16 @@ HTTP 是 Hypertext Transfer Protocol 的缩写，中文是超文本传输协议�
 
 HTTP/1.1 请求以请求行开始，包含方法、路径和协议版本，随后是 Header、空行和可选 Body。响应以状态行开始，随后同样有 Header 和 Body。下面的文本展示字节语义，不是需要直接在 Shell 执行的命令。
 
+```mermaid
+sequenceDiagram
+  participant C as HTTP Client
+  participant S as HTTP Server
+  C->>S: Method + Target + Headers + Body
+  Note over S: 认证、授权、参数校验与业务处理
+  S-->>C: Status + Headers + Body
+  Note over C,S: Request ID 关联两端事件，不能代替身份或权限
+```
+
 ```http
 POST /v1/chat/completions HTTP/1.1
 Host: api.example.com

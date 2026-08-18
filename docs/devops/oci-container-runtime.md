@@ -273,4 +273,4 @@ docker inspect api --format 'exit={{.State.ExitCode}} oom={{.State.OOMKilled}} f
 | 文件 Permission denied | 当前身份无法访问路径 | UID/GID、逐级目录、挂载模式与安全策略 |
 | stop 后仍等待 | 主进程或子进程未按时退出 | PID 1、信号转发、在途请求和宽限 |
 
-修复后重建容器，核对新容器仍使用预期 digest、挂载和限制。然后重复容器内、同网络和入口三层请求，观察 SIGTERM 能否到达业务进程。镜像、容器、Namespace、cgroup、挂载和端口共同影响同一个 Linux 进程，任何一项都不能单独证明服务可用。下一篇用 Docker Compose 把 API、数据库、Redis、Worker 和对象存储组织成一个本地服务栈。
+修复后重建容器，核对新容器仍使用预期 digest、挂载和限制。然后重复容器内、同网络和入口三层请求，观察 SIGTERM 能否到达业务进程。镜像、容器、Namespace、cgroup、挂载和端口共同影响同一个 Linux 进程，任何一项都不能单独证明服务可用。

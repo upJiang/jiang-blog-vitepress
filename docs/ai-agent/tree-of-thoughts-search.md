@@ -216,6 +216,21 @@ python3 -m unittest discover -s examples/ai-agent/tests -p 'test_*.py'
 
 内存列表足以演示算法，长任务却可能跨越进程退出、Worker 重启和用户断线。恢复所需的最小单位不是整段 Prompt，而是节点、前沿和预算三类状态。节点保存父子关系与评分分解；前沿标记哪些节点仍可扩展；预算记录已经评估多少节点、还剩多少时间和调用额度。
 
+```mermaid
+flowchart TD
+  A[领取 pending 节点] --> B[写入 Lease、尝试号与树版本]
+  B --> C[生成并评估子节点]
+  C --> D[原子写入子节点批次]
+  D --> E[更新 Frontier 与累计预算]
+  E --> F[写入 Checkpoint]
+  C -. Worker 中断 .-> G[恢复器读取节点、Frontier 与预算]
+  D -. Frontier 未更新 .-> G
+  G --> H{批次是否完整?}
+  H -- 是 --> E
+  H -- 否 --> I[按尝试号回滚或补齐批次]
+  I --> E
+```
+
 节点可以经历 `pending`、`expanding`、`expanded`、`pruned`、`terminal` 和 `failed`。状态迁移要单向进行。一个 Worker 领取 `pending` 节点后先写入租约和尝试号，再执行分支生成；写回候选时核对租约和树版本。租约过期后，另一个 Worker 可以重新领取，迟到的旧尝试不能覆盖新结果。
 
 分支生成若调用外部模型，进程可能在模型返回后、候选写入前退出。恢复任务可以重新调用模型，但生成结果未必逐字相同。需要可重放的场景应保存原始响应引用和解析后的候选；只要求继续完成时，可以在同一 Prompt 与模型版本下重试，同时把尝试号写进 Trace，接受候选顺序可能变化。
