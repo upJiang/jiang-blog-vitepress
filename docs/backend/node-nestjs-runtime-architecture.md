@@ -46,7 +46,6 @@ flowchart LR
 ```
 
 观察 event loop delay、CPU Profile 和在途请求。CPU 低时的慢请求则转查连接池、锁和下游等待。
-
 ## NestJS 请求管道按职责执行
 
 Middleware 处理通用请求上下文；Guard 决定是否进入 Handler；Interceptor 可包裹执行并记录时间/转换结果；Pipe 校验和转换参数；Controller 调 Service；Exception Filter 统一映射错误。
@@ -67,7 +66,6 @@ async getProject(
 ```
 
 不要注入原始 Response 后到处 `res.status().send()`，这会绕过 Interceptor/Filter 并使测试困难。流式/SSE 等确需底层响应时单独封装适配器。
-
 ## Module 与 Provider 决定对象生命周期
 
 默认 Provider 是 Singleton，适合连接池、Repository 和无请求可变状态的 Service。Request-scoped Provider 每请求构造并沿依赖树传播，增加开销；只为读取 Principal 不必把整个数据层改成 request scope，可显式传参。
@@ -85,13 +83,11 @@ Microtask 也可能让事件循环饥饿。递归创建已解决 Promise 会连�
 | 请求计时 | Interceptor | 业务步骤 Span |
 | 错误协议 | Exception Filter | 领域错误分类 |
 | 连接管理 | Singleton Provider | 事务边界 |
-
 ## 关闭时先停止入口，再释放外部连接
 
 启用 shutdown hooks 后接收 SIGTERM，readiness 先失败，HTTP Server 停止新连接，再等待在途请求；随后取消 RabbitMQ Consumer、flush OpenTelemetry、断开 Prisma/Redis/MinIO。
 
 不要在每个 Provider 的 destroy hook 各自无限等待。应用拥有总 shutdown deadline，每个组件得到子预算；测试在负载中发送 SIGTERM，证明未 ACK 消息重投且进程按时退出。
-
 ## Node 异步与 NestJS 生命周期边界
 
 **把函数写成 async 是否一定不阻塞？**
@@ -109,10 +105,3 @@ Microtask 也可能让事件循环饥饿。递归创建已解决 Promise 会连�
 **Unhandled Promise rejection 会怎样？**
 
 它表示异步错误失去所有者，进程行为随 Node 配置/版本变化。所有后台 Promise 都要被 await、进入任务系统或显式 catch 并上报，不能靠全局 handler 继续未知状态。
-
-## 机制复核：Node.js 与 NestJS：运行时、模块和请求生命周期
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

@@ -49,7 +49,6 @@ stateDiagram-v2
 ```
 
 状态转换使用 `WHERE status=? AND attempt=?` 条件更新，旧 Worker 不能覆盖新 attempt 的终态。
-
 ## 领取任务需要租约和 attempt
 
 Worker 原子地把 queued/retry_wait 改为 running，增加 attempt，并设置 lease_expires_at。心跳在任务仍属于自己时续租。进程崩溃后 Recovery Scanner 只回收租约已过期的 running 任务。
@@ -73,7 +72,6 @@ WHERE id = :task_id
 完成更新还要 `WHERE id=? AND status=running AND attempt=? AND lease_owner=?`。影响行数为 0 表示所有权已失效，当前进程不能提交终态。
 
 续租更新同样要匹配当前 attempt，并用数据库时间计算新的租约，避免多台 Worker 时钟漂移。租约过期不代表原 Worker 已停止，它只允许新 Worker 接管；attempt 是 fencing token，数据库终态和派生对象 key 都要携带它。外部 API 若不支持 fencing，就必须使用业务幂等键或补偿。
-
 ## Scheduler 也要幂等地产生任务
 
 多个 Scheduler 可同时扫描到到期计划。数据库在 `(schedule_id, scheduled_for)` 上设置唯一约束，只有一个实例创建任务；或用数据库锁选取到期计划。
@@ -86,7 +84,6 @@ WHERE id = :task_id
 | 文档解析 | document_id + content_version | 新版本不能被旧结果覆盖 |
 | 邮件通知 | template + recipient + event_id | 供应商未知结果先查询/去重 |
 | 缓存预热 | resource + version | 允许重复但限制并发 |
-
 ## 恢复顺序从任务事实开始
 
 队列积压先看 oldest age、到达率、成功率与下游容量；running 滞留看租约和心跳；状态 completed 但对象缺失则检查提交顺序；重复结果查业务唯一约束和旧 attempt 写入。
@@ -94,7 +91,6 @@ WHERE id = :task_id
 不要直接把所有 running 改 queued。先确认仍在线 Worker、租约、外部副作用和任务幂等；批量恢复设置速率，避免依赖恢复时形成重试洪峰。
 
 Scheduler 的时间也可能重复或跳过：进程停机、多副本竞争和时区变化都会影响触发。`(schedule_id, scheduled_for)` 唯一约束让多副本只有一个创建成功；恢复策略明确补跑、跳过或只保留最新一次，不能靠当前时间猜测。
-
 ## 任务状态、取消与重试边界
 
 **为什么任务进度不能只放 Redis？**
@@ -112,10 +108,3 @@ Redis 适合高频进度快照，MySQL 保存任务终态、attempt 和所有权
 **如何避免旧文档解析覆盖新版本？**
 
 任务绑定 content_version，完成条件更新同时匹配文档当前版本和 task attempt。旧版本可保存历史结果，但不能把 active_version 改回旧值。
-
-## 机制复核：Worker、定时任务与故障恢复
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

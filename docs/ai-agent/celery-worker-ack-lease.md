@@ -53,7 +53,6 @@ flowchart LR
 ```
 
 图中 ACK 在终态之后，这是晚确认（Late Acknowledgement）的基本顺序。消息交付和业务提交之间没有一个跨 Broker、数据库与外部服务的全局事务，系统只能接受重复投递，再靠稳定身份和幂等协议把重复吸收掉。
-
 ## ACK 表示消息处理结束，不表示业务成功
 
 Worker 收到消息后立即 ACK，叫早确认。优点是消息不会因执行时间过长而重复，代价是 Worker 在业务完成前崩溃时，Broker 已经删除消息，任务不会自动回来。短小、可丢失或上层另有可靠恢复扫描的任务可以采用早确认；需要可靠完成的长任务通常更适合晚确认。
@@ -88,7 +87,6 @@ Celery Retry 是任务代码主动做出的决定。Worker 已经捕获一个可
 日志同时记录 Celery Task ID、Delivery 标识、领域 Attempt 与恢复原因。Task ID 相同且领域没有主动 Retry 事件，优先检查 Broker 重投；出现 Retry 事件和 Countdown 时，再沿可恢复错误排查。
 
 :::
-
 ## 五种身份不能混成一个 Task ID
 
 长任务至少会出现五种身份，它们的生命周期不同：
@@ -104,7 +102,6 @@ Celery Retry 是任务代码主动做出的决定。Worker 已经捕获一个可
 客户端重试创建 Turn 时使用 Idempotency Key，避免生成第二个 `turn_id`。Celery 重投时仍携带原 `turn_id`，Worker 生成新的 Owner Token 竞争执行权。调用外部工具前，Runtime 从 Turn、计划步骤和动作序号生成稳定 Action ID；第二次执行同一步时先查询回执。
 
 Celery Task ID 适合关联 Broker 日志，却不能做业务幂等键。管理员重新投递、恢复扫描或迁移队列时可能创建新 Task ID，原 Turn 仍然是同一业务对象。反过来，同一个 Celery Task 发生 Retry，也不代表可以复用已过期的 Owner Token。
-
 ## Result Backend 不保存 Agent 的权威状态
 
 Celery Result Backend 能记录 Pending、Started、Success、Failure 等任务结果，适合查看任务函数是否返回和调试 Worker。它的状态围绕 Celery Task，缺少 Turn 的权限快照、事件序号、动作回执与版本约束。恢复扫描创建新 Task ID 后，单个 Result 也无法描述整个业务生命周期。
@@ -116,7 +113,6 @@ Celery Result Backend 能记录 Pending、Started、Success、Failure 等任务�
 两边需要对账，但不能互相覆盖。Celery Success 而 Turn 长时间非终态，说明任务返回路径或数据库事务有缺口；Celery Failure 而 Turn 已 Completed，可能是 ACK 前或返回序列化阶段失败。自动修复先根据 Turn 的单调状态判断，再处理过期的 Result，不能用后到的队列状态把 Completed 改回 Running。
 
 Result Backend 可以与 Broker 使用同一个 Redis 服务，但应使用不同命名空间或数据库，并分别设置容量和过期策略。同一连接地址不代表两类数据属于同一事实层。
-
 ## 安装与最小配置
 
 Celery 官方安装入口是 [Installation](https://docs.celeryq.dev/en/stable/getting-started/introduction.html#installation)，Redis 作为 Broker 时安装 `redis` 额外依赖。下面用隔离虚拟环境固定 Celery 5.x 约束，避免未来主版本升级改变配置语义：
@@ -190,7 +186,6 @@ Worker 并发为 `C`、预取倍数为 `M` 时，消费者通常会预留约 `C 
 自动扩容依赖可解释指标。Broker 队列长度只能说明等待消息数量，看不到每条任务的资源类别和剩余 Deadline。扩容决策还要参考最老消息年龄、活动 Lease、模型限流和数据库池使用率。若耗尽的是供应商配额，增加 Worker 会扩大失败和 Retry 流量。
 
 公平性问题也不能只靠队列顺序解决。一个租户连续提交大量研究任务时，入口的用户或租户准入先限制活动数；队列可以按租户轮转或分优先级。Celery 负责执行调度，业务层仍决定谁有资格进入哪条队列。
-
 ## Worker 按固定顺序推进一个 Turn
 
 任务函数接收 `turn_id` 后，先读取领域状态。Completed、Failed、Cancelled、Expired 等终态直接返回；Pending 或可恢复状态才尝试取得执行 Lease。已有活动 Owner 时，这条消息是重复交付或并发恢复，当前 Worker 不得推进状态。
@@ -221,7 +216,6 @@ sequenceDiagram
 ```
 
 如果 Worker 在收到 `receipt 901` 后崩溃，第二次交付读取动作记录。记录为 Succeeded 时直接使用回执；记录仍是 Started 且下游支持查询，就按 Action ID 查询；无法确认时进入 Unknown 或人工核对，不能把“没有本地结果”当成“外部没有执行”。
-
 ## Visibility Timeout、Time Limit 与 Deadline 各管一层
 
 Redis Broker 的 Visibility Timeout 决定已被预留但尚未确认的消息，多久后重新变为可交付。它不是 Worker 执行超时，也不是用户 Deadline。设置短于正常长任务时间，消息会在第一个 Worker 仍运行时重新投递；执行 Lease 可以挡住双跑，但 Broker 会产生无效交付和日志噪声。
@@ -233,7 +227,6 @@ Celery 的 Soft Time Limit 给任务一个可捕获的中断机会，代码可�
 配置需要满足基本顺序：正常任务应在 Soft Time Limit 前主动完成或停止，Hard Time Limit 给清理留出短窗口，Visibility Timeout 不应比硬终止窗口更短。具体秒数来自任务耗时和恢复目标，不能把某个示例值当成通用答案。
 
 连接丢失时取消长任务，只能停止当前 Worker 中的执行。数据库里的 Turn 仍要由取消、失败或恢复流程形成明确状态；Broker 重连后也可能再次投递。进程生命周期信号和领域状态转换是两回事。
-
 ## Retry 只重做可恢复的失败边界
 
 Celery Retry 适合短暂网络错误、供应商限流或准入资源暂不可用。认证失败、Schema 错误、权限拒绝、内容安全拒绝和 Deadline 过期没有重试意义，应提交确定性终态并结束消息。
@@ -249,7 +242,6 @@ Celery Retry 适合短暂网络错误、供应商限流或准入资源暂不可�
 重试只提供下一次执行机会。若外部系统已经创建工单，却不支持幂等键或按 Action ID 查询，第二次调用仍可能创建重复工单。此时先设计补偿或人工核对，再开启自动重试。
 
 :::
-
 ## 停机、连接丢失与取消需要不同处理
 
 计划发布时，Worker 应先停止领取新消息，再等待当前任务完成或到达安全 Checkpoint。直接终止全部子进程会把每个运行任务都变成恢复候选，还可能留下正在执行的外部请求。优雅停机的等待时间必须小于部署平台的最终 Kill 窗口，否则配置了 Warm Shutdown，平台仍会在它清理完之前发送强制终止。
@@ -263,7 +255,6 @@ Broker 连接丢失又是另一种情况。Worker 可能仍在执行，但已经
 强制 Terminate 更不能作为普通取消接口。它可能在数据库事务、文件写入或第三方调用中间杀死进程，清理代码没有运行机会。只有确认任务失控、风险高于中断副作用时才由运维使用，随后必须进入恢复或人工核对流程。
 
 四种信号留下不同事件：部署排空记录 `turn.checkpointed` 与版本，连接丢失记录 Worker Lost，用户取消记录请求者与 Cancelled，硬终止记录操作来源和当时的 Action。它们最后都可能触发重新投递，却不能统一写成“任务异常”，否则无法判断该恢复、补偿还是结束。
-
 ## 恢复扫描处理领域状态与队列状态不一致
 
 队列显示没有活动任务，不等于 Running Turn 已经结束；消息可能丢失、被错误确认，Worker 也可能在提交状态前退出。后台恢复器定期查询超过进展阈值的非终态 Turn，并与 Execution Lease 对照。
@@ -275,7 +266,6 @@ Broker 连接丢失又是另一种情况。Worker 可能仍在执行，但已经
 恢复器不可用会延长中断时间，却不应改变已有 Turn 的所有权。它访问 Lease Store 失败时按高风险路径失败关闭，不能把“查询不到”解释成“没有 Owner”。恢复投递失败则保留已 Claim 的记录和错误，下一轮按幂等规则重试。
 
 Broker 指标和领域指标需要对账：队列无积压但 Stalled Turn 增长，可能有提前 ACK 或恢复器故障；队列积压很高而 Running 很少，可能是 Worker、路由或准入异常；Running 很高且 Execution Lease 很少，说明所有权维护或清理存在缺口。
-
 ## 用本地示例观察两次交付
 
 下面的示例不启动 Celery 和 Redis，它把 Broker Delivery、领域 Turn、Execution Owner 与 Action Ledger 分开，专门验证重复投递时的控制逻辑。Fake Action 不能证明真实 Broker 或外部服务可靠。
@@ -292,7 +282,6 @@ Broker 指标和领域指标需要对账：队列无积压但 Stalled Turn 增�
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=examples/ai-agent \
   python3 -m unittest examples/ai-agent/tests/test_celery_delivery.py
 ```
-
 ## 沿一次 Worker 丢失定位责任层
 
 故障现象是页面长时间停在 Running，Broker 日志显示同一个 `turn_id` 被交付两次。排查不需要先读完整 Prompt，可以沿四层证据收缩范围：
@@ -309,7 +298,6 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=examples/ai-agent \
 Worker B 只有在 A 的 Execution Lease 过期后才能接管。它读到 Action 7 的 Succeeded 回执，补交 Completed。若 B 看不到动作记录，问题在业务动作持久化；若 A 的 Lease 仍有效却由 B 开始执行，问题在所有权门禁；若数据库已经 Completed 仍再次调用工具，问题在终态快速路径；若消息没有重投且 Turn 一直 Running，检查 ACK 配置与恢复扫描。
 
 这类证据链比一段“Worker 可能异常”的日志有用。每层记录稳定 ID、时间、状态和错误类，不把用户正文或凭证放进指标标签。Trace 通过 `turn_id` 关联 Broker、Worker 与业务动作，Delivery Attempt 只用于区分实际交付。
-
 ## 测试必须主动制造崩溃缝隙
 
 普通单元测试只跑成功路径，无法证明至少一次投递安全。需要在几个提交边界插入故障：领取后、Lease 后、动作预留后、外部成功后、Checkpoint 后、终态提交后和 ACK 前。每个位置都重新投递同一 Turn，断言领域终态单调、Action 只生效一次、旧 Owner 无法写入。
@@ -321,7 +309,6 @@ Worker B 只有在 A 的 Execution Lease 过期后才能接管。它读到 Actio
 并发测试让两条相同消息同时到达不同 Worker，只有一个取得 Execution Lease。第二个不得调用模型、检索和工具。Lease 过期接管后，旧 Worker 的迟到 Checkpoint 与终态提交由 Owner Token、Generation 和 Revision 拒绝。
 
 取消测试覆盖 Pending 和 Running。Pending 可以直接形成 Cancelled 并释放容量；Running 写入取消请求，Worker 在安全点停止。消息随后重投时读取 Cancelled 并 ACK，不能因重投把状态改回 Running。
-
 ## 队列拆分、发布与运行手册
 
 在线回答、文档导入、知识投影和离线评测的耗时与优先级不同，放进独立队列可以分别配置 Worker 并发、预取和扩缩容。队列拆分只隔离交付，数据库连接、模型配额和 Redis 仍可能共享，需要资源级准入。
@@ -337,8 +324,8 @@ Worker B 只有在 A 的 Execution Lease 过期后才能接管。它读到 Actio
 运行手册从一个 `turn_id` 开始，依次查看领域状态与 Deadline、Execution Owner、Celery Task 和 Delivery、最后 Checkpoint 和 Action 回执。手动重投前先确认没有活动 Owner；手动删除消息前先确认 Turn 已终态或另有恢复路径。清空队列、无条件删 Lease 和直接把 Running 改成 Completed 都会丢失证据。
 
 Celery 适合由应用状态机承担业务恢复、任务步骤相对清晰的异步执行。跨天等待、人工信号、大量定时器和复杂补偿越来越多时，持久化工作流引擎更容易表达历史与恢复；即便迁移，Turn、Action ID、权限快照和幂等边界仍然保留。下一篇先处理结果交付：SSE 如何用事件序号完成断线重放，而不把浏览器连接绑在 Worker 生命周期上。
-
 ## ACK 只说明消息处理，不说明业务完成
+
 Celery 的 ACK、重试和可见性超时属于消息层语义。业务状态仍由 Turn、Task 和 Action 账本确认，Worker 在外部副作用后崩溃时必须依靠幂等键与回执判断是否重做。
 
 晚 ACK、Worker 丢失、Lease 过期和版本不兼容都要进入独立错误类。旧消息不能被无限重试，协议版本错误应保留原消息并转人工或隔离队列。

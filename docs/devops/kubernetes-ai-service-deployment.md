@@ -58,7 +58,6 @@ Node 还要有足够电源、散热、IOMMU 与正确固件。GPU 掉线、ECC �
 把设备枚举、驱动版本、CUDA Runtime、显存分配和一次小矩阵运算分别记录。没有目标 GPU 时可以做 YAML、资源名和版本矩阵的静态检查，但不填写实际算力或显存结论。
 
 :::
-
 ## Container Toolkit 和 Runtime 怎样把设备注入容器
 
 Kubernetes 通过 CRI 调用 containerd 或 CRI-O。GPU Container Toolkit 为运行时提供设备发现与注入能力，可以通过 RuntimeClass、CDI 或实现支持的方式选择设备。它不会参与 Scheduler 的资源计算，只处理已经分配给容器的设备进入运行环境。
@@ -70,7 +69,6 @@ Kubernetes 通过 CRI 调用 containerd 或 CRI-O。GPU Container Toolkit 为运
 Runtime 配置错误常见证据是容器创建失败、OCI Hook 错误、设备文件缺失或动态库加载失败。此时 Pod 可能进入 `CreateContainerError`，也可能容器启动后框架报告 CUDA unavailable。要同时读取 kubelet、Runtime 和应用日志。
 
 最小验证是在同一 RuntimeClass 与镜像下运行只读设备查询和小张量计算。只运行 `nvidia-smi` 仍没经过目标框架 Kernel；只导入 PyTorch 也未触发 Device。候选测试应依次覆盖枚举、分配、运算和释放。
-
 ## Device Plugin 怎样向 kubelet 注册扩展资源
 
 Device Plugin 是在 Node 上运行的组件，向 kubelet 注册资源名、设备列表和分配方法。NVIDIA 插件常公开 `nvidia.com/gpu`。kubelet 把可分配数量写入 Node Capacity 与 Allocatable，Scheduler 才能把 Pod 的资源请求与 Node 匹配。
@@ -82,7 +80,6 @@ Device Plugin 是在 Node 上运行的组件，向 kubelet 注册资源名、设
 Node 有物理 GPU 但 Allocatable 为零时，检查插件 Pod、日志、kubelet Plugin Registration 和节点标签。若 Allocatable 正常而 Pod Pending，继续看资源是否已被其他 Pod 请求、Affinity 或 Taint 是否阻止调度。
 
 设备插件 API 的边界是设备发现与分配。它不跟踪模型使用了多少显存，也不按 Token 自动扩缩。运行层的容量由应用和监控负责，调度层只认公开的资源单位与标签。
-
 ## GPU Operator 是什么，它管理哪些节点组件
 
 GPU Operator 是 NVIDIA 提供的 Kubernetes Operator，用自定义资源和控制器管理驱动、Container Toolkit、Device Plugin、Node Feature Discovery、监控等 GPU 软件栈。它适合希望统一安装和升级节点组件的集群，但不是 Kubernetes 使用 GPU 的唯一方式。
@@ -94,7 +91,6 @@ Node Feature Discovery 可以给节点添加硬件标签，Device Plugin 提供�
 使用 Operator 会扩大控制器权限和节点级 DaemonSet 范围，安装要经过安全审查。驱动容器可能需要特权访问，升级可能重启节点组件。生产变更应按节点池滚动，保留可回滚版本，不在所有 GPU Node 同时尝试。
 
 静态阶段能校验 Helm Values 与 CRD Schema，真实验证必须查看 ClusterPolicy Condition、各 DaemonSet Ready、Node Allocatable 和测试 Pod。任何一项失败都不能跳到模型层猜测。
-
 ## Scheduler 怎样为请求 GPU 的 Pod 选择 Node
 
 PodSpec 在 `resources.limits` 中声明扩展资源。API Server 接受对象后，Scheduler 查找 Allocatable 足够且其他约束满足的 Node。绑定结果写入 Pod 的 `spec.nodeName`，之后由该 Node 的 kubelet 执行设备分配与容器创建。
@@ -106,7 +102,6 @@ GPU Pod Pending 时，`kubectl describe pod` 事件可能显示 `Insufficient nv
 资源已绑定后，Scheduler 不再监控显存。进程启动后 OOM 不会触发自动换到更大 GPU，除非应用失败导致上层控制器重建，而调度约束又允许其他 Node。选择正确型号应在调度前表达。
 
 多 GPU Pod 请求 2 张设备，插件会给同一 Node 上的两个单位。它不保证设备之间有高速互联。张量并行还要检查拓扑标签或专用调度策略，下一篇会展开。
-
 ## 模型制品怎样进入 Pod
 
 GPU 进入容器只解决计算设备，模型权重还要从镜像、PVC、对象存储或节点缓存进入。把几十 GB 权重打进镜像会让镜像拉取和版本发布很重；启动时从对象存储下载易于独立版本，却要处理带宽、并发、断点、校验和缓存。
@@ -118,7 +113,6 @@ PVC 提供共享或持久存储，访问模式和拓扑要与 Node 匹配。只�
 HostPath 或节点缓存速度快，但把 Pod 绑定到已有缓存的 Node。缓存命中应作为性能优化，缺失时仍能从可信源重建。缓存清理只删除无引用版本，不能用模糊目录匹配清空整个节点模型库。
 
 Secret 负责下载凭证，不直接保存大权重。凭证短期化并限制对象前缀，日志不打印 URL 查询参数。下载失败、Hash 不符和空间不足要留下不同退出码和事件。
-
 ## Startup、Readiness 和 Liveness 怎样覆盖模型加载
 
 容器进程启动后，Serving 引擎可能仍在读取权重、建立 CUDA Context、分配 KV Cache、编译 Kernel 和 Warmup。Startup Probe 在这一阶段轮询，时间窗要覆盖合理冷启动。Startup 失败超过阈值，kubelet 重启容器，日志应说明停在哪一步。
@@ -130,7 +124,6 @@ Liveness 判断内部是否不可恢复。GPU Worker 消失、Engine 事件循�
 探针参数包括 initial delay、period、timeout 和 failure threshold。Startup Probe 存在时可以把慢启动与持续健康分开。超时过短会在节点繁忙时误杀，过长则延迟发现卡死。实际加载时间分布要进入配置依据。
 
 模型 Ready 后还要从 Service 入口发合成请求。Probe 只覆盖 Pod 内状态，不能证明 Endpoint、代理和协议。合成请求使用无敏感固定 Prompt，记录模型版本与 finish reason。
-
 ## GPU 模型 Pod 的资源和共享内存怎样声明
 
 Pod 请求 GPU 的同时要声明 CPU、内存和临时存储。CPU 负责分词、网络和调度，主存承担权重下载与加载暂存，临时存储保存模型或编译缓存。只给 GPU 不给其他资源，可能出现 GPU 空闲而 Pod 被 CPU Throttling 或 OOM Kill。
@@ -142,7 +135,6 @@ GPU 扩展资源写在 Limit 中，普通 CPU 与内存同时写 Request/Limit�
 安全上下文应移除不需要的 Linux Capability、使用只读根文件系统并限制特权。GPU Runtime 不要求业务容器本身是 privileged。模型目录只读，临时目录单独可写，减少进程修改制品的机会。
 
 资源声明通过静态 Schema 后，还要在候选 Node 观察 CPU、内存、显存、共享内存与磁盘峰值。Request 依据运行分布调整，而不是复制另一个模型的值。
-
 ## 一份解释性 Deployment 怎样写
 
 下面 YAML 只展示关键字段。镜像 digest、StorageClass、PVC、资源、RuntimeClass 和健康路径都需要按目标环境替换，当前未在真实 GPU 集群执行。
@@ -201,7 +193,6 @@ spec:
 YAML 把 GPU、CPU、主存、模型卷和共享内存分别声明。Startup 最多允许约十分钟才判定失败，实际值要来自冷启动测量。Readiness 只在引擎可接流量时成功。它还缺 Service、NetworkPolicy、ServiceAccount 与 PodDisruptionBudget，不能直接当生产清单。
 
 静态检查包括 YAML 解析、Kubernetes Schema、镜像 digest 格式、资源数量和探针路径合同。目标集群检查还要经过 Admission、RuntimeClass、PVC 绑定和 GPU 调度。只有真实最小推理能证明镜像、模型与设备兼容。
-
 ## 镜像、驱动、CUDA 和模型格式怎样形成兼容矩阵
 
 GPU 容器能否运行由多个版本共同决定。宿主驱动支持一组 CUDA 用户态能力，镜像包含特定 PyTorch、Serving 引擎和 Kernel，GPU 本身有 Compute Capability，模型还声明 dtype、量化与架构。任何一项超出支持范围，都可能在不同阶段失败。
@@ -213,7 +204,6 @@ GPU 容器能否运行由多个版本共同决定。宿主驱动支持一组 CUD
 候选验证先运行最小张量运算，再加载目标模型，最后跑协议与固定样本。一个小 CUDA 样例通过只能证明基础 Runtime 路径，不能替模型 Kernel。模型加载成功也不能证明工具调用、SSE 和长上下文行为。
 
 升级任何一项都重新执行矩阵。驱动滚动升级按 Node 池，镜像升级按候选 Deployment，模型升级保留独立 Revision。一次只改变可解释的变量，失败时才能找到版本边界。没有覆盖的 GPU 型号标为未验证，不能从同系列另一张卡直接推断。
-
 ## GPU 服务滚动发布为什么需要额外容量
 
 普通 CPU Deployment 可以用 Surge 新建一个 Pod，再删除旧 Pod。独占 GPU 集群若所有设备都被旧副本占满，新 Pod 会 Pending，更新无法推进。将 `maxUnavailable` 设为 1 可以先释放旧 GPU，但这段时间副本减少，容量与可用性要接受影响。
@@ -225,7 +215,6 @@ GPU 容器能否运行由多个版本共同决定。宿主驱动支持一组 CUD
 原生 RollingUpdate 也能使用，只是 Readiness 必须准确，且 `minReadySeconds` 与进度期限覆盖 Warmup。Pod Ready 后立即承接大量流量，Cache 还冷，首批延迟可能很高。流量预热和逐步增加权重要由 Gateway 或渐进发布控制器实现。
 
 发布完成后清理旧 ReplicaSet、模型缓存和镜像要保留回滚点。不能因为资源紧张就先删唯一旧版本。清理前建立 Pod、镜像 digest、模型 Revision 和 PVC 引用清单，只删除确认无引用的候选产物。
-
 ## GPU Pod 的权限和网络边界怎样设置
 
 业务容器获得 GPU 设备，不等于需要宿主特权。默认禁止 privileged、Host PID、Host Network 和任意 HostPath，移除 Linux Capability，使用非 root 用户和只读根文件系统。GPU 注入由 Runtime 完成，应用只访问被分配设备。
@@ -237,7 +226,6 @@ NetworkPolicy 只允许 Gateway 调用模型端口，允许监控抓取明确指
 模型目录只读，下载与校验由受限 Init Container 或专用缓存服务完成。动态 Adapter 路径不能由外部请求传成本地任意文件。引擎若支持远程代码，发布时固定 Revision 并审查，运行时不从不可信仓库下载执行。
 
 设备共享会扩大侧信道和资源干扰边界。多租户是否可共享同一物理 GPU，要根据硬件隔离、MIG、MPS 和威胁模型决定。Kubernetes Namespace 本身不能隔离显存访问，资源插件和设备模式才决定可见范围。
-
 ## 哪些指标能说明模型 Pod 卡在哪一层
 
 Node 层记录 GPU 健康、驱动错误、温度、功耗、显存和设备利用。Kubernetes 层记录 Pod Phase、Condition、重启、调度事件、镜像拉取、PVC 与探针。引擎层记录模型加载阶段、KV Block、waiting/running、TTFT、TPOT、取消和错误。
@@ -249,7 +237,6 @@ Pod Pending 没有 GPU 利用数据属于正常，因为容器未启动。Pod Ru
 告警要对应动作。设备 Xid 错误可能隔离 Node，连续 Startup 失败阻止发布，Readiness 大面积下降停止路由，单请求超长则在 Gateway 拒绝。把所有情况都配置成重启 Pod，会掩盖节点和配置根因。
 
 指标不是唯一证据。事件有状态转移，日志给错误上下文，合成请求证明实际入口。排障记录按时间排列三个来源，避免把五分钟前旧 Pod 的日志配到当前新 Pod 的指标。
-
 ## 常见失败怎样按状态位置区分
 
 Pod Pending 且事件为扩展资源不足，说明 Scheduler 找不到可分配单位。检查 Device Plugin、其他 Pod 请求和 Node 约束。Pod 已绑定但 `CreateContainerError`，查看 RuntimeClass、Toolkit、设备节点和容器 Runtime 日志。两个阶段都没有应用日志。
@@ -261,7 +248,6 @@ Pod Ready 却从 Service 访问失败，检查 Selector、Endpoint、端口和 N
 节点驱动错误后，重建 Pod 可能仍落回同一坏节点并重复失败。需要把 Node 标记不可调度、驱逐受影响工作负载并走硬件恢复。单个模型 Revision 错误则不应隔离整个节点，回滚 Deployment 或模型指针即可。
 
 这组分类的目的不是背错误表，而是确认请求到达了哪一层。每一次诊断都先找到最后一个成功状态和第一个失败状态，二者之间才是调查范围。没有证据的后续阶段保持未知。
-
 ## 节点维护和设备故障时怎样恢复
 
 计划维护从 Cordon 和 Drain 开始。Cordon 阻止新 Pod 调度到 Node，Drain 按策略驱逐可驱逐工作负载。GPU 训练 Job 和长请求可能需要检查点或优雅取消，PodDisruptionBudget 会限制同时可用副本下降。强制删除前要明确业务损失。
@@ -273,7 +259,6 @@ Serving 副本恢复需要重新加载模型，不能把 Pod Running 当作容�
 Node 回到集群前运行分层验收：宿主设备查询、容器最小 CUDA、目标镜像最小张量、模型加载与合成请求。只看到 Node Ready 不足。验收失败的 Node 保持隔离，不能让业务 Pod 反复承担诊断。
 
 非计划故障的恢复记录包括受影响 Pod、未完成请求、重试语义、设备错误、替代 Node 和恢复时间。客户端是否重试由请求幂等性决定，流式已输出部分内容时不能无条件重新计费或拼接。
-
 ## 候选集群应验证哪些成功和失败路径
 
 成功路径至少覆盖 Pod 调度、设备注入、模型校验、权重加载、Warmup、Readiness、Service 非流式与 SSE。记录每一步耗时用于探针与发布期限，不用单次结果承诺长期性能。重启一次 Pod，确认缓存冷时仍能恢复。
@@ -285,7 +270,6 @@ Node 回到集群前运行分层验收：宿主设备查询、容器最小 CUDA�
 资源测试记录 CPU、主存、临时盘、共享内存和每卡显存峰值。多副本同时冷启动时再测对象存储和节点网络。单 Pod 成功不证明 RollingUpdate 有足够 Surge 资源，也不证明多副本不会争抢缓存。
 
 所有测试用固定镜像 digest、模型 Hash、集群版本和节点型号。未覆盖的 MIG、共享、多卡或另一 GPU 架构列为未验证。静态 YAML、Server Dry Run 和真实集群结果分栏保存，避免审批者把三者当成同一等级。
-
 ## 从节点预检到模型 Ready 的状态图
 
 下面的图把组件依赖按顺序放在一起。它的用途是定位哪一步还没有证据，不表示所有组件由同一个团队管理。
@@ -307,7 +291,6 @@ flowchart LR
 两条路径在 kubelet 创建容器前汇合：调度要求扩展资源存在，Runtime 要能执行设备注入。容器创建成功后才轮到模型。若 Pod Pending，查 Scheduler 与资源；若 CreateContainerError，查 Runtime；若 Running 不 Ready，查模型加载与探针。
 
 图后的验证要读取实际对象。Node Allocatable、Device Plugin 日志、Pod 事件、容器设备、模型 Manifest、Warmup 输出和 EndpointSlice 分别对应一个节点。缺少中间证据时，不能从末端 503 直接判断 GPU 坏了。
-
 ## 一次 GPU Pod 启动失败再恢复怎样完整推演
 
 输入是固定镜像 digest、模型 Revision、PVC 与请求一张 GPU 的 Deployment。Node 上驱动正常，但 Device Plugin DaemonSet 因配置错误没有注册 `nvidia.com/gpu`。Pod 创建后保持 Pending，Scheduler 事件显示扩展资源不足，容器日志为空，因为容器尚未创建。
@@ -319,10 +302,3 @@ flowchart LR
 业务验证从 Service 入口发非流式和 SSE 最小请求，记录响应模型名、首 Token、完成标记与错误。发送超过上下文上限的请求，应在准入层拒绝；取消流式请求后，running 序列和 KV Block 回落。最后删除 Pod，Deployment 补回新实例并重新通过全部状态。
 
 终止验证让实例先 Readiness false，停止新请求，已有请求在 Grace Period 内完成或被明确取消，然后进程退出。若直接 SIGKILL 导致客户端连接无说明中断，需要调整 Drain 和超时。当前文本只定义验证步骤，真实结果必须在隔离 GPU 集群补写，不能用 YAML 静态通过代替。
-
-## 机制复核：GPU 怎样进入 Kubernetes Pod？从节点驱动到模型就绪
-基础设施文章最终要回答资源从哪里来、由谁调度、失败如何回收。把模型、GPU、网络、队列、制品和数据的生命周期画成一条链，分别记录容量单位、版本身份、健康信号和所有权。单一利用率或一次成功启动不能证明系统可用。
-
-落地验证分成离线配置检查、隔离环境运行和候选发布回归。至少覆盖资源不足、进程重启、重复任务、网络抖动和旧版本并存，并保留命令输出、指标时间窗和回滚点。生产环境只运行已构建产物，构建和压力实验放在独立环境。
-
-性能数字需要说明硬件、输入规模、并发模型和测量口径。观察到长尾或成本异常时，先定位排队、计算、传输、存储和重试分别占用的时间，再决定扩容、限流、批处理或降级。

@@ -33,17 +33,14 @@ Vue 组件封装模板、状态和行为；Props 从父级传入数据，Emits �
 setup 在实例建立时执行，响应式 Render Effect 随挂载创建。beforeMount/mounted 围绕首次 DOM 提交，beforeUpdate/updated 围绕后续 Patch，beforeUnmount/unmounted 负责资源释放。父子 Hook 顺序应通过实验观察，业务不要依赖未承诺的兄弟顺序。
 
 服务端渲染没有真实 DOM，mounted 不在服务端运行。组合函数如果在模块顶层创建可变单例，可能跨请求泄漏状态。
-
 ## Props 与 Emits 是双向契约
 
 Props 应声明类型、必填和运行时验证边界；对象默认值使用工厂避免共享。接收 prop 后不要复制到本地 state 再用 watch 永久同步，除非明确建立“初始值后独立编辑”的语义。
 
 Emits 声明事件名和 payload。`v-model` 是 `modelValue` 与 `update:modelValue` 的约定，可通过参数支持多个模型。事件不会像 DOM 事件一样自动冒泡穿过组件树，跨层通信应选择提升状态、provide/inject 或 store。
-
 ## Slot 的作用域
 
 Slot 内容在父组件作用域编译，子组件决定渲染位置并可通过 slot props 暴露有限状态。Scoped slot 本质是父级提供的渲染函数，子级调用时传入数据。高频列表中的复杂 slot 会增加调用和 VNode 工作，应先测量再优化。
-
 ## 对话框实践
 
 对话框由父级控制 open，子级 emit `update:open`；内部只维护焦点和动画阶段。打开时在 mounted/updated 后设置焦点，关闭和卸载时释放键盘监听，焦点返回触发点。
@@ -51,7 +48,6 @@ Slot 内容在父组件作用域编译，子组件决定渲染位置并可通过
 测试使用 role=dialog、标题和键盘行为，不读取组件私有 ref。切换 keep-alive 时还要区分 activated/deactivated 与真正 unmounted，暂停和销毁资源的策略不同。
 
 Vue 组件设计要同时处理状态所有者、生命周期副作用、Slot 编译作用域、事件传播和 SSR 边界。Hook 名称只说明 API，不说明组件职责。
-
 ## 组件实例从创建到更新
 
 父 VNode 被 patch 时，Renderer 为子组件创建实例，初始化 props、slots、provides 和 effect scope，再执行 `setup`。首次组件 Effect 调用 render 得到 subTree，patch 宿主节点，然后运行 mounted 队列。更新时先判断 props/slots 是否要求重渲染，写入 next VNode，执行 beforeUpdate，重新 render/patch，最后 updated。
@@ -67,23 +63,14 @@ unmount: stop scope -> unmount subTree -> unmounted
 ```
 
 生命周期 Hook 注册在当前组件实例上，Hook 内创建的 watcher/computed 通常随 effect scope 停止；手工创建的全局监听器、第三方实例和异步任务仍需显式 cleanup。`KeepAlive` 的 deactivated 不是 unmounted，资源应根据“暂时不可见”还是“彻底销毁”选择暂停或释放。
-
 ## Props、Emits 与 Slots 的契约
 
 Props 是父到子的只读输入；子组件修改嵌套对象虽然可能在 JavaScript 层可行，却破坏所有权，应 emit 意图让父级决策。组件事件不会像 DOM 事件自动冒泡，祖先通信应通过显式透传、Store 或 provide/inject，而不是假设事件穿过组件树。
 
 Slot 函数在父作用域创建，因此读取父依赖；子组件决定调用时机和位置。Scoped slot 参数是子向父提供的渲染输入，不转移状态所有权。高阶组件若无条件转发 `$attrs`、slots 和 events，要检查事件重复、属性落到错误 DOM 以及可访问名称丢失。
-
 ## 官方依据
 
 - [Vue: Lifecycle Hooks](https://vuejs.org/guide/essentials/lifecycle.html)
 - [Vue: Component Basics](https://vuejs.org/guide/essentials/component-basics.html)
 - [Vue: Slots](https://vuejs.org/guide/components/slots.html)
 - [Vue source: component.ts](https://github.com/vuejs/core/blob/main/packages/runtime-core/src/component.ts)
-
-## 迁移复核：Vue 组件、生命周期、Props、Emits 与 Slots
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

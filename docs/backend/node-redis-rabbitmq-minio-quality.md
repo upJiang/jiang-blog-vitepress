@@ -44,7 +44,6 @@ RabbitMQ 的 Connection 和 Channel 不是同一层。TCP Connection 可以长�
 | MinIO | Endpoint、TLS、Bucket | presign/head/delete |
 | MySQL/Prisma | 连接池、事务客户端 | 状态与 Outbox |
 | OpenTelemetry | SDK/Exporter | Span/结构化字段 |
-
 ## 任务 ID 同时约束消息、对象与数据库状态
 
 API 在 MySQL 创建 task 与 Outbox；Worker 收到 task_id 后领取 attempt，用确定性对象 key `tenant/task/task-id/result.json` 上传。完成更新匹配 task_id 与 attempt，旧 Worker 无法覆盖新结果。
@@ -72,9 +71,9 @@ channel.ack(message)
 
 LostTaskLease 时不能把旧 attempt 标成成功。对象成为孤儿，由按 task 状态和保留期执行的清理器删除；ACK/NACK 由错误分类决定。
 
-发布端也有一个不能省略的状态。Outbox Dispatcher 在 ConfirmChannel 上发送事件，等待 Broker confirm 后才把 `published_at` 写入 MySQL。网络在 confirm 返回前中断时，发布结果未知，Dispatcher 会再次发送；消费者必须用 `event_id` 的唯一 Inbox 记录去重。Publisher confirm 证明 Broker 接收了消息，**不证明消费者完成业务，也不等于 MySQL 与 RabbitMQ 原子提交。**
+发布端也有一个不能省略的状态。Outbox Dispatcher 在 ConfirmChannel 上发送事件，等待 Broker confirm 后才把 `published_at` 写入 MySQL。网络在 confirm 返回前中断时，发布结果未知，Dispatcher 会再次发送；消费者必须用 `event_id` 的唯一 Inbox 记录去重。
 
-## 测试用真实依赖验证协议，用替身验证规则
+Publisher confirm 证明 Broker 接收了消息，**不证明消费者完成业务，也不等于 MySQL 与 RabbitMQ 原子提交。**## 测试用真实依赖验证协议，用替身验证规则
 
 Service 单测替换 Cache、Publisher 和 ObjectStore 端口，验证 key、错误分类与状态转换。集成测试启动固定版本 Redis/RabbitMQ/MinIO/MySQL，使用唯一 run_id 前缀、Queue 与 Bucket key，测试结束精确删除。
 
@@ -91,7 +90,6 @@ flowchart LR
 ```
 
 并行测试不共享 Queue consumer 或数据库行。失败时保留容器日志到临时 Artifact，清理只匹配当前 run_id。
-
 ## 质量门禁覆盖编译之外的运行事实
 
 Node 项目运行 ESLint、TypeScript、Jest 单元/集成、OpenAPI 契约和生产 build；镜像启动后做 health 与 SIGTERM drain。依赖锁文件固定，native argon2 模块在目标架构镜像中验证。
@@ -99,7 +97,6 @@ Node 项目运行 ESLint、TypeScript、Jest 单元/集成、OpenAPI 契约和�
 运行指标观察 Redis 错误/命中、publish confirm、ready/unacked/DLQ、MinIO 延迟、任务 oldest age 和进程 event loop delay。外部依赖错误按稳定 code 输出，不泄露 endpoint 和凭证。
 
 停机测试不能只看进程最终退出。先把 readiness 切为失败，停止 HTTP 新流量与 Consumer 拉取，等待有上限的在途任务；随后关闭 Channel、Connection、Redis、Prisma，最后 flush Trace。测试在 confirm 未返回、对象正在上传和 Redis 命令超时三个位置发送 SIGTERM，确认消息要么已 ACK 并有数据库终态，要么会被重新投递。
-
 ## 外部依赖的并发与恢复边界
 
 **RabbitMQ Channel 可以被多个 Consumer 共用吗？**
@@ -117,10 +114,3 @@ Node 项目运行 ESLint、TypeScript、Jest 单元/集成、OpenAPI 契约和�
 **缓存异常时 Node API 应自动无限重连吗？**
 
 无限快速重连会阻塞和放大故障。客户端退避重连，业务按操作选择降级/拒绝，readiness 与告警反映状态，并保护 MySQL 回源。
-
-## 机制复核：Node.js 接入 Redis、RabbitMQ、MinIO 与质量门禁
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

@@ -58,7 +58,6 @@ query cache: invalidate ["projects"]
 | 退出 | `POST /auth/logout` | 撤销 Session | 即使重复调用也应得到稳定终态 |
 
 没有先加入角色配置页面、文件上传和消息队列，因为它们会让第一次调用链难以读完。后续章节会在同一模型上扩展，而不是重新建一套互不相关的演示项目。
-
 ## 目录让职责可以被追踪
 
 ```text
@@ -98,7 +97,6 @@ flowchart LR
 ```
 
 正常路径从左到右写入，再把数据库生成的 `id`、`version` 和时间返回页面。失败路径也沿相同边界返回：DTO 错误停在 Controller 前，401 停在 Guard，租户或资源不存在由 Service 返回 404，版本冲突返回 409。
-
 ## Prisma Schema 把领域关系落成数据库约束
 
 下面的核心模型省略了审计与完整权限表，但已经包含租户、用户、会话和项目。真实示例中的 Schema 是可由 Prisma 生成 MySQL Client 的版本。
@@ -139,7 +137,6 @@ model Project {
 `tenantId` 出现在 Project 中，即使可以通过 Owner 关系推导，也让所有项目查询能直接下推租户条件。唯一约束处理并发创建同名项目，`version` 处理旧页面覆盖，`deletedAt` 为后续审计保留入口。
 
 Prisma 类型来自 Schema，但 Schema 不能替代数据库迁移。开发时用 `prisma migrate dev` 创建版本化迁移，CI 和部署环境使用 `prisma migrate deploy` 应用已经审查的迁移，不能在生产自动推送未记录结构。
-
 ## Controller 只处理 HTTP 契约
 
 创建接口需要当前主体和已经校验的 DTO。主体由 Guard 根据 Access Token 建立，不能从请求 Body 接受 `ownerId` 或 `tenantId`。
@@ -176,7 +173,6 @@ export class ProjectsController {
 ```
 
 NestJS 的全局 `ValidationPipe` 把 JSON 转成 DTO 并拒绝未知字段。Controller 依次接收验签主体、路径参数与请求 Body，再调用对应 Service；Service 返回领域结果或抛出稳定应用异常，NestJS 将结果序列化为 HTTP 响应。把 SQL 和租户判断写进 Controller 会让相同规则难以被 Worker 或测试复用，也会让协议测试与业务测试纠缠在一起。
-
 ## Service 把租户范围写进每个查询
 
 列表、详情、更新和删除必须使用同一范围规则。只在列表过滤租户，而详情使用 `findUnique({ id })`，仍会产生越权漏洞。
@@ -230,7 +226,6 @@ export class ProjectsService {
 `updateMany` 能同时表达 ID、租户、版本和未删除条件，并返回影响数量。零行后补一次受范围保护的查询：看不到记录就返回 404，能看到但版本不同则返回 409。不能先按 ID 读出其他租户数据再在内存拒绝。
 
 唯一键冲突还需要通过 Prisma 错误码映射为稳定的 `project_name_exists`，而不是把数据库索引名称暴露给前端。生产项目可使用全局异常过滤器统一完成 Prisma、校验和领域异常映射。
-
 ## React 表单拥有草稿，Query Cache 拥有服务端副本
 
 表单中的名称是用户尚未提交的草稿，React Hook Form 管理它；项目列表是服务端数据副本，TanStack Query 管理获取、缓存和失效。把两者都塞进全局 Store 会混淆生命周期。
@@ -270,7 +265,6 @@ export function CreateProjectForm() {
 前端 Schema 提前提供友好错误，后端 DTO 和数据库约束仍需独立执行。Mutation 只有收到成功状态才失效项目列表；如果请求结果未知，客户端不能直接把乐观对象当成已提交事实。
 
 更新请求携带当前 `version`。服务端返回 409 时，页面展示“记录已被其他人修改”，保留用户草稿并提供重新加载，而不是自动覆盖。
-
 ## Access Token 在请求客户端里恢复一次
 
 示例延续 JWT 章节的认证模型：短期 Access 只在内存，Refresh 是 HttpOnly Cookie。API Client 在一个请求收到 401 后合并刷新，再重放一次；React Router 在会话恢复期间显示加载状态。
@@ -293,7 +287,6 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 ```
 
 请求客户端先带当前内存 Access 发送请求，遇到 401 时等待同一个 Refresh Promise，再用新 Access 重放一次。它统一添加 Authorization、`credentials: 'include'` 并解析错误；第二次仍失败就向上抛出。业务组件只处理 `ApiProblem` 的稳定 `status/code`，不解析 NestJS 默认错误字符串或数据库异常，也不会进入无限刷新循环。
-
 ## 一次点击的状态变化表
 
 | 时刻 | 所有者 | 状态 |
@@ -309,7 +302,6 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 | T9 | React | 渲染服务端最新项目列表 |
 
 这张表也是排障顺序。按钮没触发先看表单；请求 400 看 DTO；401 看认证；409 看唯一键或版本；500 看 request ID、应用日志和数据库。不要在没有定位层次时同时修改 CORS、Token、SQL 和 Query Cache。
-
 ## 运行与验证这条链路
 
 示例需要 Docker、Node.js 和 Yarn Classic。Docker 的系统安装方式见 [Docker 官方安装入口](https://docs.docker.com/get-started/get-docker/)，Node.js 从[官方下载页](https://nodejs.org/en/download)选择仍在维护的版本。示例锁定 Yarn `1.22.22`；本机没有该命令时，可以通过 npm 安装同一版本：
@@ -349,7 +341,6 @@ yarn --cwd examples/backend/react dev
 登录示例用户后创建项目，再打开两个浏览器页面编辑同一记录。第一个页面保存成功使版本增加，第二个页面使用旧版本保存应得到 409。修改 Access Token 中的租户或用其他租户项目 ID 请求，接口应返回 404 而不是泄露记录。
 
 构建和测试至少执行 Node 单元测试、NestJS 构建、React 类型检查与生产构建。数据库行为还需要隔离 MySQL 集成测试，不能用 Mock 通过替代唯一约束、事务和迁移证据。
-
 ## 第一个全栈切片还会遇到什么
 
 **为什么不让 React 直接使用 Prisma？**
@@ -383,10 +374,3 @@ JSON 类型、长度和格式放在 DTO；跨字段业务规则与权限放 Serv
 **后面切换 FastAPI 和 Gin，React 是否需要重写？**
 
 不应重写。三套后端遵守同一 OpenAPI、状态码、认证 Cookie、分页和错误模型，React 生成的客户端与页面保持不变，只调整 API 基地址。若切换后必须大量改页面，说明接口泄露了 NestJS 默认异常或 Prisma 字段等框架细节，需要先修复契约，而不是为每套后端复制页面。
-
-## 机制复核：React、NestJS 与 Prisma：打通登录和项目 CRUD
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

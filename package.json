@@ -36,6 +36,8 @@
     "ai-agent:examples": "PYTHONPATH=examples/ai-agent python3 -m unittest discover -s examples/ai-agent/tests -p 'test_*.py' && PYTHONPATH=examples/ai-agent/mcp-python uv run --project examples/ai-agent/mcp-python --group dev pytest examples/ai-agent/mcp-python/tests && uvx --from skills-ref==0.1.1 agentskills validate examples/ai-agent/skill-example/source-grounded-review",
     "onnx:check": "node scripts/check-onnx-resources.mjs",
     "build:check": "tsx scripts/check-build.ts",
+    "article:audit": "node scripts/article-quality-audit.mjs",
+    "article:third-party": "node scripts/article-third-party-review.mjs",
     "privacy:check": "node scripts/check-privacy.mjs",
     "visual:check": "tsx scripts/visual-smoke.mjs",
     "lighthouse:check": "yarn build && node scripts/lighthouse-check.mjs",

@@ -28,7 +28,6 @@ for (const rule of rules) {
 跨源样式表受同源策略限制，读取 `cssRules` 可能抛出 SecurityError。页面能应用一张表，不代表脚本能读取它的规则文本。生产调试应记录 stylesheet URL、来源策略和加载完成时机。
 
 CSSOM 的规则修改接口，如 `insertRule`、`deleteRule`，会改变样式匹配输入。动态写入要控制规则数量和生命周期，频繁创建规则比更新一个 CSS custom property 更难维护。
-
 ## CSSStyleDeclaration 不是最终样式
 
 `element.style` 表示元素的 inline declaration block，只包含 `style=""` 或脚本写入的声明。它不包含外部样式表、继承值和用户代理样式。
@@ -43,7 +42,6 @@ console.log(card.style.getPropertyValue('--accent'))
 ~~~
 
 声明有优先级标记、原始字符串和规范化序列化等细节。删除 inline 声明使用 `removeProperty`，赋空字符串也可能达到相同效果，但对自定义属性和优先级的处理应以 CSSOM 行为为准。
-
 ## 最终样式经过级联和继承
 
 样式规则匹配后，浏览器按 origin、importance、cascade layer、specificity 和源码顺序等条件选择胜出的声明。继承属性从父元素传给子元素，非继承属性通常使用初始值或计算值。
@@ -59,7 +57,6 @@ console.log(style.getPropertyValue('margin-left'))
 ~~~
 
 伪元素需要传入 `::before` 或 `::after`。读取不存在的伪元素会得到默认对象或警告，不能把它当作普通 DOM 节点修改。
-
 ## CSSOM View 提供多个坐标系
 
 `getBoundingClientRect` 返回相对视口的 DOMRect，滚动页面后 top 和 left 会变化。加上 `scrollX`、`scrollY` 才能近似得到文档坐标。
@@ -74,7 +71,6 @@ console.log({ viewportTop: rect.top, documentTop })
 ~~~
 
 `offsetWidth`、`clientWidth`、`scrollWidth` 分别包含不同的边框、内边距和溢出范围。尺寸测试必须写清盒模型、滚动条和设备像素比。
-
 ## 读写顺序会触发布局同步
 
 样式写入先让样式或布局失效。紧接着读取 `offsetHeight`、`getBoundingClientRect` 或某些 computed style 时，浏览器可能同步完成尚未处理的样式计算和布局，这常被称作 forced synchronous layout。
@@ -87,7 +83,6 @@ for (const item of document.querySelectorAll('.item')) {
 ~~~
 
 循环里的读写交错会放大布局成本。批量读取几何，再批量写入样式，或使用 class、CSS variables 和 requestAnimationFrame 合并更新。是否真的触发布局取决于引擎和当前失效状态，不能只靠 API 名称推断。
-
 ## CSSOM 不等于安全边界
 
 脚本可以通过 CSSOM 读取和修改当前 origin 允许访问的规则。它不会绕过 CSP、同源策略或跨源资源的响应限制。把用户输入拼进 selector、style 或 URL 仍需要转义和校验。

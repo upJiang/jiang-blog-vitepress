@@ -34,7 +34,6 @@ Promise 手写题最常见的错误，是只实现 `pending/fulfilled/rejected` 
 Promise 从 pending 只能转换为 fulfilled 或 rejected，一旦 settled 就不能改变。executor 同步执行，第一次 resolve/reject 生效；executor 抛错等价于 reject。`then` 注册的回调则进入微任务，不会在当前调用栈同步运行。
 
 resolve 接收普通值、Promise 或任意带 `then` 的对象。实现必须安全取得 `then`，防止 getter 抛错；调用 thenable 时只接受第一次回调，防止恶意对象同时 resolve/reject。
-
 ## then 为什么返回新 Promise
 
 若 `onFulfilled` 返回值 `x`，新 Promise 要按 Resolution Procedure 处理 x。普通值直接 fulfilled；thenable 要采用其最终状态；抛错变 rejected；若 x 就是新 Promise 自身，必须以 TypeError 拒绝，避免无限递归。
@@ -73,19 +72,16 @@ function resolveValue<T>(promise: Promise<T>, value: unknown, resolve: (value: T
 resolveValue 的输入是新 Promise 与回调产物，处理过程先阻止自引用，再读取 then 并用 called 锁定首次结果；普通值输出 fulfilled，异常和拒绝输出 rejected。读取 getter 或调用 then 失败时，错误只在尚未完成采用过程时生效，避免一个 thenable 同时改变两次状态。
 
 这段代码展示协议核心，不是完整 Promise 类。真实实现还需要状态、反应队列、微任务调度、`finally` 与静态组合方法。`called` 同时保护重复回调和 then 调用后抛错的情况。
-
 ## 错误怎样沿链传播
 
 `then` 缺少成功回调时透传值，缺少失败回调时继续抛出原因。失败回调返回普通值会把下一环恢复为 fulfilled；再次 throw 才保持 rejected。`finally` 不接收结果，通常保留原状态，除非 cleanup 自身抛错或返回拒绝 Promise。
 
 `async` 函数总返回 Promise，函数内 throw 变成 rejected；`await` 暂停当前 async 函数的后续，不会阻塞线程。恢复代码进入微任务队列，因此它与 `queueMicrotask`、Promise reaction 的顺序需要按注册时机判断。
-
 ## 组合方法的失败语义
 
 `Promise.all` 保持输入顺序，任一拒绝即让结果拒绝，但其他异步工作不会自动取消；空输入立即以空数组 fulfilled。`allSettled` 等待全部并保留状态；`race` 采用第一个 settled；`any` 采用第一个 fulfilled，全部拒绝时产生 AggregateError。
 
 选择方法时先问是否需要全部成功、全部结果、首个完成还是首个成功。把 `race` 当超时不会取消原请求，应配合 AbortController 把取消传到真正资源。
-
 ## 有界并发不是 Promise.all 分片
 
 批量上传若一次启动全部任务，会打满连接和内存。并发池维护“下一个任务索引、正在执行数量、结果位置和停止策略”。每个 worker 循环领取任务，可自然限制上限并保持结果顺序。
@@ -111,13 +107,11 @@ async function mapLimit<T, R>(items: T[], limit: number, run: (item: T, index: n
 ```
 
 输入是任务数组和并发上限，输出按原顺序排列。默认失败快返，但已经启动的 worker 不会自动停止；需要严格取消时传入共享 AbortSignal，并让 run 响应取消。若要收集所有错误，应把每个任务转换成显式结果联合，而不是吞掉异常。
-
 ## 验证清单
 
 Promise 核心用 Promises/A+ 风格用例验证 thenable、重复回调、getter 抛错、链式采用和循环引用。并发池记录每次开始/结束时 active 数，断言最大值不超过 limit；测试空数组、limit 大于长度、同步抛错和中途取消。
 
 完整的 Promise 模型还要区分 executor 与 `then` 回调时机、resolve 与 fulfill，解释组合方法为何不取消底层任务，以及 async/await 如何建立在 Promise Reaction 之上。
-
 ## 从 resolution 到 microtask 的执行轨迹
 
 `resolve(x)` 不一定立刻把 Promise 置为 fulfilled：当 x 是 thenable 时，它进入采用过程，最终状态由 x 决定。Promise reaction 只有在状态 settled 后排入 Job Queue，当前同步栈清空后才执行；reaction 返回值再驱动下一 Promise 的 resolution。这解释了 `then(() => 1).then(...)` 为什么至少跨越两个微任务阶段。
@@ -131,20 +125,11 @@ reaction return x -> resolvePromise(nextPromise, x)
 ```
 
 浏览器中 Promise Job 属于 microtask checkpoint；它会在任务结束后运行，长链 microtask 仍可能推迟下一次渲染。并发池若每个任务完成都立即排新任务，要观察微任务堆积、AbortSignal 和页面可见性，不能只测 active 数。
-
 ## 取消、超时与失败补偿
 
 超时 Promise 只能让调用方先得到失败，不能自动停止底层 fetch、Worker 或上传。正确协议是创建 AbortController、把 signal 传到真实操作，并在 `finally` 释放定时器。对不支持取消的任务使用 generation/id 丢弃迟到结果；对已经产生外部副作用的写操作使用幂等键和服务端查询状态。
-
 ## 官方依据
 
 - [ECMAScript Promise Objects](https://tc39.es/ecma262/multipage/control-abstraction-objects.html#sec-promise-objects)
 - [MDN: Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise)
 - [MDN: AbortController](https://developer.mozilla.org/en-US/docs/Web/API/AbortController)
-
-## 迁移复核：Promise、并发控制与异步任务编排
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

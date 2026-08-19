@@ -28,7 +28,6 @@ transition 在属性计算值从旧状态变成新状态时启动。它没有独
 ~~~
 
 离散属性通常不能逐帧插值，display 的切换就不会像 opacity 一样平滑。多属性 transition 要写清 duration、timing-function 和 delay，避免只改 duration 却让其他属性使用默认值。
-
 ## animation 用 keyframes 定义采样
 
 ~~~css
@@ -45,7 +44,6 @@ transition 在属性计算值从旧状态变成新状态时启动。它没有独
 浏览器按 animation-duration、delay、iteration-count、direction、fill-mode 和 play-state 计算当前时间，再从 keyframes 得到属性值。delay 期间是否保留起始或结束样式由 fill-mode 决定，animation-fill-mode 不会让动画永远占据布局。
 
 动画事件的 `animationstart`、`animationiteration` 和 `animationend` 可能因取消、元素隐藏或文档卸载而不完整触发。业务状态不要只依赖 end 事件，取消路径要能收尾。
-
 ## 可动画属性决定影响范围
 
 opacity 和 transform 常能在合成阶段处理，width、height、top、font-size 等属性可能触发布局，box-shadow、filter、background 等通常需要绘制。引擎会根据当前层和失效区域决定实际阶段，分类只是排查线索。

@@ -52,7 +52,6 @@ Watchdog 故障通常不是“计时器没有触发”这么单一。用户、�
 **恢复任务反复排队**时，检查扫描器是否忽略活动执行 Lease，任务 Deadline 是否已过，以及 Task ID 是否稳定。重复恢复常来自“看到 updated_at 旧就直接投递”，而不是细粒度 Watchdog 判断。
 
 这些现象先帮助确定责任层：用户界面负责展示状态，Runtime 负责 Phase 和终态，模型 Transport 负责 Chunk Gap，工具适配器负责工具进展，Recovery Scanner 负责失联所有权。每一层都有独立证据，不靠一个“最后活跃时间”包办。
-
 ## Watchdog 先建立阶段模型
 
 Runtime 显式记录 Turn Phase，不能从最近一条日志或最后触碰的计时器反推状态。Phase 是控制状态的一部分，每次迁移带单调递增的 `phase_revision`、进入时间和所有者。
@@ -74,7 +73,6 @@ Runtime 显式记录 Turn Phase，不能从最近一条日志或最后触碰的�
 同一时间只能有一个阶段所有者。模型 Watchdog 不应该因为工具安静而取消工具；工具适配器也不能用自己的心跳延长模型流间隙。若一段等待没有所有者，增加一个全局计时器只是掩盖职责缺口；若有两个所有者，两边会用不同原因同时取消。
 
 Phase 名称还不够。Run 第一次进入 `awaiting_model`，发生重试后离开，再次进入同名阶段，这两个实例要有不同 Revision。Soft Idle 每个阶段实例只报告一次，新的模型尝试可以重新报告。只按 Phase 字符串去重，会让后续卡住的调用没有告警。
-
 ## Activity、Progress 与 Heartbeat 不是同一信号
 
 **Activity** 表示有事件发生，例如日志、网络心跳或状态刷新。**Progress** 表示任务更接近可交付结果，例如获得新 Token、完成一个 Chunk 或推进状态修订。**Heartbeat** 只证明某个执行者仍能回应。
@@ -97,7 +95,6 @@ deadline_at
 字段由对应所有者更新。模型 Transport 更新 Stream Chunk，工具适配器更新 Tool Heartbeat，状态提交更新 State Revision。普通日志不能修改 Progress 时间，否则打印循环会让卡死任务永久存活。
 
 持久层的 `updated_at` 适合粗粒度恢复扫描，不足以判断阶段空闲。Lease 续约、事件写入和状态读取都可能刷新它，却没有业务进展。进程内 Watchdog 使用细分时钟；跨进程扫描先找长时间未更新的候选，再检查活动 Lease、Phase 和具体证据。
-
 ## Soft Idle 负责可见性
 
 Soft Idle 表示一个受监控阶段已经超出正常等待，但还没有达到强制停止条件。它写 `watchdog.soft_idle` Event，包含 Turn ID、Phase、Phase Revision、空闲时长、当前 Provider 或 Tool Call ID，以及剩余 Deadline。
@@ -107,7 +104,6 @@ Soft Idle 不取消任务。它可以驱动 UI 显示“模型响应较慢”、
 同一阶段实例只报告一次，避免每个扫描周期刷屏。阶段迁移或新 Revision 后重新允许报告。告警记录实际观测值，而不是只写 “Agent slow”；运维需要知道哪个等待对象、已经空闲多久、总 Deadline 还剩多少。
 
 Soft Idle 也不能变相成为自动重试。模型可能仍在处理，立即发起第二个请求会加倍成本并产生两个并发响应。探测优先查询连接、Task、Lease 或 Provider Request 状态，只有协议明确证明原请求失败，Retry Policy 才判断是否重试。
-
 ## Hard Idle 负责停止策略
 
 Hard Idle 表示特定阶段的空闲已经越过系统容忍上限。Watchdog 使用类型化原因触发取消，例如 `model_hard_idle`，并给终态提交和清理保留时间。用户主动取消与 Watchdog 取消都可能关闭同一个 Context，终态原因必须区分。
@@ -130,7 +126,6 @@ flowchart TD
 ```
 
 停止后保存 Phase、空闲证据、部分输出和 Cleanup Result。只返回通用 `cancelled` 会让 UI 无法解释，也让恢复器不知道应重试 Provider、等待人工，还是尊重用户取消。
-
 ## 流间隙需要传输层时钟
 
 模型阶段 Watchdog 知道 Run 在等待模型，却未必能看见 SSE 或 Chunked Response 内部。连接可能已经收到若干 Token，随后不再产生字节，也没有关闭。传输适配器更接近 Socket，应维护 `last_stream_chunk_at`。
@@ -147,7 +142,6 @@ flowchart TD
 流超时后保留已接收文本，但标记为 Partial 和 Unvalidated。若一个 Token 都没有，结果明确记录 Empty Partial。是否交付由质量策略决定，不能把半段回答包装成 Completed。自动切到非流式重试也要谨慎，原 Provider 可能再次卡住，成本和延迟会重复。
 
 传输取消后仍可能有迟到 Chunk。适配器用 Attempt ID 和 Turn Status 过滤，旧流不能写进新 Attempt 或覆盖终态。关闭连接失败进入 Cleanup Error，主要停止原因仍是 Stream Gap。
-
 ## 嵌套调用临时借用阶段所有权
 
 `compacting` 通常是本地阶段，不计模型空闲。但上下文压缩内部可能调用模型生成摘要。这段远端等待需要模型 Watchdog 保护，完成后又要回到 Compaction 所有者。
@@ -163,7 +157,6 @@ flowchart TD
 Tracker 失效后，Turn Deadline、用户取消和工具自身限制仍然有效。被停用的只是依赖错误 Phase 的阶段 Watchdog，告警应带 Tracker Revision 和违规类型。
 
 :::
-
 ## Watchdog 先探测再接管
 
 跨进程恢复扫描看到 Turn 很久未更新时，不能立即投递第二个 Worker。原 Worker 可能仍有有效执行 Lease，只是阶段事件写入变慢。扫描器先原子领取候选，再查询 Execution Lease 与 Worker Probe。
@@ -175,7 +168,6 @@ Probe 自身有短 Timeout 和并发上限。探测器卡住不能阻塞整个�
 数据库候选扫描用 Status、Deadline 和更新时间缩小范围，通过行锁与 `SKIP LOCKED` 让多个扫描器分工。读取候选后再次检查 Deadline，过期任务进入 Expired，不进入恢复队列。任务 ID 稳定，重复扫描不会创建两个逻辑执行。
 
 进程内 Stage Watchdog 与跨进程 Recovery Scanner 是两层机制。前者拥有细粒度 Phase 时钟，可以取消卡住的模型流；后者在进程可能已经消失时，根据持久状态和 Lease 重新建立所有权。把两者合并成一个 `updated_at` 查询，会失去阶段语义。
-
 ## 探测动作按风险逐级升级
 
 Soft Idle 之后可以执行多种 Probe，但顺序应从只读、低成本开始。第一层读取本地阶段快照和 Task 状态；第二层检查连接、Provider Request 或工具 Job；第三层才发送取消或取得新执行权。探测不能产生业务副作用。
@@ -199,7 +191,6 @@ Watchdog 自己也会失败。阶段快照读取超时、Probe 服务不可用�
 Probe 返回的数据也需要新鲜度。响应带采样时间、Phase Revision 和 Owner Token；采样晚于当前状态或 Token 已更换时只作历史证据。处置命令再次读取权威 Revision，避免根据几秒前的正常快照取消已经完成的 Turn。
 
 若 Watchdog 的时钟来源异常，单次负空闲或突然跳大的空闲都不直接触发取消。进程内持续时间用单调时钟，持久扫描使用 UTC 并监控时钟偏移。时钟健康恢复前，系统可以继续 Deadline 的数据库判断，但关闭依赖本地异常时钟的阶段动作。
-
 ## 用阶段感知示例观察处置
 
 下面的示例实现阶段 Watchdog 和最小 Phase Tracker。它使用数值时间，不调用真实模型或工具，只验证所有权、Soft/Hard、流间隙、嵌套阶段与 Tracker 失效。
@@ -213,7 +204,6 @@ Soft Alert 按 `(turn_id, phase_revision)` 去重，Hard Idle 不受去重影响
 `PhaseTracker` 在本地压缩期间临时进入模型等待，恢复后回到原 Phase。重叠临时阶段会把 Tracker 标为 Invalid，Watchdog 随后返回 `watchdog_disabled`，而不是根据错误阶段杀任务。
 
 示例保留了旧的 `watchdog_decision()` 外观，只为共享测试兼容。正式文章和新增测试使用 Stage Watchdog；重复动作与状态无变化属于下一篇“卡循环检测”，不能用时间空闲替代。
-
 ## 沿两条时间线定位责任层
 
 第一条时间线中，Tool `render:1` 进入 Executing Tool。八分钟里每十秒更新 Tool Heartbeat，Progress 从 30% 到 80%。模型 Watchdog 每次读取 Phase 都返回 Delegate。工具自己的十分钟 Timeout 和 Turn Deadline 负责停止条件，因此它不会被模型 Hard Idle 误杀。
@@ -230,7 +220,6 @@ Soft Alert 按 `(turn_id, phase_revision)` 去重，Hard Idle 不受去重影响
 | 输出 | 工具完成后进入下一阶段 | Partial，等待质量策略 |
 
 如果只看 Worker Lease，两条都像“活着”；只看墙上时间，两条都像“太慢”；只看普通 Activity，两条都持续有事件。Phase 与所有者把相同表象拆成不同责任层。
-
 ## 诊断从阶段时间线开始
 
 出现误杀或漏杀时，先固定 Turn ID、Attempt ID、Phase Revision、Deadline、最后 Activity、最后 Progress、最后 Chunk、Tool Heartbeat、Lease Owner 与 Watchdog Decision。不要先调大阈值，阈值可能只是在遮住错误所有权。
@@ -244,7 +233,6 @@ Soft Alert 按 `(turn_id, phase_revision)` 去重，Hard Idle 不受去重影响
 **父阶段看起来不动，子调用有进展**时，确认进展属于哪个所有者。父 `updated_at` 不必被每个子 Chunk 刷新，Watchdog 应读取子 Attempt 的专用进度。若父子状态无法关联，补稳定 Call ID 与 Phase Revision，不能用刷新父时间戳敷衍。
 
 **Tracker Invalid** 时查看首个结构违规，而不是后续所有告警。常见原因是重叠 Enter、异常路径漏 Restore、旧 Token 恢复新阶段和并发任务共享可变 Tracker。修复后在严格模式跑故障注入。
-
 ## 用证据矩阵排除相邻故障
 
 同一个“没有输出”可能来自模型空闲、流阻塞、工具卡住、事件交付失败或 Worker 失联。诊断时把证据按所有者排成矩阵，缺失数据标 Unknown，不用猜测补齐。
@@ -268,7 +256,6 @@ Soft Alert 按 `(turn_id, phase_revision)` 去重，Hard Idle 不受去重影响
 对跨进程失联，用屏障暂停 Worker 的 Lease 续约但保留数据库连接。扫描器在 Lease 有效期内不能接管，过期后新 Owner 取得 Fencing Token，旧 Worker 恢复时提交失败。这个测试证明所有权，而不是只证明定时任务运行过。
 
 证据矩阵还要保留配置版本。相同空闲时长在不同 Model Policy 下可能一个只是 Soft，另一个已经 Hard。排障报告引用 Turn 实际固定的配置，不用当前控制台默认值重算历史决定。
-
 ## 测试验证处置而不等待真实时间
 
 新增测试使用确定性数值时间，覆盖七条行为：Soft 每个 Revision 只报告一次；Hard 只取消模型所有者；Stream Gap 只看最后 Chunk；无效 Tracker 停用阶段处置；嵌套模型调用恢复外层 Phase；重叠临时阶段使 Tracker 失效；Turn Deadline 优先于阶段判断。
@@ -287,7 +274,6 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=examples/ai-agent \
 恢复扫描测试同时制造活动 Lease、过期 Lease、Deadline 到期和 Probe Unknown。只有过期 Lease、未到 Deadline 且通过门禁的 Turn 进入恢复队列。并发扫描器不能重复领取，旧 Worker 的过期 Token 不能提交。
 
 Tracker 性质测试随机生成 Enter、Transient、Restore 和异常退出序列。合法序列最终回到初始所有者，非法序列进入 Invalid，任何 Invalid 状态都不会产生阶段取消命令。严格模式在测试中抛错，生产模式留下结构告警。
-
 ## 阈值、容量和发布需要一起评估
 
 Soft、Hard 与 Stream Gap 使用分层配置：全局默认、Provider、模型、工具类别和运行模式。Hard 小于 Turn Deadline，并留清理余量；Soft 小于 Hard。配置变更带版本，Turn 记录实际使用的 Policy，排障不能只看当前默认值。
@@ -311,8 +297,8 @@ Watchdog 本身要有容量上限。大规模逐 Turn 高频轮询会压垮数�
 修复验收不能只看告警消失。合法长工具在持续进展时不被模型计时器取消，静默模型流能在传输层上限内停止，所有终止都带 Phase、Owner 和类型化原因，失联接管后只有一个 Worker 具有提交资格。四项同时满足，才说明识别、处置与所有权都恢复正常。
 
 设计评审时，选取“长工具有进展”和“模型流有 Heartbeat 但没有 Chunk”两条轨迹。只要系统能指出各自 Phase、等待所有者、有效 Progress、处置时钟、部分输出和恢复动作，Watchdog 才具备可解释的判断依据。
-
 ## Watchdog 先确认等待的所有者
+
 阶段超时前要知道进度由模型、工具、队列还是客户端心跳产生。模型流没有新 Token 不等于工具失联，工具返回分页游标也不等于任务无进展。Soft 信号用于告警，Hard Deadline 才能改变终态。
 
 Watchdog 记录 Phase、Call ID、Owner 和处置原因，接管后旧 Worker 通过 fencing 失去提交权。测试要覆盖长工具有有效进度和传输层静默两条相反轨迹。

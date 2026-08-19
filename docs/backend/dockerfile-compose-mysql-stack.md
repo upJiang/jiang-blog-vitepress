@@ -48,7 +48,6 @@ docker run --rm hello-world
 ::: warning 先确认当前 Docker Context
 执行项目命令前运行 `docker context show`。它若指向远程主机，`docker compose up` 和数据卷操作都会发生在远端，不应继续照着本地教程执行。
 :::
-
 ## Dockerfile 把构建依赖与运行依赖分开
 
 多阶段构建在 builder 安装依赖、编译和测试，在 runtime 只复制生产产物与必要依赖。固定基础镜像版本/digest，设置非 root 用户、明确 WORKDIR 和 ENTRYPOINT，并让 PID 1 接收信号。
@@ -77,7 +76,6 @@ CMD ["node", "dist/main.js"]
 ```
 
 真实项目可用生产依赖裁剪进一步缩小镜像。测试失败时构建应停止；Secret 不通过 ARG/ENV 写入镜像，BuildKit secret 也要确认不会复制进产物。
-
 ## Compose 服务名就是本地 DNS 名称
 
 同一 Compose Network 内，API 连接 `mysql:3306`、`redis:6379`、`rabbitmq:5672`、`minio:9000`。宿主端口只为浏览器或本机工具发布，服务间连接不绕宿主映射。
@@ -115,7 +113,6 @@ services:
 `depends_on` 只帮助启动顺序，运行中 MySQL 仍可能重启。API 需要有限连接重试、readiness 和错误响应，不能把 Compose 当高可用编排器。
 
 已有连接在 MySQL 重启后会失效，应用不能只在启动阶段重试一次。连接池应丢弃坏连接、按总 deadline 有限重连；readiness 反映是否还能接受依赖数据库的新请求。否则 Compose 看似所有容器都在 running，业务仍会持续返回 500。
-
 ## 迁移属于一次性作业，不属于每个 API 启动
 
 三个 API 副本同时启动并自动迁移会竞争锁，也把结构变更隐藏在进程日志。Compose 中用独立 migrate 服务执行共享 SQL，成功后再启动 API；生产则使用受控 Job。
@@ -144,13 +141,11 @@ docker compose logs --tail=120 mysql node-api
 ```
 
 `config` 先解析变量和最终服务定义；`build` 验证 Dockerfile；`up -d` 创建服务；`ps` 查看容器与健康状态。API 未就绪时，最后一条同时查看数据库和应用日志，避免只凭 `running` 判断服务可用。
-
 ## 本地数据重置必须明确目标
 
 `docker compose down` 不默认删除 Named Volume；加 `-v` 会删除栈数据，属于破坏性操作。开发脚本应显示将删除的 Compose project 与 Volume 名称，只对明确的隔离数据执行。
 
 排查先运行 `docker compose config` 查看变量展开，再看 ps、logs、health 与网络。不要因为一个服务失败就删除所有 Volume，数据库初始化错误与已有数据版本不兼容需要分别处理。
-
 ## Compose 环境的就绪与部署边界
 
 **为什么 healthcheck 中要写 `$$MYSQL_ROOT_PASSWORD`？**
@@ -168,10 +163,3 @@ Compose 会在宿主解析单 `$` 变量，双 `$` 保留给容器 Shell 在运�
 **Compose 能否直接当生产编排？**
 
 小型单机部署可以，但滚动更新、自愈、调度、Secret、权限和多机高可用能力有限。是否使用取决于规模与运维要求，不能把本地栈原样称为企业生产方案。
-
-## 机制复核：Dockerfile 与 Compose：搭建可重复的 MySQL 后端栈
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

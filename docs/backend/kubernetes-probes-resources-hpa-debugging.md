@@ -42,7 +42,6 @@ startupProbe 给慢启动进程一个独立窗口，成功后才启用 liveness/
 | readiness | 停止接收新流量 | 连接池/关键依赖能否服务 |
 | liveness | 重启容器 | 死锁、事件循环永久卡死 |
 | 业务监控 | 告警/人工/自动处置 | 端到端登录、任务新鲜度 |
-
 ## requests 用于调度，limits 用于运行时约束
 
 Scheduler 根据 requests 判断节点是否容纳 Pod；CPU limit 会被节流，内存 limit 不能通过节流回收，超限可能 OOMKilled。requests 过低让节点超卖，过高则浪费容量并阻止调度。
@@ -70,7 +69,6 @@ resources:
 ```
 
 startup 最多给约 60 秒。readiness 失败约 10 秒摘流，liveness 连续失败才重启。实际还需 timeoutSeconds 和 terminationGracePeriodSeconds 与应用停机预算对齐。
-
 ## HPA 扩的是 Pod，不是数据库容量
 
 HPA 根据 CPU、内存或自定义指标调整 Deployment 副本。CPU 百分比通常相对 request 计算，request 设置错误会让扩缩判断失真。扩容有采集、调度、拉镜像、启动和 ready 延迟，不能瞬间吸收尖峰。
@@ -87,7 +85,6 @@ flowchart LR
 ```
 
 当瓶颈在 MySQL 锁或连接时，扩 Pod 会让竞争更严重。扩容决策要同时看下游饱和度。
-
 ## 排障沿期望状态和实际状态比较
 
 `kubectl get` 只给摘要。Pending 查 events、requests、node taint/PVC；CrashLoopBackOff 查 current/previous logs 与退出码；OOMKilled 查 limit 和工作集；ready 0/1 查探针响应与依赖。
@@ -97,7 +94,6 @@ ImagePullBackOff 查镜像名称、digest、Registry 身份和网络。修改前
 节点内存紧张时，Kubelet 会根据 QoS、优先级和超额用量选择驱逐对象。requests 等于 limits 的 Guaranteed Pod 通常比没有 requests 的 BestEffort 更不容易被驱逐，但这不是免死保证。查看 Pod reason、节点 MemoryPressure 和 eviction 事件，区分应用触碰自身 limit 的 OOMKilled 与节点级驱逐。
 
 滚动发布还会因 maxSurge 短时增加总 requests。平时节点刚好容纳 10 个副本，不代表能再调度第 11 个候选 Pod；这会让发布卡在 Pending。容量规划要预留滚动峰值，或调整 surge/unavailable 并确认可用性目标。
-
 ## 探针、资源与调度故障
 
 **readiness 失败时在途请求会怎样？**
@@ -115,10 +111,3 @@ ImagePullBackOff 查镜像名称、digest、Registry 身份和网络。修改前
 **Pod Pending 为什么可能与镜像无关？**
 
 可能没有满足 requests 的节点、taint/toleration 不匹配、PVC 未绑定、亲和性无解。先读 Pod events 与 scheduler reason，不先改镜像。
-
-## 机制复核：Kubernetes 探针、资源、HPA 与排障
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

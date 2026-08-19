@@ -65,7 +65,6 @@ flowchart TB
 图中 Compose CLI 只把声明变成 Engine 请求。API 请求数据库时直接走项目网络，不会经过 Compose CLI；数据库写数据时进入挂载卷，不会写回镜像。以后看到 `docker compose` 命令报错，可以先区分问题发生在 YAML 解析、Engine 创建资源，还是容器内应用运行。
 
 因此 Compose 的使用顺序可以从一个最小问题开始：先准备已有镜像，再在 YAML 中声明服务、网络和卷，执行 `docker compose config` 检查展开后的配置，最后用 `docker compose up` 创建资源。它保存的是本地环境的编排意图，不是生产集群的全套发布控制器。读者先掌握这个边界，才不会把 Compose 的 `depends_on` 当成数据库迁移或高可用方案。
-
 ## Compose 项目是什么，资源名称为什么会带前缀
 
 Compose Project 是一组由同一次 Compose 配置管理的资源。它包含 Service 创建的容器，也包含文件声明的网络、卷、配置和 Secret。Project 让同一台主机能够同时运行多套名字相似的环境，比如开发环境和一套隔离测试环境，不至于把两边容器混在一起。
@@ -77,7 +76,6 @@ Compose Project 是一组由同一次 Compose 配置管理的资源。它包含 
 Project 不是权限租户，也不是安全沙箱。两套 Compose 项目如果都发布宿主机的 8000 端口，第二套仍会因为端口冲突启动失败；如果显式加入同一个外部网络，它们也可能互相访问。项目边界能整理资源，却不能替代宿主机防火墙、文件权限和 Secret 管理。
 
 查看项目时，`docker compose ls` 列出 Compose 项目，`docker compose ps` 只看当前项目服务，普通 `docker ps` 则看整台 Engine。故障记录要保留项目名和实际使用的 Compose 文件，否则在错误目录执行 `down` 可能操作另一套环境。
-
 ## Service 是什么，YAML 中的一段服务声明会产生什么
 
 Service 是容器运行模板。它可以声明镜像或构建上下文、启动命令、环境变量、挂载、网络、端口、健康检查和重启策略。Service 本身不是正在运行的容器，也不占用 PID。Compose 根据模板创建一个或多个容器实例，每个实例才有独立进程、IP、可写层与退出状态。
@@ -95,7 +93,6 @@ Service 名同时是默认网络中的 DNS 名。`api` Service 可以把数据�
 Service 描述怎样创建容器，不保证容器内应用已经完成初始化。`docker compose ps` 显示 Running，只能证明主进程没有退出。模型权重可能仍在加载，数据库也可能仍在执行恢复。
 
 :::
-
 ## Compose 文件怎样从顶层对象读起
 
 现代 Compose Specification 不要求顶层 `version` 字段。文件最常用的顶层对象是 `services`、`networks`、`volumes`、`configs` 和 `secrets`。`services` 是核心，其余对象先声明可复用资源，再由某个 Service 引用。YAML 缩进决定层级，多一个或少一个空格都可能改变字段归属。
@@ -119,7 +116,6 @@ Service 描述怎样创建容器，不保证容器内应用已经完成初始化
 | `depends_on` | 声明启动与可选健康依赖 | 它能修复运行中的断线 |
 
 表中最容易误用的是 `ports`。数据库只供同一项目内 API 访问时，不需要发布到宿主机；API 用 `db:5432` 连接即可。确需从宿主机运行数据库客户端，可以绑定 `127.0.0.1:15432:5432`，限制为本机入口，而不是把 5432 暴露到所有网卡。
-
 ## Network 是什么，为什么另一个容器不在 localhost
 
 Compose Network 是 Engine 管理的容器网络。没有显式配置时，Compose 会为项目创建默认网络，并把各 Service 接入其中。每个容器有自己的 Network Namespace 和回环接口，所以容器内的 `localhost` 只指当前容器。API 连接 `localhost:5432`，寻找的是 API 容器里的 PostgreSQL，不是名为 `db` 的容器。
@@ -131,7 +127,6 @@ Compose Network 是 Engine 管理的容器网络。没有显式配置时，Compo
 `ports` 把宿主机地址发布到容器端口，处理的是容器外访问。`expose` 只是端口元数据，不负责发布。服务间调用通常使用容器端口，不用宿主机映射端口。比如配置 `127.0.0.1:18000:8000` 后，浏览器访问 18000，Nginx 容器访问 API 仍应使用 `api:8000`。
 
 外部网络由 `external: true` 引用，Compose 不负责创建或删除它。它适合让多个项目共享一个受控入口网络，也会扩大项目间可达面。若启动时报 `network ... declared as external, but could not be found`，说明声明与 Engine 当前资源不一致，应该创建经过确认的网络或修正名称，不能把 `external` 随意删掉来掩盖拓扑设计。
-
 ## Volume 是什么，哪些数据不能留在容器可写层
 
 Volume 是独立于容器可写层的数据存储。Compose 顶层 `volumes` 声明命名卷，Service 再把它挂到容器路径。数据库重建容器时，新容器重新挂载同一个卷，因此数据目录仍在。镜像层保持只读，容器可写层则随着容器删除而失去引用。
@@ -143,7 +138,6 @@ Volume 不等于备份。误执行 `docker compose down -v` 会删除项目命�
 权限来自容器进程 UID/GID、卷内文件所有者、挂载读写模式和宿主机安全策略。镜像声明 `USER 10001` 后，已有卷中的文件可能仍属于另一个 UID。把服务改成 root 能暂时绕过部分 mode 检查，却扩大了容器权限。正确做法是确认镜像运行身份，初始化卷的属主，并让只读模型卷明确使用 `read_only`。
 
 匿名卷没有稳定的人类名称，重复重建可能留下难以辨认的数据副本。重要状态使用显式命名卷，并在备份记录中保存项目名、卷名、挂载目标和数据版本。清理前用 `docker volume inspect` 与容器 Mounts 建立引用清单，不执行来源不明的批量删除。
-
 ## Healthcheck 是什么，它与进程运行有什么区别
 
 Healthcheck 是在容器上下文中周期执行的检查命令。命令退出码为 0 表示本次成功，非 0 表示失败。Engine 根据 `interval`、`timeout`、`retries` 和可选 `start_period` 形成 starting、healthy 或 unhealthy 状态。这个状态附属于容器，主进程不会因为 unhealthy 自动退出。
@@ -155,7 +149,6 @@ Liveness、readiness 和 startup 在 Kubernetes 中有独立语义，Compose 只
 检查命令在容器内执行，因此镜像必须包含所用工具。极简镜像没有 `curl` 时，Healthcheck 会持续失败；可以用应用自身运行时发 HTTP 请求，或在镜像构建阶段加入合适的轻量客户端。命令字符串还要注意 exec form 与 Shell form 的差别，以及变量在哪个解析阶段展开。
 
 健康检查会产生真实负载。间隔一秒执行复杂向量查询，可能给数据库造成持续压力。检查应快速、有超时、无副作用，并且不会写入业务数据。模型服务启动很慢时用 `start_period` 给初始化留时间，正常运行后的连续失败仍要能及时暴露。
-
 ## depends_on 能等待什么，不能替应用解决什么
 
 短格式 `depends_on: [db]` 只表达启动顺序，Compose 创建 `db` 后再创建 `api`，不等待数据库可以接受查询。长格式配合 `condition: service_healthy` 可以等待依赖的 Healthcheck 变成 healthy。等待效果取决于当前 Compose 实现是否支持相应规范字段，运行前要用本机版本核对。
@@ -165,7 +158,6 @@ Liveness、readiness 和 startup 在 Kubernetes 中有独立语义，Compose 只
 迁移任务也不能简单塞进每个 API 副本的入口命令。两个副本同时执行非并发安全迁移会争锁，失败的迁移还可能让部分服务继续启动。可以定义一次性 `migrate` Service，让 API 等待它成功完成；正式环境则由发布流程单独执行并记录迁移版本。Compose 的 `service_completed_successfully` 能表达一次性任务完成关系，但仍要核对工具版本与失败处理。
 
 重启策略只根据容器退出采取动作，不理解健康检查。`restart: unless-stopped` 能在进程异常退出后重启容器，却不会自动重启一个仍在运行但 unhealthy 的进程。无限重启还会覆盖最早日志并持续冲击依赖。排查重启循环时先看退出码、OOM 状态和第一次错误，再决定修配置还是重启。
-
 ## 写一份能读懂的本地 AI 服务栈
 
 下面的配置包含 PostgreSQL、Redis、对象存储、API 和 Worker。它用于展示一份完整 Compose 文件怎样表达构建、服务名、健康、卷和停止边界。`./api` 中需要有匹配的 Dockerfile 与应用代码，密码文件需要由本地创建且不提交仓库；因此配置可以做静态解析，实际运行还依赖这些明确列出的输入。
@@ -291,7 +283,6 @@ secrets:
 API 的 `ports` 只绑定宿主机回环地址，外部网络无法直接访问 18000；`backend` 标为 internal，容器只在内部网络协作。数据库、Redis 与对象存储都把数据写入命名卷。API 和 Worker 共用同一应用镜像，却运行不同命令，说明 Service 是运行模板，不要求每个角色都构建一份镜像。
 
 配置也留下了边界。示例 URL 没有把密码直接放进环境变量，真实应用需要读取 Secret 文件或在启动时安全组装连接信息。MinIO 镜像中的 `mc ready local` 是否适用于所选版本要实际核对；固定 Release 标签也应在可重复环境中进一步记录 digest。这里没有模型 Serving，因为它通常需要 GPU、模型卷和更长启动过程，可以作为另一个 Service 加入同一后端网络。
-
 ## 从 config 到 up，一次启动会发生哪些状态变化
 
 执行前先准备 Secret 文件并限制权限，再让 Compose 解析最终模型。`config` 不创建容器，它只把变量、合并文件和短格式展开。输出中可能包含敏感值，不能把完整结果贴进公开日志。下面命令假设当前目录只有目标项目配置。
@@ -322,7 +313,6 @@ docker compose logs --since=5m api worker
 ```
 
 预期结果不是固定容器 IP，而是三个 Service 名都能解析，`curl` 返回成功状态，日志中没有反复连接失败。`docker compose images` 用来确认实际镜像，`ps --all` 会把已经退出的一次性或失败容器也列出来。如果 API 没有达到 healthy，继续读取 Healthcheck 的具体输出，而不是反复执行 `up`。
-
 ## 用数据库未就绪故障完成一次推演
 
 假设输入仍是一条健康请求，但 API 返回 503。当前状态显示所有容器 Running，API 健康状态为 unhealthy。先读取 `docker compose ps --all`，再查看 API 健康记录和数据库日志。若 API 日志出现 `connection refused db:5432`，需要确认名字解析、数据库监听和健康状态，不能直接认定密码错误。
@@ -340,7 +330,6 @@ docker compose exec db pg_isready -U app -d knowledge
 修复后重新创建受影响 Service，再重复同一组验证。状态变化应从 db starting 到 healthy，随后 API 从 starting 到 healthy；入口 `curl` 返回 200，日志不再出现新连接拒绝。失败证据、改动和验证结果要使用同一个时间窗口，旧日志仍然存在不能说明修复无效。
 
 停止时先执行 `docker compose stop`，它会发送停止信号并保留容器、网络与卷；`docker compose down` 会删除项目容器和默认网络，默认保留命名卷；`down -v` 会进一步删除声明与匿名卷。看到 `-v` 前要知道每个卷能否恢复。只想暂停开发环境时，保留卷通常更合适。
-
 ## 日志、重建与退出怎样构成可恢复的本地环境
 
 Compose 默认把容器主进程的标准输出和标准错误交给 Docker 日志驱动。`docker compose logs -f api worker` 可以按 Service 聚合查看，行首通常带服务实例名称。应用如果只写容器内 `/app/logs/server.log`，这条命令不会显示文件内容；文件没有挂载时，容器重建后还会消失。开发环境也要明确日志去向和轮转，否则长期运行的 json-file 日志能占满宿主机磁盘。
@@ -368,10 +357,3 @@ Compose 默认把容器主进程的标准输出和标准错误交给 Docker 日�
 Compose 适用到单机边界为止。它能把本地 AI 服务栈写成可复现声明，也能支撑集成测试与小型单机服务。需要跨节点放置 GPU、故障后自动重建到另一台机器、滚动发布和集群级资源治理时，应使用 Kubernetes 或其他集群编排系统。Compose 文件仍然有价值，因为它把应用依赖和本地开发入口保留下来，但不能把单机健康误当成集群高可用。
 
 每次重建都能得到相同的服务关系，并且每个失败都有对应证据，这才算一套可用的 Compose 环境。
-
-## 机制复核：Docker Compose 是什么？怎样写出一个可运行的多服务环境
-基础设施文章最终要回答资源从哪里来、由谁调度、失败如何回收。把模型、GPU、网络、队列、制品和数据的生命周期画成一条链，分别记录容量单位、版本身份、健康信号和所有权。单一利用率或一次成功启动不能证明系统可用。
-
-落地验证分成离线配置检查、隔离环境运行和候选发布回归。至少覆盖资源不足、进程重启、重复任务、网络抖动和旧版本并存，并保留命令输出、指标时间窗和回滚点。生产环境只运行已构建产物，构建和压力实验放在独立环境。
-
-性能数字需要说明硬件、输入规模、并发模型和测量口径。观察到长尾或成本异常时，先定位排队、计算、传输、存储和重试分别占用的时间，再决定扩容、限流、批处理或降级。

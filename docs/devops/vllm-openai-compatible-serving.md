@@ -49,11 +49,19 @@ API Server 监听 HTTP，解析 OpenAI 风格请求，加载 Tokenizer 与 Chat 
 
 Gateway 可以放在 vLLM 前处理外部 API Key、模型别名、租户限流与计费。vLLM 自带的 API Key 选项可保护一个简单入口，但不替代多租户权限、套餐和全局路由。
 
-这三个组件可以用一次请求来区分：API Server 接收 `/v1/chat/completions`，把消息按 Chat Template 转成 Token；Scheduler 判断当前 Cache Block 是否足够并选择 Prefill 或 Decode；Engine 在 GPU 上执行 Kernel，产生下一个 Token，再由 API Server 编码成 JSON 或 SSE。请求取消后，API Server 负责把取消传给 Engine，Scheduler 释放序列，Engine 结束相关 GPU 工作。任何一层没有完成，客户端看到的“连接关闭”都不能证明显存已经回收。
+这三个组件可以用一次请求来区分：API Server 接收 `/v1/chat/completions`，把消息按 Chat Template 转成 Token；Scheduler 判断当前 Cache Block 是否足够并选择 Prefill 或 Decode；
 
-vLLM 与通用 Web 框架的差别也在这里。它针对语言模型的批处理、KV Cache 和采样做了专门管理，不能因为接口看起来像 FastAPI 就把它当普通 CRUD 服务。模型版本、Tokenizer、设备并行和调度参数共同决定实际行为，外部 Gateway 仍需负责身份、预算和审计。
+Engine 在 GPU 上执行 Kernel，产生下一个 Token，再由 API Server 编码成 JSON 或 SSE。
 
-## 安装之前需要确认哪些硬件和软件条件
+请求取消后，API Server 负责把取消传给 Engine，Scheduler 释放序列，Engine 结束相关 GPU 工作。
+
+任何一层没有完成，客户端看到的“连接关闭”都不能证明显存已经回收。
+
+vLLM 与通用 Web 框架的差别也在这里。
+
+它针对语言模型的批处理、KV Cache 和采样做了专门管理，不能因为接口看起来像 FastAPI 就把它当普通 CRUD 服务。
+
+模型版本、Tokenizer、设备并行和调度参数共同决定实际行为，外部 Gateway 仍需负责身份、预算和审计。## 安装之前需要确认哪些硬件和软件条件
 
 先确定部署后端和目标 GPU。常见 NVIDIA 路径依赖受支持驱动、CUDA 兼容的 vLLM/PyTorch 构建和匹配 GPU 架构。版本组合不匹配时，可能安装失败，也可能启动到 Kernel 才报错。不能用“nvidia-smi 有输出”替代完整兼容检查。
 
@@ -74,7 +82,6 @@ vllm --version
 ```
 
 `torch.cuda.is_available()` 为 false 时，先修复 Runtime、驱动或安装构建，不继续加载大型 CUDA 模型。设备数与计划 tensor parallel 不一致也应在启动前失败。支持其他后端时使用对应官方检查，不把 NVIDIA 命令当通用前提。
-
 ## 模型来源、Revision 与 Chat Template 怎样准备
 
 vLLM 可以按 Hugging Face Repository ID 或本地路径加载模型，具体来源能力随版本变化。生产使用固定 Revision 或内部不可变目录，不让运行节点每次从 `main` 拉取。Manifest 保存 Config、Tokenizer、权重和摘要。
@@ -86,7 +93,6 @@ Chat Completion 需要 Chat Template。模型 Tokenizer 自带模板时，vLLM �
 模型名有加载来源名与 API 暴露名。`--served-model-name` 一类参数可以让外部请求使用稳定别名，具体名称按版本检查。Gateway 还可以再做逻辑映射。日志和 usage 要同时记录外部名与 deployment revision。
 
 加载前在隔离环境用 Tokenizer 编码固定样本，检查 EOS、词表和模板结果。模型文件逐项校验，不把 vLLM 下载成功当供应链审批。节点本地 Cache 只是加速副本，损坏时能从内部对象恢复。
-
 ## `vllm serve` 启动命令中的参数分别控制什么
 
 现代 vLLM 常使用 `vllm serve MODEL` 启动 OpenAI 兼容 Server。最小命令仍会采用许多默认值，包括 dtype、最大上下文、内存比例和监听地址。生产先把关键边界显式化，再通过 `vllm serve --help` 与目标版本官方文档核对参数。
@@ -108,7 +114,6 @@ vllm serve /models/knowledge-chat/revision-42 \
 dtype 控制加载/计算选择，模型与 GPU 不支持 BF16 时可能失败或需要 FP16。最大模型长度约束输入与输出总长度，也影响潜在 Cache。张量并行 2 要有两张目标 GPU 并建立通信，显存利用比例给引擎规划 Cache Pool，0.90 不是 OOM 保证。
 
 参数组合属于 deployment identity。相同权重用单卡 FP16 与双卡 BF16 不是同一运行版本。发布记录保存完整展开命令、环境和设备，不只保存 Shell 脚本名。
-
 ## 启动日志怎样区分下载、加载、初始化与就绪
 
 进程启动先解析参数和 Config，可能下载 Hub 文件或读取本地 Cache。随后构造模型、加载 shard、分配 GPU、初始化并行通信与 KV Cache，可能运行 Profile、编译或 Warmup。不同版本日志文字不同，阶段顺序可以从时间与资源变化确认。
@@ -120,7 +125,6 @@ dtype 控制加载/计算选择，模型与 GPU 不支持 BF16 时可能失败�
 启动超时由编排 startup probe 管理，给大型模型足够时间。Liveness 不应在正常加载期间反复重启。Readiness 只在 Engine 接受并完成最小请求后通过。探针接口与版本需要实际确认，不能用固定路径猜。
 
 启动失败后保留模型 Revision、命令、vLLM/PyTorch/驱动、GPU UUID、文件摘要和最早异常。先按阶段修复，不在一次尝试中同时升级驱动、模型与引擎，否则无法知道原因。
-
 ## OpenAI 兼容接口怎样调用，兼容到什么范围
 
 服务 ready 后，`GET /v1/models` 可查看暴露模型，`POST /v1/chat/completions` 接消息，`POST /v1/completions` 接文本 Prompt。实际接口与支持字段按版本和模型能力核对。Embeddings 或多模态不是每个生成模型都支持。
@@ -146,7 +150,6 @@ curl -sS http://127.0.0.1:8000/v1/chat/completions \
 OpenAI SDK 可把 base URL 指向服务。兼容范围受 vLLM 版本、模型模板和参数支持影响，未知字段可能拒绝或忽略。合同测试固定 SDK 版本，覆盖错误结构、stop、seed、logprobs、tools 等实际需要能力。
 
 Serving API Key 是简单共享密钥时，不提供每租户模型权限与额度。正式外部入口通过 Gateway 生成内部身份，vLLM 只接受受控网络调用。访问日志不记录 Authorization 和完整 Prompt。
-
 ## SSE 流式响应怎样验证首 Token 与完成标记
 
 设置 `stream=true` 后，API 使用 `text/event-stream` 发送 chunk。客户端 `curl -N` 关闭自身输出缓冲，Nginx 也要关闭代理缓冲。每块 delta 可能包含一个或多个可见片段，不等于一个 Token。
@@ -168,7 +171,6 @@ curl -N --no-buffer http://127.0.0.1:8000/v1/chat/completions \
 正常结束要有 finish_reason 和完成标记。达到 max_tokens 常为 length，EOS 或 stop 为 stop。中途设备错误可能在 200 响应后断开，客户端不能把 EOF 当成功。应用层记录是否看到完成标记。
 
 流式连接关闭后验证 request 从 running 中移除、KV Cache 释放。只看到 curl 退出不说明 Engine 取消。构造长输出，主动 Ctrl-C 或客户端 Deadline，按 request ID 对齐访问日志、Scheduler 与 GPU 状态。
-
 ## Readiness、Liveness 与模型目录怎样分别检查
 
 Liveness 只回答 API/Engine 控制路径是否存活，Readiness 回答实例能否接收该模型流量，模型目录列出暴露名称。不同 vLLM 版本公开健康端点可能变化，启动时从官方 Server 文档和实际 OpenAPI/路由确认。
@@ -180,7 +182,6 @@ Liveness 只回答 API/Engine 控制路径是否存活，Readiness 回答实例�
 进程 ready 后还要检查所有 tensor parallel rank。只由 rank 0 HTTP 回应会掩盖通信 Worker 死亡。运行时 collective 错误应让实例 not ready 并退出重建，不继续返回大量 500。
 
 停止时先从路由移除实例，等待队列与 running 序列归零，再给进程 SIGTERM。停止宽限覆盖最长允许请求或应用有取消策略。直接 SIGKILL 会丢完成事件和 usage。
-
 ## vLLM 的调度和 Cache 参数怎样影响并发
 
 vLLM 版本中常见参数包含最大模型长度、最大序列数、最大 Batched Tokens、Block/Cache dtype、Prefix Caching 和 Chunked Prefill。参数名与默认值会变化，本文不把某一版默认当永久事实。每次升级先比较 `--help` 与配置差异。
@@ -192,7 +193,6 @@ GPU Memory Utilization 影响引擎可预留显存，权重和非 KV 开销扣�
 Prefix Caching 对共享长前缀有用，动态用户 Prompt 命中低时会占管理成本。多租户要评估缓存隔离。LoRA 数量与 rank 也会占 GPU/CPU 资源，不能与基础模型并发预算分开看。
 
 配置变更用候选实例 A/B，同一请求集回放。输出 TTFT、TPOT、Token throughput、queue、running、preemption、Cache usage、cancel 与 error。只看 GPU utilization 不能判断体验。
-
 ## OOM 发生在加载、Profile 还是请求阶段意味着什么
 
 加载权重时 OOM，首先核对参数量、dtype、量化、tensor parallel 与实际设备可见性。两张卡配置却只看到一张，会把更多权重放单卡。减少上下文不会缩小权重本身，可能仍失败。
@@ -204,7 +204,6 @@ Prefix Caching 对共享长前缀有用，动态用户 Prompt 命中低时会占
 CUDA OOM 后进程有时能返回请求错误，有时 Context 状态不再可靠。按 vLLM 版本行为验证，连续设备错误时实例退出重建。无限重试同一超长请求会再次 OOM，Gateway 根据错误类型停止重试。
 
 OOM 诊断报告不能只写 `nvidia-smi` 一张截图。要说明发生阶段、模型、精度、上下文、并发、参数、设备总量、Engine Cache 和是否有其他进程。修复后重复同样边界请求，再增加受控余量。
-
 ## 量化、并行和 LoRA 支持怎样做静态检查
 
 模型 Config 与权重索引说明架构和量化方式，vLLM 官方支持表说明目标版本能否加载。AWQ/GPTQ 等还依赖 GPU 架构和 Kernel。静态支持只表示有实现路径，不证明质量与速度。
@@ -216,7 +215,6 @@ LoRA Adapter 必须与 base model 架构和 Revision 匹配。动态加载还要
 Speculative Decoding、Prefix Cache、FP8 KV 等特性会改变运行与质量边界。一次只启用一项候选，保存基线。硬件不具备时在审查记录写“未执行，静态解释性推演”，不能借官方 Benchmark 填自己的结果。
 
 静态检查产物包含完整命令、模型 Manifest、vLLM 与依赖版本、GPU 要求和未验证列表。实际 GPU 验证通过后再更新 verification level，保留原审查时间。
-
 ## 容器里运行 vLLM 时设备、共享内存和模型卷怎样进入
 
 vLLM 容器需要与宿主机 GPU Driver 兼容，并通过 NVIDIA Container Runtime 或平台等价机制映射设备。镜像通常包含用户态 CUDA 与 Python 依赖，不把宿主机驱动内核模块复制进镜像。容器内 `nvidia-smi` 与 PyTorch 检查都通过后，才能继续模型加载。
@@ -254,7 +252,6 @@ volumes:
 ```
 
 镜像用不可变 digest，模型目录也固定 revision。API 仅绑定回环，外部经 Gateway。正式密钥不写 command。配置通过 `docker compose config` 只证明结构，GPU 实际映射、共享内存和模型加载仍需旁路容器验证。
-
 ## 指标和日志怎样说明请求卡在 API、队列还是 GPU
 
 API 指标记录请求数、状态、TTFT、端到端时长、输入输出 Token 和取消。Scheduler 指标记录 waiting、running、preempted、Batched Tokens 与调度耗时。Cache 指标记录使用率或 Block，Engine 记录 Prefill/Decode 吞吐和设备错误。具体指标名随 vLLM 版本变化，应从当前 `/metrics` 输出与官方说明建立映射。
@@ -274,7 +271,6 @@ API 指标记录请求数、状态、TTFT、端到端时长、输入输出 Token
 | GPU 空闲但请求 waiting | 调度没有把工作送入设备 | CPU Scheduler、死锁、Token Budget |
 
 表中没有一行建议先重启。重启会清空队列和 Cache，也会抹去请求状态。先保存时间窗口、配置和指标，再按阶段操作；设备致命错误除外，实例应退出并由上层恢复。
-
 ## 怎样做一组不误导的 vLLM 性能基准
 
 先定义工作负载：Prompt 长度分布、输出长度、并发到达方式、流式与否、采样和模型。固定 128 输入/128 输出的闭环压测便于比较引擎参数，不能代表真实长短混合用户。再用脱敏合成分布做容量结果。
@@ -286,7 +282,6 @@ API 指标记录请求数、状态、TTFT、端到端时长、输入输出 Token
 Warmup 后再计正式窗口，模型、Kernel 和 Cache 状态写进结果。Prefix Cache 测试分别做冷与热，不能把大量重复 Prompt 的热命中当随机用户能力。每次改变 Batched Tokens、序列数或 dtype，只比较相同负载。
 
 压测结束 drain 实例，确认 Cache 与队列回基线。使用测试租户和无真实数据 Prompt，不拿生产用户做成本实验。硬件、驱动、vLLM、PyTorch、模型 Revision 和命令完整保存，别把别人的官方 Benchmark 当本机结果。
-
 ## 升级 vLLM 时哪些兼容面必须重新验证
 
 vLLM 升级可能改变 CLI 参数、默认 dtype、Scheduler、模型实现、OpenAI 字段、metrics 和进程架构。依赖 PyTorch、CUDA 与 NCCL 也会变化。即使模型权重不变，deployment identity 已改变，需要候选验证。
@@ -298,7 +293,6 @@ vLLM 升级可能改变 CLI 参数、默认 dtype、Scheduler、模型实现、O
 新旧候选并行运行，小比例测试租户路由到新实例。旧实例和镜像保留，回滚只改 Gateway deployment 指针。新引擎写出的 Cache 与编译产物不让旧版复用，目录按版本隔离。
 
 稳定后清理明确无引用的旧候选与缓存，保留当前和一个已验证回滚。升级记录包括未验证能力，比如没有覆盖某量化或多模态。没有测试的功能不因整体版本通过而自动获得生产支持。
-
 ## API 安全和多租户边界为什么仍需要 Gateway
 
 vLLM 对外直接暴露时，调用方可以选择模型、上下文、输出长度和采样，任何泄露 Key 都可能耗尽 GPU。共享 `--api-key` 只能判断一个秘密是否匹配，难以表达每租户模型、速率、余额和审计。公网入口通常放 LLM Gateway。
@@ -310,7 +304,6 @@ vLLM 对外直接暴露时，调用方可以选择模型、上下文、输出长
 Prompt 与输出属于用户数据，默认不写 vLLM 调试日志。合成监控请求使用固定无敏感文本。Metrics 不含 Prompt；Trace 记录 Token 数和阶段，内容采样由独立权限与保留政策管理。
 
 计费 usage 来自 vLLM 执行结果，Gateway 负责幂等记账。流式中途错误、客户端取消和重试都要关联同一业务请求。vLLM Engine 只知道推理 request，不应直接写用户余额，状态边界保持单向清楚。
-
 ## 服务状态怎样从制品检查走到可接用户流量
 
 下面的图把 vLLM 启动和请求放在一条状态链里。每个状态都需要证据，端口监听位于中间，不是最终完成。
@@ -330,7 +323,6 @@ flowchart LR
 环境失败不下载大模型，制品失败不进入 GPU，Warmup 失败不加流量。请求只从 Ready 进入，完成或取消后释放。观察到某一步没有下一步证据，就停在该层诊断，不把后续状态补成推测。
 
 健康检查的证据也要和状态对应。`/health` 或容器存活只说明 HTTP 进程还能响应，`/v1/models` 能返回逻辑模型名说明 API Server 已读到模型配置，真正的最小生成请求才会同时经过 Tokenizer、Scheduler、GPU 执行和响应编码。三种检查的结果不能互相替代，发布记录应保存请求时间、模型名、HTTP 状态、finish reason 和错误正文的脱敏摘要。
-
 ## 没有目标 GPU 时哪些检查仍然可以真实执行
 
 无 GPU 环境可以固定 vLLM 版本并读取 `serve --help`，确认启动脚本中的参数存在、类型正确且没有弃用冲突。Shell 通过 `bash -n`，Compose 或 Kubernetes YAML 通过解析与 schema 检查，模型 Manifest 和 Config 用结构化解析器读取。这些属于静态检查。
@@ -342,7 +334,6 @@ API 合同可以用假的上游或小型 CPU 测试实现验证 Gateway、Nginx 
 需要 GPU 的步骤包括 CUDA Kernel、真实模型加载、NCCL 通信、KV Block 数、Warmup、生成质量、取消释放和压力性能。它们必须在目标架构或明确等价设备上运行。另一型号 GPU 的成功只能证明一部分软件路径，显存和吞吐不能直接搬用。
 
 这种分级不会妨碍提前发现问题。静态阶段已经能拦住错 Revision、遗漏 Tokenizer、未知参数和明显装不下；候选 GPU 阶段只处理剩余运行事实。报告把未执行项保留，部署审批才能知道风险，不会把一份命令示例误当成上线证据。
-
 ## 一次服务从启动到取消怎样完整推演
 
 输入是固定 revision 模型目录与两张可见 GPU。启动命令解析成功，两 rank 读取相同 Manifest，加载 BF16 权重，建立通信与 Cache Pool，Warmup 完成，实例进入 ready。Gateway 才把测试租户流量送入。
@@ -356,10 +347,3 @@ API 合同可以用假的上游或小型 CPU 测试实现验证 Gateway、Nginx 
 这个推演在没有目标 GPU 时只能检查命令结构、文件路径、API JSON、错误预期和验证清单。实际加载时间、吞吐、显存与取消结果必须在标明设备和版本的隔离候选环境运行后填写。
 
 验证结束还要导出实际生效参数、模型与 Tokenizer Revision、依赖版本和未通过用例，临时 Key、测试请求和候选缓存按明确范围清理。还要从隔离入口重新跑一次健康、非流式、流式与取消。仅保留一段成功输出无法复现服务，也不能作为取消与资源释放证据。
-
-## 机制复核：vLLM 是什么？怎样启动、调用并诊断一个模型服务
-基础设施文章最终要回答资源从哪里来、由谁调度、失败如何回收。把模型、GPU、网络、队列、制品和数据的生命周期画成一条链，分别记录容量单位、版本身份、健康信号和所有权。单一利用率或一次成功启动不能证明系统可用。
-
-落地验证分成离线配置检查、隔离环境运行和候选发布回归。至少覆盖资源不足、进程重启、重复任务、网络抖动和旧版本并存，并保留命令输出、指标时间窗和回滚点。生产环境只运行已构建产物，构建和压力实验放在独立环境。
-
-性能数字需要说明硬件、输入规模、并发模型和测量口径。观察到长尾或成本异常时，先定位排队、计算、传输、存储和重试分别占用的时间，再决定扩容、限流、批处理或降级。

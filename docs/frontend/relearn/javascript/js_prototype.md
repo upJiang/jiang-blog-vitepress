@@ -32,7 +32,6 @@ console.log(child.label) // item:7
 getter 定义在 base，实际读取者是 child。这个细节让原型方法能够处理实例状态，也解释了 Proxy 的 `get` trap 为什么通常要把 receiver 继续传给 `Reflect.get`。
 
 原型链最终以 `null` 结束。使用 `Object.create(null)` 可以创建没有 `Object.prototype` 的字典对象，但它也没有 `toString`、`hasOwnProperty` 等继承方法。检查自有属性可统一使用 `Object.hasOwn(value, key)`。
-
 ## 写入会同时检查原型描述符
 
 赋值不等于“总在当前对象创建属性”。运行时先查看已有属性及原型链上的描述符。原型上存在不可写数据属性时，子对象无法用普通赋值遮蔽它；原型上存在 setter 时，赋值会调用 setter。
@@ -58,7 +57,6 @@ console.log(Object.hasOwn(child, 'mode')) // false
 ~~~
 
 如果要精确创建自有属性，可以使用 `Object.defineProperty` 或 `Reflect.defineProperty`，并明确描述符。它们绕过普通赋值的查找路径，但仍要遵守对象不可扩展等约束。
-
 ## 函数的 prototype 怎样进入实例链
 
 普通可构造函数通常有一个自有 `prototype` 属性。执行 `new Model()` 时，运行时读取 `Model.prototype`。该值是对象就作为新实例的 `[[Prototype]]`，否则回退到 `Object.prototype`。
@@ -81,7 +79,6 @@ console.log(item.read()) // 3
 `Model.prototype` 自身是对象，默认带有指回 Model 的 `constructor` 属性。这个属性可以被删除或覆盖，运行时构造并不依赖它。根据 `constructor` 推断实例类型并不稳妥。
 
 替换整个 `Model.prototype` 只影响之后创建的实例。旧实例还指向旧对象，因为实例保存的是对象引用，并不会跟踪函数属性后来换成了什么。
-
 ## new 的四个可观察阶段
 
 普通基类的构造过程可以用四步理解：
@@ -92,7 +89,6 @@ console.log(item.read()) // 3
 4. 构造器显式返回对象时采用该对象，否则返回新实例。
 
 这个模型能解释 `Reflect.construct(Target, args, NewTarget)`。它允许“执行哪个构造器”和“从谁的 prototype 取原型”分开，框架元编程偶尔会用到，普通业务代码很少需要。
-
 ## class 把原型操作放进稳定语法
 
 类的实例方法定义在 `ClassName.prototype` 上，静态方法定义在类构造器自身。实例字段则在每次构造时写到实例，不会放进原型共享。
@@ -119,7 +115,6 @@ class Counter {
 类方法默认不可枚举，类体默认严格模式。私有字段使用语言级品牌检查，既不是字符串属性，也不会沿原型链被普通反射 API 枚举。
 
 `extends` 建立两条链：子类构造器的原型指向父类构造器，用于继承静态成员；子类的 `prototype` 对象指向父类的 `prototype`，用于实例方法查找。
-
 ## super 沿 HomeObject 的原型查找
 
 方法中的 `super.name` 从该方法的 HomeObject 原型开始查找，调用时仍把当前 `this` 作为 receiver。它不会把 `this` 换成父对象。
@@ -146,13 +141,11 @@ console.log(new Child('Ada').describe())
 ~~~
 
 派生构造器必须先调用 `super()` 才能访问 `this`。父类返回另一个对象时，派生实例还可能建立在那个返回对象上，这也是元编程框架需要测试的边界。
-
 ## instanceof 检查的是链，不是字段形状
 
 默认的 `value instanceof Constructor` 会在 value 的原型链中查找 `Constructor.prototype`。跨 iframe 等 Realm 时，同名构造器拥有不同的 prototype 对象，因此 `instanceof` 可能返回 false。构造器还可以通过 `Symbol.hasInstance` 自定义判断。
 
 数组使用 `Array.isArray` 更稳。外部数据应按字段协议校验，不能用 `instanceof` 代替输入验证。
-
 ## 动态修改原型的成本
 
 `Object.setPrototypeOf` 会改变既有对象的查找路径。引擎针对稳定对象形状和原型链做优化，频繁修改会让优化假设失效，影响范围还可能超过当前对象。创建时用 `Object.create` 或 class 建好关系更容易推理。

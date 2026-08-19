@@ -42,7 +42,6 @@ SSE 很适合 Agent 进度、回答增量、引用就绪和终态通知，因为
 WebSocket 支持双向帧、二进制和更自由的子协议，适合高频协作或双方持续推送。它没有自动提供持久事件日志和业务重放，仍要自行设计序号、游标和恢复。长轮询每次请求等待一段时间，兼容性强，但连接与查询开销更高。选择传输协议不会替代事件一致性设计。
 
 模型 SDK 的 Streaming 也不是 SSE。SDK 产生 Token 或文本片段，Runtime 决定哪些内容可以成为用户事件。验证失败时可能发送 `answer.replaced`，工具进度可能只记录阶段而不暴露内部参数。不能把供应商原始流直接转发给浏览器后再补权限与审计。
-
 ## 持久事件日志是事实，实时通知只是提示
 
 每个 Turn 保存 `next_event_sequence`，事件表保存 `turn_id`、`sequence`、`event_type`、`payload` 和 `created_at`。写事件时，数据库在同一事务中递增计数并插入事件。事务回滚后，事件对客户端不可见；成功提交后，任何 API 副本都能按序号查询。
@@ -71,7 +70,6 @@ flowchart LR
 事务提交与通知之间仍有一个不可避免的窗口。通知发布失败时，Outbox 可以在同一数据库事务里记录待发消息，由独立发布器重试；如果暂时不引入 Outbox，周期回查就是最低保障。无论采用哪条路，通知发布失败都不能回滚已经提交的业务事件，更不能让 Worker 重新执行模型来“补消息”。
 
 跨区域部署时，数据库读副本可能晚于主库。SSE 重放读到旧高水位后暂时没有事件，客户端应继续等待或回源主库，而不是把 Sequence Gap 当成数据删除。事件 API 需要明确读一致性要求，引用和终态对用户可见前也要避免读到旧版本。
-
 ## Turn 内序号必须原子分配
 
 序号描述同一 Turn 的事件顺序，不需要在全站全局递增。两个并发分支可能同时完成，若先查询最大序号再加一，它们都会算出相同值。数据库应通过行级更新、Sequence 分配或事务锁原子取得区间，再插入唯一约束为 `(turn_id, sequence)` 的记录。
@@ -83,7 +81,6 @@ flowchart LR
 终态事件还要保证唯一。Completed、Failed、Cancelled 和 Expired 互斥，并发的取消与完成可能同时尝试写入。事务锁住 Turn 的终态边界，已经存在终态事件时返回其序号，不再新增第二个。客户端收到一个终态后可以结束流，不必判断两个终态谁获胜。
 
 事件序号不等于 Turn Revision。Revision 保护领域状态的乐观更新，Sequence 安排交付事件。一次状态修订可能产生多个事件，也可能只更新内部 Checkpoint 而不对外发送。把两者共用一个字段，会让内部状态变化制造无法解释的客户端缺口。
-
 ## 一个 SSE 帧由 id、event 和 data 组成
 
 事件帧使用 UTF-8 文本，每个字段占一行，空行表示帧结束：
@@ -101,9 +98,9 @@ data: {"content":"第二段回答"}
 
 服务端对 `Last-Event-ID` 做严格整数解析，小于零归一到零或直接拒绝，非数字返回 400。游标大于当前最大序号时不能永久等待，可以返回 409、回退到状态接口，或先返回一个 `stream.reset` 协议事件。静默接受错误游标会让用户看不到任何内容。
 
-官方格式与浏览器行为可以查阅 MDN 的 [Using server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)。原生 `EventSource` 不方便设置任意 Authorization Header，Cookie 会话、短期签名 URL 或基于 `fetch()` 的流式客户端要按站点认证模型选择。不要把长期 Token 放进可记录、可分享的 URL 查询参数。
+官方格式与浏览器行为可以查阅 MDN 的 [Using server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)。
 
-## 连接建立后先重放，再等待新通知
+原生 `EventSource` 不方便设置任意 Authorization Header，Cookie 会话、短期签名 URL 或基于 `fetch()` 的流式客户端要按站点认证模型选择。不要把长期 Token 放进可记录、可分享的 URL 查询参数。## 连接建立后先重放，再等待新通知
 
 SSE Endpoint 先确认当前用户拥有 Turn，并再次检查知识库访问权限。认证发生在每次连接，不能因用户曾创建 Turn 就永久开放事件。验证完成后释放请求 Session，流循环每次查询创建短生命周期数据库会话，避免一条长连接占住事务和连接池。
 
@@ -132,7 +129,6 @@ sequenceDiagram
 ```
 
 从重放切到实时等待时存在竞态：数据库查询返回到订阅建立之间可能写入新事件。高水位检查和周期回查会捕获它。另一种做法是先订阅通知，再读取数据库，再消费订阅，但实现更复杂，仍需处理订阅丢失。只要数据库查询是最终兜底，短暂竞态只影响延迟。
-
 ## Event Payload 要面向客户端投影设计
 
 事件类型代表已经发生的领域事实或可展示进度，不是后端函数名。常见类型包括 `turn.created`、`stage.started`、`answer.delta`、`references.ready`、`answer.replaced` 和四种终态。字段随事件类型定义 Schema，并带 `schema_version` 或保持向后兼容。
@@ -144,7 +140,6 @@ sequenceDiagram
 页面刷新后，可以把最后游标与 Turn ID 存在会话范围，或从服务端重新构建完整投影。长期只保存浏览器拼接出的文本不够，服务端终态快照才是最终答案。事件日志用于解释过程和增量恢复，快照用于快速读取当前状态。
 
 客户端处理函数需要幂等。Sequence 过滤发生在修改 UI 之前，终态事件重复到达不会重复弹提示、发送埋点或创建通知。多标签页同时连接同一 Turn 时，各自维护游标，不用争夺全局浏览器状态。
-
 ## 事件保留与终态快照决定旧游标怎么办
 
 事件日志不能无限保留。长任务产生的 Delta、检索进度和调试事件会让表持续增长，查询老游标也越来越慢。保留策略按 Turn 终态、用户可见期限和审计要求划分，不能只按数据库总行数删除最旧记录。删除前确认客户端是否仍可能重连，以及是否已经有完整快照可替代历史。
@@ -156,7 +151,6 @@ sequenceDiagram
 删除事件时保留审计所需的类型、Sequence、时间和引用关系，Payload 按用户删除、敏感信息清理和保留期执行。SSE API 返回 Reset 或终态快照时，仍要按当前用户权限过滤引用，不能因为快照曾经对原用户可见就长期公开。
 
 事件表还应有按 `turn_id, sequence` 的索引，重放查询限制批次大小。单次返回几千个 Delta 会堵住连接、占用内存并让浏览器一次性刷新大量 DOM。超过批次时先发送已读取的事件，下一轮用新 Cursor 继续，终态检测不能因分页而提前关闭。
-
 ## 轮询降级也要沿同一个游标协议
 
 轮询接口不要重新设计一套状态字段。`GET /turns/{id}/events?after=7` 返回 `events`、`next_sequence`、`terminal` 和必要的 `snapshot`，语义与 SSE 的 `Last-Event-ID: 7` 相同。客户端无论从 SSE 还是轮询收到事件，都经过同一个投影函数和 Sequence 去重。
@@ -166,7 +160,6 @@ sequenceDiagram
 SSE 与轮询切换时保留同一个 Cursor。SSE 最后应用到 12，降级请求从 `after=12` 开始；轮询期间若收到 14，再恢复 SSE 时携带 14。切换前后允许一次重复帧，由投影去重；不能把两个通道的结果按到达时间直接拼接。
 
 轮询是交付降级，不是执行降级。Worker、Lease、模型调用与事件写入照常运行，浏览器只改变读取方式。若事件存储不可用，轮询返回明确的服务错误，客户端保留上一次快照并等待，不能根据空响应把 Turn 标成 Failed。
-
 ## 断线重连不创建新 Turn
 
 浏览器在收到 Sequence 2 后断线，Worker 随后提交 3、4、5。重连请求仍访问原 `event_url`，携带 `Last-Event-ID: 2`。服务端返回 3、4、5，最后一个是 `turn.completed`，然后关闭连接。模型、检索与工具都没有重新执行。
@@ -178,7 +171,6 @@ SSE 与轮询切换时保留同一个 Cursor。SSE 最后应用到 12，降级�
 轮询间隔采用带上限的退避，页面进入后台时可以放慢。Turn 到达终态后停止轮询。HTTP 401 或 403 要求重新认证，不继续重试；404 可能是无权限统一隐藏或数据已按保留策略删除；429 和 503 按 `Retry-After` 等待。
 
 SSE HTTP 200 只说明流建立。连接在任何业务事件前被代理关闭时，客户端不能显示任务失败，先读取状态；状态仍 Running 就重连，状态终态则展示快照。把网络状态和业务状态混为一谈，会让一次 Wi-Fi 切换变成错误的 Failed。
-
 ## 代理缓冲、心跳和连接容量
 
 流式响应必须避免中间层把多帧攒成一个大块。响应头使用 `Cache-Control: no-cache, no-transform`，并在 Nginx 场景设置 `X-Accel-Buffering: no` 或对应位置的 `proxy_buffering off`。代理、CDN 和负载均衡器的 Idle Timeout 要长于心跳间隔。
@@ -200,7 +192,6 @@ location /api/v1/agent/turns/ {
 HTTP/1.1 浏览器对同一 Origin 的并发连接数有限，多标签页和多个 Turn 可能互相占用。HTTP/2 可以复用连接，但代理配置仍要实测。页面不再展示 Turn 时关闭 EventSource，终态到达后服务器主动结束，避免僵尸连接。
 
 服务容量按活动连接、数据库回查频率、每秒事件数和 Payload 大小估算，不只看 API QPS。Redis 故障进入数据库轮询时，所有连接可能同时查询，间隔加随机抖动并设置最低值，防止故障把数据库压满。必要时按用户限制同时订阅的 Turn 数。
-
 ## 用最小实现验证序号与重放
 
 下面的示例用内存对象模拟事件表、高水位通知和客户端投影。它没有数据库事务、HTTP 和跨进程并发，只验证序号、终态唯一、游标与缺口处理。
@@ -215,7 +206,6 @@ HTTP/1.1 浏览器对同一 Origin 的并发连接数有限，多标签页和多
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=examples/ai-agent \
   python3 -m unittest examples/ai-agent/tests/test_sse_replay.py
 ```
-
 ## 沿一次断线推演状态和页面变化
 
 Turn 42 创建后写入 Sequence 1，Payload 只有安全的状态摘要。规划完成写入 2，第一段答案写入 3。浏览器应用到 3 后断线，本地 Cursor 保持 3，页面仍显示已有内容并提示连接恢复中。
@@ -233,7 +223,6 @@ Worker 不感知页面连接，它继续写 Sequence 4 的第二段答案、5 �
 | 6 | `turn.completed` | 用终态快照收束 | 只处理一次 |
 
 如果重连只返回 5、6，客户端检测到 4 缺失，停止拼接并重新请求 `after=3`。如果数据库也没有 4，却最大序号已是 6，服务端记录 Sequence Gap，返回完整快照或错误，不能让客户端自行补一个空事件。
-
 ## 失败证据按责任层展开
 
 页面没有实时更新时，先确认 Turn 是否仍在推进，再判断问题位于写入、通知、流或浏览器：
@@ -252,7 +241,6 @@ Worker 不感知页面连接，它继续写 Sequence 4 的第二段答案、5 �
 Turn 已 Completed 但没有终态事件，问题发生在终态事务或事件写入；终态事件存在但流不关闭，检查终态识别与重放退出条件。Turn 仍 Running 且长期没有新事件，不归 SSE 负责，回到 Watchdog、Lease 和 Worker Trace。
 
 指标按原因拆分连接结束：Terminal Close、Client Disconnect、Auth Failure、Proxy Reset、Server Error。重连率、重放事件数、Cursor Lag、数据库回查次数、Redis 降级连接数和缺口次数都比一个“流成功率”更能定位问题。Turn ID 不放进指标标签，详细排查通过 Trace 查询。
-
 ## 测试覆盖协议、竞态和真实代理
 
 ```mermaid
@@ -289,8 +277,8 @@ flowchart LR
 权限拒绝本身不写入用户可见事件，服务端只返回稳定错误并记录审计。
 
 SSE 的可靠性不来自连接永不断开，而来自连接可以随时断开，Turn 仍继续，事件仍可按游标找回。下一篇进入更长的持久执行：Temporal 怎样把等待、重试、Signal 和历史重放纳入工作流，而不是只依赖 Worker 与事件表组合。
-
 ## 可重放性来自游标与快照的组合
+
 事件序号必须单调且持久化，客户端断线后用 `Last-Event-ID` 请求缺失片段。保留窗口不足时返回快照序号和 `reset_required`，客户端先重建投影再继续读取。
 
 权限变化后重新鉴权快照与事件。事件类型演进保留兼容字段，客户端无法识别关键 Replace 或终态事件时回退终态查询。

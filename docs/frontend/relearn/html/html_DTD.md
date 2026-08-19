@@ -30,7 +30,6 @@ DOCTYPE 是 HTML 文档开头的声明，现代浏览器主要根据它选择 st
 ~~~
 
 标签名在 HTML 解析中通常按 ASCII 不区分大小写，属性可以省略部分引号，但生产代码仍应使用双引号并保持明确闭合。布尔属性只看存在性，`disabled="false"` 仍表示 disabled。
-
 ## DOCTYPE 影响兼容模式
 
 推荐的 HTML5 doctype 是短字符串 `<!doctype html>`。缺失、拼写异常或出现在文档前的非空字符可能触发 quirks mode，盒模型、表格高度和尺寸计算随之采用历史兼容规则。
@@ -42,7 +41,6 @@ console.log(document.compatMode) // CSS1Compat 或 BackCompat
 ~~~
 
 DOCTYPE 不能修复无效标签、样式错误或旧版浏览器行为。它只决定解析和布局时采用的兼容分支。
-
 ## 注释、实体与字符引用
 
 HTML 注释使用 `<!-- ... -->`，不能嵌套 `--`。注释不会形成可见文本，但会进入 DOM 的 Comment 节点，脚本可以读取它。
@@ -54,7 +52,6 @@ HTML 注释使用 `<!-- ... -->`，不能嵌套 `--`。注释不会形成可见�
 ~~~
 
 把用户输入拼进 HTML 时，不能只替换一个字符。根据插入上下文选择文本节点、属性 API 或经过审计的 sanitizer，避免 HTML、URL、CSS 和 JavaScript 上下文混淆。
-
 ## DTD、XML 与 HTML 解析器的差异
 
 XML 文档可以通过 DTD 声明元素、属性和实体，解析器可能对不符合约束的输入报错。浏览器按 text/html 处理的页面使用 HTML tokenizer 和 tree builder，忽略或特殊处理许多 XML 风格语法。
@@ -62,7 +59,6 @@ XML 文档可以通过 DTD 声明元素、属性和实体，解析器可能对�
 使用 `application/xhtml+xml` 时，文档进入 XML 解析路径，未闭合标签可能让整页进入解析错误状态。扩展名、DOCTYPE 和 MIME type 需要一起检查，不能只根据文件后缀判断。
 
 Processing instruction 在 HTML 中通常按注释或文本处理，不能把 `<?xml ...?>` 放进 text/html 页面期待 XML 声明生效。
-
 ## 用标准工具验证而不是看源码
 
 用不同 doctype、前导空白、未闭合标签、实体和 XHTML MIME type 建立最小页面。分别记录 compatMode、DOM 结构、解析错误界面和盒模型尺寸，再检查服务端 Content-Type。

@@ -54,7 +54,6 @@ updated: 2026-08-12
 ```
 
 version 使用实际 commit/digest。高基数字段适合日志和 Trace，不应随意做 Prometheus label。
-
 ## 指标用有限标签描述趋势
 
 在线 API 常看 RED：Rate、Errors、Duration；资源看 USE：Utilization、Saturation、Errors。直方图聚合延迟分布，Counter 只增，Gauge 表示当前值。
@@ -68,7 +67,6 @@ route、method、status_class、service/version 是可控标签；userId、reque
 | Gauge | db_pool_waiters | 当前饱和 |
 | Queue age | oldest_task_seconds | 任务新鲜度 |
 | Business | orders_paid_total | 技术成功是否产生业务结果 |
-
 ## Trace 用 Span 连接一次跨服务执行
 
 入口创建 server Span，通过 W3C `traceparent` 向下游传播；数据库、Redis、Broker publish/consume 和对象存储创建子 Span。异步消息把 trace context 放 Header，Consumer 可建立链接或子关系。
@@ -91,7 +89,6 @@ sequenceDiagram
 ```
 
 请求结束后异步任务可能持续更久。Trace 链接和 event_id 一起使用，避免把超长后台链误当一个永不结束的 HTTP Span。
-
 ## OpenTelemetry Collector 解耦采集与后端
 
 SDK 产生 OTLP 信号，Collector 接收、批处理、过滤、采样并导出到 Loki/ELK、Prometheus 兼容指标后端和 Tempo/Jaeger。应用不需要为每个厂商写一套埋点。
@@ -103,7 +100,6 @@ Resource 属性稳定标识 service.name、service.version、deployment.environm
 日志丢失时先查应用写出、Agent/Collector 接收、队列和后端导出四段；指标基数暴涨先找新增 label 及 series 数；Trace 断链则检查入口是否提取 traceparent、消息 Header 是否传播、下游是否创建同一 Context 的 Span。不要因为某个 Dashboard 空白就同时重启整条观测链。
 
 跨进程传播使用标准 Trace Context，消息把 traceparent 放在受控 Header。Baggage 会沿链路传播，不能塞 Token、邮箱等敏感或高基数数据。Consumer 为每次处理创建 Span，并记录 event_id 与 attempt，重投时才能区分一次业务事件的多次执行。
-
 ## 日志、指标与 Trace 的互补边界
 
 **有 Trace 后还需要 requestId 吗？**
@@ -121,10 +117,3 @@ Resource 属性稳定标识 service.name、service.version、deployment.environm
 **日志中的时间为什么仍可能对不上？**
 
 主机时钟、时区、缓冲和异步写入会影响。统一 UTC、同步时钟，同时依赖 trace/span 顺序和单调 duration，不只按显示时间猜因果。
-
-## 机制复核：日志、指标、Trace 与 OpenTelemetry
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

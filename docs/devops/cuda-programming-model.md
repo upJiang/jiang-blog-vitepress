@@ -50,7 +50,6 @@ CPU 程序里写一个函数调用，通常会等函数返回后继续。CUDA Ke
 CUDA 的“运行”因此包含两段状态：Host 把输入和启动参数交给 Runtime，Device 在自己的 Stream 中排队并执行 Kernel。比如向量加法的函数返回，只能说明 launch 请求已提交；在 `cudaDeviceSynchronize()` 或复制结果回 Host 时才会暴露 Kernel 的非法访问。它与 CPU 函数的同步返回不同，也与 CUDA Driver 负责加载模块、Runtime 负责便捷 API 的分工不同。
 
 如果 Kernel 失败，后续 API 可能才报告错误。代码要在关键阶段检查返回值，记录设备、Grid、Block、输入大小和同步点。没有真实 GPU 时可以静态审查这些状态关系，但不能把编译通过或命令格式正确写成吞吐已经验证。
-
 ## Kernel 是什么，为什么一次启动会产生很多 Thread
 
 Kernel 是由 GPU 执行的函数。它的函数体写一次，却会由许多 Thread 以不同索引执行。向量加法可以让第 `i` 个 Thread 读取 `a[i]` 和 `b[i]`，写入 `c[i]`；矩阵乘则让每个 Thread 或一组 Thread 负责一个输出 tile。Kernel 描述的是一个并行工作模板，不是已经运行完的一次结果。
@@ -73,9 +72,9 @@ add_vectors<<<blocks, 256>>>(device_a, device_b, device_c, n);
 cudaError_t status = cudaGetLastError();
 ```
 
-`blockIdx.x` 表示当前 Block 在 Grid 中的编号，`blockDim.x` 是每个 Block 的 Thread 数，`threadIdx.x` 是 Thread 在 Block 内的编号。三者相乘相加得到全局索引。`cudaGetLastError` 只能检查 Launch 参数或较早的异步错误，若要确认 Kernel 已完成并捕获执行错误，还需要 `cudaDeviceSynchronize` 或事件同步。代码块后的这一点很重要，异常出现的位置可能晚于真正出错的 Kernel。
+`blockIdx.x` 表示当前 Block 在 Grid 中的编号，`blockDim.x` 是每个 Block 的 Thread 数，`threadIdx.x` 是 Thread 在 Block 内的编号。三者相乘相加得到全局索引。
 
-## Thread、Block 和 Grid 如何表达工作范围
+`cudaGetLastError` 只能检查 Launch 参数或较早的异步错误，若要确认 Kernel 已完成并捕获执行错误，还需要 `cudaDeviceSynchronize` 或事件同步。代码块后的这一点很重要，异常出现的位置可能晚于真正出错的 Kernel。## Thread、Block 和 Grid 如何表达工作范围
 
 Thread 是 CUDA 程序中的最小逻辑执行单元。每个 Thread 有自己的索引、寄存器和局部变量，但它不是一颗独立 CPU 核心，也不能随意调用操作系统。Thread 的数量可以远大于芯片上的物理执行单元，硬件会分批调度它们。
 
@@ -92,7 +91,6 @@ Grid 是一次 Kernel Launch 创建的全部 Block。它描述整个输入范围
 | Grid | 全部 Block | Global Memory 中的结果 | 默认不能跨 Block 同步 |
 
 读者看到表格后应能回答一个实际问题：如果两个 Thread 属于不同 Block，它们不能直接依赖 `__syncthreads()` 互相等待。把这一点写错，会产生偶发的旧数据、竞态或死锁，而不是单纯的“GPU 不够快”。
-
 ## Warp 是什么，SIMT 为什么会受到分支影响
 
 GPU 通常把 Thread 按固定宽度组成 Warp，NVIDIA 常见架构中一个 Warp 包含 32 个 Thread。Warp 是硬件调度和执行的粒度，Block 是程序员组织共享数据与同步的粒度，两者不能混为同一个概念。一个 Block 可以包含多个 Warp，也可能有一个 Warp 中一部分 Thread 因边界条件提前退出。
@@ -102,7 +100,6 @@ SIMT 可以理解为“单条指令，多条线程”。一个 Warp 往往同时
 分支发散不一定是错误。边界检查、不同 Token 的结束状态和稀疏数据都可能需要分支。问题在于分支是否频繁、是否让大量 Warp 长时间只执行少数活跃 Thread。优化时先查看真实数据分布和 Kernel 时间，不能看到一个 `if` 就武断删除它。
 
 Warp 内的内存访问也会影响效率。相邻 Thread 访问相邻地址时，硬件更容易合并内存事务；Thread 以随机索引读巨大表时，带宽利用会变差。改变张量布局、stride 或数据类型，可能比增加 Thread 数更能影响结果。
-
 ## SM 怎样接收 Block 和管理片上资源
 
 SM 是 NVIDIA GPU 中可以驻留并执行 Thread Block 的多功能处理器单元。一个 SM 通常包含 Warp 调度器、寄存器文件、Shared Memory、整数和浮点执行单元，以及可能的 Tensor Core。不同 GPU 架构名称和数量会变化，本文只使用公开模型，不把某一代硬件的数字当成通用规律。
@@ -112,7 +109,6 @@ SM 是 NVIDIA GPU 中可以驻留并执行 Thread Block 的多功能处理器单
 驻留数量常被称为 Occupancy 的一部分，但 Occupancy 不是性能分数。更高的驻留 Thread 可能帮助隐藏内存延迟，也可能因为资源变少而让每个 Thread 做更多重用。矩阵 Kernel 还要考虑 Tensor Core 使用、Shared Memory tile 和内存带宽。最终要用编译器资源报告与 Profiler 验证。
 
 SM 资源还有明确的所有权边界。寄存器属于 Thread，Shared Memory 属于 Block，Global Memory 属于整个 Grid 和其他 Kernel 可见的设备地址空间。一个 Thread 把临时数组放进寄存器，不能让同 Block 另一 Thread 直接读取；需要交流就写入 Shared Memory，并在正确的同步点等待。
-
 ## Global Memory、Shared Memory 和寄存器怎样配合
 
 Global Memory 通常指 GPU 设备可访问的大容量显存。它容量大但访问延迟高，适合保存模型权重、输入、输出和跨 Kernel 的中间结果。每个 Thread 直接从 Global Memory 读同一个值，可能产生重复事务；Block 内先把 tile 搬到 Shared Memory，再重复使用，常能减少访问。
@@ -133,7 +129,6 @@ flowchart LR
 ```
 
 箭头不是固定的每条指令路径。简单逐元素 Kernel 可能直接读写 Global Memory，矩阵库会使用多级 Cache、Shared Memory 和 Tensor Core。验证时可从拷贝计数、Kernel 参数、编译器资源报告和 Profiler 看到哪些箭头真的发生；不能仅凭源代码中的变量名断言某个值一定在寄存器里。
-
 ## 同步、错误和资源释放分别由谁负责
 
 `__syncthreads()` 只同步同一个 Block 中到达该点的 Thread。若一个 Block 内部分支让部分 Thread 永远不执行同步，其他 Thread 会等待，Kernel 可能卡住。跨 Block 的生产者消费者关系要用新的 Kernel Launch、原子操作或经过验证的协作机制表达。
@@ -143,7 +138,6 @@ flowchart LR
 资源释放也有顺序。Host 先等待或确认相关 Stream 已完成，再释放 Device Pointer；否则仍在执行的 Kernel 可能访问已经归还的地址。服务取消请求时，框架要把取消传到对应 Stream 或引擎任务，不能只关闭 HTTP 连接而让 GPU 继续无限工作。
 
 没有真实 GPU 时可以运行 `nvcc --version`、检查编译参数、静态阅读边界条件和用 CPU 版本对照结果，但不能声称某个 Block 实际落在某个 SM，也不能填写 Occupancy 或吞吐。那些结论需要目标架构上的编译和 Profiler。
-
 ## CUDA 代码怎样经过编译器、Runtime 和驱动
 
 CUDA 源文件里可以同时出现 Host 函数和 Device Kernel。`nvcc` 驱动编译流程，把 Host 部分交给系统 C/C++ 编译器，把 Device 部分编译为面向某些 GPU 架构的机器代码或中间表示。最终程序还要链接 CUDA Runtime。编译通过只说明语法、类型和目标架构配置可以生成制品，不说明当前机器有可用 GPU。
@@ -164,7 +158,6 @@ python -c 'import torch; print(torch.cuda.is_available(), torch.cuda.device_coun
 ```
 
 `nvcc` 不存在时，已经构建好的应用仍可能运行，因为运行端不一定需要编译器；`nvidia-smi` 正常而 `torch.cuda.is_available()` 为 false，则要继续检查容器设备、用户态库和框架构建。四条命令回答的问题不同，不能拿其中一条替代其余状态。
-
 ## Stream 和 Event 怎样表达异步顺序
 
 Stream 是 Device 工作的有序队列。同一个 Stream 中的操作按提交顺序满足依赖，先复制输入、再启动 Kernel、再复制结果，后一步不会越过前一步。不同 Stream 可能并发或交错执行，是否真能重叠取决于设备能力、资源占用和数据依赖。Stream 不是一条固定的物理执行单元。
@@ -176,7 +169,6 @@ Event 可以记录 Stream 到达某个位置的时刻。另一个 Stream 可以�
 默认 Stream 的语义会受到编译选项与 Runtime 模式影响，旧代码可能依赖它与其他 Stream 的隐式同步。把这类代码迁到每线程默认 Stream 后，原来偶然成立的顺序可能失效。库和应用共同使用 Stream 时，应通过 API 传递当前 Stream，而不是在内部随意切换并假设全局同步。
 
 请求取消也要沿 Stream 所属的工作追踪。CUDA 通常不能安全地从任意指令中间强行停止一个普通 Kernel，框架会避免继续提交后续步骤，或让支持检查取消标记的长 Kernel 在边界退出。HTTP 断开只发生在 CPU；若 Engine 不传播取消，Device Queue 仍会执行已经提交的工作。
-
 ## Grid 和 Block 尺寸怎样从输入算出来
 
 一维向量常选择 128、256 或其他设备允许的 Block 大小，再用向上取整计算 Block 数。这个选择需要让总 Thread 覆盖输入，还要兼顾 Warp 对齐、寄存器和 Shared Memory。256 不是固定最优值，只是许多简单 Kernel 的合理起点。设备限制可以从属性 API 读取，库 Kernel 则由自动调优或启发式选择。
@@ -194,7 +186,6 @@ Event 可以记录 Stream 到达某个位置的时刻。另一个 Stream 可以�
 表中 1000 个元素的 Grid 用 `(1000 + 255) / 256` 得到 4。若写成浮点 `ceil`，结果同样，但整数公式避免类型转换。对于二维输入，宽恰好被 16 整除，高度 1080 需要 68 个 Block，最后一个 Block 只有前 8 行有效。
 
 Block 太小会让调度和指令开销占比增加，太大可能超过 Thread 上限或消耗过多资源。矩阵乘还会让一个 Thread 计算多个输出，逻辑工作量不再等于 Thread 数。参数选择要结合 Kernel 结构，不存在只看数据量就能套用的统一公式。
-
 ## 合并访存和分块为什么会改变同一公式的速度
 
 向量加法的相邻 Thread 访问相邻 `float`，一组请求能较好地合并成较少的显存事务。若每个 Thread 访问 `a[i * stride]` 且 stride 很大，同一 Warp 的地址散开，控制器需要更多事务，读到的 Cache Line 中又有大量字节未使用。数学上仍然做相同次数的加法，等待内存的时间却不同。
@@ -206,7 +197,6 @@ Shared Memory 还存在 Bank 组织。多个 Thread 在同一时刻访问形成�
 模型中的转置、切片和 View 会改变 stride。一个逻辑上连续的张量切片可能不是物理连续，Kernel 要么支持该 stride，要么先产生 contiguous 副本。副本会占显存并增加带宽。性能调查应记录 shape 和 stride，不能只记录算子名称。
 
 判断访存问题需要 Profiler 的 DRAM Throughput、Cache 命中、内存事务和 Kernel 时间。`nvidia-smi` 的显存占用只表示容量，无法判断访问是否合并。没有目标 GPU 时能检查索引是否相邻、是否重复加载和是否有明显转置，不能填写带宽利用率。
-
 ## Occupancy 为什么不是越高越好
 
 Occupancy 通常描述一个 SM 上活跃 Warp 数相对于硬件上限的比例。一个 Block 的 Thread 数、每个 Thread 使用的寄存器、每个 Block 使用的 Shared Memory，以及设备每个 SM 的资源上限，共同决定能同时驻留多少 Block。任何一项先耗尽，后续 Block 都要等待。
@@ -218,7 +208,6 @@ Occupancy 通常描述一个 SM 上活跃 Warp 数相对于硬件上限的比例
 编译器可以输出每个 Kernel 的寄存器数和静态 Shared Memory，动态 Shared Memory 则在 Launch 时传入。Occupancy Calculator 能给理论驻留数量，但无法知道分支、内存或指令依赖。正确流程是用计算排除明显不合理参数，再在相同输入上比较 Kernel 时间和业务结果。
 
 Serving 场景还要把 Kernel Occupancy 与请求层指标分开。一个 Kernel 高效，不保证 API 延迟低；请求可能在队列等待、Tokenizer 或通信阶段耗时。调度器也可能为了 Batch 吞吐延迟单个请求。设备指标和 TTFT、TPOT 必须按同一 request ID 或时间窗关联。
-
 ## 怎样让 CUDA 失败留下可定位的证据
 
 最基本的检查是在每次关键 Runtime 调用后读取返回码，并在 Kernel Launch 后检查错误。异步执行意味着还要在测试边界同步，否则越界可能拖到下一次 API 才暴露。调试构建可以临时设置同步启动，让异常靠近根因，但它改变并发和性能，只用于诊断。
@@ -230,7 +219,6 @@ Serving 场景还要把 Kernel Occupancy 与请求层指标分开。一个 Kerne
 长时间服务还要记录设备级错误后的恢复。某些错误只影响一次请求，某些错误会让 CUDA Context 进入不可继续使用的状态，需要工作进程退出并由编排系统重建。健康检查若只测 HTTP 线程，会让已经失去 GPU 的进程继续接流量。最小 Device 运算或引擎状态更接近真实就绪。
 
 静态阶段能运行编译、Lint、边界推导和 CPU 对照；目标 GPU 阶段再执行内存检查、数值断言、取消、压力与资源回收。验证记录要写明执行层级，不能把“代码已编译”改写成“CUDA 路径已通过”。
-
 ## 一个向量加法怎样完整经过 CUDA
 
 输入是长度为 1000 的两个 `float32` 数组，Host 分配并填充 `a`、`b`，把它们复制到 Device，按每 Block 256 个 Thread 启动四个 Block。多出的 24 个 Thread 通过 `i < n` 退出，前 1000 个 Thread 分别写入 `c[i]`。Kernel 完成后，Host 同步并把 `c` 复制回来。
@@ -246,10 +234,3 @@ Serving 场景还要把 Kernel Occupancy 与请求层指标分开。一个 Kerne
 最后再检查资源释放后的状态。Device Pointer 全部归还，进程仍可能保留 Context 和模块代码，因此设备占用不会回到零；进程退出后占用才应消失。若第二次运行结果变化，除了数值误差，还要排查未初始化内存、错误的 Stream 依赖和上一次 Kernel 留下的设备错误。完整验证必须重复运行，而不是只接受第一次成功。
 
 测试记录还要保存输入随机种子与 CPU 参考实现版本，保证下一次比较面对的是同一组数据和同一种容差。
-
-## 机制复核：CUDA 是什么？Kernel、Thread、Block、Warp 和 SM 如何协作
-基础设施文章最终要回答资源从哪里来、由谁调度、失败如何回收。把模型、GPU、网络、队列、制品和数据的生命周期画成一条链，分别记录容量单位、版本身份、健康信号和所有权。单一利用率或一次成功启动不能证明系统可用。
-
-落地验证分成离线配置检查、隔离环境运行和候选发布回归。至少覆盖资源不足、进程重启、重复任务、网络抖动和旧版本并存，并保留命令输出、指标时间窗和回滚点。生产环境只运行已构建产物，构建和压力实验放在独立环境。
-
-性能数字需要说明硬件、输入规模、并发模型和测量口径。观察到长尾或成本异常时，先定位排队、计算、传输、存储和重试分别占用的时间，再决定扩容、限流、批处理或降级。

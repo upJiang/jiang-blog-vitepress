@@ -34,7 +34,6 @@ updated: 2026-08-11
 冷启动创建应用并触发 App 生命周期，页面按路由创建；从后台返回可能只触发 show，不重新 launch。页面栈的 navigateTo、redirectTo、switchTab、reLaunch 和 navigateBack 对实例保留不同，资源所有者必须按真实卸载时机清理。
 
 Page 的 load 接收初始参数，show 可多次发生，ready 表示首次渲染完成，hide 只是暂时不可见，unload 才销毁。组件还有 created/attached/ready/moved/detached，组件与页面顺序通过官方版本和实验核对。
-
 ## setData 数据通道
 
 只发送视图需要且发生变化的路径，合并同一轮更新，避免高频大数组深拷贝。逻辑层直接修改 `this.data` 不会可靠更新视图；setData callback 或下一阶段用于观察提交，但不能当任意异步任务完成。
@@ -59,17 +58,14 @@ function updateVisibleRows(nextRows) {
 ```
 
 `setData` 回调表示这次视图更新已完成，不代表网络、图片解码或后续动画也结束。老旧基础库若没有 `TextEncoder`，诊断工具可以用开发环境提供的字节统计方式替代；不要为了计数把大型对象再序列化一遍并长期留在线上热路径。
-
 ## 资源生命周期
 
 网络、定时器、定位、监听器和播放器在 hide 是暂停还是继续取决于业务；unload/detached 必须释放。后台恢复检查数据时效和登录状态，不默认重新请求全部内容。
-
 ## 验证
 
 为 App/Page/Component 每个 Hook 打关联 ID 和时间，执行冷启动、前后台、普通导航、Tab 切换和返回。记录 setData payload 大小、频率和视图更新时间，建立性能基线。
 
 解释双线程模型时，要同时说明逻辑与视图隔离、数据桥、生命周期和性能含义，不把一个平台当前版本的内部实现写成所有小程序的永久保证。
-
 ## 一次 setData 的执行链
 
 页面事件先在逻辑层更新本地状态，`setData` 再把 payload 交给数据通道，视图应用更新后用户才看到结果。JavaScript 计算很快，并不能抵消大型 payload 的序列化、传输和渲染成本。
@@ -81,16 +77,8 @@ function updateVisibleRows(nextRows) {
 ```
 
 组件的 `properties`、`data`、`observers` 和 `lifetimes` 形成独立边界。跨组件事件与页面状态不应依赖无所有者的全局可变对象；自定义组件 `detached` 可能晚于页面隐藏，因此播放器和监听器需要分别处理暂停与销毁。
-
 ## 官方依据
 
 - [微信小程序生命周期](https://developers.weixin.qq.com/miniprogram/dev/framework/app-service/page-life-cycle.html)
 - [setData 性能](https://developers.weixin.qq.com/miniprogram/dev/framework/performance/tips.html)
 - [自定义组件生命周期](https://developers.weixin.qq.com/miniprogram/dev/framework/custom-component/lifetimes.html)
-
-## 迁移复核：小程序运行时、双线程模型与生命周期
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

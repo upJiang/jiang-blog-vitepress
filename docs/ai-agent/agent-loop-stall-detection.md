@@ -49,7 +49,6 @@ lastUpdated: false
 **探测器频繁误杀分页或轮询**说明动作签名和进度定义过粗。合法分页会改变 Cursor 并产生新结果，Job 轮询会让状态从 Pending 走向 Running、Completed。只按工具名计数会把正常协议当循环。
 
 这些现象要与模型慢、流间隙、工具 Timeout 和 Worker 失联分开。卡循环通常有有效 Lease、连续 Event 和短调用延迟，区别在于业务状态没有朝终点推进。
-
 ## 进度必须围绕目标定义
 
 “有变化”不等于“有进展”。进度是任务距离终止条件更近的可观察变化。不同 Agent 类型使用不同信号，Runtime 不能只提供一个全局布尔值。
@@ -69,7 +68,6 @@ lastUpdated: false
 控制进度需要边界。第一次进入 Retry Policy 表示状态发生了有意义变化，但连续在 Retry 和 Execute 之间往返不能无限重置窗口。Runtime 保存 Research Round、Repair Attempted 和最大动作数，把探索、修复和停止写进显式状态机。
 
 Progress Revision 只在业务不变量满足后提交。例如检索返回候选，经过 Scope、去重和版本检查后确实新增 Evidence，才增加 Revision。工具返回成功但产物被全部过滤，记录 Activity 和 Empty Result，不增加 Progress。
-
 ## 动作签名识别同一意图
 
 动作签名由工具名、规范化参数和必要 Scope 计算。JSON 键排序，集合字段按协议排序去重，路径和 URL 做安全规范化，忽略 Trace ID、当前时间等传输字段。签名算法带版本，历史 Trace 才能重放。
@@ -90,7 +88,6 @@ signature = hash(
 Action Record 至少包含 Action Index、Signature、Outcome、Error Class、State Revision Before/After、Progress Units、Output Fingerprint、Attempt ID 和耗时。探测器返回命中的记录索引，停止原因可以回到具体证据，不只写“检测到重复”。
 
 签名比较使用滑动窗口。背靠背相同动作抓紧密重复，窗口内分散相同动作抓“读、改、读、改”的回环。窗口不能无限增长，否则早期合法调用会在很久后误触发；Checkpoint 保存必要摘要，恢复不必加载完整历史。
-
 ## 单一重复规则不足以判断卡住
 
 无进展有多种形状，至少需要几类互补信号。信号数量不是目标，每一类都应对应可复现故障和明确误报边界。
@@ -110,7 +107,6 @@ Action Record 至少包含 Action Index、Signature、Outcome、Error Class、St
 **成功后重复确认**识别动作已经获得可验证成功，模型仍反复读取同一对象或截图确认。是否允许二次确认由风险策略决定，不能全局禁止。
 
 这些信号按优先级评估，先命中的规则形成 Decision 和 Evidence。多个规则同时命中时保存全部诊断标签，但只能有一个控制动作，避免一个 Nudge 与一个 Force Stop 同时写入上下文。
-
 ## 重复成功与重复错误使用不同预算
 
 一次网络错误后重试成功，是正常恢复。重复错误可能来自瞬时依赖，应该允许有限退避和替代路径。相同动作连续成功，结果和状态都不变化，再做一次通常没有价值。
@@ -122,7 +118,6 @@ Action Record 至少包含 Action Index、Signature、Outcome、Error Class、St
 成功预算也允许协议例外。轮询同一个 Job ID 可以合法重复，但 Status 必须推进或间隔符合策略；幂等写重放可能返回相同 Receipt，Runtime 识别它是恢复对账，不计为模型自主重复。豁免要绑定工具与明确 Progress，不按工具名整类关闭检测。
 
 阈值是 Policy，不写死在 Prompt。不同模式、工具风险和任务类型可以分层配置，Turn 创建时固定版本。阈值调整要对照误报、漏报和成本，不从一条事故直接推广到全站。
-
 ## Continue、Nudge 与 Force Stop 是三种裁决
 
 **Continue** 表示当前证据不足或仍有 Progress。Decision 仍可记录观察标签，但不改变模型上下文。
@@ -140,7 +135,6 @@ Force Stop 与 User Cancel、Deadline Expired、Tool Timeout 分开。终态可�
 最后说明只整理已经确认的事实。若允许总结阶段继续搜索、读文件或执行命令，它会重新打开刚刚关闭的循环。
 
 :::
-
 ## 并行分支按计划身份归并进度
 
 Fan-out 会在同一阶段启动多个相似工具。五个搜索分支可能使用同一工具、相近参数，并以不同顺序完成。若探测器按全局完成顺序检查“连续相同工具”，会把合法并行误判成模型重复。
@@ -158,7 +152,6 @@ Action Record 要保存 `plan_step_id`、`branch_id` 和 `dispatch_batch_id`。�
 部分交付记录三组分支：已经完成且通过验证、已经失败或卡住、尚未执行。Orchestrator 只能引用第一组产物，并在结果中列出缺口和停止原因；第二组保留错误证据，第三组明确标为未运行。这样用户不会把“某个分支停止”误解成整项研究已经覆盖。
 
 Force Stop 到达时先关闭新的 Dispatch，再等待已经产生不可取消副作用的分支进入安全点。可取消的只读分支立即结束，已完成分支提交稳定 Artifact ID。汇合节点使用 Turn 终态做上限，迟到结果不能让 Stalled 回到 Running。
-
 ## Detector 状态必须跨 Checkpoint 恢复
 
 Action Window、Nudge Count、Rule Counters、Policy Version 和最后 Progress Revision 属于运行状态。Worker 在 Nudge 后崩溃，新 Worker 若从空 Detector 开始，同一循环会重新获得完整预算，反复恢复就能永久运行。
@@ -170,7 +163,6 @@ Detector Decision 与 Turn 状态在同一修订提交。Force Stop 已写 Event
 配置升级可以让旧 Turn 沿用旧 Detector 直到结束，新 Turn 使用新版本。需要迁移窗口时，迁移函数明确转换哪些计数；无法兼容就清空窗口并减少剩余动作预算，而不是静默给出更多尝试。
 
 历史 Action Record 存在隐私与安全边界。签名输入包含路径、查询或业务 ID，指标只保留 Tool Family、Rule 和版本，原参数进入受控存储。用户无法通过 Prompt 读取 Signature、阈值或其他分支的动作历史，也不能要求 Runtime 清空计数。
-
 ## 工具契约是第一道防线
 
 探测器只能在动作历史出现后判断模式。第一次错误工具调用已经可能造成破坏，因此检测不能替代输入校验、权限、事务和幂等。
@@ -184,7 +176,6 @@ Detector Decision 与 Turn 状态在同一修订提交。Force Stop 已写 Event
 工具适配器还要提供稳定幂等身份。恢复导致的重复动作返回原 Receipt，Action Record 标记 `replayed=true`，探测器不把它当模型循环。外部结果 Unknown 时停在人工对账，不能让检测器通过多次重试猜答案。
 
 每次新增探测规则，都要先问能否在上游契约消除根因。能通过 Schema、状态机或唯一约束拒绝的问题，应先修上游；探测规则用于跨多步才可观察的模式，而不是补一个可在第一步发现的输入 Bug。
-
 ## 用最小探测器观察信号组合
 
 下面的示例实现 Action Record、稳定签名和三类核心规则：重复成功无进展、同类错误重复、工具族参数漂移。它使用内存历史，不调用模型或工具，只验证裁决逻辑。
@@ -196,7 +187,6 @@ Detector Decision 与 Turn 状态在同一修订提交。Force Stop 已写 Event
 普通错误允许更大预算，连续验证错误则快速 Force Stop。工具族窗口捕捉不同 Query 但零 Progress 的搜索。第一次命中返回 Nudge，Nudge Count 达上限后相同证据升级为 Force Stop。
 
 示例没有实现语义相似 Query、跨进程历史和无工具总结。生产实现把规则配置、Action Record 和 Decision 持久化，使用受控字段做指标，敏感参数正文留在 Trace 存储。
-
 ## 沿一次空搜索循环推演
 
 用户询问“远程访问的管理员权限规则”。模型第一次调用 `search.web(query="管理员权限")`，工具成功返回空列表。State Revision 保持 1，Evidence 为 0，记录 Output Fingerprint `empty`。
@@ -210,7 +200,6 @@ Detector Decision 与 Turn 状态在同一修订提交。Force Stop 已写 Event
 若第二次调用实际返回一条新 Evidence，Progress Revision 增加，工具族窗口被打断；若五次调用分别翻页并每页获得新结果，Cursor、Output 和 Progress 都变化，不触发；若前四次是网络错误，第五次成功并新增 Evidence，错误计数结束，Run 继续。
 
 这条轨迹说明参数变化不足以证明探索有效，重复工具名也不足以证明卡住。裁决依赖 Outcome、业务 Progress 和状态修订的组合。
-
 ## 诊断从动作历史与状态差分开始
 
 发现卡循环时，固定 Turn ID、Attempt ID、Plan Revision、Action Index、Signature Version、Tool Contract Version、State Before/After、Progress Units、Outcome 和 Nudge Count。按时间排序，不先读模型的自我解释。
@@ -226,7 +215,6 @@ Detector Decision 与 Turn 状态在同一修订提交。Force Stop 已写 Event
 **停止后再次运行**时，检查终态、恢复 Marker 和队列任务。Stalled Event 写入成功但 Turn 仍 Running，说明终态提交不原子；恢复任务应在领取后再次检查终态。
 
 **Nudge 没有效果**时，检查 Nudge Count 是否持久化、相同规则是否升级，以及 Prompt 是否被上下文压缩丢弃。控制事件进入稳定状态，不依赖一段随时被裁剪的系统提示。
-
 ## 探测器要随证据演进
 
 探测规则不是越多越好。每条规则登记对应故障、必要信号、误报样本、替代防线、负责人和版本。没有可复现事故或无法说明 Progress 的规则先以 Shadow 运行。
@@ -240,7 +228,6 @@ Shadow Detector 只记录 Decision，不执行 Nudge 或 Stop。离线回放人�
 豁免也版本化。允许 Poll 工具重复，不代表关闭它的全部检测；只豁免参数相同且 Job Status 推进的记录。工具更换协议后，旧豁免自动失效或经过重新评审。
 
 跨文章和跨服务使用同一 Outcome、Error Class 与 Progress 词汇。工具、Runtime、Trace 和 Eval 对字段含义不一致时，探测器会在观测层制造第二套事实。
-
 ## 测试区分合法迭代与无进展
 
 新增单元测试覆盖七条行为：重复成功无进展触发 Nudge；Nudge 达上限升级 Force Stop；普通错误比成功拥有更多次数；验证错误快速停止；分页有新 Cursor 和结果时继续；参数漂移但工具族无进展时命中；同一调用推进 State Revision 时继续。
@@ -261,7 +248,6 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=examples/ai-agent \
 恢复测试在 Nudge 后写 Checkpoint，再启动新 Worker。Nudge Count、Action Window 和 Policy Version 必须恢复，不能重新获得一套空白预算。Stalled 终态不得重新进入队列。
 
 回归集包含正常分页、有限轮询、错误后成功、重新检索、新旧文件对比、并行工具和实际无进展序列。每次规则调整同时看误报和漏报，不能只增加卡循环样本。
-
 ## 生产观测与容量边界
 
 指标按 Rule、Decision、Tool Family、Mode 和 Policy Version 聚合，观察 Nudge、Force Stop、误报回滚、平均节省动作、停止前成本和 Partial 交付率。Signature、Query 和文件路径不进入标签。
@@ -278,6 +264,7 @@ Detector 每轮计算要有明确复杂度。滑动窗口固定长度，签名�
 
 设计评审时，分别推演重复成功、重复错误、不同 Query 空结果和合法分页。每条轨迹都能说明 Signature、Progress、预算、Decision、用户结果和根因修复位置，卡循环检测才不是一个粗暴的“调用次数上限”。
 ## 停止信号必须能解释“为什么”
+
 卡循环检测不是给 Agent 设置一个粗略的调用次数上限。它要比较动作签名、状态差异、错误类别和有效进度，并把命中的窗口与阈值写入运行记录。这样合法分页和重复失败可以分别处理，恢复时也能继续使用已保存的计数。
 
 最小回归集包含成功无变化、失败重试、分页推进和同一工具不同参数四种轨迹。探测器只负责停止，根因修复仍属于工具、检索或计划模块。

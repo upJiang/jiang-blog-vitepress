@@ -48,7 +48,6 @@ if project is None:
 ```
 
 不要先按 id 查询再在 Python 比较 tenant_id，那会把越权对象加载进内存并可能泄露日志/关联。Repository 集成测试准备其他租户同类数据。
-
 ## 一请求一个工作单元，事务由用例拥有
 
 依赖创建 AsyncSession 并保证关闭，Service 使用 `async with session.begin()` 包住项目更新、审计与 Outbox。flush 获取约束结果但不提交；异常离开 begin 自动 rollback。
@@ -74,7 +73,6 @@ sequenceDiagram
 数据库 Session 生命周期结束后才由 HTTP 层序列化稳定 DTO，避免序列化触发 lazy query。
 
 关联加载需要根据访问形状选择。`selectinload` 先查父项，再用主键集合查关联，适合一对多列表；`joinedload` 使用 JOIN，集合关系会产生重复行并可能放大分页结果。对管理端列表，直接选择 DTO 所需列通常更清楚。测试对固定 fixture 记录 SQL 数量，新增字段时若从 2 条变成 102 条即可及时发现 N+1。
-
 ## 密码与 Refresh 会话使用独立表和事务
 
 用户表保存 Argon2id hash；认证会话表保存 Refresh Token hash、family_id、expires、revoked、replaced_by。登录事务创建会话，响应设置原始随机 Token 到 HttpOnly Cookie。
@@ -88,7 +86,6 @@ sequenceDiagram
 | 过期/撤销 | 不创建新会话 | 401 |
 | 登出 | 撤销当前行/family 策略 | 过期 Cookie |
 | 密码修改 | 更新 hash、撤销全部会话 | 重新登录 |
-
 ## Alembic 管结构，应用不自动建表
 
 Model 变化生成/编写 Alembic migration，人工审查类型、索引、数据迁移和 downgrade 现实性。在空库与上一版本库升级，比较 information_schema；生产由单独 Job 运行。
@@ -96,7 +93,6 @@ Model 变化生成/编写 Alembic migration，人工审查类型、索引、数�
 Python 测试运行 ruff、mypy、pytest；MySQL 集成验证事务、N+1 和认证并发。SQLite 语义与 MySQL 类型、锁、约束不同，不能作为唯一集成数据库。
 
 AsyncEngine 的 pool_size、max_overflow 与 Uvicorn Worker 数相乘才是服务总连接上限。四个进程各允许 20 条连接，不是 20，而是最多 80；再叠加 Celery 与迁移 Job 可能超过 MySQL 预算。Pool timeout 应短于请求 deadline，指标记录 checkout 等待和连接使用量，避免把“池里排队”误判成慢 SQL。
-
 ## SQLAlchemy 会话与认证一致性
 
 **expire_on_commit 应该设 false 吗？**
@@ -114,10 +110,3 @@ async API 常设 false 避免 commit 后访问属性触发隐式 IO，但对象�
 **为什么 Alembic autogenerate 仍需人工审查？**
 
 它无法理解重命名 vs 删除新增、数据回填、锁风险和业务兼容窗口。生成结果只是候选迁移，不是生产计划。
-
-## 机制复核：SQLAlchemy 2、MySQL 与认证会话
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

@@ -34,23 +34,19 @@ SSR 在服务端生成初始 HTML，流式渲染按可用片段逐步发送，Hy
 服务端为请求创建 app、router、store，加载数据并 renderToString 或 stream，输出 HTML 与安全序列化状态。客户端用同一初始状态 createSSRApp，Hydrate DOM，之后才进入普通响应式更新。
 
 mounted 和浏览器 API 不在服务端可用。模块顶层 window、共享 store 或随机 ID 会导致崩溃、跨请求污染或不匹配。使用环境守卫只能避免崩溃，仍要决定客户端差异何时显示。
-
 ## Hydration 如何复用
 
 客户端遍历 VNode 与现有 DOM，绑定事件并建立组件实例；匹配时避免重建宿主节点。结构不匹配可能触发警告和局部修复，成本和行为取决于版本，不能把警告当无害日志。
 
 时间、随机数、Locale、媒体查询和鉴权状态应由服务端传入稳定快照，或在 mounted 后更新客户端专属内容。大面积忽略不匹配会掩盖真实状态泄漏。
-
 ## 流式和数据边界
 
 流式 SSR 可以先发送 shell 再发送后续片段，改善首字节与内容可见时间，但代理缓冲、错误边界和客户端激活都要验证。每个异步边界需要 loading、error 和恢复策略。
-
 ## 验证
 
 并发发起两种用户/Locale 请求，确认 HTML 和 store 不串；禁用 JavaScript 检查服务端内容；启用后记录 Hydration 警告和交互可用时间。故意加入随机值建立反例，再改成服务端序列化种子。
 
 SSR 的收益要同时对照首屏、SEO、服务器成本、缓存、数据安全和 Hydration。它改变了工作位置与交付顺序，不保证所有页面都更快。
-
 ## 每个请求必须拥有独立应用图
 
 服务端入口应为每次请求创建 app、router、Pinia 和请求上下文，等待路由 ready 与数据预取，再渲染 HTML。把 Store 或 reactive 单例放在模块顶层，会让并发请求共享用户数据；这既是正确性 bug，也是隐私事故。
@@ -66,26 +62,16 @@ HTTP request
 ```
 
 序列化状态不能直接拼进 script。`</script>`、HTML 特殊字符和原型相关键需要安全序列化策略，敏感 token 不应进入 HTML。客户端读取同一快照后再创建 Store，保证第一次 render 与服务器一致。
-
 ## Hydration 怎样复用 DOM
 
 客户端从根 VNode 与现有 DOM 同步向下核对类型、文本、属性和子节点，并绑定事件/组件实例。匹配时复用节点，差异时开发环境警告并按策略修补。无效 HTML 被浏览器解析器重排、服务端与客户端时区不同、随机 ID、只在 mounted 前读取 viewport 都可能破坏匹配。
 
 Hydration 完成不等于页面立刻流畅：大组件仍要在主线程执行 setup/render 和事件绑定。测量应区分 TTFB、FCP/LCP、HTML 完成、脚本加载、Hydration 完成和 INP。流式改善前几项，可能增加服务器并发、代理配置和错误恢复复杂度。
-
 ## 缓存与错误边界
 
 整页缓存只能在响应对身份、Locale、实验组和权限无差异时共享；否则缓存 key 或私有缓存策略必须覆盖这些维度。流式响应一旦已发送 headers/部分 HTML，错误不能再简单改成完整 500 页面，需要边界 fallback、客户端恢复和可观测 request ID。
-
 ## 官方依据
 
 - [Vue SSR Guide](https://vuejs.org/guide/scaling-up/ssr.html)
 - [Vue SSR API](https://vuejs.org/api/ssr.html)
 - [Pinia SSR](https://pinia.vuejs.org/ssr/)
-
-## 迁移复核：Vue SSR、流式渲染与 Hydration
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

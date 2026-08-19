@@ -40,7 +40,6 @@ function findMeeting<T>(
 ~~~
 
 循环条件先检查 fast 和 fast.next，保证两步访问安全。无环有限链中 fast 最终到达 null，返回 null。
-
 ## 从相遇点怎样找到入口
 
 相遇时 slow 走了 `a + b` 步，fast 走了它的两倍。fast 比 slow 多走的距离是若干整圈：
@@ -73,7 +72,6 @@ function findCycleEntry<T>(
 ~~~
 
 证明只依赖距离同余，不依赖节点值。重复值不能用来判断节点相同，必须比较对象身份。
-
 ## 环长从相遇点量一圈
 
 从 meeting 出发沿 next 走到再次回到 meeting，步数就是 c。
@@ -101,7 +99,6 @@ function cycleLength<T>(
 ~~~
 
 链表在检测期间被其他任务修改会破坏证明。JavaScript 单线程并不自动排除这种情况，`await`、回调或共享 Worker 数据都可能让状态在算法阶段之间变化。同步函数内不让出控制权，才能把结构视为稳定快照。
-
 ## Set 方法提供参考实现
 
 用 Set 记录访问过的节点，第一次重复就是入口，时间 `O(n)`、空间 `O(n)`。它更容易理解，适合测试 Floyd 结果。Floyd 节省空间，但证明和实现更容易写错。

@@ -75,19 +75,16 @@ function debounce<TArgs extends unknown[]>(fn: (...args: TArgs) => void, wait: n
 执行时，wrapped 只更新最近参数与 this，并把旧定时器替换为新的等待窗口；定时器到期后 invoke 才调用原函数并释放闭包引用。cancel 的输出是清空待处理状态，flush 则立即提交最后一次调用，二者都不会留下继续触发的计时任务。
 
 这是 trailing-only 版本。输入调用被折叠，输出采用最后一次参数。完整 leading+trailing 实现还要记录窗口内是否发生过额外调用，避免一次 leading 调用后又无条件补一次尾调用。
-
 ## 节流的时间边界
 
 节流可用时间戳、定时器或二者结合。时间戳适合 leading，定时器适合 trailing。系统时间可能调整，严谨实现优先使用单调时钟 `performance.now()`。回调执行耗时也会影响下一窗口，应先定义“从调用时刻”还是“从完成时刻”计间隔。
 
 `requestAnimationFrame` 节流适合视觉更新，它按绘制机会合并调用，却不是固定毫秒节流；页面后台时 rAF 会降频或暂停。网络保存需要明确时间和页面生命周期，不能只依赖 rAF。
-
 ## 柯里化与偏函数
 
 柯里化把多参数函数转换为逐个参数函数，偏函数固定部分参数。工程价值在于建立可组合配置，而不是为了写更短。判断是否收集完成不能只看 `fn.length`，默认参数、rest 参数会改变它；生产 API 更适合显式 arity 或专用包装。
 
 函数组合 `compose(f, g)(x)` 从右向左，`pipe` 从左向右。同步组合遇到 Promise 会把 Promise 当普通值传入，异步管道要统一 `await` 每一步，并定义错误是否短路、重试或转换成结果联合。
-
 ## 假时钟验证
 
 真实等待会让测试慢且不稳定。使用测试框架假时钟，精确推进 99ms/1ms，验证边界时刻、连续调用、cancel 和 flush。还要断言调用参数、this 和定时器数量。
@@ -95,26 +92,16 @@ function debounce<TArgs extends unknown[]>(fn: (...args: TArgs) => void, wait: n
 组件卸载时调用 cancel，否则闭包仍持有组件数据，尾调用还可能写入已失效状态。防抖搜索还需 AbortController 取消旧网络请求：防抖只减少发起次数，不能解决已经发出的响应乱序。
 
 实现防抖和节流前要先固定业务语义与时间线。“防抖最后执行、节流一段时间执行一次”没有覆盖 leading、trailing、取消、页面后台和异步竞态。
-
 ## 时间线而不是一行实现
 
 设 `wait=100`，在 t=0、50、90 连续调用 trailing debounce：每次调用都取消旧 timer，最终只在 t=190 用第三次参数执行。若 `leading=true`，t=0 立即执行；是否在 t=190 再执行取决于窗口内是否有第二次调用，不能用一个布尔值随意替代。
 
 节流 trailing 的状态至少包含 lastInvokeTime、timer、latestArgs 和 latestThis。系统从后台恢复时 timer 可能延迟很久；用 `Date.now` 还会受系统时钟调整影响。视觉滚动优先 rAF，网络/搜索节流则用单调时间和明确的最大等待。
-
 ## this、返回值与资源所有权
 
 包装器应保留调用时 this 和参数；若原函数返回 Promise，工具要决定是否返回该 Promise、如何传播 reject，以及 cancel 是否只取消未来调用还是也 abort 当前调用。组件卸载必须 cancel 并清空 latestArgs/this，否则闭包会保留大对象；节流触发的异步请求仍需 requestId 防止乱序覆盖。
-
 ## 官方依据
 
 - [HTML Timers](https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#timers)
 - [High Resolution Time](https://www.w3.org/TR/hr-time-2/)
 - [MDN: requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)
-
-## 迁移复核：防抖、节流、柯里化与函数组合
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

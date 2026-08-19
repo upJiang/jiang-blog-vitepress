@@ -43,7 +43,6 @@ ababaca -> 1   (a)
 ~~~
 
 这个长度也是失配后仍可保留的已匹配前缀长度。
-
 ## 构建前缀表时复用旧边界
 
 ~~~ts
@@ -71,7 +70,6 @@ function buildPrefix(pattern: string[]): number[] {
 进入每轮时，matched 是前一个前缀的最长边界长度。新字符不匹配时，不必从零开始，候选边界自身的最长边界仍可能成功，所以跳到 `prefix[matched - 1]`。
 
 不能写成 `matched -= 1`，那会检查很多不可能成为边界的长度，最坏退回二次复杂度。
-
 ## 匹配阶段不回退文本指针
 
 ~~~ts
@@ -103,17 +101,14 @@ function indexOfKmp(text: string, pattern: string): number {
 ~~~
 
 当 matched 为 k 时，当前文本后缀与模式前 k 个字符相等。失配回退只改变 k，当前文本字符会与新的候选位置继续比较。文本 index 每轮只增加一次。
-
 ## 为什么 while 总次数是线性
 
 matched 增加最多跟字符比较次数同阶，while 每次又让 matched 严格减小。整个构建和匹配过程中，增加与回退总次数都受输入长度线性约束，因此时间 `O(n + m)`，前缀表空间 `O(m)`。
-
 ## JavaScript 字符单位影响返回下标
 
 上例用 `Array.from` 按 Unicode 码点比较，返回的也是码点下标；原生 `String.prototype.indexOf` 返回 UTF-16 码元下标。若调用方要用结果执行 `slice`，两种口径不能混用。
 
 组合字符和 emoji 序列还可能包含多个码点。按用户字形匹配需要先用 `Intl.Segmenter` 分段，并决定 Unicode normalization。规范化会改变下标映射，API 应返回分段索引或额外维护原始位置。
-
 ## 验证前缀函数与匹配
 
 对短随机字符串，用朴素实现作为参考，比较是否命中和返回位置。前缀表每个位置再用切片穷举验证：长度小于整个前缀，前后字符串相等，并且没有更长候选。

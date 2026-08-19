@@ -51,7 +51,6 @@ npm install --global yo generator-code
 ```
 
 `code --version` 只证明编辑器命令已进入 PATH，`yo` 和 `generator-code` 才负责生成扩展骨架。生成器版本变化会改变模板，团队应记录版本并在空目录中先完成一次 F5 调试。
-
 ## VS Code 插件运行在哪里
 
 扩展代码通常不直接运行在编辑器页面的 DOM 中，而是运行在 Extension Host。Extension Host 为插件提供 `vscode` API，并将插件与编辑器 UI 隔离。
@@ -66,7 +65,6 @@ flowchart LR
 ```
 
 这带来一个重要边界：普通前端代码中的 `document.querySelector` 不能直接操作 VS Code 主界面。需要自定义页面时，插件创建 Webview；Webview 是另一套受限页面，只能通过消息与 Extension Host 通信。
-
 ## 最小扩展工程的运行环境
 
 你需要 Node.js、VS Code 和基本 TypeScript 知识。可以使用官方 Yeoman 生成器创建 TypeScript 扩展，也可以从最小目录手工理解：
@@ -80,7 +78,6 @@ text-counter/
 ```
 
 `package.json` 不只是 npm 依赖文件，它还包含 VS Code 扩展清单：最低兼容版本、入口文件、激活条件和贡献点。构建后的 `dist/extension.js` 必须与 `main` 对应；编辑器启动扩展时不会直接执行 TypeScript 源文件。
-
 ## 在 Manifest 中声明命令
 
 在扩展清单中增加：
@@ -121,7 +118,6 @@ text-counter/
 - `when: editorHasSelection` 表示只有存在选区时才显示菜单。
 
 命令 ID 建议使用稳定前缀，避免与其他扩展碰撞。清单只声明“有这个命令”，尚未提供执行逻辑。
-
 ## 在激活函数中注册命令实现
 
 打开 `src/extension.ts`：
@@ -162,7 +158,6 @@ export function deactivate(): void {}
 7. 注册命令返回一个 `Disposable`，加入 `context.subscriptions` 后，扩展停用时由 VS Code 统一释放。
 
 最后一点很重要。事件监听、文件观察器、命令和状态栏项都可能持有资源。如果注册后不释放，扩展重新加载或工作区生命周期变化时容易留下重复处理器。
-
 ## `activate` 什么时候执行
 
 早期教程常要求手写 `activationEvents`。现代 VS Code 对已经声明的命令、视图等贡献点可以自动生成相应激活行为；为了兼容旧版本或处理特殊场景，仍要查看目标版本的官方说明。
@@ -173,7 +168,6 @@ export function deactivate(): void {}
 - 用户真正执行功能时再加载大模块。
 - 可并行的准备工作使用 Promise，但保留取消和错误处理。
 - 缓存只保存可以失效或重建的数据。
-
 ## 运行扩展并观察命令链路
 
 在 VS Code 中按 `F5`，脚手架会打开 Extension Development Host 窗口。新窗口加载的是开发中的扩展，不会污染主窗口。
@@ -187,7 +181,6 @@ export function deactivate(): void {}
 5. 清空选区，右键菜单应因 `when` 条件消失。
 
 调试时在命令处理器内打断点。若命令面板找不到命令，先检查清单贡献点；若能找到但执行无反应，再检查命令 ID 是否一致以及 Extension Host 控制台错误。
-
 ## 贡献点和运行时 API 是两层系统
 
 很多插件问题来自把两层混为一谈：
@@ -201,7 +194,6 @@ export function deactivate(): void {}
 | 释放处理器 | `context.subscriptions` | 跟随扩展生命周期清理 |
 
 只写 `registerCommand` 而不贡献命令，代码可以被其他代码按 ID 调用，却不会自然出现在用户入口；只写 `contributes.commands` 而不注册处理器，用户能看到命令但执行失败。
-
 ## 文件与工作区路径边界
 
 旧插件中常见 `vscode.workspace.rootPath`，它只适合单根工作区的历史用法。现代扩展要考虑多根工作区、未打开文件夹以及远程工作区。
@@ -209,7 +201,6 @@ export function deactivate(): void {}
 如果命令从资源管理器右键触发，优先使用命令参数传入的 `Uri`。若处理所有工作区，遍历 `vscode.workspace.workspaceFolders`。文件操作使用 `vscode.workspace.fs` 和 `Uri`，这样更容易兼容 SSH、容器或浏览器工作区，而不是假设所有资源都能由 Node `fs` 访问。
 
 写文件前还要决定冲突策略：覆盖、跳过、询问还是生成新名称。示例里没有写文件，因此不能从“读取选区成功”推断代码生成器也已经安全。
-
 ## 为第一个命令补一条测试
 
 插件测试可以启动专用 VS Code 实例，然后从命令系统执行命令。业务逻辑最好先拆成普通函数，这样大量边界不必都启动 Electron：
@@ -223,7 +214,6 @@ export function countCodePoints(text: string): number {
 这个函数的输入是字符串，输出是 Code Point 数量。单元测试覆盖空文本、中文、ASCII 和 Emoji；扩展集成测试只需证明命令注册成功并能读取活动编辑器。这样可以把纯逻辑错误和 VS Code 生命周期错误分开定位。
 
 注意“字符数”本身存在产品定义。如果需要按用户感知的字形簇统计，应考虑 `Intl.Segmenter` 及目标运行时兼容性，而不是默默把 Code Point 数称为绝对正确答案。
-
 ## 扩展问题的诊断来源
 
 | 现象 | 第一检查点 |
@@ -234,7 +224,6 @@ export function countCodePoints(text: string): number {
 | 修改代码后没有生效 | 编译产物路径、watch 任务、Development Host 是否重载 |
 | 远程工作区文件失败 | 是否把 `Uri` 错转成本地文件路径 |
 | 重载后执行多次 | Disposable 是否被正确管理 |
-
 ## 可运行的最小扩展骨架
 
 一个最小功能至少要回答：
@@ -248,10 +237,3 @@ export function countCodePoints(text: string): number {
 - 哪些逻辑能做普通单元测试，哪些必须启动 VS Code？
 
 这个骨架可以继续增加 Webview，但重点不是把 Vue 或 React 页面塞进侧边栏，而是保持 Extension Host 与 Webview 的消息边界，并正确设计 CSP、资源 URI 和消息校验。
-
-## 迁移复核：VS Code 扩展生命周期、命令与贡献点
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

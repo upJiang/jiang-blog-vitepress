@@ -39,7 +39,6 @@ Temporal 把一次长流程拆成两类代码：**Workflow** 描述确定性的�
 Temporal 将这些控制动作写入事件历史。Workflow 运行到某一步时，SDK 记录输入、Activity 调度、Activity 完成、Timer 触发和 Signal 到达。Worker 失联后，新 Worker 读取历史并重放 Workflow 函数，重放只恢复内存状态，不再次执行已经记录完成的 Activity。
 
 这和普通事件日志有一个差别：事件历史不仅供 UI 重放，也驱动 Workflow 的下一次决策。因而 Workflow 代码必须满足确定性。外部 HTTP、随机数、当前系统时间、线程和不稳定的全局变量不能直接参与决策；它们应放到 Activity，或使用 SDK 提供的可重放时间与 ID 接口。
-
 ## Workflow 与 Activity 的边界决定恢复是否安全
 
 Workflow 适合比较状态、选择下一个 Activity、等待 Timer、处理 Signal、判断重试次数和返回最终结果。它不应该打开数据库连接、调用模型、读取环境变量或直接写文件。重放时这些动作会再次发生，结果与历史不一致，甚至产生重复副作用。
@@ -61,7 +60,6 @@ flowchart TD
 ```
 
 图中的箭头回到 Workflow，表示 Activity 的结果要先写入历史，再由 Workflow 决定下一步。Activity 不能自己修改 Workflow 的终态；它返回结构化结果，Workflow 根据当前权限、Deadline 和策略快照判断是否继续。
-
 ## 安装 Python SDK 与本地开发服务
 
 Temporal 官方 Python SDK 入口是 [Python SDK developer guide](https://docs.temporal.io/develop/python)，安装说明在 [Python SDK installation](https://docs.temporal.io/develop/python/installation)。只写 Workflow 和 Activity 的 Python 项目可以先安装 SDK：
@@ -105,7 +103,6 @@ async def run_worker() -> None:
 ```
 
 Worker 进程只注册已审核的 Workflow 和 Activity。Task Queue 名称是交付路由，不是权限边界；Activity 内部仍要验证用户范围、Release、Policy 和 Deadline。把模型 API Key 放在 Workflow 输入或事件历史里，会让历史和 UI 暴露凭证，凭证应由 Activity 运行环境读取。
-
 ## 事件历史怎样驱动确定性重放
 
 ```mermaid
@@ -144,14 +141,21 @@ Workflow 失败时，历史保留了最后一个可解释的命令边界。若�
 
 重放是恢复机制，也是发布门禁。发布前用代表性的旧历史在新 Worker 上运行，检查每个历史事件都能被消费；对新增分支使用版本标记或新 Task Queue。只跑新输入无法发现旧历史在条件分支、Timer 和 Signal 处理上的不兼容。
 
-Workflow Task 与 Activity Task 的失败位置也不同。Server 把历史变更交给 Workflow Worker，Worker 只需重放并产生下一批命令；Workflow Task 失败时可以重新从历史调度，不应重复外部动作。Activity Task 则由执行 Activity 的 Worker 领取，超时、心跳丢失或进程终止后按 Activity Retry Policy 再调度。两类任务都可能重复交付，只有 Activity 直接接触外部副作用。
+Workflow Task 与 Activity Task 的失败位置也不同。Server 把历史变更交给 Workflow Worker，Worker 只需重放并产生下一批命令；Workflow Task 失败时可以重新从历史调度，不应重复外部动作。
 
-Workflow Task 队列积压时，流程状态不会因为客户端 Query 而改变，Signal 会先进入历史，等待 Worker 消费。Activity 队列积压时，Workflow 已经记录调度但还拿不到结果。监控要区分两条队列，否则只看到“Workflow 运行中”却不知道是控制逻辑没有 Worker，还是外部动作没有容量。
+Activity Task 则由执行 Activity 的 Worker 领取，超时、心跳丢失或进程终止后按 Activity Retry Policy 再调度。
+
+两类任务都可能重复交付，只有 Activity 直接接触外部副作用。
+
+Workflow Task 队列积压时，流程状态不会因为客户端 Query 而改变，Signal 会先进入历史，等待 Worker 消费。
+
+Activity 队列积压时，Workflow 已经记录调度但还拿不到结果。
+
+监控要区分两条队列，否则只看到“Workflow 运行中”却不知道是控制逻辑没有 Worker，还是外部动作没有容量。
 
 Activity 结果经过 Payload Codec 或 Data Converter 序列化后进入历史。加密和压缩可以减少暴露与体积，但密钥轮换、旧历史解码和错误数据仍要测试。把用户问题、检索片段和模型原文全部写入历史，会让拥有 Temporal 运维权限的人看到超出业务范围的内容。更稳妥的做法是写稳定对象引用、摘要与哈希，Activity 读取正文时再次检查 ACL。
 
 事件历史的保留与业务删除也要对齐。用户要求删除知识文档时，业务对象可以立即失效；历史里留下的引用 ID 仍可能属于审计记录，显示接口应隐藏正文。Temporal Server 的历史删除、归档和保留策略以部署能力为准，不能用业务表的删除语句假设历史已经消失。
-
 ## Timer、Signal 和 Query 处理长等待
 
 Timer 把“等到某个时刻再继续”写进历史。Worker 可以完全退出，时间到达后 Server 再把 Workflow 放回任务队列。不要让 Worker 线程睡眠数小时，也不要用外部 Cron 直接发一个可能重复的消息；外部 Cron 如果存在，应该发送带幂等 ID 的 Signal。
@@ -167,7 +171,6 @@ Signal 和 Query 的并发顺序由历史决定。取消 Signal 可能和 Activi
 有些 SDK 提供 Update 这类需要确认结果的同步输入，它比 Signal 更适合校验后立即返回，但仍然由 Workflow 代码串行处理。Query 适合读取，不应被用来写“已取消”或触发 Activity。无论使用 Signal 还是 Update，API 层都要先验证用户对 Workflow ID 对应 Turn 的权限，Handler 内再检查当前阶段是否接受该命令。
 
 审批内容只保存必要字段和版本。原始表单放在业务存储，Workflow 历史记录审批 ID、决定和时间；后续 Activity 读取表单时重新检查是否撤回。这样既能重放控制逻辑，也不会让所有拥有历史读取权限的运维人员看到用户提交的完整材料。
-
 ## Retry、Timeout 与取消传播
 
 Activity 至少设置 Start-to-Close Timeout，跨长排队的任务还要设置 Schedule-to-Start Timeout，心跳型长 Activity 可以配置 Heartbeat Timeout。不同 Timeout 暴露不同责任：任务未被 Worker 领取、领取后执行太久、或 Worker 长时间没有进度，排障入口不同。
@@ -177,7 +180,6 @@ Workflow 总 Deadline 包含等待 Timer、Activity Retry 和人工审批。Acti
 取消 Workflow 时先请求 Activity Cancellation。可取消的 HTTP、数据库和模型调用在安全点结束；不可取消的外部请求可能继续运行，Activity 需要用 Action ID 记录结果。Workflow 收到取消后形成 Cancelled 或 Compensating 状态，补偿动作也要有独立幂等键。
 
 补偿不是事务回滚。邮件已经发送不能撤回，工单已经创建只能调用关闭接口或人工处理。补偿失败要留在可观察状态，不能因为主流程取消就假装所有副作用都消失。
-
 ## Activity Heartbeat 与 Task Queue 负责另一种恢复
 
 短 Activity 可以等待返回，长解析、批量 Embedding 和浏览器操作则需要 Heartbeat。Activity 在安全点发送进度与可恢复详情，Server 用 Heartbeat Timeout 判断 Worker 是否还活着。Heartbeat 不是 Workflow 事件，也不是对用户发送的进度；敏感正文和大对象仍应留在受控存储。
@@ -189,7 +191,6 @@ Task Queue 是 Workflow 和 Activity 的路由。高延迟模型 Activity 可以
 Schedule-to-Start Timeout 过期说明没有 Worker 在规定时间内领取，不等于 Activity 代码失败；Start-to-Close Timeout 过期说明已领取但执行超时；Heartbeat Timeout 说明长任务没有进度。三种超时写入不同错误类，重试和告警才能对应到容量、代码或外部依赖。
 
 Worker 关闭时先停止领取新任务，再让当前 Activity 在时间窗口内结束或取消。强制 Kill 后，Server 会按超时和重试策略重新调度，但外部动作可能已经发生。部署排空、Heartbeat、Action ID 和下游回执要一起验证，单独查看 Worker 进程是否退出没有意义。
-
 ## Workflow ID、Run ID 与 Continue-As-New
 
 Workflow ID 表示业务上同一个长期流程，Run ID 表示某次具体执行。Continue-As-New 结束当前 Run，使用新的 Run ID 和精简输入开始下一段历史，Workflow ID 保持不变。它适合长期对话、周期同步和历史快到上限的流程。
@@ -197,7 +198,6 @@ Workflow ID 表示业务上同一个长期流程，Run ID 表示某次具体执�
 Continue-As-New 前要把下一段所需的状态压缩成明确输入：当前阶段、未完成 Action、版本快照、预算和必要的引用 ID。不能把完整对话或所有 Activity 结果无限复制到新 Run。前一 Run 的终态语义也要定义，外部查询按 Workflow ID 看到的是当前 Run 还是完整链路。
 
 Child Workflow 适合有独立生命周期、权限和重试策略的子任务。并行检索可以用多个 Activity，未必需要多个 Child Workflow；过度拆分会增加历史、信号和运维对象。选择边界看是否需要独立取消、超时、版本和结果契约。
-
 ## 版本演进必须保护旧历史
 
 Workflow 历史会在代码升级后继续被重放。直接改变分支、Activity 名称或参数结构，旧 Run 可能在新 Worker 上得到不同命令序列。官方提供版本管理和 Worker Versioning 等机制，具体 API 随 SDK 版本变化，实施时应以当前 [Workflow versioning](https://docs.temporal.io/develop/python/versioning) 文档为准。
@@ -205,7 +205,6 @@ Workflow 历史会在代码升级后继续被重放。直接改变分支、Activ
 版本切换先让新代码兼容旧历史，再让新 Run 使用新分支。旧分支排空后才能删除。新字段放入可选输入并给安全缺省值，旧字段移除前要完成历史迁移或 Continue-As-New。Activity 版本也需要路由或兼容适配，不能只升级 Workflow 文件。
 
 部署回滚时，新历史可能已经写入新事件。回滚版本至少要能读取这些事件，或在发布前用 Worker Versioning 把新 Run 隔离到新 Worker。只验证“新代码能启动”不够，要回放一批旧历史、运行新历史，再模拟 Worker 在每个 Activity 边界退出。
-
 ## Namespace、Task Queue 与业务权限不是一回事
 
 Namespace 用来隔离 Temporal 的工作流、历史和运维配置，Task Queue 用来把任务交给一组 Worker。它们能减少不同环境或团队之间的误消费，但不等于业务 ACL。用户请求某个知识库前，API 和 Activity 仍要验证用户、租户、文档范围、Release 和 Policy；Workflow 输入中的 `user_id` 只是快照，不是授权证明。
@@ -215,7 +214,6 @@ Temporal 的可见性查询适合按 Workflow ID、状态、时间和 Search Att
 一个 Workflow ID 的启动策略要明确：拒绝同 ID 的并发启动、复用已完成流程、还是允许新 Run。知识问答通常用业务 Idempotency Key 把重复提交映射到同一 Turn，再由 Workflow ID 或外部映射决定是否复用。不要让客户端随意生成可猜的 Workflow ID 并借此读取别人的 Query。
 
 Namespace 和 Task Queue 的名称、连接地址、API Key、证书与 Worker 版本都进入部署配置。开发服务可以使用本地默认 Namespace，生产要单独设置权限和网络边界。把开发 Worker 连接到生产 Task Queue，会让测试 Activity 处理真实任务，发布门禁应检查队列和 Namespace 是否匹配。
-
 ## 用最小实现观察重放与 Signal
 
 下面的示例不连接 Temporal Server，它用事件列表模拟 Workflow 历史，用 Action Ledger 模拟 Activity 的幂等回执。示例只证明相同历史得到相同状态，以及取消和重试不会重复副作用。
@@ -230,7 +228,6 @@ Namespace 和 Task Queue 的名称、连接地址、API Key、证书与 Worker �
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=examples/ai-agent \
   python3 -m unittest examples/ai-agent/tests/test_temporal_workflow.py
 ```
-
 ## 沿一次审批、检索和恢复推演
 
 Workflow ID 是 `knowledge:42`，第一次 Run ID 是 `run:a`。历史先写入 `workflow.started` 和 `approval.waiting`，Workflow 进入等待。用户在浏览器断线，不影响 Server 保存的 Timer 和等待状态。
@@ -252,7 +249,6 @@ Workflow ID 是 `knowledge:42`，第一次 Run ID 是 `run:a`。历史先写入 
 | T7 | `answer.completed` | 完成 | 发送通知 |
 
 这条推演里，Temporal 能恢复控制状态，却不能判断外部模型响应是否已经产生。回执、幂等键和 Unknown 状态仍然属于 Activity 与业务系统的职责。
-
 ## 失败证据怎样定位到 Workflow 或 Activity
 
 | 现象 | 先看证据 | 责任层 |
@@ -265,7 +261,6 @@ Workflow ID 是 `knowledge:42`，第一次 Run ID 是 `run:a`。历史先写入 
 | 历史过大、重放变慢 | History 长度、Continue-As-New | 运行策略 |
 
 Workflow 重放错误不能靠重试 Activity 修复，因为控制代码本身已经和历史不一致。Activity 权限拒绝也不能让 Workflow 无限 Retry，错误要带入状态机的停止分支。页面没有更新先查 Query 与历史，再判断 SSE 或轮询交付，不能把 UI 断线归因给 Workflow。
-
 ## 测试需要重放历史而不是只测函数返回
 
 Workflow 单元测试构造最小历史，执行两次并比较状态、Activity 命令和 Signal 处理顺序。任何非确定性时间、随机数、环境读取都在测试中固定或替换。重放旧历史时，断言新代码仍产生相同命令。
@@ -275,7 +270,6 @@ Activity 测试验证超时、可重试错误、不可重试错误、取消和�
 集成测试启动本地 Temporal Server，注册真实 Worker，先在 Activity 完成前终止进程，再启动新 Worker，确认 Workflow 继续。Signal 在 Timer 前后、取消与 Activity 完成同时到达、Continue-As-New 临界点都要覆盖。
 
 版本测试保留一批旧历史，部署新 Worker 回放；再让新 Worker 写入新分支，切回兼容版本读取。若没有真实历史和版本切换证据，不要写“升级可安全回滚”。
-
 ## Temporal 与 Celery、数据库状态机怎样取舍
 
 Celery + 数据库适合任务边界清晰、恢复扫描和事件表已经存在的系统。它的组件少，排障可以直接查 Turn、Lease 和 Broker；代价是需要自己实现 Timer、Signal、历史压缩、版本重放和恢复竞态。
@@ -285,7 +279,6 @@ Temporal 把这些机制放入持久化工作流运行时，长等待与跨 Work
 固定 DAG 或数据库状态机更容易画出流程，适合步骤少、分支稳定的入库任务；当人工信号、补偿和长时间等待不断增加时，Temporal 的收益才开始超过额外组件。不要因为任务里出现一个模型调用，就自动换成 Workflow。
 
 运行手册需要同时看 Workflow ID、Run ID、History、Activity Attempt、Task Queue、Signal、Timer、版本和业务 Turn。只看 Temporal UI 的“Completed”不能证明答案有证据、权限没有越界，也不能证明外部通知只发了一次。
-
 ## 人工操作要有明确的恢复边界
 
 运维可以查询 Workflow、发送经过授权的 Signal、暂停某个 Task Queue 或让 Worker 排空，但不应直接修改历史。手动重试 Activity 前先查 Action ID 和下游回执；外部结果未知时，优先进入人工确认或补偿分支。直接删除 Workflow 可能丢失恢复线索，也不会撤回已经发出的邮件和工单。
@@ -307,8 +300,8 @@ Workflow 终态事件和业务终态提交最好通过 Outbox 或可重试的同
 测试环境不要让开发 Worker 连接共享生产 Namespace。为本地服务设置独立 Task Queue，使用脱敏输入和可回收对象。部署脚本在启动前检查 Namespace、Task Queue、Worker 版本和凭证来源，启动后用无副作用 Workflow 验证 Signal、Query、Timer 与 Activity 路由，完成后清理测试历史。
 
 Temporal 让长流程在 Worker 重启、浏览器断线和等待数小时后仍能恢复，但恢复正确性仍由确定性 Workflow、幂等 Activity、版本策略和业务证据共同决定。下一篇进入生产架构，把 Runtime、队列、事件、检索与安全边界放在一张组件图上。
-
 ## Workflow 记录编排，Activity 承担副作用
+
 Workflow 代码要确定性，可重放；Activity 负责模型、数据库、网络和文件等外部调用，并以幂等键和超时保护。Signal、Timer 和 Retry 改变流程状态，不能在 Activity 内偷偷修改 Workflow 变量。
 
 事件历史完整不等于答案正确。Activity 返回的 Evidence、Release 和验证结果必须经过业务门禁，长历史用批处理和 Continue-As-New 控制成本。

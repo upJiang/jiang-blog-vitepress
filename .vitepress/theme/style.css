@@ -300,12 +300,13 @@ a {
 }
 
 .VPDoc.has-aside .content-container {
-  max-width: 820px;
+  max-width: min(780px, calc(100vw - 420px));
 }
 
 .vp-doc {
   font-size: 16px;
   line-height: 1.82;
+  overflow-wrap: anywhere;
 }
 
 .vp-doc h1 {
@@ -331,6 +332,25 @@ a {
 .vp-doc p,
 .vp-doc li {
   color: var(--vp-c-text-2);
+  text-wrap: pretty;
+}
+
+.vp-doc > p,
+.vp-doc > ul,
+.vp-doc > ol,
+.vp-doc > blockquote,
+.vp-doc > table,
+.vp-doc h2 + p,
+.vp-doc h3 + p {
+  max-width: 70ch;
+}
+
+.vp-doc p {
+  margin: 1.15em 0;
+}
+
+.vp-doc li + li {
+  margin-top: 0.45em;
 }
 
 .vp-doc a {
@@ -349,6 +369,10 @@ a {
   border-spacing: 0;
   overflow: hidden;
   background: var(--vp-c-bg-elv);
+}
+
+.vp-doc table {
+  overflow-wrap: anywhere;
 }
 
 .vp-doc th,
@@ -384,6 +408,11 @@ a {
 .vp-doc th:last-child,
 .vp-doc td:last-child {
   border-right: 0;
+}
+
+.vp-doc td,
+.vp-doc th {
+  white-space: normal;
 }
 
 /* Long tutorials need visible rhythm between actions. Keep the treatment
@@ -2030,6 +2059,25 @@ a {
 }
 
 @media (max-width: 720px) {
+  .VPDoc.has-aside .content-container {
+    max-width: none;
+  }
+
+  .vp-doc > p,
+  .vp-doc > ul,
+  .vp-doc > ol,
+  .vp-doc > blockquote,
+  .vp-doc > table,
+  .vp-doc h2 + p,
+  .vp-doc h3 + p {
+    max-width: none;
+  }
+
+  .vp-doc table {
+    display: block;
+    overflow-x: auto;
+  }
+
   .knowledge-home,
   .section-index {
     width: min(100% - 32px, 1180px);

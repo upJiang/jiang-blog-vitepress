@@ -41,7 +41,7 @@ const semanticRules = [
   {
     name: 'success',
     classNames: ['success', 'complete', 'verified'],
-    pattern: /成功|通过|完成|验证结果|最终答案|返回答案|输出结果|success|complete|verified|final answer/i
+    pattern: /成功|通过|完成|验证结果|最终答案|返回答案|返回结果|输出结果|success|complete|verified|final answer/i
   },
   {
     name: 'input',
@@ -51,7 +51,7 @@ const semanticRules = [
   {
     name: 'model',
     classNames: ['model', 'llm', 'agent'],
-    pattern: /模型|推理|生成|LLM|Agent|理解意图|规划|改写|model|inference|generate|reason|plan/i
+    pattern: /模型|推理|生成|预测|Token|LLM|Agent|理解意图|规划|改写|model|inference|generate|reason|plan/i
   },
   {
     name: 'tool',

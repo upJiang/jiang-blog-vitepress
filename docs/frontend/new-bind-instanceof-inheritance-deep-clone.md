@@ -47,37 +47,31 @@ function construct<T>(Constructor: new (...args: any[]) => T, ...args: unknown[]
 函数先创建目标原型下的实例，再用 Reflect.apply 传入参数并取得构造器返回值；返回对象时采用该对象，返回原始值时保留新实例。若 Constructor 不是可构造函数、prototype 异常或内建对象依赖内部槽，这个教学实现会失败，工程代码应调用 Reflect.construct。
 
 教学实现没有完整模拟 `new.target`、内建构造器和不可构造函数。工程代码直接使用 `Reflect.construct`，手写的价值是解释返回选择和原型建立。
-
 ## bind 的调用与构造双语义
 
 绑定函数普通调用时固定 this 和前置参数；被 `new` 调用时，绑定的 this 被忽略，新实例应继承目标函数原型，并保持构造器返回规则。还涉及 `length、name` 和不可重新定义的内部槽，普通 JavaScript 包装无法百分百复刻原生 bind。
 
 因此面试实现应先声明覆盖范围，再测试普通调用、偏参数、构造调用和返回对象。使用箭头函数包装会丢失动态 this 和构造能力，是常见错误。
-
 ## instanceof 的链路
 
 默认 `left instanceof Right` 检查 `Right.prototype` 是否出现在 left 的原型链；右侧还可以通过 `Symbol.hasInstance` 自定义判断。跨 iframe 的 Array 拥有另一套 prototype，所以 `instanceof Array` 可能失败，类型识别常用 `Array.isArray`。
 
 手写时必须拒绝右侧非可调用值，并考虑自定义 hasInstance。仅用 `__proto__` 循环忽略了公开 `Object.getPrototypeOf` 和协议入口。
-
 ## 继承是共享行为与实例状态的安排
 
 ES class 的 `extends` 同时建立构造器静态继承和实例原型继承，`super()` 决定派生构造器 this 初始化。原型链适合共享方法，实例字段保存各对象状态。把数组等可变值放原型会让所有实例共享同一份状态。
 
 组合通常比深层继承更容易维护：把变化能力作为显式对象或函数注入，避免基类私有假设扩散。回答继承题时应从属性查找和构造过程解释，不把 `class` 当作完全不同对象模型。
-
 ## 深拷贝先定义支持矩阵
 
 通用深拷贝不存在一个适用于所有 JavaScript 值的短实现。函数闭包、WeakMap、DOM、Promise 和平台句柄不能可靠复制。`structuredClone` 支持循环引用、Map、Set、ArrayBuffer 等结构化可克隆值，并可转移 Transferable，但不保留函数和所有自定义原型语义。
 
 自定义实现至少用 WeakMap 保存源对象到副本映射以处理循环；按类型创建 Date、RegExp、Map、Set、TypedArray；通过 Reflect.ownKeys 覆盖 Symbol 和不可枚举键；用属性描述符决定 getter 是保留还是求值。每个选择都影响安全与语义。
-
 ## 验证和边界
 
 对原生行为建立对照测试：构造器返回原始值/对象、bind 后 new、跨 Realm 数组、不可枚举和 Symbol 属性、循环图、共享子对象、Map 对象键。共享子对象在副本中仍应共享同一克隆节点，不能复制成两份。
 
 面试中先说明语言协议和支持范围，再给最小实现。写出几十行分支却不解释 getter、原型、宿主对象和循环图，不能称为通用深拷贝。
-
 ## 原型查找与跨 Realm 反例
 
 `obj.prop` 先查自身属性描述符，再沿 `[[Prototype]]` 链查找；找到 getter 时 receiver 仍是最初 obj。`Object.create(null)` 没有 Object.prototype，原型污染防护和字典场景要用它或 Map。跨 iframe 的对象拥有不同 Realm 内建原型，可靠判断应使用品牌检查、`Array.isArray` 或结构化协议。
@@ -85,16 +79,8 @@ ES class 的 `extends` 同时建立构造器静态继承和实例原型继承，
 深拷贝的关键不在递归，而在图同构：输入 `a.self=a` 需要输出 `copy.self===copy`；输入 `a.left=a.right` 需要两条输出边指向同一副本。WeakMap 必须在遍历子属性前登记新对象，否则循环无法终止且共享关系会丢失。Accessor 是执行代码，复制 descriptor 与读取 value 是不同安全选择。
 
 `structuredClone(value, { transfer: [buffer] })` 会转移而非复制 ArrayBuffer，源对象随后失去可用存储。Worker、MessagePort、File、DOM 节点和函数各有结构化克隆限制，应用协议应把不可克隆值列为显式错误，而不是 fallback 到 JSON。
-
 ## 官方依据
 
 - [ECMAScript Ordinary Object Internal Methods](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html)
 - [MDN: structuredClone](https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone)
 - [MDN: instanceof](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/instanceof)
-
-## 迁移复核：new、bind、instanceof、继承与深拷贝
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

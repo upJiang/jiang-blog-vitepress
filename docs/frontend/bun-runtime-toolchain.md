@@ -71,13 +71,11 @@ bun run hello.ts
 ```
 
 输出包含 `Bun` 和当前版本后，才进入项目依赖安装。这个结果只能证明 Runtime 能执行当前文件，不能证明现有仓库的 Node API、原生扩展或构建插件兼容。
-
 ## 五个角色
 
 Runtime 执行 JavaScript/TypeScript 并提供 Web/Node 兼容 API；`bun install` 解析依赖并写锁文件；脚本运行器执行 package scripts；test 提供测试 API；build 把模块转换和打包。项目完全可以只采用其中一层，例如使用 Bun 安装依赖但仍由 Vite 构建浏览器应用。
 
 Bun 使用 JavaScriptCore，Node 主要使用 V8。语言标准大体一致，性能、GC、调试和原生扩展边界不同。框架“支持 Bun”也可能只代表开发命令可运行，不代表所有插件、测试环境和部署平台已验证。
-
 ## 兼容性从实际调用链验证
 
 先列 package scripts、postinstall、Node 内建模块、CJS/ESM 混用、native addon、测试环境和部署镜像。再在干净环境用锁文件安装，运行 typecheck/test/build/preview，而不是只看 hello world。
@@ -92,17 +90,14 @@ Bun 使用 JavaScriptCore，Node 主要使用 V8。语言标准大体一致，�
 ```
 
 原生依赖或安装脚本失败时，判断能否升级、替代或保留 Node 步骤。不要通过忽略脚本让安装“成功”，那可能跳过必要二进制构建。
-
 ## 性能与缓存口径
 
 比较安装和构建时固定机器、网络、缓存状态、依赖图和命令。冷缓存与热缓存分开，记录中位数而非单次最快。Vite 开发速度和 Bun Runtime 启动速度属于不同阶段，不能混成一个排名。
-
 ## 迁移与回滚
 
 先在 CI 建立并行实验，不立刻替换团队唯一锁文件。决定锁文件所有者、缓存 key、编辑器/调试支持和生产基线。若只采用脚本运行器，在文档中明确仍由 Vite/Rollup 构建、Node 部署。
 
 Vite 面向前端开发和构建，Bun 覆盖更广的 Runtime 工具链。两者能力有交集，系统位置和替换范围却不同。
-
 ## Bun 命令背后的边界
 
 `bun run` 负责脚本解析和进程启动，`bun install` 读取 package manifest 与 lockfile，`bun test` 提供测试运行时，`bun build` 负责解析、转换和打包。它们共享 Runtime 和模块解析实现，但不意味着 Node API、测试环境、Bundler 插件和生产部署完全等价。
@@ -116,7 +111,6 @@ package.json scripts -> Bun runner -> module resolver
 ```
 
 Bun 的兼容层会随版本变化，尤其是 Node API、Web API、测试 mock 和 package manager 行为。生产选型要写最低 Bun 版本、锁文件格式、容器基础镜像、调试器和错误监控支持；性能结论只能来自固定机器、相同依赖缓存和相同输出验收。
-
 ## 官方依据
 
 - [Bun 安装](https://bun.com/docs/installation)
@@ -124,10 +118,3 @@ Bun 的兼容层会随版本变化，尤其是 Node API、Web API、测试 mock 
 - [Bun Package Manager](https://bun.sh/docs/pm)
 - [Bun Bundler](https://bun.sh/docs/bundler)
 - [Bun Test](https://bun.sh/docs/test)
-
-## 迁移复核：Bun Runtime、包管理器、测试器与构建工具
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

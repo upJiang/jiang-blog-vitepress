@@ -131,23 +131,19 @@ export function createSumWorker() {
 ```
 
 这份适配器解决请求关联和统一终止，Worker 崩溃后也会拒绝新任务；它还没有实现自动重建和单任务取消。若一个 Worker 同时承载多个长任务，应增加 `cancel(id)` 消息，并把计算切成可检查取消标记的小块；若每个页面只有一个独占任务，直接 `terminate()` 更可靠。
-
 ## 什么时候值得迁移
 
 适合可独立的 CPU 密集任务：解析、压缩、图像处理、搜索索引。很短任务的 Worker 启动与消息成本可能更大；大量细碎消息会造成复制和调度开销。DOM 测量仍在主线程，Worker 只能计算数据结果。
 
 SharedWorker 可在同源多个页面共享进程和连接，但生命周期、兼容与调试更复杂；Service Worker 负责网络代理和离线生命周期，不是通用长计算线程。
-
 ## 取消和容错
 
 终止整个 Worker 最直接，但会取消所有任务。共享 Worker 内可发送 cancel(id)，计算循环定期检查取消集合；单个巨大同步循环不检查就无法及时响应取消。异常监听、超时和页面卸载都要清理 pending Promise。
-
 ## 对照实验
 
 固定数组和设备，记录主线程版本的 Long Task、INP 代理交互和总耗时；Worker 版本记录序列化、计算和回传。预期主线程响应改善，总耗时可能因传输增加。若数据可转移，比较 clone 与 transfer。
 
 Promise 只安排异步控制流，Worker 才提供另一条线程。迁移评审还要同时说明 DOM 限制、结构化克隆、Transferable、取消和启动成本。
-
 ## 消息协议和所有权
 
 Worker 与主线程没有共享普通对象堆，`postMessage` 默认经过 structured clone。为每个任务定义 `{id,type,payload}` 与 `{id,status,result|error}`，主线程用 Map 保存 pending Promise；收到结果后删除，Worker crash/terminate 时统一拒绝所有 pending，避免永久等待。
@@ -162,16 +158,8 @@ cancel: postMessage(cancel id) or terminate dedicated worker
 ```
 
 Worker 不能直接操作 DOM，OffscreenCanvas、WebCodecs 等能力还要按浏览器支持判断。打包器处理 `new Worker(new URL('./worker.ts', import.meta.url), {type:'module'})` 时会生成独立 Chunk，部署需保证 CSP、MIME、跨域和旧 Chunk 保留。
-
 ## 官方依据
 
 - [HTML Web Workers](https://html.spec.whatwg.org/multipage/workers.html)
 - [Structured Clone Algorithm](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm)
 - [MDN: Transferable objects](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Transferable_objects)
-
-## 迁移复核：Web Worker、消息传递与主线程预算
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

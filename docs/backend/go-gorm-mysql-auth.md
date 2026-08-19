@@ -43,7 +43,6 @@ Struct 定义字段类型、列名和关联，指针/Null 类型表达 NULL。UU
 | CreatedAt time.Time | DATETIME(6) | 连接与序列化使用 UTC |
 | DeletedAt *time.Time | 可空 DATETIME | 所有查询与唯一性语义 |
 | TenantID | BINARY(16) + 索引前缀 | 每条资源查询 |
-
 ## Scope 复用查询条件，不隐藏 Principal
 
 Repository 方法接收 Principal/tenantID，构造 `Where("tenant_id=? AND id=?")`。GORM Scope 可复用 active/department 范围，但不能依赖全局变量保存当前租户。
@@ -71,7 +70,6 @@ func (r *ProjectRepository) FindScoped(
 ```
 
 返回前不能再按 tenant 比较，因为错误行已经加载。集成测试创建两个租户，并断言跨租户与随机 ID 得到相同错误。
-
 ## 事务回调覆盖更新、审计与认证轮换
 
 `db.Transaction` 回调返回 nil 才 commit，返回错误 rollback。回调中的所有 Repository 使用 tx，不可误用全局 db；外部 RabbitMQ/HTTP 不放事务，Outbox 同事务写入。
@@ -95,7 +93,6 @@ sequenceDiagram
 ```
 
 Cookie 只有 commit 成功后才写响应。commit 结果未知时不签发第二个无关联会话，调用方重新刷新会触发数据库状态判断。
-
 ## Go 错误映射保留 errors.Is 链
 
 Repository 包装底层错误用 `%w`，Service 返回领域 sentinel/typed error，HTTP 适配用 errors.Is/As 映射 status/code。不要比较错误字符串，也不要把 MySQL 错误写响应。
@@ -105,7 +102,6 @@ Repository 包装底层错误用 `%w`，Service 返回领域 sentinel/typed erro
 测试运行 go test -race、go test ./...、go vet，MySQL 集成验证 Scope、锁、约束和迁移。连接池 MaxOpenConns 按副本总预算设置，Context timeout 传到每条查询。
 
 GORM 底层仍是 `database/sql` 池，要同时观察 InUse、Idle、WaitCount 与 WaitDuration，不能只调 ORM 参数。
-
 ## GORM 数据访问与认证边界
 
 **GORM Hook 适合写审计吗？**
@@ -123,10 +119,3 @@ Save 常更新所有字段，零值语义也复杂。使用明确 Updates map/st
 **Go 密码哈希为什么不能每请求启动无限 goroutine？**
 
 Argon2id 故意耗内存/CPU，无限并发可耗尽进程。登录限速并使用 semaphore/Worker 限制哈希并发，按目标硬件参数化。
-
-## 机制复核：GORM、MySQL 与 Go 认证授权
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

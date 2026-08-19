@@ -52,7 +52,6 @@ stateDiagram-v2
 ```
 
 每一步记录输入版本、输出引用和 attempt。重试从可验证的最近成功检查点继续，不重复激活或覆盖新版本。
-
 ## 本地模拟适配器保留真实接口和失败方式
 
 EmbeddingPort 接收文本批次并返回固定维度向量；ChatModelPort 接收消息/证据并流式产生 token/event。默认适配器用确定性 hash/Fixture 生成结果，支持配置 timeout、限流和中途失败，用于测试恢复。
@@ -77,7 +76,6 @@ interface ChatModelPort {
 ```
 
 业务代码校验返回向量数量/维度与有限数值。模型字符串来自受控配置，不由普通用户任意选择昂贵供应商模型。
-
 ## 检索权限在候选生成之前执行
 
 ChatRun 带 tenant、knowledge_base 与 Principal。检索查询同时限定 active document version 和 ACL；向量相似度只在可见集合中排序，不能先跨租户取 TopK 再过滤，因为会泄露和降低召回。
@@ -92,13 +90,11 @@ ChatRun 带 tenant、knowledge_base 与 Principal。检索查询同时限定 act
 | 激活 | 当前版本条件更新 | 旧任务不得覆盖 |
 | 检索 | tenant + KB ACL + active version | 空证据/拒绝 |
 | Chat | run_id + evidence IDs | failed/cancelled/completed |
-
 ## SSE 事件可恢复且不把半成品当答案
 
 POST /chat-runs 返回 run_id，SSE 发送 accepted/retrieving/evidence/token/completed/failed。事件有单调 sequence，服务保存必要检查点；断线后客户端带 Last-Event-ID，服务重放保留事件或返回当前终态。
 
 客户端取消设置 cancel_requested，生成适配器收到 signal；已写事件不删除。若流中断但模型仍继续，Worker 在提交 completed 前检查当前 attempt/取消状态，旧输出不能成为最终答案。
-
 ## AI 平台扩展必须回答
 
 **为什么上传完成后不能立刻让文档可检索？**
@@ -124,10 +120,3 @@ POST /chat-runs 返回 run_id，SSE 发送 accepted/retrieving/evidence/token/co
 **解析任务重复后如何避免重复 chunk？**
 
 chunk 主键/唯一键包含 document_version、parser_version 和稳定 chunk index/hash；写入先按 attempt staging，成功后激活版本，失败 staging 可清理。
-
-## 机制复核：AI 应用平台扩展：知识库、解析任务与聊天运行
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

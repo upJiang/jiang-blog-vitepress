@@ -34,31 +34,26 @@ Composition API 用函数组合组件逻辑，Pinia 管理跨组件或跨页面�
 Composable 应围绕资源生命周期和公开输入输出，例如 useSearch(routeQuery)。内部创建的 watcher、事件和请求要在作用域停止时释放。只把 setup 中十行代码搬到 useX，不会自动形成可复用边界。
 
 参数接受 ref 或 getter 时要明确是否响应变化；返回 readonly 状态和命令函数，避免调用方任意改内部 ref。异步流程传递 AbortSignal，防止旧查询覆盖新查询。
-
 ## Pinia 的所有权
 
 Store 适合跨组件共享、需要 Devtools 轨迹或缓存生命周期长于页面的状态。action 包含领域转换，getter 派生状态；不要让 Store 直接操作 DOM、Toast 或 Router 实例，外部副作用由适配层处理。
 
 SSR 下每个请求创建独立 Pinia，并安全序列化初始状态，避免跨用户泄漏和脚本注入。
-
 ## Router 是状态容器
 
 route 是响应式对象，但 watch 整个 route 会产生无关更新；监听具体 params/query。导航守卫用于是否允许进入和必要重定向，不应承担所有数据加载。组件卸载、导航取消和重复导航要有明确终态。
 
 实现筛选时从 route query 解析并校验，用户确认后 router.replace/push，数据层订阅规范化 query。浏览器后退只改变 URL，其他层由单向派生更新，避免双向 watch。
-
 ## 测试与排查
 
 Composable 用传入 ref 和假请求单测；Store 测 action/getter；Router 集成测试刷新、复制链接、前进后退和非法 query。出现循环时画出每条 watch 的读写边，删除双向同步，选定唯一源。
 
 组件状态、provide/inject、Pinia 和 URL 的生命周期、可分享性与更新范围不同。“数据多”不是把状态移入 Store 的判断标准。
-
 ## Composable 的资源边界
 
 Composable 不是把代码搬进 `useX`。它接收 Ref/普通值或适配后的 MaybeRef，内部用 computed 表达派生状态，用 watch 连接外部系统，并返回最小公开状态和命令。监听器、Effect 和第三方实例应注册在当前 effect scope；在组件 setup 中调用可随组件卸载停止，脱离组件创建则由调用方持有并停止 scope。
 
 测试时不要依赖隐式全局 App。把时钟、请求器和存储作为参数，输入 ref 后断言输出、请求版本和 cleanup。若 Composable 必须读取 Router/Pinia 注入，提供带测试 App 的集成 fixture。
-
 ## Pinia 与 Router 的状态转换
 
 Pinia Store 的 state 是共享可变事实，getter 是缓存派生，action 表达业务转换和异步协议。Store 不应保存可从 route query 稳定派生的重复副本；否则刷新、后退和多标签页会出现两个真相。反过来，编辑中草稿、临时焦点和未提交表单也不应每次写 URL。
@@ -73,16 +68,8 @@ Pinia Store 的 state 是共享可变事实，getter 是缓存派生，action �
 ```
 
 导航守卫返回允许、取消或重定向，异步数据加载还要处理旧导航取消。权限判断必须由服务端授权兜底；前端守卫只是体验与路由可达性控制。
-
 ## 官方依据
 
 - [Vue: Composables](https://vuejs.org/guide/reusability/composables.html)
 - [Pinia: Core Concepts](https://pinia.vuejs.org/core-concepts/)
 - [Vue Router: Navigation Guards](https://router.vuejs.org/guide/advanced/navigation-guards.html)
-
-## 迁移复核：Composition API、Pinia 与 Vue Router 状态边界
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

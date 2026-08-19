@@ -41,7 +41,6 @@ Domain 缺省时是 host-only，只发回设置它的主机；指定 Domain 后�
 | SameSite | 限制跨站请求携带 | 同站不等于同源 |
 | Domain/Path | 匹配发送目标 | Path 不能阻止其他路径覆盖同名值 |
 | Max-Age/Expires | 持久化期限 | 服务端会话可能更早失效 |
-
 ## 同源、同站和 CORS 是三套判断
 
 源由 scheme、host、port 组成；站点判断以可注册域和 scheme 为核心。`app.example.test` 与 `api.example.test` 跨源但通常同站，因此会触发 CORS，却不一定被 SameSite 当成跨站。
@@ -64,7 +63,6 @@ if (!response.ok) clearInMemoryAccessToken()
 ```
 
 `credentials` 只允许浏览器按 Cookie 规则发送，不能绕过 SameSite、Secure 或 CORS。刷新失败后清理内存 Access Token，避免页面继续假装已登录。
-
 ## Session 与 Token 的状态所有者不同
 
 Cookie 可以装随机 Session ID，服务端用它查询 Session；也可以装 Refresh Token。Bearer Access Token 常放在 Authorization 头，由应用显式设置。区别不在字符串长相，而在服务端保存什么状态、怎样撤销、谁负责发送。
@@ -86,7 +84,6 @@ sequenceDiagram
 ```
 
 浏览器 Cookie 到期和服务端会话到期是两道门，任意一边失效都不能继续认证。
-
 ## CSRF 利用了“自动携带”
 
 攻击页面不能读取 HttpOnly Cookie，却可能诱导浏览器向目标站发送带 Cookie 的写请求。SameSite 降低风险，但涉及跨站登录、旧浏览器或复杂域名时，还要使用 CSRF Token、Origin/Referer 校验和只允许 JSON 的接口。
@@ -94,7 +91,6 @@ sequenceDiagram
 XSS 与 CSRF 不应混为一谈。HttpOnly 减少 XSS 直接窃取 Cookie，无法阻止恶意脚本以当前用户身份调用同源 API；内容转义、CSP 和依赖治理仍然需要。
 
 同名 Cookie 还可能因 Domain、Path 不同同时存在，服务器收到的 Cookie Header 却不携带这些属性。认证 Cookie 应固定 Host、Path 与名称，退出时用相同属性删除；否则开发者看到一个 Cookie 已清除，旧路径下的值仍可能继续发送。
-
 ## 浏览器会话状态的安全边界
 
 **为什么 Cookie 已存在，开发环境请求仍不携带？**
@@ -112,10 +108,3 @@ localStorage 中的值可被同源脚本读取，XSS 能直接带走长期使用
 **跨标签页怎样同步退出？**
 
 服务端撤销会话是最终保障。前端可用 BroadcastChannel 通知其他标签清理内存 Token 和查询缓存；标签错过通知后，下一次刷新或 API 401 也会回到未登录状态。
-
-## 机制复核：Cookie、Session、Token 与浏览器状态
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

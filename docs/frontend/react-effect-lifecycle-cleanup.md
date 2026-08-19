@@ -33,7 +33,6 @@ Effect 是 React 在 Commit 后让已显示 UI 与外部系统保持同步的生
 Effect 用于让已提交 UI 与 React 之外的系统保持同步，例如网络连接、浏览器事件、定时器或第三方控件。setup 建立资源，cleanup 撤销同一资源。依赖变化时先清理旧同步，再以新值建立；卸载时只清理。
 
 纯派生值应在 Render 计算，用户动作应在事件处理器执行。为了把 `firstName + lastName` 写入另一个 state 而创建 Effect，会多一次提交并制造短暂不一致。
-
 ## 依赖数组是代码事实
 
 Effect 内读取的响应式值都应进入依赖。React 使用 `Object.is` 比较新旧依赖，引用每次新建会导致重复同步。解决方式不是删除依赖，而是移动不必要对象、稳定真正的协议参数，或重新划分资源所有权。
@@ -62,25 +61,21 @@ function Profile({ userId }: { userId: string }) {
 每次 userId 变化都会先执行旧 cleanup，使旧请求收到取消信号，再创建新 Controller 和请求；成功输出只来自当前 Effect 拥有的调用。AbortError 被当作预期终止，其他异常进入观测和错误状态，卸载后也不会继续持有网络资源。
 
 输入是 userId，资源是对应请求，cleanup 通过 AbortSignal 取消旧拥有者。仅设置 `ignore = true` 可以阻止旧结果写入，但不会停止网络和下游工作；支持取消时应传递取消信号。
-
 ## Strict Mode 为什么额外执行
 
 开发环境可能执行 setup、cleanup、再 setup，用来暴露不可逆初始化和缺失清理。正确 Effect 对这条序列应与单次 setup 在用户观察上等价。关闭 Strict Mode 只会隐藏资源泄漏。
 
 支付、创建订单等业务命令不能因页面“已显示”自动执行，应由明确用户事件或服务端幂等流程拥有。Effect 适合订阅订单状态，不适合发起不可重复扣款。
-
 ## 竞态、错误和恢复
 
 请求可能乱序、超时、失败或在卸载后返回。组件应定义 loading、ready、empty、error 状态，取消旧请求，并决定重试由用户、数据层还是路由框架负责。盲目在 Effect catch 中立即重试会形成无界循环。
 
 订阅类资源还要确保 handler 引用和移除调用匹配。使用匿名函数分别 add/remove 会留下监听器。定时器、Observer、WebSocket 和第三方实例都应由创建它们的 Effect 返回 cleanup。
-
 ## 验证清理是否完整
 
 使用可控延时让 A 比 B 晚返回，快速切换参数，确认页面只显示 B；卸载组件后检查 Network 的取消状态和监听器数量。用假时钟验证定时器 cleanup，用开发 Strict Mode 验证 setup/cleanup 对称。
 
 若 Effect 不断循环，先列出每次 setup 修改了哪些 state、这些 state 是否又改变依赖。若依赖对象不稳定，检查它是否真需成为外部协议的一部分。“空数组等于 componentDidMount”会漏掉 cleanup、闭包快照和开发环境检查。
-
 ## 依赖比较和提交时序
 
 每次 Render 创建新的 Effect 描述，依赖数组按位置使用 `Object.is` 比较。任一依赖变化，提交后的 passive flush 先运行上一已提交 Effect 的 cleanup，再运行本次 setup。未提交 Render 的 Effect 不会启动；因此在 Render 中创建连接既无法获得这项保证，也会在被丢弃时泄漏。
@@ -93,22 +88,13 @@ unmount: cleanup(query=B)
 ```
 
 这条提交时间线也解释了 Strict Mode 的压力测试：额外 setup -> cleanup -> setup 要求资源可以重复建立和释放。用全局布尔值跳过第二次 setup，只会掩盖真实的卸载和重连问题。
-
 ## 请求竞态的所有权
 
 Effect 中的请求至少需要“旧结果不可提交”保证。AbortController 能请求取消，但服务端可能已处理、某些客户端也可能无法真正中止，因此还要用 generation/requestId 判断响应是否仍属于当前依赖。写请求若有外部副作用，取消 UI 等待不等于业务回滚，必须依赖幂等键和服务端状态机。
 
 很多 Effect 可以删除：从 props 派生展示值应在 Render 计算，用户点击提交应在事件处理器执行，缓存数据应由专门数据层提供一致快照。保留的 Effect 应能说出它在同步哪个外部系统、资源所有者是谁、cleanup 如何证明无残留。
-
 ## 官方依据
 
 - [Synchronizing with Effects](https://react.dev/learn/synchronizing-with-effects)
 - [Lifecycle of Reactive Effects](https://react.dev/learn/lifecycle-of-reactive-effects)
 - [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect)
-
-## 迁移复核：Effect 生命周期、依赖与资源清理
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

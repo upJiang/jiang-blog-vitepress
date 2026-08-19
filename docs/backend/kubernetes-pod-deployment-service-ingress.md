@@ -43,7 +43,6 @@ Pod 名称、IP 和本地可写层都是临时的。业务 Session、任务和�
 | Service | 标签选择与虚拟地址 | 应用版本发布历史 |
 | Ingress | HTTP 主机/路径入口 | Pod 直接地址 |
 | ConfigMap/Secret | 运行配置引用 | 业务数据持久化 |
-
 ## Deployment Controller 持续收敛期望副本
 
 Deployment 创建 ReplicaSet，ReplicaSet 维持指定 Pod 数。修改 Pod Template 会创建新 ReplicaSet 并按 maxSurge/maxUnavailable 滚动；Pod 异常由控制器补充，而不是“修复原 Pod”。
@@ -76,7 +75,6 @@ spec:
 ```
 
 示例 digest 用省略号，不能直接应用。selector 创建后不应随版本改变；version 作为额外 Pod 标签供观测或金丝雀路由使用。
-
 ## Service 通过标签选择就绪 Pod
 
 Service selector 找到 Pod，EndpointSlice 保存可转发地址。Pod readiness 失败时通常从可用端点移除；Service 名称通过集群 DNS 解析，客户端不缓存某个 Pod IP。
@@ -93,7 +91,6 @@ flowchart LR
 ```
 
 Service port 与 targetPort 可不同。使用命名端口减少数字漂移，但容器端口、探针和 Service 必须指向同一实际监听。
-
 ## Ingress 只在 Controller 存在时生效
 
 Ingress 资源描述 host/path 到 Service 的规则，真正接流量的是 Ingress Controller。TLS Secret、证书续期、代理超时和 SSE 缓冲仍由 Controller 配置决定。
@@ -107,7 +104,6 @@ NetworkPolicy 还可能允许 DNS 却拒绝到目标 Pod 的流量。策略按 P
 若 Service 使用 `sessionAffinity` 或应用维持长连接，滚动后旧连接仍可能留在即将退出的 Pod。应用必须先变为 not ready、等待端点传播并排空连接；只看到新 Pod ready 不能证明旧请求已经安全结束。
 
 Pod 进入 Terminating 后，EndpointSlice 与入口代理的更新并非同时完成。preStop 只能给端点传播和 drain 留出窗口，不能用固定长睡眠替代关闭协议。SSE 与 WebSocket 需要主动结束或让客户端重连，并保证所有在途连接能在 terminationGracePeriodSeconds 内收尾。
-
 ## Kubernetes 对象的职责边界
 
 **Pod 重启次数增加但 Deployment 副本正常，能忽略吗？**
@@ -125,10 +121,3 @@ Pod 进入 Terminating 后，EndpointSlice 与入口代理的更新并非同时�
 **Deployment 能管理数据库吗？**
 
 有状态服务通常需要 StatefulSet、持久卷、备份和专用 Operator，或直接使用托管服务。仅把 MySQL 放进 Deployment 无法获得稳定身份和数据恢复。
-
-## 机制复核：Kubernetes Pod、Deployment、Service 与 Ingress
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

@@ -45,13 +45,11 @@ export default function bannerLoader(source) {
 Webpack 调用 Loader 时传入当前模块源码，函数读取受控 option，生成注释并返回新的可解析源码；其他模块再沿各自 Loader 链执行。输入包含换行或注释终止符时仍需更严格转义，修改附加文件时也要调用 addDependency，才能让 watch 与缓存正确失效。
 
 输入是单个模块文本，输出仍是可解析源码。实际 Loader 还应处理 Source Map、异步回调和缓存；配置值进入注释前要避免破坏语法。
-
 ## Module Graph 到 Chunk Graph
 
 Parser 从转换结果找静态 import、require 和动态 import，创建依赖并递归构建 Module Graph。静态依赖通常进入同一初始 Chunk；动态导入建立异步边界；SplitChunks 等优化根据复用、体积和请求条件重新分配模块。
 
 Module 是源码与转换结果的单位，Chunk 是一组为加载组织的模块，最终 Asset 是写到磁盘的文件。三者不应混用。一个 Chunk 可能生成多个 Asset，Runtime Chunk 负责模块注册、缓存和异步加载。
-
 ## Plugin 与 Compilation 生命周期
 
 Plugin 通过 Compiler/Compilation 暴露的 Tapable hooks 观察或改变整个构建。Compiler 代表一次配置和长期 watch，Compilation 代表一次具体构建及其模块、Chunk、Asset 和诊断。
@@ -70,19 +68,16 @@ class BuildSummaryPlugin {
 Compiler 创建后注册 done hook，每次 Compilation 完成会调用插件，插件从 stats 读取资产和错误数量并输出摘要。它不修改已经生成的文件；若要创建或更新 Asset，应在 processAssets 等对应阶段执行，并按 hook 类型选择同步或异步注册，失败要交还构建诊断。
 
 Plugin 不应在 done 中修改已经完成的资产；生成资产应选择 Compilation 的 processAssets 等正确阶段。hook 是 sync 还是 async 决定 tap/tapPromise/tapAsync，选错会让构建提前结束或挂起。
-
 ## Tree Shaking、sideEffects 与 Runtime
 
 Tree Shaking 依赖可静态分析的 ES Module 和副作用信息。`usedExports` 标记使用关系，压缩器删除不可达代码；package.json `sideEffects` 告诉工具哪些模块即使导出未用也必须执行。错误标记 CSS 或注册模块为无副作用会导致生产缺功能。
 
 Webpack Runtime 维护模块缓存和 Chunk 加载。HMR 接收更新 manifest/chunk，尝试沿 accept 边界应用；没有可接受边界时回退全页刷新。状态是否保留由模块和框架 HMR 协议决定，不是替换文件就自动安全。
-
 ## 验证构建图
 
 生成 stats JSON，用 analyzer 或脚本检查模块所属 Chunk、重复依赖、orphan modules 和资产体积。修改 Loader 依赖文件验证 watch 重建；动态 import 验证网络按需加载；错误 sideEffects 建立生产反例。
 
 Loader 与 Plugin 的区别来自作用域、输入输出和生命周期：Loader 转换单个模块，Plugin 介入整个 Compiler 或 Compilation。Resolver、Module Graph、Chunk Graph 和 Runtime 则组成完整构建链。
-
 ## 一次 import 到浏览器运行时
 
 Webpack 从 context 和 entry 开始，经 Resolver 把请求解析为绝对文件；Loader Runner 按 `enforce`、`pitch` 和 normal 阶段组成转换链，最终交给 Parser 产生依赖。Compilation 将模块节点和依赖边加入 ModuleGraph，再根据入口和动态 import 形成 ChunkGraph，TemplatePlugin 把 Chunk 写成带 runtime 的资产。
@@ -98,22 +93,13 @@ entry ./src/main.ts
 ```
 
 Loader 的输入是单模块源码和 loader context，输出通常是下一个 loader 可解析的源码与 Source Map；Plugin 通过 Tapable 订阅 compiler/compilation hooks，可以读取全局图、添加资产或改变输出。Loader 中写全局状态会破坏并行和缓存，Plugin 中同步阻塞大文件扫描会拖慢整个编译。
-
 ## 缓存失效和产物证据
 
 filesystem cache 的 key 包含 loader、选项、依赖文件和构建环境；只改 loader 实现却不更新版本/依赖声明，可能继续读取旧结果。验证缓存要做冷构建、热构建、修改源依赖、修改配置和切换 mode 五组对照，并检查 stats 中模块来源和 cache hit。
 
 HMR 的 accept 边界不是生产 chunk 边界。React/Vue 插件还要把组件状态保留规则叠加到模块替换上；全局注册、CSS 副作用和 singleton 模块修改可能要求整页刷新。
-
 ## 官方依据
 
 - [Webpack Concepts](https://webpack.js.org/concepts/)
 - [Loader API](https://webpack.js.org/api/loaders/)
 - [Plugin API](https://webpack.js.org/api/plugins/)
-
-## 迁移复核：Webpack 模块图、Loader、Plugin 与 Runtime
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

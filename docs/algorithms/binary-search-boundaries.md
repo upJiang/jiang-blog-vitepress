@@ -55,7 +55,6 @@ function firstTrue(
 middle 属于当前非空区间。谓词为 true 时，middle 可能就是答案，保留它并收缩 right；为 false 时，middle 及其左侧都能排除，所以 left 变成 middle + 1。区间长度每轮严格减小，最终 left 等于 right。
 
 返回 length 表示整个范围没有 true，这个哨兵结果必须由调用方处理。
-
 ## lowerBound 与 upperBound 只差谓词
 
 ~~~ts
@@ -71,7 +70,6 @@ function upperBound(values: number[], target: number): number {
 lowerBound 返回第一个大于等于 target 的位置，upperBound 返回第一个严格大于 target 的位置。重复值区间是 `[lowerBound, upperBound)`，出现次数为两者之差。
 
 精确查找不能只检查返回位置，还要确认位置小于长度且值等于 target。
-
 ## 手算重复值暴露边界错误
 
 对 `[1, 2, 2, 2, 4]` 查 lowerBound(2)：
@@ -83,7 +81,6 @@ lowerBound 返回第一个大于等于 target 的位置，upperBound 返回第�
 ~~~
 
 结果为 1。若 true 分支写成 `right = middle - 1`，会把候选 middle 错误丢弃；若 false 分支写成 `left = middle`，区间长度可能不变而死循环。
-
 ## 答案空间也能二分
 
 假设有函数 `canFinish(limit)`，limit 越大越容易满足。寻找最小可行 limit 时，对整数范围应用相同 first-true 模型。
@@ -108,11 +105,9 @@ function minimumFeasible(
 ~~~
 
 调用前要证明 feasible 单调，并保证 highExclusive 覆盖可能答案。若上界未知，可以先指数扩张，但要设置数值和调用预算。
-
 ## 数值边界会破坏实现
 
 JavaScript Number 在安全整数外无法逐一表示相邻整数。超大整数答案空间应使用 BigInt 版本，并避免 Number 与 BigInt 混算。浮点谓词可能受舍入影响而在边界附近来回变化，通常改用固定迭代次数、误差区间或整数缩放。
-
 ## 用性质测试覆盖边界
 
 随机生成有序数组和 target，与线性扫描结果比较 lower/upper bound。断言返回位置左侧不满足谓词、返回位置及右侧满足谓词。覆盖空数组、全 false、全 true、重复值、首尾命中和安全整数边缘。

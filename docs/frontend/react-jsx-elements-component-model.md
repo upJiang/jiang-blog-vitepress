@@ -45,7 +45,6 @@ const viewModel = jsx(Button, {
 转换结果以 Button 函数和 props 为输入，调用 jsx 后输出 React Element 描述；这一步不会调用组件或写入 DOM。若 tone 或 children 的表达式求值抛出异常，Element 也不会创建。开发与生产 runtime 可能输出不同辅助字段，业务代码不能读取这些内部结果格式。
 
 输入是组件函数和 props，输出是描述对象。此时 `Button` 尚未因为这行 JSX 自动执行，也没有 DOM。React Element 的 `type` 是 Button 函数，`key` 用于同层身份，`props` 保存 tone 和 children。开发构建可能冻结对象帮助发现误修改，业务代码应始终把 Element 当不可变值。
-
 ## Element 从描述进入 Fiber 和 DOM
 
 组件是接收 props 并返回可渲染描述的函数。Element 是某次描述结果。Fiber 是 React 内部为组件工作和状态建立的节点。DOM 是 Commit 阶段交给浏览器的宿主对象。
@@ -62,7 +61,6 @@ JSX 源码
 ```
 
 Ref 指向什么取决于目标：宿主元素可得到 DOM，函数组件要通过公开机制暴露有限句柄。key 和 ref 也不是普通 props。业务组件需要相同业务 ID 时，应另外传入 id，不能读取 React 的内部身份字段。
-
 ## 组件调用与渲染纯度
 
 Reconciler 处理函数组件 Fiber 时，会在受控环境中调用组件，设置当前 Hook 上下文，读取 props，并取得下一层 Element。组件函数可能因为父更新、状态更新、并发重试或开发检查而执行多次。
@@ -85,13 +83,11 @@ ImpureRow 每次调用都会先修改模块变量再返回 Element，因此被�
 修复不是把变量藏进 `useMemo`，而是确定 ID 的所有者：数据 ID 由数据源提供，表单关联 ID 可用 `useId`，用户动作产生的业务 ID 在事件或服务端命令中创建。每种方案的生命周期不同。
 
 服务端渲染还要求客户端第一次输出与服务器 HTML 一致。当前时间、随机数、可变单例和浏览器专属值会让重试或 Hydration 得到不同结果；这类值应由稳定数据输入，或延后到 Effect 读取。
-
 ## Props 与 Children 定义组件边界
 
 `children` 只是 props 的一个字段，可能是字符串、Element、数组、空值、可迭代对象或 Fragment，不能默认当作单个 DOM 子节点。组件应声明它接受的形状，并用组合表达布局槽位。需要遍历或变换结构时，应使用 React 的 Children 工具并保留 key 语义。随意克隆 children 并注入隐式 props 会增加耦合，Context 或显式 render prop 往往更可追踪。
 
 组件边界应围绕状态所有权和变化频率，而不是按 JSX 行数拆分。若一个子树需要独立复用、独立加载、独立错误边界或能够通过稳定 props 跳过更新，它适合成为组件。只有为了缩短文件而拆出没有语义的包装层，会让树和调试更复杂。
-
 ## 验证编译和运行过程
 
 在 TypeScript Playground 或本地构建中分别选择 classic 与 automatic JSX，比较输出调用和导入。再在组件函数、事件处理器和 Effect 中分别记录日志，通过 React Profiler 对应 Render 与 Commit。
@@ -99,16 +95,8 @@ ImpureRow 每次调用都会先修改模块变量再返回 Element，因此被�
 预期结果是：创建 Element 不修改 DOM；组件函数可能多次运行；事件只在用户操作后发生；Effect setup 在提交后运行，并在依赖变化或卸载前 cleanup。若日志顺序不符合，先检查代码运行环境和 Strict Mode，不要据此认为生产一定重复提交。
 
 JSX 默认会转义作为文本插入的值，却不会把所有 props 变成可信输入。`dangerouslySetInnerHTML`、URL、样式和第三方组件仍需各自的校验与信任边界。
-
 ## 官方依据
 
 - [Writing Markup with JSX](https://react.dev/learn/writing-markup-with-jsx)
 - [React calls Components and Hooks](https://react.dev/reference/rules/react-calls-components-and-hooks)
 - [React source: ReactJSXElement.js](https://github.com/facebook/react/blob/main/packages/react/src/jsx/ReactJSXElement.js)
-
-## 迁移复核：JSX、React Element 与组件渲染模型
-把这套机制迁移到真实前端时，先确认它运行在哪一层：浏览器解析与调度、框架渲染、构建工具、网络协议或应用状态。相邻层可以互相影响，却不能用框架术语替代浏览器事实，也不能用一次视觉正确推断生命周期和资源已经正确释放。
-
-验证同时覆盖首次加载、更新、卸载或离开页面、错误恢复和低性能设备。交互组件保留键盘路径、焦点、可访问名称与响应式边界；异步逻辑检查取消、竞态和迟到结果；构建结果检查产物图、缓存和 Source Map。
-
-性能优化先用 Performance、Network、Memory 或框架 Profiler 找到时间和资源归属，再改变代码。示例中的阈值、设备与数据规模只用于解释机制，项目结论需要在目标浏览器和真实产物上复测。

@@ -50,7 +50,6 @@ sequenceDiagram
 客户端断开会通过协议/取消传播体现。路由仍要把取消交给数据库与 HTTP 客户端，不能捕获 CancelledError 后继续无界工作。
 
 取消不是“撤销已经发生的一切”。MySQL 已提交的事务不会因为浏览器关页而回滚，外部服务也可能在超时前收到了请求。读请求可以尽快取消；写请求仍靠事务、幂等键和结果查询处理未知结果。日志要区分 client_disconnect、application_deadline 和 dependency_timeout，三者虽然都表现为请求没拿到结果，恢复动作并不相同。
-
 ## 依赖注入管理请求资源与认证上下文
 
 FastAPI Dependency 可验证 Access Token、创建 Principal、提供 AsyncSession，并用 yield 在响应后清理。依赖有缓存语义，同一请求重复依赖默认复用结果；它不是全局 Singleton 容器。
@@ -75,7 +74,6 @@ async def get_project(
 ```
 
 Pydantic response model 约束输出形状，但不会自动证明 tenant_id 过滤。`get_scoped` 的 SQL 与集成测试必须包含 Principal 范围。
-
 ## 同步函数、线程池与进程各有边界
 
 普通 `def` 路由/依赖可由 Starlette 放在线程池运行，避免阻塞事件循环，但线程池容量有限；同步数据库调用与文件解析高并发时仍会排队。
@@ -91,7 +89,6 @@ CPU 密集 Python 受 GIL 与内存影响，通常使用多进程/Celery Worker�
 | CPU/长解析 | 进程/Celery | Worker 并发与任务租约 |
 | 进程内 BackgroundTasks | 当前应用进程 | 只适合短且可丢工作 |
 | 可靠后台任务 | 持久任务表 + Broker | ACK/重试/幂等 |
-
 ## 异常与取消保持协议和所有权
 
 Validation Error、领域错误和基础设施错误统一转换 Problem；日志保留 cause，响应不暴露 Traceback。TaskGroup 一个子任务失败会取消同组其他任务，清理块要能处理 CancelledError。
@@ -99,7 +96,6 @@ Validation Error、领域错误和基础设施错误统一转换 Problem；日�
 `asyncio.shield` 不能当通用的“保证执行”。它只隔离外层取消，内部 Task 仍要有引用、deadline 和异常观察；随手 shield 审计或消息发布会留下请求结束后无人管理的工作。需要可靠完成的副作用先与业务数据写入 Outbox，交给持久 Worker。
 
 lifespan 启动共享 Client/Engine，关闭时先 readiness=false、停止 Worker/新请求，再 dispose Engine、关闭 Redis/HTTP 与 flush Telemetry。测试用 lifespan 实际启动，避免只调用函数错过资源问题。
-
 ## FastAPI 异步执行边界
 
 **多 Uvicorn Worker 能解决所有阻塞吗？**
@@ -117,10 +113,3 @@ lifespan 启动共享 Client/Engine，关闭时先 readiness=false、停止 Work
 **AsyncSession 能否跨并发 Task 共用？**
 
 它是有状态事务会话，不适合多个并发 Task 共享。每个独立事务使用自己的 Session；同一事务内通常顺序执行 SQL。
-
-## 机制复核：Python 与 FastAPI：ASGI、依赖注入和异步边界
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。

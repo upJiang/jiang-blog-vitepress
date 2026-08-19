@@ -42,7 +42,6 @@ API 在 MySQL 创建任务和 Outbox，Celery 消息只带稳定 task_id、schem
 | RabbitMQ/Celery | 待投递任务 | 长期结果 |
 | MinIO | 源文件与派生对象 | 授权规则 |
 | SSE | 进度事件传输 | 任务状态真相 |
-
 ## ACK、retry 和任务租约共同决定恢复
 
 `acks_late` 让任务执行后 ACK，Worker 丢失会重投；`autoretry` 仍要只覆盖临时错误，并设置 max_retries/backoff/jitter。业务非法不重试，进入 failed。
@@ -70,7 +69,6 @@ def parse_document(self, task_id: str) -> None:
 同步 Celery Worker 使用同步 SQLAlchemy/MinIO 客户端，不能随意在任务中混用一个全局 asyncio loop。FastAPI 的 AsyncSession 不传入 Worker。
 
 Celery 的 retry 是一次新的投递机会，不是事务回滚。若第一次已经上传对象或调用了外部 API，重试前必须能识别原副作用。代码按错误类型决定：输入格式错误写终态并 ACK；依赖超时且结果可查询时先查；临时网络失败才退避重试；达到上限后保留任务、异常分类和最后一次 attempt 供人工恢复。
-
 ## Redis 进度与 SSE 有版本防倒退
 
 Worker 把 `{attempt, sequence, percent, stage}` 写 Redis，并发布进度；Lua/条件逻辑只接受更高 attempt 或同 attempt 更高 sequence。旧 Worker 的 90% 不能覆盖新 attempt 的 20%。
@@ -91,7 +89,6 @@ sequenceDiagram
 ```
 
 SSE 只是传输层；浏览器重连或丢事件不会改变任务是否成功。终态始终可通过 GET /tasks/{id} 查询。
-
 ## pytest 验证崩溃、重投与清理
 
 单元测试用 eager/直接调用验证错误分类，但 eager 不模拟 Broker ACK 与多进程。集成启动真实 Worker 和 RabbitMQ，杀掉执行中 Worker，断言重投且业务只产生一个结果。
@@ -99,7 +96,6 @@ SSE 只是传输层；浏览器重连或丢事件不会改变任务是否成功�
 ruff 检查代码，mypy 检查类型，pytest 覆盖 MySQL/Redis/MinIO。测试对象使用 run_id 前缀，关闭 Worker/连接后精确清理；失败日志和 task_id 保存到临时 Artifact。
 
 集成用例还要让 Worker 在三个时间点退出：领取后尚未写入、对象上传后尚未提交、数据库提交后尚未 ACK。前两种应由租约和对象清理恢复；第三种会重复投递，但 Inbox/终态条件更新必须吸收重复。这样才能证明 `acks_late`、业务幂等和资源清理真的组合起来了。
-
 ## 任务状态、重试与清理边界
 
 **Celery Result Backend 能否替代 tasks 表？**
@@ -117,10 +113,3 @@ ruff 检查代码，mypy 检查类型，pytest 覆盖 MySQL/Redis/MinIO。测试
 **Celery retry 会不会产生新 task_id？**
 
 通常 retry 维持 Celery task identity，但业务不能依赖实现细节保证幂等。始终使用自己的业务 task_id/event_id/attempt 进行状态裁决。
-
-## 机制复核：Python 接入 Redis、Celery、MinIO 与测试质量
-这篇文章讨论的机制需要放回一次完整请求中验证。先记录输入约束、状态变化、外部依赖和失败结果，再确认成功路径是否留下可追踪的事实。配置、缓存、队列或数据库只承担各自职责，不能用一层的日志推断另一层已经完成。
-
-迁移到实际项目时，优先补一条正常用例、一条重复或并发用例和一条依赖不可用用例。每条用例写明观察指标、错误分类、回滚动作与数据清理范围，测试替身的通过不能代替真实协议和权限验证。
-
-当性能、可靠性和安全目标冲突时，先明确服务对象和可接受损失，再选择超时、容量、重试和降级策略。没有测量依据的阈值只作为待验证假设，发布后用同一公式复验。
