@@ -8,118 +8,93 @@ order: 580
 depth: reference
 series: "重学前端"
 ---
-我们书接上文。浏览器进行到这一步，我们已经给 DOM 元素添加了用于展现的 CSS 属性，接下来，**浏览器的工作就是确定每一个元素的位置了**。我们的基本原则仍然不变，就是尽可能流式地处理上一步骤的输出。
+# 浏览器布局与格式化上下文
 
-在构建 DOM 树和计算 CSS 属性这两个步骤，我们的产出都是一个一个的元素，但是在排版这个步骤中，有些情况下，我们就没法做到这样了。
+布局把样式计算结果转换成盒的几何信息。元素属于哪个 formatting context（格式化上下文）、包含块是谁、可用空间多大，决定了 width、height、边距、基线和定位结果。一个 `getBoundingClientRect()` 数字本身无法说明这些规则。
 
-尤其是表格相关排版、Flex 排版和 Grid 排版，它们有一个显著的特点，那就是子元素之间具有关联性。
+## 盒模型先决定尺寸口径
 
-附一个 display 属性
+内容区、padding、border 和 margin 构成盒模型。默认 `box-sizing: content-box` 时，指定 width 只覆盖内容区；`border-box` 则把内边距和边框纳入指定尺寸。
 
-- block: CSS1 块对象的默认值。将对象强制作为块对象呈递，为对象之后添加新行
+~~~css
+.panel {
+  box-sizing: border-box;
+  width: 240px;
+  padding: 16px;
+  border: 1px solid;
+}
+~~~
 
-- none: CSS1 隐藏对象。与 visibility 属性的 hidden 值不同，其不为被隐藏的对象保留其物理空间
+滚动条、最小尺寸、替换元素固有尺寸和百分比参照物会进一步改变 used value。调试尺寸先确认测量 API、盒模型、writing mode 和设备像素比。
 
-- inline: CSS1 内联对象的默认值。将对象强制作为内联对象呈递，从对象中删除行
+## 正常流产生块格式化上下文和行盒
 
-- inline-block: IE5.5 将对象呈递为内联对象，但是对象的内容作为块对象呈递。旁边的内联对象会被呈递在同一行内
+块级盒按块方向依次排列，宽度通常由包含块和边距计算。行内内容被分成 line box，文字按字体度量和 baseline 对齐，换行受可用宽度、断词、书写方向和 `white-space` 影响。
 
-- compact: CSS2 未支持。分配对象为块对象或基于内容之上的内联对象
+行内元素跨行时可能生成多个 fragment，`getClientRects()` 会返回多个矩形。不要用一个 bounding rect 代替选区、文本命中或多行装饰的所有几何。
 
-- marker: CSS2 未支持。指定内容在容器对象之前或之后。要使用此参数，对象必须和 :after 及 :before 伪元素一起使用
+块格式化上下文（BFC）建立独立的块布局范围。浮动、绝对定位、`display: flow-root`、某些 overflow 设置等会形成 BFC，影响浮动包围和外边距折叠。BFC 不是“万能清除浮动”口诀，是否形成上下文要看具体 display、overflow 和规范条件。
 
-- inline-table: CSS2 未支持。将表格显示为无前后换行的内联对象或内联容器
+## 包含块决定定位参照
 
-- list-item: CSS2 将块对象指定为列表项目。并可以添加可选项目标志
+绝对定位元素从包含块的 padding box 等规则中计算 inset。包含块可能来自最近的定位祖先，也可能由 transform、filter、contain 等属性建立。没有合适祖先时通常回到初始包含块。
 
-- table-caption: CSS2 未支持。将对象作为表格标题显示
+~~~css
+.wrapper {
+  position: relative;
+  width: 20rem;
+  height: 10rem;
+}
 
-- table-cell: CSS2 未支持。将对象作为表格单元格显示
+.badge {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+}
+~~~
 
-- table-column: CSS2 未支持。将对象作为表格列显示
+固定定位通常相对视口，但 transform 等属性可能改变 containing block。滚动容器、逻辑方向和安全区域会让“top left”直觉失效，优先使用逻辑属性和明确参照。
 
-- table-column-group: CSS2 未支持。将对象作为表格列组显示
+## 浮动仍参与周围文字布局
 
-- table-header-group: CSS2 将对象作为表格标题组显示
+浮动盒从普通块的垂直排列中移出，但会占据一块排版区域，后续行盒会为它让出空间。清除浮动会让后续内容避开指定方向的浮动。
 
-- table-footer-group: CSS2 将对象作为表格脚注组显示
+浮动的高度和父元素高度不是简单相加关系。现代布局优先使用 Flex 或 Grid 表达组件关系，阅读遗留文档或实现文本环绕时再使用 float。用 `overflow: hidden` 清除浮动还会意外裁剪阴影和溢出内容。
 
-## 基本概念
+## Flex 根据轴线分配剩余空间
 
-浏览器最基本的排版方案是**正常流排版**，它包含了顺次排布和折行等规则，这是一个跟我们提到的印刷排版类似的排版方案，也跟我们平时书写文字的方式一致，所以我们把它叫做正常流。
+Flex 容器先确定主轴和交叉轴，再计算 flex base size、冻结项和剩余空间分配。最小尺寸、`flex-basis: auto`、内容固有尺寸和 `min-width: auto` 会让“平均分配”失效。
 
-浏览器的文字排版遵循公认的文字排版规范，文字排版是一个复杂的系统，它规定了行模型和文字在行模型中的排布。行模型规定了行顶、行底、文字区域、基线等对齐方式。（你还记得小时候写英语的英语本吗？英语本上的四条线就是一个简单的行模型。）
+~~~css
+.row {
+  display: flex;
+  gap: 1rem;
+}
 
-此外，浏览器支持不同语言，因为不同语言的书写顺序不一致，所以浏览器的文本排版还支持双向文字系统。
+.row > .main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+~~~
 
-浏览器又可以支持元素和文字的混排，元素被定义为占据长方形的区域，还允许边框、边距和留白，这个就是所谓的**盒模型**。
+`min-width: 0` 允许可伸缩子项在内容很长时真正收缩。交叉轴对齐还受 stretch、基线、自动边距和多行 flex-wrap 影响。调试 Flex 时检查 computed flex base size、冻结状态和溢出节点。
 
-在正常流的基础上，浏览器还支持两类元素：绝对定位元素和浮动元素。
+## Grid 同时处理行和列
 
-- 绝对定位元素把自身从正常流抽出，直接由 top 和 left 等属性确定自身的位置，不参加排版计算，也不影响其它元素。绝对定位元素由 position 属性控制。
+Grid 根据显式轨道、隐式轨道、gap 和可用空间放置项目。自动放置算法会先处理显式位置，再按 dense 或稀疏规则寻找空位。轨道尺寸可能经过 min-content、max-content 和 `fr` 的多轮计算。
 
-- 浮动元素则是使得自己在正常流的位置向左或者向右移动到边界，并且占据一块排版空间。浮动元素由 float 属性控制。
+~~~css
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+~~~
 
-除了正常流，浏览器还支持其它排版方式，比如现在非常常用的 Flex 排版，这些排版方式由外部元素的 display 属性来控制（注意，display 同时还控制元素在正常流中属于 inline 等级还是 block 等级）。
+`fr` 分配的是轨道剩余空间，不是元素最终宽度；内容最小尺寸仍可能撑开轨道。需要让长文本可收缩时，使用 `minmax(0, 1fr)` 并处理 overflow。
 
-## 正常流文字排版
+## 布局结果会影响后续阶段
 
-正常流是唯一一个文字和盒混排的排版方式，我们先从文字来讲起。
+改变尺寸、字体、边距和文档结构可能让祖先与兄弟重新布局；改变 transform 通常保留布局几何，由绘制或合成阶段处理。读取几何 API 紧跟写入时，浏览器可能同步完成布局。
 
-要想理解正常流，我们首先要回忆一下自己如何在纸上写文章。
-
-首先，纸是有固定宽度的，虽然纸有固定高度，但是我们可以通过下一页纸的方式来接续，因此我们不存在写不下的场景。
-
-我们书写文字的时候，是从左到右依次书写，每一个字跟上一个字都不重叠，文字之间有一定间距，当写满一行时，我们换到下一行去继续写。
-
-书写中文时，文字的上、下、中轴线都对齐，书写英文时，不同字母的高度不同，但是有一条基线对齐。
-
-实际上浏览器环境也很类似。但是因为浏览器支持改变排版方向，不一定是从左到右从上到下，所以我们把文字依次书写的延伸方向称为主轴或者主方向，换行延伸的方向，跟主轴垂直交叉，称为交叉轴或者交叉方向。
-
-我们一般会从某个字体文件中获取某个特定文字的相关信息。我们获取到的信息大概类似下面：
-
-<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5425657b74be4acc9b7e2b992027ab24~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5425657b74be4acc9b7e2b992027ab24~tplv-k3u1fbpfcp-watermark.image?)</a>
-
-纵向版本：
-
-<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ec45bb7d82714c55ac146b45c2d2c14a~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ec45bb7d82714c55ac146b45c2d2c14a~tplv-k3u1fbpfcp-watermark.image?)</a>
-
-这两张图片来自著名开源字体解析库 freetype，实际上，各个库对字体的理解大同小异，我们注意一下，advance 代表每一个文字排布后在主轴上的前进距离，它跟文字的宽 / 高不相等，是字体中最重要的属性。
-
-除了字体提供的字形本身包含的信息，文字排版还受到一些 CSS 属性影响，如 line-height、letter-spacing、word-spacing 等。
-
-在正常流的文字排版中，多数元素被当作长方形盒来排版，而只有 display 为 inline 的元素，是被拆成文本来排版的（还有一种 run-in 元素，它有时作为盒，有时作为文字，不太常用，这里不详细讲了）。
-
-display 值为 inline 的元素中的文字排版时会被直接排入文字流中，inline 元素主轴方向的 margin 属性和 border 属性（例如主轴为横向时的 margin-left 和 margin-right）也会被计算进排版前进距离当中。
-
-注意，当没有强制指定文字书写方向时，在左到右文字中插入右到左向文字，会形成一个双向文字盒，反之亦然。
-
-这样，即使没有元素包裹，混合书写方向的文字也可以形成一个盒结构，我们在排版时，遇到这样的双向文字盒，会先排完盒内再排盒外。
-
-## 正常流中的盒
-
-在正常流中，display 不为 inline 的元素或者伪元素，会以盒的形式跟文字一起排版。多数 display 属性都可以分成两部分：
-
-- 内部的排版和是否 inline；
-
-- 带有 inline- 前缀的盒，被称作行内级盒。
-
-根据盒模型，一个盒具有 margin、border、padding、width/height 等属性，它在主轴方向占据的空间是由对应方向的这几个属性之和决定的，而 vertical-align 属性决定了盒在交叉轴方向的位置，同时也会影响实际行高。
-
-所以，浏览器对行的排版，一般是先行内布局，再确定行的位置，根据行的位置计算出行内盒和文字的排版位置。
-
-块级盒比较简单，它总是单独占据一整行，计算出交叉轴方向的高度即可。
-
-## 绝对定位元素
-
-position 属性为 absolute 的元素，我们需要根据它的包含块来确定位置，这是完全跟正常流无关的一种独立排版模式，逐层找到其父级的 position 非 static 元素即可。
-
-## 浮动元素排版
-
-float 元素非常特别，浏览器对 float 的处理是先排入正常流，再移动到排版宽度的最左 / 最右（这里实际上是主轴的最前和最后）。
-
-移动之后，float 元素占据了一块排版的空间，因此，在数行之内，主轴方向的排版距离发生了变化，直到交叉轴方向的尺寸超过了浮动元素的交叉轴尺寸范围，主轴排版尺寸才会恢复。float 元素排布完成后，float 元素所在的行需要重新确定位置。
-
-## 其它的排版
-
-CSS 的每一种排版都有一个很复杂的规定，实际实现形式也各不相同。比如如 Flex 排版，支持了 flex 属性，flex 属性将每一行排版后的剩余空间平均分配给主轴方向的 width/height 属性。浏览器支持的每一种排版方式，都是按照对应的标准来实现的。
+验证布局时用一个变量一次只改一项，分别观察 normal flow、BFC、absolute、Flex 和 Grid。记录包含块、可用尺寸、滚动条、字体加载状态和浏览器版本，再用 Layout 面板和 `getClientRects()` 交叉确认。

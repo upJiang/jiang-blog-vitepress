@@ -8,56 +8,55 @@ order: 390
 depth: reference
 series: "重学前端"
 ---
-## 正常流
+# CSS 布局与格式化上下文
 
-**我们可以用一句话来描述正常流的排版行为，那就是：依次排列，排不下了换行。**
+布局系统先建立 formatting context，再按包含块和可用空间计算盒。normal flow、block/inline、BFC、Flex、Grid 和定位各自有输入和约束，不能用一组“浮动、清除、居中”口诀互相替代。
 
-## 正常流的原理
+## 正常流安排块和行
 
-在 CSS 标准中，规定了如何排布每一个文字或者盒的算法，这个算法依赖一个排版的“当前状态”，CSS 把这个当前状态称为“格式化上下文（formatting context）”。
+块盒沿块方向排列，行内内容组成 line box。文字的字体、基线、white-space、断词和书写模式会影响行高与换行；行内元素跨行时可以产生多个 fragment。
 
-我们可以认为排版过程是这样的：
+外边距折叠发生在满足条件的块格式化上下文边界之间，Flex、Grid、绝对定位和 flow-root 等通常会阻断它。看到相邻块间距异常时，先画出包含块和 BFC 边界，不要只给父元素加 padding。
 
-- 格式化上下文 + 盒 / 文字 = 位置
+## BFC 是独立的块布局范围
 
-- formatting context + boxes/charater = positions
+浮动会让周围行盒避让，BFC 内的块不会被外部浮动穿透。形成 BFC 的条件包括 flow-root、浮动、绝对定位和特定 overflow 等，具体以 display 和 overflow 组合为准。
 
-当我们要把正常流中的一个盒或者文字排版，需要分成三种情况处理。
-
-- **当遇到块级盒**：排入块级格式化上下文。
-
-- **当遇到行内级盒或者文字**：首先尝试排入行内级格式化上下文，如果排不下，那么创建一个行盒，先将行盒排版（行盒是块级，所以到第一种情况），行盒会创建一个行内级格式化上下文。
-
-- **遇到 float 盒**：把盒的顶部跟当前行内级上下文上边缘对齐，然后根据 float 的方向把盒的对应边缘对到块级格式化上下文的边缘，之后重排当前行盒。
-
-我们以上讲的都是一个块级格式化上下文中的排版规则，实际上，页面中的布局没有那么简单，一些元素会在其内部创建新的块级格式化上下文，这些元素有
-
-- 浮动元素；
-
-- 绝对定位元素；
-
-- 非块级但仍能包含块级元素的容器（如 inline-blocks, table-cells, table-captions）；
-
-- 块级的能包含块级元素的容器，且属性 overflow 不为 visible。
-
-写一个自适应宽
-
-```
-<div class="outer">
-    <div class="fixed"></div>
-    <div class="auto"></div>
-</div>
-
-.fixed {
-    display:inline-block;
-    vertical-align:top;
+~~~css
+.media {
+  display: flow-root;
 }
-.auto {
-    margin-left:-200px;
-    padding-left:200px;
-    box-sizing:border-box;
-    width:100%;
-    display:inline-block;
-    vertical-align:top;
+
+.media img {
+  float: inline-start;
+  margin-inline-end: 1rem;
 }
-```
+~~~
+
+flow-root 只建立布局边界，不会自动解决高度、裁剪和响应式图片的所有问题。选择它前要确认需要隔离的到底是浮动、外边距还是滚动。
+
+## Flex 和 Grid 表达不同关系
+
+Flex 主要在一条主轴上分配空间，适合工具栏、行列和内容对齐。Grid 同时管理行与列，适合二维区域和可预测的轨道关系。两者都受内容最小尺寸、固有尺寸、gap 和溢出约束。
+
+~~~css
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: 1.5rem;
+}
+~~~
+
+`minmax(0, 1fr)` 允许主区域收缩，避免长文本把轨道撑出视口。Flex 子项常需要 `min-width: 0`，否则默认最小内容尺寸会阻止收缩。
+
+## 绝对定位脱离正常流
+
+position absolute 和 fixed 不参与普通块的空间分配，但它们仍有包含块、层叠上下文、尺寸和命中测试规则。inset、margin、auto 尺寸与静态位置共同决定最终几何。
+
+固定定位在移动端还会受到可视视口、工具栏和安全区影响。若只是想把元素从布局中移出，不要默认使用 absolute，先确认它是否需要跟随滚动和内容变化。
+
+## 布局读写顺序影响性能
+
+修改 class、style 或 DOM 会标记样式和布局失效。马上读取 offset、scroll、client 或 bounding rect 时，浏览器可能同步处理失效。批量读取再批量写入，或把视觉更新放到 rAF，可减少交错成本。
+
+验证布局时一次只改变一个约束，记录包含块、盒模型、可用空间、字体状态和滚动条。用 DevTools Layout 面板、computed style 和多个几何 API 交叉核对，不要把某一次屏幕截图当作规则证明。

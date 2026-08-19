@@ -8,232 +8,88 @@ order: 550
 depth: reference
 series: "重学前端"
 ---
-DOM 中的所有的属性都是用来表现语义的属性，CSSOM 的则都是表现的属性，width 和 height 这类显示相关的属性
+# CSSOM 与样式计算
 
-顾名思义，CSSOM 是 CSS 的对象模型，在 W3C 标准中，它包含两个部分：描述样式表和规则等 CSS 的模型部分（CSSOM），和跟元素视图相关的 View 部分（CSSOM View）。
+CSSOM（CSS Object Model）把样式表、规则和声明暴露给脚本；CSSOM View 则补充窗口、滚动和几何测量 API。它们提供的是可操作的对象模型，最终样式还要经过级联、继承、变量解析和布局。
 
-在实际使用中，CSSOM View 比 CSSOM 更常用一些，因为我们很少需要用代码去动态地管理样式表。
+## 样式表由规则对象组成
 
-## CSSOM
+`document.styleSheets` 返回页面可访问的 StyleSheet 列表。CSSStyleSheet 的 `cssRules` 里有 StyleRule、MediaRule、KeyframesRule 等不同规则类型。
 
-我们通常创建样式表也都是使用 HTML 标签来做到的，我们用 style 标签和 link 标签创建样式表，例如：
+~~~js
+const sheet = document.querySelector('style').sheet
+const rules = [...sheet.cssRules]
 
-```
-<style title="Hello">
-a {
-  color:red;
+for (const rule of rules) {
+  console.log(rule.type, rule.cssText)
 }
-</style>
-<link rel="stylesheet" title="x" href="data:text/css,p%7Bcolor:blue%7D">
-```
+~~~
 
-我们创建好样式表后，还有可能要对它进行一些操作。如果我们以 DOM 的角度去理解的话，这些标签在 DOM 中是一个节点，它们有节点的内容、属性，这两个标签中，CSS 代码有的在属性、有的在子节点。这两个标签也遵循 DOM 节点的操作规则，所以可以使用 DOM API 去访问。
+跨源样式表受同源策略限制，读取 `cssRules` 可能抛出 SecurityError。页面能应用一张表，不代表脚本能读取它的规则文本。生产调试应记录 stylesheet URL、来源策略和加载完成时机。
 
-但是，这样做的后果是我们需要去写很多分支逻辑，并且，要想解析 CSS 代码结构也不是一件简单的事情，所以，这种情况下，我们直接使用 CSSOM API 去操作它们生成的样式表，这是一个更好的选择。
+CSSOM 的规则修改接口，如 `insertRule`、`deleteRule`，会改变样式匹配输入。动态写入要控制规则数量和生命周期，频繁创建规则比更新一个 CSS custom property 更难维护。
 
-我们首先了解一下 CSSOM API 的基本用法，一般来说，我们需要先获取文档中所有的样式表：
+## CSSStyleDeclaration 不是最终样式
 
-```
-document.styleSheets
-```
+`element.style` 表示元素的 inline declaration block，只包含 `style=""` 或脚本写入的声明。它不包含外部样式表、继承值和用户代理样式。
 
-document 的 styleSheets 属性表示文档中的所有样式表，这是一个只读的列表，我们可以用方括号运算符下标访问样式表，也可以使用 item 方法来访问，它有 length 属性表示文档中的样式表数量。
+~~~js
+const card = document.querySelector('.card')
 
-样式表只能使用 style 标签或者 link 标签创建（对 XML 来说，还可以使用，咱们暂且不表）。
+card.style.setProperty('--accent', 'rebeccapurple')
+card.style.setProperty('margin-inline', '1rem')
 
-我们虽然无法用 CSSOM API 来创建样式表，但是我们可以修改样式表中的内容。
+console.log(card.style.getPropertyValue('--accent'))
+~~~
 
-```
-document.styleSheets[0].insertRule("p { color:pink; }", 0)
-document.styleSheets[0].removeRule(0)
-```
+声明有优先级标记、原始字符串和规范化序列化等细节。删除 inline 声明使用 `removeProperty`，赋空字符串也可能达到相同效果，但对自定义属性和优先级的处理应以 CSSOM 行为为准。
 
-更进一步，我们可以获取样式表中特定的规则（Rule），并且对它进行一定的操作，具体来说，就是使用它的 cssRules 属性来实现：
+## 最终样式经过级联和继承
 
-```
-document.styleSheets[0].cssRules
-```
+样式规则匹配后，浏览器按 origin、importance、cascade layer、specificity 和源码顺序等条件选择胜出的声明。继承属性从父元素传给子元素，非继承属性通常使用初始值或计算值。
 
-这里取到的规则列表，同样是支持 item、length 和下标运算。
+`getComputedStyle(element)` 返回一个只读的 CSSStyleDeclaration，适合查看解析后的计算结果。它不是一份静态快照，读取时会反映当前样式；某些属性返回 resolved value，和规范中的 computed value、used value 仍有层次差异。
 
-不过，这里的 Rules 可就没那么简单了，它可能是 CSS 的 at-rule，也可能是普通的样式规则。不同的 rule 类型，具有不同的属性。
+~~~js
+const node = document.querySelector('.card')
+const style = getComputedStyle(node)
 
-我们在 CSS 语法部分，已经为你整理过 at-rule 的完整列表，多数 at-rule 都对应着一个 rule 类型：
+console.log(style.display)
+console.log(style.getPropertyValue('margin-left'))
+~~~
 
-- CSSStyleRule
+伪元素需要传入 `::before` 或 `::after`。读取不存在的伪元素会得到默认对象或警告，不能把它当作普通 DOM 节点修改。
 
-- CSSCharsetRule
+## CSSOM View 提供多个坐标系
 
-- CSSImportRule
+`getBoundingClientRect` 返回相对视口的 DOMRect，滚动页面后 top 和 left 会变化。加上 `scrollX`、`scrollY` 才能近似得到文档坐标。
 
-- CSSMediaRule
+窗口、文档和元素各有自己的滚动属性。可视视口和布局视口在移动端缩放下也可能不同，不能用 `window.innerWidth` 代替所有宽度概念。
 
-- CSSFontFaceRule
+~~~js
+const rect = document.querySelector('.card').getBoundingClientRect()
+const documentTop = rect.top + window.scrollY
 
-- CSSPageRule
+console.log({ viewportTop: rect.top, documentTop })
+~~~
 
-- CSSNamespaceRule
+`offsetWidth`、`clientWidth`、`scrollWidth` 分别包含不同的边框、内边距和溢出范围。尺寸测试必须写清盒模型、滚动条和设备像素比。
 
-- CSSKeyframesRule
+## 读写顺序会触发布局同步
 
-- CSSKeyframeRule
+样式写入先让样式或布局失效。紧接着读取 `offsetHeight`、`getBoundingClientRect` 或某些 computed style 时，浏览器可能同步完成尚未处理的样式计算和布局，这常被称作 forced synchronous layout。
 
-- CSSSupportsRule
+~~~js
+for (const item of document.querySelectorAll('.item')) {
+  const height = item.getBoundingClientRect().height
+  item.style.width = `${height}px`
+}
+~~~
 
-具体的规则支持的属性，建议你可以用到的时候，再去查阅 MDN 或者 W3C 的文档，在我们的文章中，仅为你详细介绍最常用的 CSSStyleRule。
+循环里的读写交错会放大布局成本。批量读取几何，再批量写入样式，或使用 class、CSS variables 和 requestAnimationFrame 合并更新。是否真的触发布局取决于引擎和当前失效状态，不能只靠 API 名称推断。
 
-CSSStyleRule 有两个属性：selectorText 和 style，分别表示一个规则的选择器部分和样式部分。
+## CSSOM 不等于安全边界
 
-selector 部分是一个字符串，这里显然偷懒了没有设计进一步的选择器模型，我们按照选择器语法设置即可。
+脚本可以通过 CSSOM 读取和修改当前 origin 允许访问的规则。它不会绕过 CSP、同源策略或跨源资源的响应限制。把用户输入拼进 selector、style 或 URL 仍需要转义和校验。
 
-style 部分是一个样式表，它跟我们元素的 style 属性是一样的类型，所以我们可以像修改内联样式一样，直接改变属性修改规则中的具体 CSS 属性定义，也可以使用 cssText 这样的工具属性。
-
-此外，CSSOM 还提供了一个非常重要的方法，来获取一个元素最终经过 CSS 计算得到的属性：
-
-```
-window.getComputedStyle(elt, pseudoElt);
-```
-
-其中第一个参数就是我们要获取属性的元素，第二个参数是可选的，用于选择伪元素。
-
-好了，到此为止，我们可以使用 CSSOM API 自由地修改页面已经生效的样式表了。接下来，我们来一起关注一下视图的问题。
-
-## CSSOM View
-
-CSSOM View 这一部分的 API，可以视为 DOM API 的扩展，它在原本的 Element 接口上，添加了显示相关的功能，这些功能，又可以分成三个部分：窗口部分，滚动部分和布局部分，下面我来分别带你了解一下。
-
-### 窗口 API
-
-窗口 API 用于操作浏览器窗口的位置、尺寸等。
-
-- moveTo(x, y) 窗口移动到屏幕的特定坐标；
-
-- moveBy(x, y) 窗口移动特定距离；
-
-- resizeTo(x, y) 改变窗口大小到特定尺寸；
-
-- resizeBy(x, y) 改变窗口大小特定尺寸。
-
-此外，窗口 API 还规定了 window.open() 的第三个参数：
-
-```
-window.open("about:blank", "_blank" ,"width=100,height=100,left=100,right=100" )
-```
-
-一些浏览器出于安全考虑没有实现，也不适用于移动端浏览器，这部分你仅需简单了解即可。下面我们来了解一下滚动 API。
-
-### 滚动 API
-
-要想理解滚动，首先我们必须要建立一个概念，在 PC 时代，浏览器`可视区域的滚动`和`内部元素的滚动`关系是比较模糊的，但是在移动端越来越重要的今天，两者必须分开看待，两者的性能和行为都有区别。
-
-#### 视口滚动 API
-
-可视区域（视口）滚动行为由 window 对象上的一组 API 控制，我们先来了解一下：
-
-- scrollX 是视口的属性，表示 X 方向上的当前滚动距离，有别名 pageXOffset；
-
-- scrollY 是视口的属性，表示 Y 方向上的当前滚动距离，有别名 pageYOffset；
-
-- scroll(x, y) 使得页面滚动到特定的位置，有别名 scrollTo，支持传入配置型参数 {top, left}；
-
-- scrollBy(x, y) 使得页面滚动特定的距离，支持传入配置型参数 {top, left}。
-
-通过这些属性和方法，我们可以读取视口的滚动位置和操纵视口滚动。不过，要想监听视口滚动事件，我们需要在 document 对象上绑定事件监听函数：
-
-```
-document.addEventListener("scroll", function(event){
-  //......
-})
-```
-
-视口滚动 API 是页面的顶层容器的滚动，大部分移动端浏览器都会采用一些性能优化，它和元素滚动不完全一样，请大家一定建立这个区分的意识。
-
-#### 元素滚动 API
-
-接下来我们来认识一下元素滚动 API，在 Element 类（参见 DOM 部分），为了支持滚动，加入了以下 API。
-
-- scrollTop 元素的属性，表示 Y 方向上的当前滚动距离。
-
-- scrollLeft 元素的属性，表示 X 方向上的当前滚动距离。
-
-- scrollWidth 元素的属性，表示元素内部的滚动内容的宽度，一般来说会大于等于元素宽度。
-
-- scrollHeight 元素的属性，表示元素内部的滚动内容的高度，一般来说会大于等于元素高度。
-
-- scroll(x, y) 使得元素滚动到特定的位置，有别名 scrollTo，支持传入配置型参数 {top, left}。
-
-- scrollBy(x, y) 使得元素滚动到特定的位置，支持传入配置型参数 {top, left}。
-
-- scrollIntoView(arg) 滚动元素所在的父元素，使得元素滚动到可见区域，可以通过 arg 来指定滚到中间、开始或者就近。
-
-除此之外，可滚动的元素也支持 scroll 事件，我们在元素上监听它的事件即可：
-
-```
-element.addEventListener("scroll", function(event){
-  //......
-})
-```
-
-这里你需要注意一点，元素部分的 API 设计与视口滚动命名风格上略有差异，你在使用的时候不要记混。
-
-#### 布局 API
-
-最后我们来介绍一下布局 API，这是整个 CSSOM 中最常用到的部分，我们同样要分成全局 API 和元素上的 API。
-
-##### 全局尺寸信息
-
-window 对象上提供了一些全局的尺寸信息，它是通过属性来提供的，我们一起来了解一下来这些属性。
-
-![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/c194c756f37e4e1c837f075cd6c721b9~tplv-k3u1fbpfcp-watermark.image?)
-
-- window.innerHeight, window.innerWidth 这两个属性表示视口的大小。
-
-- window.outerWidth, window.outerHeight 这两个属性表示浏览器窗口占据的大小，很多浏览器没有实现，一般来说这两个属性无关紧要。
-
-- window.devicePixelRatio 这个属性非常重要，表示物理像素和 CSS 像素单位的倍率关系，Retina 屏这个值是 2，后来也出现了一些 3 倍的 Android 屏。
-
-- window.screen （屏幕尺寸相关的信息）
-
-  - window.screen.width, window.screen.height 设备的屏幕尺寸。
-
-  - window.screen.availWidth, window.screen.availHeight 设备屏幕的可渲染区域尺寸，一些 Android 机器会把屏幕的一部分预留做固定按钮，所以有这两个属性，实际上一般浏览器不会实现的这么细致。
-
-  - window.screen.colorDepth, window.screen.pixelDepth 这两个属性是固定值 24，应该是为了以后预留。
-
-虽然 window 有这么多相关信息，在我看来，我们主要使用的是 `innerHeight`、`innerWidth` 和 `devicePixelRatio` 三个属性，因为我们前端开发工作只需要跟视口打交道，其它信息大概了解即可。
-
-##### 元素的布局信息
-
-最后我们来到了本节课一开始提到的问题，我们是否能够取到一个元素的宽（width）和高（height）呢？
-
-实际上，我们首先应该从脑中消除“元素有宽高”这样的概念，我们课程中已经多次提到了，有些元素可能产生多个盒，事实上，只有盒有宽和高，元素是没有的。
-
-所以我们获取宽高的对象应该是“盒”，于是 CSSOM View 为 Element 类添加了两个方法：
-
-- getClientRects();
-
-- getBoundingClientRect()。
-
-**getClientRects** 会返回一个列表，里面包含元素对应的每一个盒所占据的客户端矩形区域，这里每一个矩形区域可以用 x, y, width, height 来获取它的位置和尺寸。
-
-**getBoundingClientRect** ，这个 API 的设计更接近我们脑海中的元素盒的概念，它返回元素对应的所有盒的包裹的矩形区域，需要注意，这个 API 获取的区域会包括当 overflow 为 visible 时的子元素区域。
-
-根据实际的精确度需要，我们可以选择何时使用这两个 API。
-
-这两个 API 获取的矩形区域都是相对于视口的坐标，这意味着，这些区域都是受滚动影响的。
-
-如果我们要获取相对坐标，或者包含滚动区域的坐标，需要一点小技巧：
-
-```
-var offsetX = document.documentElement.getBoundingClientRect().x - element.getBoundingClientRect().x;
-```
-
-如这段代码所示，我们只需要获取文档跟节点的位置，再相减即可得到它们的坐标。
-
-这两个 API 的兼容性非常好，定义又非常清晰，建议你如果是用 JavaScript 实现视觉效果时，尽量使用这两个 API。
-
-**总结**
-
-像 HTML 和 CSS 分别承担了语义和表现的分工，DOM 和 CSSOM 也有语义和表现的分工。
-
-CSSOM 是 CSS 的对象模型，在 W3C 标准中，它包含两个部分：描述样式表和规则等 CSS 的模型部分（CSSOM），和跟元素视图相关的 View 部分（CSSOM View）。
+验证 CSSOM 时，覆盖外部表、inline、媒体查询、伪元素、滚动容器、缩放和跨源样式表。每次记录读写顺序、页面尺寸、滚动位置、设备像素比和浏览器版本。

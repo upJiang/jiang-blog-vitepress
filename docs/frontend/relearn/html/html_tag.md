@@ -8,78 +8,46 @@ order: 340
 depth: reference
 series: "重学前端"
 ---
-## 语义标签
+# 语义化 HTML
 
-#### HTML 的有些标签实际上就是必要的，甚至必要的程度可以达到：如果没有这个标签，文字会产生歧义的程度。em，强调标签
+HTML 元素的名称会进入可访问性树、浏览器默认行为、搜索理解和表单导航。语义化要求元素职责与交互方式匹配，单纯换成更“高级”的标签没有意义。
 
-```
-今天我吃了一个<em>苹果</em>。
-今天我吃了<em>一个</em>苹果。
-```
+## 结构标签表达阅读关系
 
-#### 作为标题摘要的语义类标签
+`main` 表示页面主要内容，`nav` 表示导航集合，`article` 表示可独立分发的内容，`section` 表示带主题的分组，`aside` 表示补充内容。它们不是通用容器，使用前要能说清内容与页面的关系。
 
-从 HTML 5 开始，我们有了 section 标签，这个标签可不仅仅是一个“有语义的 div”，它会改变 h1-h6 的语义。section 的嵌套会使得其中的 h1-h6 下降一级，因此，在 HTML5 以后，我们只需要 section 和 h1 就足以形成文档的树形结构：
-
-```
-<section>
-    <h1>HTML语义</h1>
-    <p>balah balah balah balah</p>
-    <section>
-        <h1>弱语义</h1>
-        <p>balah balah</p>
+~~~html
+<main>
+  <article>
+    <h1>Release notes</h1>
+    <section aria-labelledby="fixes">
+      <h2 id="fixes">Fixes</h2>
     </section>
-    <section>
-        <h1>结构性元素</h1>
-        <p>balah balah</p>
-    </section>
-......
-</section>
-```
+  </article>
+</main>
+~~~
 
-这段代码同样会形成前面例子的标题结构：
+标题层级应反映文档结构，CSS 字号交给样式解决。一个页面应有清晰的 main 和可导航的 heading，重复的 landmark 名称要提供区分标签。
 
-- HTML 语义
+## 链接和按钮负责不同动作
 
-  - 弱语义
+链接把用户带到一个 URL，应该使用 `<a href>`。按钮触发当前页面动作，应该使用 `<button>`。用 div 监听 click 模拟二者会丢失键盘、焦点、复制链接、打开新标签和辅助技术行为。
 
-  - 结构性元素
+~~~html
+<a href="/settings">Open settings</a>
+<button type="button" id="save">Save</button>
+~~~
 
-#### 作为整体结构的语义类标签
+按钮在 form 中默认 type 是 submit。图标按钮要有可访问名称，危险动作要有确认和错误反馈。禁用属性、aria-disabled 和 CSS pointer-events 表达的状态并不等价，选择前确认是否仍需聚焦和读屏提示。
 
-我们正确使用整体结构类的语义标签，可以让页面对机器更友好。比如，这里一个典型的 body 类似这样：
+## 列表、表格和表单保留数据关系
 
-```
-<body>
-    <header>
-        <nav>
-            ……
-        </nav>
-    </header>
-    <aside>
-        <nav>
-            ……
-        </nav>
-    </aside>
-    <section>……</section>
-    <section>……</section>
-    <section>……</section>
-    <footer>
-        <address>……</address>
-    </footer>
-</body>
-```
+有顺序或无顺序的同类项目使用 ol、ul、dl。表格用于二维数据，使用 caption、th、scope 或 headers 建立表头关联，不能为了布局把页面拆成 table。
 
-- header，如其名，通常出现在前部，表示导航或者介绍性的内容。
+表单控件通过 label、name、autocomplete、fieldset 和 legend 建立输入、分组和提交关系。placeholder 不能替代 label，错误消息要关联到控件并在状态变化时可感知。
 
-- footer，通常出现在尾部，包含一些作者信息、相关链接、版权信息等。
+## div 与 span 仍然有位置
 
-header 和 footer 一般都是放在 article 或者 body 的直接子元素，但是标准中并没有明确规定，footer 也可以和 aside，nav，section 相关联（header 不存在关联问题）。
+当没有合适的语义元素，div 作为块容器，span 作为行内容器。它们不带默认 role 和键盘行为，适合承载样式、布局和脚本挂载点。选择通用容器并不丢脸，真正的问题是用它伪造原生控件。
 
-- aside 表示跟文章主体不那么相关的部分，它可能包含导航、广告等工具性质的内容。
-
-aside 很容易被理解为侧边栏，实际上二者是包含关系，侧边栏是 aside，aside 不一定是侧边栏。
-
-aside 和 header 中都可能出现导航（nav 标签），二者的区别是，header 中的导航多数是到文章自己的目录，而 aside 中的导航多数是到关联页面或者是整站地图。
-
-最后 footer 中包含 address，这是个非常容易被误用的标签。address 并非像 date 一样，表示一个给机器阅读的地址，而是表示“文章（作者）的联系方式”，address 明确地只关联到 article 和 body。
+语义化还要服从内容顺序。视觉上把元素移动到另一位置，不能让键盘顺序、标题关系和屏幕阅读顺序失控。

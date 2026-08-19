@@ -8,71 +8,83 @@ order: 130
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 字符串算法
 
-JavaScript 中 `'😀'.length` 是 2，因为字符串按 UTF-16 code unit 计数；用户看到的却是一个字符。`e` 加组合音标又可能是两个 code point、一个字素簇。字符串题若不先声明字符单位，反转、长度和窗口都可能算错。
+JavaScript String 保存 UTF-16 码元序列。算法里的“字符”可能指码元、Unicode 码点或用户看到的 grapheme cluster（字形簇）。先确定单位，再谈下标、长度、窗口和复杂度。
 
-本篇先区分 code unit、code point 和字素簇，再用“无重复最长子串”学习滑动窗口。回文和反转沿用同一原则：先决定规范化与字符模型，再选择算法。
+## 三种字符单位给出不同长度
 
-## 三种字符单位
+~~~ts
+const value = '👩‍💻'
 
-| 单位 | JavaScript 方式 | 适用 |
-| --- | --- | --- |
-| UTF-16 code unit | `text.length`、下标 | ASCII 题、协议明确使用 UTF-16 |
-| Unicode code point | `Array.from(text)` | 保持代理对 |
-| 字素簇 | `Intl.Segmenter` | 用户感知字符 |
+console.log(value.length)
+console.log(Array.from(value).length)
 
-`Array.from('😀')` 保持 emoji 代理对，但 `e + combining acute` 仍会拆开。面向用户的编辑与反转使用 `Intl.Segmenter`，并在目标浏览器验证支持。算法题限定小写英文字母时，可以直接按 code unit，但约束要写清。
+const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' })
+console.log([...segmenter.segment(value)].length)
+~~~
 
-## 步骤一：规范化是题目的一部分
+`length` 按 UTF-16 码元，Array.from 按码点，Segmenter 按字形簇。切片 API 使用码元下标，把码点下标直接传给 slice 会切错位置。
 
-判断“忽略大小写和非字母数字的回文”时，需要说明 Locale、Unicode 正规化和允许字符。`normalize('NFC')` 能合并等价组合形式，Unicode property escape 能识别更广泛的字母数字。安全标识符的规范化规则则要遵循对应协议，不能随意大小写折叠。
+本文的滑动窗口按 Unicode 码点处理，并返回码点长度。
 
-双指针回文保持一个不变量：`left` 左侧与 `right` 右侧已经匹配，下一步只比较尚未确认的两端。遇到不符合规则的字符时移动对应指针，直到相遇。
+## 无重复最长子串的窗口不变量
 
-## 步骤二：滑动窗口解决连续区间
+窗口 `[left, right]` 中没有重复码点，Map 保存每个码点最近一次出现的位置。遇到重复字符时，left 跳到旧位置后一位，但不能向左退。
 
-题目：给定字符串，求不含重复 code point 的最长连续子串长度。朴素方法从每个起点向右扩展，最坏 O(n²)。滑动窗口利用重复字符的上次位置，一次扫描完成。
-
-输入先转为 code point 数组。窗口 `[left, right]` 始终没有重复；若当前字符上次出现在窗口内，left 跳到旧位置之后。下面是完整 TypeScript 实现。
-
-```ts
-function longestUniqueSubstring(input: string): number {
-  const chars = Array.from(input)
-  const lastSeen = new Map<string, number>()
+~~~ts
+function longestUniqueCodePoints(source: string): number {
+  const characters = Array.from(source)
+  const lastIndex = new Map<string, number>()
   let left = 0
   let best = 0
 
-  for (let right = 0; right < chars.length; right += 1) {
-    const char = chars[right]!
-    const previous = lastSeen.get(char)
+  for (let right = 0; right < characters.length; right += 1) {
+    const character = characters[right]
+    const previous = lastIndex.get(character)
+
     if (previous !== undefined && previous >= left) {
       left = previous + 1
     }
-    lastSeen.set(char, right)
+
+    lastIndex.set(character, right)
     best = Math.max(best, right - left + 1)
   }
 
   return best
 }
-```
+~~~
 
-输入 `abba` 时，第二个 `b` 让 left 从 0 跳到 2；最后一个 `a` 的旧位置 0 已在窗口外，left 不能倒退。每个位置访问常数次，时间 O(n)，Map 最坏保存 O(n) 个字符。
+若重复位置已经在窗口左侧，不应移动 left。写成无条件 `left = previous + 1` 会让窗口倒退，并可能把重复字符重新纳入。
 
-## 手工推演
+每个 right 前进一次，left 只向右跳，时间 `O(n)`。Map 最多保存不同码点数，空间 `O(min(n, alphabet))`。
 
-| right | 字符 | left | 当前窗口 | best |
-| ---: | --- | ---: | --- | ---: |
-| 0 | a | 0 | a | 1 |
-| 1 | b | 0 | ab | 2 |
-| 2 | b | 2 | b | 2 |
-| 3 | a | 2 | ba | 2 |
+## 规范化决定视觉相同是否相等
 
-若要求按字素簇计算，把 `Array.from` 替换为 `Intl.Segmenter` 产出的 segment 数组，窗口逻辑不变。算法与字符切分是两个边界。
+`é` 可以是一个预组字符，也可以由 `e` 加组合重音构成。码点序列不同，直接相等和 Map 键也不同。
 
-## 边界与失败结果
+~~~ts
+const first = 'é'
+const second = 'é'
 
-空串返回 0，单字符返回 1，全部相同返回 1。测试加入 emoji、组合字符和旗帜，明确期望基于 code point 还是字素簇。不要对任意 Unicode 使用简单 `split('')` 反转，它会拆开代理对。
+console.log(first === second) // false
+console.log(first.normalize('NFC') === second.normalize('NFC')) // true
+~~~
 
-字符串不可变，循环中反复拼接可能产生隐藏复制。大量片段优先收集后 `join`，再在目标引擎用代表数据验证。正则也应检查灾难性回溯风险，不能把复杂模式当作免费的一行实现。
+搜索、去重和标识符是否规范化是产品合同。规范化会改变长度和索引，若要高亮原文，需要保存规范化位置到原始位置的映射。
+
+大小写折叠也受 locale 影响。用户名、安全标识符和自然语言搜索不能共享一条简单 `toLowerCase` 规则。
+
+## 滑动窗口只适合连续区间
+
+窗口方法依赖目标能通过扩张和收缩维护。子序列允许跳过字符，编辑距离允许替换删除，它们通常需要双指针、动态规划或自动机。看到字符串问题不能默认套窗口。
+
+## 大字符串与流式输入
+
+Array.from 会复制整个码点数组，空间 `O(n)`。超大输入或流式文本可以用迭代器维护递增位置，但若要返回原始码元下标，还需累计每个码点的 UTF-16 长度。
+
+正则表达式的 `u` 和 `v` 标志会改变 Unicode 语义，分词与匹配应固定标志和运行时版本。用户字形边界依赖 Intl 数据，也要在目标环境验证。
+
+## 参考实现与性质测试
+
+短字符串可枚举所有连续子串，检查是否无重复并取最大长度，与窗口结果比较。测试覆盖空串、全相同、重复跨窗口、代理对、组合字符和 ZWJ emoji，并明确每个样例按哪种字符单位断言。

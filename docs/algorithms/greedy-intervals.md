@@ -22,77 +22,85 @@ practice:
 evidence: public-source
 updated: 2026-08-11
 ---
+# 贪心算法与区间问题
 
-# 贪心算法与区间问题：选择、合并和覆盖
+贪心算法每一步做局部选择，并且不回退。它能成立，需要证明当前选择总能出现在某个全局最优解中。区间问题看起来相似，最大不重叠集合、合并区间和最少会议室却维护不同状态。
 
-“每次选看起来最好的”不是贪心算法的证明。区间问题中，选最早开始、最短或最少冲突都很自然，却可能失去最优解。可靠做法是先写清目标和端点语义，再用交换论证证明某个局部选择不会让最优答案变差。
+## 最多不重叠区间按结束时间选
 
-本篇把区间统一为半开区间 `[start, end)`，所以 `[1, 3)` 与 `[3, 5)` 不重叠。若业务中的结束时刻也占用资源，比较符号必须改变，测试也要随之改变。
+区间采用半开语义 `[start, end)`，相邻 `end === next.start` 不重叠。先按 end 升序，再选择第一个 start 不小于上次结束时间的区间。
 
-## 最多不重叠区间：按结束时间选择
-
-目标是选出数量最多的互不重叠区间。先按结束时间升序，结束相同时按开始时间升序；依次选择 `start >= lastEnd` 的区间。
-
-为什么最早结束安全？设某个最优解的第一个区间是 `O`，贪心选择是结束最早的 `G`，必有 `G.end <= O.end`。用 `G` 替换 `O` 后，后续原本能接在 `O` 后面的区间仍能接在 `G` 后面，区间数量不减少。重复交换，就能得到以每次贪心选择开头的最优解。
-
-```ts
+~~~ts
 type Interval = readonly [start: number, end: number]
 
-function selectMostIntervals(input: Interval[]): Interval[] {
+function maximumNonOverlapping(
+  input: readonly Interval[],
+): Interval[] {
   const intervals = [...input].sort(
-    (left, right) => left[1] - right[1] || left[0] - right[0]
+    (left, right) => left[1] - right[1] || left[0] - right[0],
   )
+
   const selected: Interval[] = []
-  let lastEnd = Number.NEGATIVE_INFINITY
+  let lastEnd = -Infinity
 
   for (const interval of intervals) {
     const [start, end] = interval
-    if (start > end) throw new Error('invalid_interval')
-    if (start < lastEnd) continue
-    selected.push(interval)
-    lastEnd = end
+    if (start > end) throw new RangeError('invalid interval')
+
+    if (start >= lastEnd) {
+      selected.push(interval)
+      lastEnd = end
+    }
   }
+
   return selected
 }
-```
+~~~
 
-输入被复制后排序，避免函数悄悄改变调用方数组。输出保留被选区间。排序占 `O(n log n)`，扫描占 `O(n)`。若目标从“数量最多”变为“总价值最大”，交换论证不再成立，通常要按结束位置做动态规划。
+结束越早，留给后续区间的空间越多。交换证明取任意最优解的第一个区间 O，贪心选出的 G 结束时间不晚于 O。把 O 换成 G 不会让后续原本可选的区间失效，因此存在一个包含 G 的最优解，问题可递归到剩余区间。
 
-## 合并区间：状态是当前覆盖范围
+按最早开始或最短长度选择没有同样保证，可以构造一个很早但跨度巨大的区间，或一个短区间卡在多个可兼容区间中间。
 
-合并区间不是选择最多，而是求覆盖并集。应按开始时间排序，维护结果末尾的覆盖区间。新区间开始位置不晚于当前结束位置时扩展结束；否则开启一个新覆盖段。
+## 合并区间维护当前覆盖范围
 
-这里的状态只有“当前已合并区间”，不需要堆。若输入采用闭区间，端点相等算重叠；半开区间下是否合并相邻段取决于业务，例如时间预约通常不合并，连续数值覆盖可能选择合并。
+合并目标是输出并集，不是在做选择最大化。按 start 排序后，只需比较下一个区间与当前合并段的 end。
 
-## 最少会议室：释放时间比合并结果更重要
+~~~ts
+function mergeIntervals(input: readonly Interval[]): Interval[] {
+  const intervals = [...input].sort(
+    (left, right) => left[0] - right[0] || left[1] - right[1],
+  )
+  const result: Interval[] = []
 
-会议室数量等于某一时刻同时存在的最大区间数。按开始时间处理会议，把正在占用的结束时间放入最小堆；新会议开始前，先释放所有 `end <= start` 的会议室，再放入新结束时间。堆的最大大小就是答案。
+  for (const [start, end] of intervals) {
+    if (start > end) throw new RangeError('invalid interval')
 
-另一种实现把开始和结束分别排序，用双指针扫描事件。结束事件在同一时刻必须先于开始事件处理，才能符合半开区间语义。若把相等端点顺序写反，会无故多算一个房间。
+    const last = result[result.length - 1]
+    if (last === undefined || start > last[1]) {
+      result.push([start, end])
+    } else {
+      result[result.length - 1] = [last[0], Math.max(last[1], end)]
+    }
+  }
 
-## 用反例检查局部策略
+  return result
+}
+~~~
 
-选最早开始的反例是 `[0, 100)` 加上一组短区间 `[1, 2)、[2, 3)...`。最早开始只能得到一个，按最早结束能得到多个。选最短区间也未必正确：短区间可能位于两个可兼容区间中间，同时阻塞两侧。
+半开区间是否把相邻端点合并，取决于业务。上例 `start === last.end` 会合并；若相邻不算连续覆盖，条件改为 `start >= last.end`。边界语义必须写在合同里。
 
-验证贪心时，不能只跑几个正例。对小规模随机区间，可以枚举所有子集得到真正最优数量，再与贪心结果比较。这种“暴力基准 + 随机生成”是验证贪心假设的有效方式。
+## 最少会议室追踪释放时间
 
-```ts
-const sample: Interval[] = [[1, 4], [1, 2], [2, 3], [3, 5]]
-const selected = selectMostIntervals(sample)
-console.assert(selected.length === 3)
-console.assert(selected.every((item, index) => index === 0 || selected[index - 1][1] <= item[0]))
-```
+会议室数量取决于任一时刻重叠区间的最大数。按 start 处理会议，用最小堆保存每个占用房间的 end。新会议开始前，把已经结束的房间释放；没有空房才新增。
 
-断言同时检查数量和不重叠不变量。生产实现还要决定零长度区间是否有效、时间是否跨时区、输入是否允许无穷值。算法题常省略这些契约，工程代码不能省略。
+也可以把开始和结束拆成事件排序扫描。相同时间点上，半开区间应先处理 end 再处理 start，才能复用刚释放的房间。闭区间语义则相反。
 
-面试追问时，先区分选择、合并、覆盖和并发资源四类目标，再说明排序键、扫描状态和证明。只说“看到区间先排序”无法证明算法正确。
+## 排序成本控制总复杂度
 
-## 交换论证为什么成立
+三个算法都先排序，时间 `O(n log n)`。后续扫描是 `O(n)`，会议室堆操作总计 `O(n log n)`。若输入已经按所需键排序，可以省掉排序，但接口要明确并验证顺序。
 
-对“最多选择不重叠区间”，按结束时间最早选 g。任意最优解的第一个区间 o 若不是 g，因为 `end(g) <= end(o)`，用 g 替换 o 后，最优解剩余区间仍在 g 之后可行，数量不减。因此可把最优解逐步变为贪心解。这个证明依赖目标是数量最大；若目标是总权重，结束最早不再充分，需要加权区间 DP。
+## 反例与穷举验证证明
 
-合并区间先按 start 排序，维护当前覆盖段；会议室问题按开始/结束事件或最小堆维护并发数；覆盖最少点又是另一种目标。相同端点是闭区间还是半开区间会改变 `<=`/`<`，应在测试契约中固定。
+为贪心策略构造短区间集合，穷举所有子集得到最大兼容数量，与实现对比。为合并算法随机生成区间，抽样多个坐标点验证输入并集和输出并集一致，且输出两两不重叠。
 
-排序 `O(n log n)`，一次扫描 O(n)，额外空间取决于排序实现和输出。随机暴力验证只能发现反例，不能替代交换论证；两者都需要，前者验证代码，后者验证算法选择。
-
-交换论证和调度背景可对照 [CLRS 的 Greedy Algorithms 章节](https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/) 与 [CP-Algorithms 的单机调度说明](https://cp-algorithms.com/schedules/schedule_one_machine.html)。这些来源支持证明方法和问题模型；本文的随机反例与断言仍负责验证端点语义和代码行为。
+贪心解法的核心产物是交换论证或保持领先证明。没有证明时，一个看起来合理的排序规则仍只是猜测。

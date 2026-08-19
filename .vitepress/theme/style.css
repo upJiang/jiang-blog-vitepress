@@ -199,9 +199,18 @@
 }
 
 .vp-doc .custom-block,
-.vp-doc blockquote,
+.vp-doc blockquote {
+  overflow-wrap: anywhere;
+}
+
 .vp-doc td,
 .vp-doc th {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.vp-doc td :is(a, code),
+.vp-doc th :is(a, code) {
   overflow-wrap: anywhere;
 }
 
@@ -350,6 +359,11 @@ a {
   padding: 11px 14px;
   vertical-align: top;
   line-height: 1.65;
+}
+
+.vp-doc th:first-child,
+.vp-doc td:first-child {
+  min-width: 88px;
 }
 
 .vp-doc th {

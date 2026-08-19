@@ -8,59 +8,102 @@ order: 180
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 环形链表
 
-链表尾节点若指向前面的节点，普通遍历永远不会遇到 null。可以用 Set 记录访问过的节点，空间 O(n)；Floyd 快慢指针只用常数空间：slow 每次一步，fast 每次两步，有环时二者最终在环内相遇。
+单链表存在环时，从某个节点开始会反复访问同一批节点。Floyd 算法用 slow 每轮走一步、fast 每轮走两步，在 `O(1)` 额外空间内判断环，并能定位入口。
 
-本篇先判断环，再定位环入口。关键是节点引用身份，不是节点值；两个不同节点可以保存相同 value。
+## 相遇来自环内相对速度
 
-## 为什么一定会相遇
+设头到环入口距离为 `a`，入口到第一次相遇点沿环距离为 `b`，环长为 `c`。slow 进入环后，fast 也在环中；两者每轮相对接近一步，所以最多经过 c 轮就会相遇。
 
-进入环后，fast 每轮相对 slow 多走一步。若环长为 L，相对距离每轮加 1 并对 L 取模，最多 L 轮就会变成 0。无环时 fast 或 fast.next 会先到 null。
+~~~ts
+type ListNode<T> = {
+  value: T
+  next: ListNode<T> | null
+}
 
-```mermaid
-flowchart LR
-  H[head] --> A[非环前缀]
-  A --> E[环入口]
-  E --> B --> C --> E
-```
-
-## 步骤一：先找相遇点
-
-找到相遇点后，把一个指针放回 head，另一个留在相遇点，两者都每次一步；下一次相遇就是环入口。代数推导基于：相遇时 fast 路程是 slow 的两倍，两者路程差是环长整数倍。
-
-```ts
-function findCycleEntry<T>(head: ListNode<T> | null): ListNode<T> | null {
+function findMeeting<T>(
+  head: ListNode<T> | null,
+): ListNode<T> | null {
   let slow = head
   let fast = head
 
-  while (fast?.next) {
-    slow = slow!.next
+  while (fast !== null && fast.next !== null) {
+    slow = slow?.next ?? null
     fast = fast.next.next
-    if (slow === fast) {
-      let fromHead = head
-      let fromMeeting = slow
-      while (fromHead !== fromMeeting) {
-        fromHead = fromHead!.next
-        fromMeeting = fromMeeting!.next
-      }
-      return fromHead
-    }
+
+    if (slow === fast) return slow
   }
 
   return null
 }
-```
+~~~
 
-输入无环链表时返回 null；自环节点会在第一轮相遇并返回自身。时间 O(n)，额外空间 O(1)。函数只读取 next，不修改链表。
+循环条件先检查 fast 和 fast.next，保证两步访问安全。无环有限链中 fast 最终到达 null，返回 null。
 
-## 如何得到环长并安全处理输入
+## 从相遇点怎样找到入口
 
-相遇后让一个指针继续走，回到相遇点所需步数就是环长。入口到 head 的距离则在第二阶段移动次数中得到。调试输出链表时必须设置节点上限或 visited，否则日志工具本身也会无限循环。
+相遇时 slow 走了 `a + b` 步，fast 走了它的两倍。fast 比 slow 多走的距离是若干整圈：
 
-工程接口需要说明是否允许环。普通列表若发现环通常返回数据损坏；调度轮可能有意构造环形结构。序列化与复制也要有循环引用策略。
+~~~text
+2(a + b) = a + b + kc
+a + b = kc
+a = kc - b
+~~~
 
-## 验证
+从相遇点再走 `c - b` 步会到入口，而从头走 a 步也到入口。令一个指针回到 head，另一个留在 meeting，两者每轮各走一步，第一次再相遇的位置就是入口。
 
-覆盖无环、头节点自环、环入口在头、中间入口、重复值节点和长前缀小环。使用 Set 版本作为小规模 oracle，比较返回的是同一节点引用。若把 `slow === fast` 错写成值相等，重复值用例应失败。
+~~~ts
+function findCycleEntry<T>(
+  head: ListNode<T> | null,
+): ListNode<T> | null {
+  const meeting = findMeeting(head)
+  if (meeting === null) return null
+
+  let fromHead = head
+  let fromMeeting: ListNode<T> | null = meeting
+
+  while (fromHead !== fromMeeting) {
+    fromHead = fromHead?.next ?? null
+    fromMeeting = fromMeeting?.next ?? null
+  }
+
+  return fromHead
+}
+~~~
+
+证明只依赖距离同余，不依赖节点值。重复值不能用来判断节点相同，必须比较对象身份。
+
+## 环长从相遇点量一圈
+
+从 meeting 出发沿 next 走到再次回到 meeting，步数就是 c。
+
+~~~ts
+function cycleLength<T>(
+  head: ListNode<T> | null,
+): number {
+  const meeting = findMeeting(head)
+  if (meeting === null) return 0
+
+  let length = 1
+  let current = meeting.next
+
+  while (current !== meeting) {
+    length += 1
+    current = current?.next ?? null
+    if (current === null) {
+      throw new Error('list changed during cycle measurement')
+    }
+  }
+
+  return length
+}
+~~~
+
+链表在检测期间被其他任务修改会破坏证明。JavaScript 单线程并不自动排除这种情况，`await`、回调或共享 Worker 数据都可能让状态在算法阶段之间变化。同步函数内不让出控制权，才能把结构视为稳定快照。
+
+## Set 方法提供参考实现
+
+用 Set 记录访问过的节点，第一次重复就是入口，时间 `O(n)`、空间 `O(n)`。它更容易理解，适合测试 Floyd 结果。Floyd 节省空间，但证明和实现更容易写错。
+
+测试要构造无环、头自环、尾连头、尾连中间、长前缀短环和重复值节点。断言入口对象身份、环长和原链表未被修改。

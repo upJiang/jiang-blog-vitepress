@@ -8,220 +8,155 @@ order: 460
 depth: reference
 series: "重学前端"
 ---
-## 函数家族
+# JavaScript 函数
 
-#### 普通函数：用 function 关键字定义的函数。
+JavaScript 函数既是对象，也可能带有规范内部方法 `[[Call]]` 和 `[[Construct]]`。前者让值可以被调用，后者让值可以跟在 `new` 后面。普通函数通常两者都有，箭头函数只有调用能力，类构造器只有构造能力。把这两个入口分开，`this`、`new` 和 `bind` 的许多边界会清楚很多。
 
-```
-function foo(){
-    // code
-}
-```
+## 调用表达式保存了接收者
 
-#### 箭头函数：用 => 运算符定义的函数。
+执行 `obj.method()` 时，成员访问会产生一个带基值的引用。调用阶段从引用中取出函数，并把基值 `obj` 作为 `this` 传入。先把函数取出来，引用关系就丢了。
 
-```
-const foo = () => {
-    // code
-}
-```
+~~~js
+'use strict'
 
-#### 方法：在 class 中定义的函数。
-
-```
-class C {
-    foo(){
-        //code
-    }
-}
-```
-
-#### 类：用 class 定义的类，实际上也是函数。
-
-```
-class Foo {
-    constructor(){
-        //code
-    }
-}
-```
-
-#### 异步函数：普通函数、箭头函数和生成器函数加上 async 关键字。
-
-```
-async function foo(){
-    // code
-}
-const foo = async () => {
-    // code
-}
-async function foo*(){
-    // code
-}
-```
-
-## this 关键字的行为
-
-this 是执行上下文中很重要的一个组成部分。同一个函数调用方式不同，得到的 this 值也不同
-
-```
-function showThis(){
-    console.log(this);
+const counter = {
+  value: 2,
+  read() {
+    return this.value
+  },
 }
 
-var o = {
-    showThis: showThis
+const detached = counter.read
+
+console.log(counter.read()) // 2
+console.log(detached()) // TypeError
+~~~
+
+第二次调用的 `this` 是 `undefined`。类方法和模块代码默认处在严格模式中，普通严格函数也不会把 `undefined` 替换成全局对象。依赖隐式接收者的方法传给定时器、事件系统或数组高阶函数之前，需要明确绑定，或包一层负责调用的函数。
+
+## 普通函数怎样确定 this
+
+普通函数的 `this` 由调用入口决定。直接调用、成员调用、`call`、`apply` 和构造调用会给出不同结果。
+
+~~~js
+function inspect(prefix) {
+  return `${prefix}:${this.name}`
 }
 
-showThis(); // global
-o.showThis(); // o
-```
+const user = { name: 'Ada' }
 
-**调用函数时使用的引用，决定了函数执行时刻的 this 值。**
+console.log(inspect.call(user, 'call'))
+console.log(inspect.apply(user, ['apply']))
 
-## 剪头函数中的 this
+const bound = inspect.bind(user, 'bound')
+console.log(bound())
+~~~
 
-```
-const showThis = () => {
-    console.log(this);
+`call` 接收逐个参数，`apply` 接收类数组参数，两者都会立即调用目标函数。`bind` 创建 Bound Function Exotic Object，先保存目标函数、绑定的 `this` 和前置参数，稍后再调用。
+
+绑定函数仍可能被 `new` 调用。只要原目标可构造，构造调用会忽略已绑定的 `this`，使用新实例作为接收者；前置参数仍然生效。因此“bind 后 this 永远不会变化”只适用于普通调用。
+
+~~~js
+function Account(name) {
+  this.name = name
 }
 
-var o = {
-    showThis: showThis
+const ignored = { name: 'ignored' }
+const BoundAccount = Account.bind(ignored, 'Grace')
+const account = new BoundAccount()
+
+console.log(account.name) // Grace
+console.log(ignored.name) // ignored
+console.log(account instanceof Account) // true
+~~~
+
+## 箭头函数捕获外层 this
+
+箭头函数的 `[[ThisMode]]` 是 lexical。函数体读取 `this`、`arguments`、`super` 或 `new.target` 时，会沿外层词法环境查找。成员调用不会重新绑定它，`call`、`apply` 和 `bind` 也改不了它。
+
+~~~js
+const panel = {
+  id: 'settings',
+  createReader() {
+    return () => this.id
+  },
 }
 
-showThis(); // global
-o.showThis(); // global
-```
+const read = panel.createReader()
+console.log(read()) // settings
+~~~
 
-## class 中的 this
+这正适合回调继续使用外层方法的接收者。把箭头函数直接放在对象字面量里当方法，通常会捕获模块或脚本外层的 `this`，并不会指向该对象。
 
-```
-class C {
-    showThis() {
-        console.log(this);
-    }
-}
-var o = new C();
-var showThis = o.showThis;
+箭头函数没有 `[[Construct]]`，也没有普通构造函数那种自有 `prototype` 属性。对它使用 `new` 会抛出 `TypeError`。
 
-showThis(); // undefined
-o.showThis(); // o
+## 方法的 HomeObject 服务于 super
 
-等同于严格模式下：
-"use strict"
-function showThis(){
-    console.log(this);
+对象方法简写和类方法会记录 `[[HomeObject]]`。执行 `super.method()` 时，运行时从 HomeObject 的原型开始查找属性，再把当前 `this` 作为调用接收者。把方法复制到另一个对象不会改写 HomeObject。
+
+~~~js
+const base = {
+  label() {
+    return this.name
+  },
 }
 
-var o = {
-    showThis: showThis
+const child = {
+  __proto__: base,
+  name: 'child',
+  label() {
+    return `[${super.label()}]`
+  },
 }
 
-showThis(); // undefined
-o.showThis(); // o
-```
+console.log(child.label()) // [child]
+~~~
 
-#### 为什么输出 undefined？
+`super` 不是一个可以保存到变量里的普通对象值。它依赖方法定义时的语法位置和 HomeObject，所以动态拼装继承方法时要谨慎。
 
-答：因为 class 设计成了默认按 strict 模式执行，this 严格按照调用时传入的值，可能为 null 或者 undefined。
+## 构造调用有单独的返回规则
 
-JavaScript 用一个栈来管理执行上下文，这个栈中的每一项又包含一个链表。如下图所示：
+`new Constructor(...args)` 会根据构造器的 `prototype` 创建实例，把实例作为 `this` 执行构造器。普通构造器返回对象时，该对象替代新实例；返回原始值时，原始值被忽略。
 
-<a data-fancybox title="image.png" href="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cbf75c95a4cb4dfa85e589c5f1a12381~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cbf75c95a4cb4dfa85e589c5f1a12381~tplv-k3u1fbpfcp-watermark.image?)</a> 当函数调用时，会入栈一个新的执行上下文，函数调用结束时，执行上下文被出栈
-
-而 this 则是一个更为复杂的机制，JavaScript 标准定义了 [[thisMode]] 私有属性。
-
-[[thisMode]] 私有属性有三个取值。
-
-- lexical：表示从上下文中找 this，这对应了箭头函数。
-
-- global：表示当 this 为 undefined 时，取全局对象，对应了普通函数。
-
-- strict：当严格模式时使用，this 严格按照调用时传入的值，可能为 null 或者 undefined。
-
-函数创建新的执行上下文中的词法环境记录时，会根据[[thisMode]]来标记新纪录的[[ThisBindingStatus]]私有属性。
-
-代码执行遇到 this 时，会逐层检查当前词法环境记录中的[[ThisBindingStatus]]，当找到有 this 的环境记录时获取 this 的值。
-
-这样的规则的实际效果是，嵌套的箭头函数中的代码都指向外层 this，例如：
-
-```
-var o = {}
-o.foo = function foo(){
-    console.log(this);
-    return () => {
-        console.log(this);
-        return () => console.log(this);
-    }
+~~~js
+function First() {
+  this.source = 'instance'
+  return { source: 'explicit object' }
 }
 
-o.foo()()(); // o, o, o
-```
-
-这个例子中，我们定义了三层嵌套的函数，最外层为普通函数，两层都是箭头函数。这里调用三个函数，获得的 this 值是一致的，都是对象 o。
-
-## 操作 this 的内置函数
-
-Function.prototype.call 和 Function.prototype.apply <br/> 可以指定函数调用时传入的 this 值，示例如下：
-
-```
-//这里 call 和 apply 作用是一样的，只是传参方式有区别。会立即执行
-function foo(a, b, c){
-    console.log(this); //如果传进来的this是null或者undefined，那么将会输出global
-    console.log(a, b, c);
+function Second() {
+  this.source = 'instance'
+  return 1
 }
-foo.call({}, 1, 2, 3);
-foo.apply({}, [1, 2, 3]);
 
-//bind
-function foo(a, b, c){
-    console.log(this);
-    console.log(a, b, c);
+console.log(new First().source) // explicit object
+console.log(new Second().source) // instance
+~~~
+
+派生类构造器的规则更严格。`super()` 完成之前读取 `this` 会抛错，因为实例初始化由父类构造过程建立。类构造器也不能像普通函数那样直接调用。
+
+普通函数、类、箭头函数、生成器函数和异步函数都能以 `typeof value === 'function'` 暴露可调用外观，但能力并不相同。生成器调用返回迭代器，异步函数调用立刻返回 Promise，生成器函数与异步函数通常不可构造。
+
+## 参数初始化先于函数体
+
+调用开始后，运行时建立函数环境，绑定形参，再执行函数体。默认参数、解构参数和剩余参数都发生在参数初始化阶段。
+
+~~~js
+function connect(
+  url,
+  { retries = 2, signal } = {},
+  ...labels
+) {
+  return { url, retries, signal, labels }
 }
-foo.bind({}, 1, 2, 3)();
-```
 
-### 相似之处
+console.log(connect('/api', undefined, 'foreground'))
+~~~
 
-1、都是用来改变函数的 this 对象的指向的。<br/> 2、第一个参数都是 this 要指向的对象。<br/> 3、都可以利用后续参数传参。
+默认参数表达式可以读取前面的参数，不能读取函数体内才建立的 `let` 绑定。复杂参数列表还会影响 `arguments` 与形参的映射规则。新代码若需要参数集合，优先使用剩余参数，它是真数组，也不会携带旧式映射语义。
 
-### 区别
+## 用调用矩阵验证函数行为
 
-1.call、apply 与 bind 都用于改变 this 绑定，但 call、apply 在改变 this 指向的同时还会执行函数，而 bind 在改变 this 后是返回一个全新的 boundFcuntion 绑定函数，这也是为什么上方例子中 bind 后还加了一对括号 ()的原因。
+排查函数问题时，不要只跑 `fn()`。同一个函数至少覆盖直接调用、成员调用、`call`、`bind` 和 `new`，再记录是否有自有 `prototype`、是否能构造、返回值类型与异常。
 
-2.bind 属于硬绑定，返回的 boundFunction 的 this 指向无法再次通过 bind、apply 或 call 修改；call 与 apply 的绑定只适用当前调用，调用完就没了，下次要用还得再次绑。
-
-3.call 与 apply 功能完全相同，唯一不同的是 call 方法传递函数调用形参是以散列形式，而 apply 方法的形参是一个数组。在传参的情况下，call 的性能要高于 apply，因为 apply 在执行时还要多一步解析数组。
-
-wx.say.bind(this) 不能立即执行，无效，必须 wx.say.bind(this)("aaa"),参数置后<br/> wx.say.call(this,"aaa","bbb") 立即执行<br/> wx.say.apply(this,["aaa","bbb"]) 立即执行,参数为数组
-
-## 手写 call,apply,bind
-
-```
-Function.prototype.myCall =
-    function (ctx) {
-    ctx = ctx || window;
-    ctx.fn = this;
-    let args = Array.from(arguments).slice(1);
-    let res = ctx.fn(...args);
-    delete ctx.fn;
-    return res;
-};
-Function.prototype.myApply = function (ctx) {
-    ctx = ctx || window;
-    ctx.fn = this;
-    let args = Array.from(arguments[1]);
-    let res = ctx.fn(...args);
-    delete ctx.fn;
-    return res;
-};
-Function.prototype.myBind = function (ctx) {
-    let args = Array.from(arguments).slice(1);
-    let that = this;
-    return function (...oargs)
-        {
-            return that.apply(ctx, [...args, ...oargs]);
-        };
- };
-```
+测试替身只能证明这段 JavaScript 的语言行为。事件监听器如何传参、框架是否自动绑定方法、宿主回调把什么值设为 `this`，还要查看对应 API 合同并在真实运行环境验证。

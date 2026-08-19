@@ -8,75 +8,78 @@ order: 250
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 动态规划
 
-朴素 Fibonacci 递归会反复计算同一个 `fib(4)`。动态规划把子问题结果保存起来，让每个状态只求一次。但“有递归就加 memo”还不够，完整设计要说明状态含义、转移、基线、计算顺序和答案位置。
+动态规划适用于可由较小重叠子问题组成、且局部最优状态足以决定后续的优化问题。实现前先定义状态含义、转移、初始值和计算顺序；数组只是保存这些结论的工具。
 
-本篇先用 Fibonacci 理解重叠子问题，再以 0/1 背包展示更新方向为什么决定“每件物品只能使用一次”。最后补充路径、LIS 和不可达状态的选择。
+## 0/1 背包的状态
 
-## 动态规划适用条件
+给定每件物品的重量和价值，每件最多选一次，容量为 C。定义 `dp[c]` 为“处理完当前前缀物品后，容量不超过 c 能取得的最大价值”。
 
-问题可以由较小状态组成，同一状态会重复出现，并且状态包含决定未来所需的全部信息。求全部排列时输出本身巨大，DP 不能消除输出成本；求最优值、计数或可达性更常见。
+~~~ts
+type Item = {
+  weight: number
+  value: number
+}
 
-```mermaid
-flowchart LR
-  M[定义 dp 状态] --> B[写基线]
-  B --> T[列出最后一步转移]
-  T --> O[确定计算顺序]
-  O --> A[找到答案位置]
-  A --> C[证明后再压缩空间]
-```
+function knapsack(items: readonly Item[], capacity: number): number {
+  if (!Number.isInteger(capacity) || capacity < 0) {
+    throw new RangeError('capacity must be a non-negative integer')
+  }
 
-## 步骤一：先用一句话定义状态
+  const dp = new Array<number>(capacity + 1).fill(0)
 
-Fibonacci 的 `dp[i]` 表示第 i 项，依赖前两项。爬楼梯的 `dp[i]` 表示到达第 i 阶的方案数，`dp[0]=1` 表示空路径。相同公式可能因状态含义不同拥有不同基线。
+  for (const item of items) {
+    if (!Number.isInteger(item.weight) || item.weight <= 0) {
+      throw new RangeError('weight must be a positive integer')
+    }
 
-网格路径的 `dp[r][c]` 表示到达单元格的方案数，来自上方和左方；障碍位置为 0。滚动成一维后，左到右更新保证 `dp[c]` 仍含上方旧值，`dp[c-1]` 已是当前行左值。
-
-## 步骤二：0/1 背包从大到小更新
-
-有 n 件物品，每件只有一次，容量为 C。`dp[c]` 表示处理过的物品在容量 c 下可获得的最大价值。处理当前物品时，选择不拿的旧 `dp[c]`，或拿它的 `dp[c-weight] + value`。
-
-```ts
-function knapsack01(
-  weights: readonly number[],
-  values: readonly number[],
-  capacity: number
-): number {
-  if (weights.length !== values.length) throw new Error('LENGTH_MISMATCH')
-  const dp = new Array(capacity + 1).fill(0)
-
-  for (let item = 0; item < weights.length; item += 1) {
-    const weight = weights[item]!
-    const value = values[item]!
-    for (let current = capacity; current >= weight; current -= 1) {
+    for (let current = capacity; current >= item.weight; current -= 1) {
       dp[current] = Math.max(
-        dp[current]!,
-        dp[current - weight]! + value
+        dp[current],
+        dp[current - item.weight] + item.value,
       )
     }
   }
-  return dp[capacity]!
+
+  return dp[capacity]
 }
-```
+~~~
 
-容量倒序，使 `dp[current-weight]` 仍来自未使用当前物品的上一轮。若正序，刚更新的值会再次被读取，同一物品可重复使用，问题就变成完全背包。时间 O(nC)，空间 O(C)；C 是数值容量，因此按输入位数看属于伪多项式。
+处理 item 时，每个容量有两个选择：不选它，保留 `dp[current]`；选它，使用处理上一批物品时的 `dp[current - weight]` 加当前价值。
 
-## 步骤三：基线与不可达状态随目标变化
+## 容量必须从大到小更新
 
-当前实现允许不选任何物品，所以初始全 0。若价值可负且要求恰好装满，除 `dp[0]=0` 外要用 `-Infinity` 表示不可达，否则不存在的组合会被当成价值 0。
+一维数组覆盖了二维状态的“物品维度”。从大到小更新时，读取的较小容量位置尚未被当前物品修改，因此每件物品最多使用一次。
 
-最少硬币使用 `Infinity` 表示不可达；完全背包容量正序允许同一硬币重复。若求组合数，外层遍历硬币可避免顺序重复；求排列数则外层遍历金额。循环顺序编码题意，不只是性能细节。
+若从小到大更新，`dp[current - weight]` 可能已经包含当前物品，算法变成完全背包，允许重复选择。循环方向承担了题目合同，不能当成代码风格。
 
-## 步骤四：空间压缩前先证明依赖
+## 初始值取决于“最多”还是“恰好”
 
-不相邻最大和只依赖前一个和前两个状态，可以保留两个变量。LCS 依赖二维上、左、左上，可压成一行，但更新方向与暂存值要保持旧左上。需要重建具体方案时，还要保存 parent/决策，不能只返回最优值。
+当前定义允许容量不装满，所以所有 `dp[c]` 初始为 0 合理。若题目要求恰好装满，除 `dp[0] = 0` 外，其他状态应标为不可达，例如 `-Infinity`，转移时只从可达状态出发。
 
-LIS 的 O(n²) DP 定义 `dp[i]` 为以 i 结尾的最长长度，答案是所有 dp 最大值，不一定在最后。O(n log n) 的 tails 方法维护每种长度最小尾值，tails 本身不一定是一条真实 LIS；重建需要额外前驱。
+负价值也会影响合同。允许不选任何物品时，最大价值至少为 0；必须选择至少一件时，需要增加选择状态或改变基线。
 
-## 验证与证明
+## 从递归发现重叠子问题
 
-用归纳证明：基线正确；假设依赖状态正确；转移枚举最后决策的所有互斥可能，因此当前状态正确。还要证明计算顺序已计算依赖，空间压缩没有覆盖仍要使用的旧值。
+直接递归可以定义：
 
-小规模用暴力子集对照 0/1 背包，故意把容量改为正序，单件不能重复的用例应失败。边界覆盖容量 0、空物品、不可达、全负、重复值和大计数溢出。
+~~~text
+best(i, c) =
+  max(best(i - 1, c),
+      best(i - 1, c - weight[i]) + value[i])
+~~~
+
+同一 `best(i, c)` 会被多个路径重复计算。记忆化自顶向下只计算访问到的状态，表格自底向上按依赖顺序计算全部状态。两者时间上界都是状态数乘每个状态转移成本。
+
+0/1 背包有 `n(C + 1)` 个二维状态，因此时间 `O(nC)`。这是伪多项式复杂度，C 的数值可能远大于输入中表示 C 所需的位数。
+
+## 空间压缩会丢掉恢复路径
+
+一维 dp 只保存最优值，无法直接列出选了哪些物品。需要恢复方案时，可以保留二维表，或额外记录每次状态改善的来源。重复价值和并列最优还要定义返回哪一组。
+
+## 动态规划不是看到“最优”就套用
+
+状态若遗漏影响未来的历史，转移会把不可等价的路径合并。比如带路径依赖折扣、重复使用限制或多个资源维度时，要把足以决定未来的变量加入状态，状态空间也会随之扩大。
+
+验证时用小 n 穷举所有子集，与 dp 结果随机对比。覆盖容量 0、空物品、物品过重、重复重量、零或负价值，并对每轮更新检查 `dp[c]` 的状态含义。

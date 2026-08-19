@@ -8,142 +8,82 @@ order: 500
 depth: reference
 series: "重学前端"
 ---
-## 词法分类
+# JavaScript 词法系统
 
-- WhiteSpace 空白字符
+JavaScript 引擎拿到源代码后，先把字符流识别成 Token，再交给语法分析器组成表达式、语句和声明。变量名、数字、字符串、正则、模板字符串与运算符都在这一层确定边界。词法切错一步，后面的 AST 就无从谈起。
 
-- LineTerminator 换行符
+## 源代码先经过 Unicode 与换行处理
 
-- Comment 注释
+ECMAScript 源文本是一串 Unicode 码点。编辑器保存的是 UTF-8 还是 UTF-16 文件，属于文件解码阶段；引擎解码后才按照 ECMAScript 的词法规则读取字符。
 
-- Token 词
+空白和换行不是一回事。普通空白通常只分隔 Token，换行还会影响自动分号插入、`return`、`throw`、`yield`、`async` 等受限产生式。注释虽然不进入程序语义，块注释中包含换行时，词法上仍可能产生换行效果。
 
-  - IdentifierName 标识符名称，典型案例是我们使用的变量名，注意这里关键字也包含在内了。
+```js
+function getValue() {
+  return
+  { value: 1 }
+}
 
-  - Punctuator 符号，我们使用的运算符和大括号等符号。
-
-  - NumericLiteral 数字直接量，就是我们写的数字。
-
-  - StringLiteral 字符串直接量，就是我们用单引号或者双引号引起来的直接量。
-
-  - Template 字符串模板，用反引号` 括起来的直接量。
-
-## 空白符号 Whitespace
-
-> 说起空白符号，想必给大家留下的印象就是空格，但是实际上，JavaScript 可以支持更多空白符号。
-
-很多公司的编码规范要求 JavaScript 源代码控制在 ASCII 范围内，那么，就只有 五种空白可用了。
-
-## 换行符 LineTerminator
-
-JavaScript 中只提供了 4 种字符作为换行符:
-
-- < LF > 是 U+000A，就是最正常换行符，在字符串中的\n。
-
-- < CR > 是 U+000D，这个字符真正意义上的“回车”，在字符串中是\r，在一部分 Windows 风格文本编辑器中，换行是两个字符\r\n。
-
-- < LS > 是 U+2028，是 Unicode 中的行分隔符。
-
-- < PS > 是 Unicode 中的段落分隔符。
-
-## 注释 Comment
-
-JavaScript 的注释分为单行注释和多行注释两种：
-
-```
-/* MultiLineCommentChars */
-// SingleLineCommentChars
+console.log(getValue())
 ```
 
-除了四种 LineTerminator 之外，所有字符都可以作为单行注释。
+这里的返回值是 `undefined`。解析器看到 `return` 后的换行，会在允许的位置结束这条语句；下一行的花括号被解析成块语句。
 
-## 标识符名称 IdentifierName
+## 标识符允许 Unicode，但显示相同不代表身份相同
 
-IdentifierName 可以以美元符“$”、下划线“\_”或者 Unicode 字母开始，除了开始字符以外，IdentifierName 中还可以使用 Unicode 中的连接标记、数字、以及连接符号。也就是变量名
+标识符可以包含 Unicode 字符和转义序列。关键字不能直接用作普通绑定名，属性名的位置则有不同语法限制。
 
-IdentifierName 的任意字符可以使用 JavaScript 的 Unicode 转义写法，使用 Unicode 转义写法时，没有任何字符限制。
+```js
+const café = 1
+const caf\u00E9 = 2
 
-IdentifierName 可以是 Identifier、NullLiteral、BooleanLiteral 或者 keyword，在 ObjectLiteral 中，IdentifierName 还可以被直接当做属性名称使用。
-
-仅当不是保留字的时候，IdentifierName 会被解析为 Identifier。
-
-**关键字**也属于这个部分，在 JavaScript 中，关键字有:
-
-```
-await break case catch class const continue debugger default delete do else export extends finally for function if import instance of new return super switch this throw try typeof var void while with yield
+console.log(café)
 ```
 
-除了上述的内容之外，还有 1 个为了未来使用而保留的关键字:enum
+第二个声明与第一个声明指向同一个标识符，因此会产生重复声明错误。Unicode 还存在视觉相似字符和规范化差异。语言不会替开发者统一所有视觉形式，安全敏感的标识符应限制字符集，并让代码审查工具检测混淆字符。
 
-在严格模式下, 有一些额外的为未来使用而保留的关键字:
+## 数字字面量的边界会改变后续 Token
 
-```
-implements package protected interface private public
-```
+十进制、二进制、八进制、十六进制、科学计数法、数字分隔符和 BigInt 都有各自的词法规则。数字后的点最容易暴露 Token 边界问题。
 
-除了这些之外，NullLiteral（null）和 BooleanLiteral（true false）也是保留字，不能用于 Identifier。
-
-## 符号 Punctuator
-
-```
-{ ( ) [ ] . ... ; , < > <= >= == != === !== + - * % ** ++ -- << >> >>> & | ^ ! ~ && || ? : = += -= *= %= **= <<= >>= >>>= &= |= ^= => / /= }
-```
-
-## 数字直接量 NumericLiteral
-
-JavaScript 规范中规定的数字直接量可以支持四种写法：十进制数、二进制整数、八进制整数和十六进制整数。
-
-#### 为什么 12.toString()会报错
-
-12. 会被当作省略了小数点后面部分的数字，而单独看成一个整体，所以我们要想让点单独成为一个 token，就要加入空格，这样写
-
-```
+```js
+12..toString()
 12 .toString()
+(12).toString()
 ```
 
-数字直接量还支持科学计数法，例如：
+三种写法都能访问数字的方法。`12.toString()` 会失败，因为词法分析器会尝试把第一个点归入数字字面量，后续字符无法组成合法结构。生产代码通常用括号，读者更容易确认边界。
 
-```
-10.24E+2
-10.24e-2
-10.24e2
-```
+## 字符串、模板字符串与转义
 
-这里 e 后面的部分，只允许使用整数。当以 0x 0b 或者 0o 开头时，表示特定进制的整数：
+字符串字面量用单引号或双引号包围，换行必须通过转义表达。模板字符串允许换行和 `${...}` 插值，插值内部重新进入普通 JavaScript 语法。
 
-```
-0xFA
-0o73
-0b10000
+```js
+const user = 'Ada'
+const message = `hello ${user.toUpperCase()}`
 ```
 
-上面这几种进制都不支持小数，也不支持科学计数法。
+模板字符串还可以被标签函数处理。标签函数收到的是已解析的字符串片段和表达式结果，不会自动进行 HTML、SQL 或 Shell 转义。把不可信值放进模板仍要由目标协议的编码器处理。
 
-## 字符串直接量 StringLiteral
+## 正则字面量与除法不能只靠字符判断
 
-JavaScript 中的 StringLiteral 支持单引号和双引号两种写法。
+`/` 既可能开始正则字面量，也可能表示除法。下面两段字符外观相近，词法目标却不同：
 
-```
-" DoubleStringCharacters "
-' SingleStringCharacters '
-```
-
-单双引号的区别仅仅在于写法，在双引号字符串直接量中，双引号必须转义，在单引号字符串直接量中，单引号必须转义。字符串中其他必须转义的字符是\和所有换行符。
-
-## 正则表达式直接量 RegularExpressionLiteral
-
-正则表达式由 Body 和 Flags 两部分组成，例如：
-
-```
-/RegularExpressionBody/g
+```js
+const ratio = total / count / scale
+const matched = /count/.test(text)
 ```
 
-其中 Body 部分至少有一个字符，第一个字符不能是 _（因为 /_ 跟多行注释有词法冲突）。正则表达式有自己的语法规则，在词法阶段，仅会对它做简单解析。
+解析器会根据当前位置允许表达式开始，还是应继续一个表达式，选择不同的 Lexical Goal。独立正则表达式无法完整切分 JavaScript 源码；格式化器、高亮器和静态分析器需要真正的解析上下文。
 
-## 字符串模板 Template
+## Token 与语法错误的边界
 
-模板字符串不需要关心大多数字符的转义，但是至少 ${ 和 ` 还是需要处理的。
+字符串没有闭合、数字格式非法，通常在词法阶段就无法继续。Token 都合法，也可能无法组成语法树。例如两个相邻数字分别合法，放在同一个表达式中却不合法。模块中的重复导出、`break` 指向不存在的标签等问题，还可能属于解析后的早期错误。
 
-```
-`a${b}c${d}e`
-```
+调试时可以把问题分成三层：字符能否形成 Token，Token 能否形成语法结构，结构执行时是否触发运行时错误。只看到 `SyntaxError` 不能断定一定是词法问题。
+
+## 怎样验证词法边界
+
+使用固定 Node.js 或浏览器版本，将最小片段交给同一个解析入口。`new Function(source)` 适合快速判断 Script 语法，不能解析含顶层 `import` 的 Module，也不会暴露 Token 列表。
+
+需要观察 Token 时使用成熟解析器，并保存解析器版本、源码类型和 ECMAScript 版本。至少覆盖正则与除法、模板插值、Unicode 标识符、数字后的点、注释换行和未闭合字面量。测试应断言错误位置与分类，不只断言“抛错了”。

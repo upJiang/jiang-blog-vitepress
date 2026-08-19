@@ -22,106 +22,106 @@ practice:
 evidence: public-source
 updated: 2026-08-11
 ---
-
 # BFS、拓扑排序与无权最短路
 
-页面路由之间存在跳转关系：从首页最少点击几次能到详情页？构建任务之间存在依赖：能否找到一个合法执行顺序？两题都使用队列，但状态含义不同。BFS 的队列保存按距离分层的节点，拓扑排序的队列保存当前入度为零、已经满足依赖的节点。
+BFS（Breadth-First Search，广度优先搜索）按距离分层扩展节点。拓扑排序也使用队列，但队列里保存的是当前入度为零的节点。两者外形相似，核心不变量不同，不能互换证明。
 
-## BFS 的分层不变量
+## BFS 的首次发现就是最短层
 
-在无权图中，每条边的代价相同。起点距离为 0；从距离 `d` 的节点首次发现邻居时，邻居距离一定是 `d + 1`。队列先进先出保证较小距离的节点先扩展，因此首次访问就是最短距离。
+在无权图中，队列按发现顺序处理。节点出队时，所有更短距离的节点已经处理，因此第一次发现邻居时记录的距离就是最短边数。
 
-访问标记必须在入队时设置，而不是出队时设置。否则同一节点可能被多个父节点重复入队，时间和内存都会膨胀。若还要恢复路径，就在首次发现邻居时记录 `parent`，终点沿父指针反向回到起点。
+~~~ts
+type Graph = ReadonlyMap<string, readonly string[]>
 
-```ts
-function shortestPath(graph: number[][], start: number, target: number): number[] {
-  const queue: number[] = [start]
+type ShortestPaths = {
+  distance: Map<string, number>
+  parent: Map<string, string | null>
+}
+
+function shortestPaths(graph: Graph, start: string): ShortestPaths {
+  const queue = [start]
   let head = 0
-  const visited = new Set([start])
-  const parent = new Map<number, number>()
+  const distance = new Map<string, number>([[start, 0]])
+  const parent = new Map<string, string | null>([[start, null]])
 
   while (head < queue.length) {
-    const node = queue[head++]
-    if (node === target) break
+    const node = queue[head]
+    head += 1
 
-    for (const next of graph[node] ?? []) {
-      if (visited.has(next)) continue
-      visited.add(next) // 入队即确定最短层级
-      parent.set(next, node)
-      queue.push(next)
+    for (const neighbor of graph.get(node) ?? []) {
+      if (distance.has(neighbor)) continue
+      distance.set(neighbor, (distance.get(node) ?? 0) + 1)
+      parent.set(neighbor, node)
+      queue.push(neighbor)
     }
   }
 
-  if (!visited.has(target)) return []
-  const path: number[] = []
-  for (let node = target; ; node = parent.get(node)!) {
-    path.push(node)
-    if (node === start) return path.reverse()
-  }
+  return { distance, parent }
 }
-```
+~~~
 
-数组配合 `head` 模拟队列，避免 `shift()` 每次移动剩余元素。输入邻接表，输出一条最短路径；多条最短路径并存时，结果取决于邻接表顺序。若边有不同权重，首次访问不再保证最短，应该改用 Dijkstra、0-1 BFS 或 Bellman-Ford。
+标记发生在入队时。若等到出队才标记，同一节点可能由当前层多个前驱重复入队，浪费空间并使 parent 语义不稳定。
 
-## 拓扑排序维护的是依赖状态
+BFS 只保证无权或等权边的最短边数。边权不同且非负时使用 Dijkstra，存在负权时还要选择能处理负边和负环的算法。
 
-有向边 `prerequisite -> task` 表示任务必须在依赖之后执行。入度是一个任务尚未满足的前置数量。Kahn 算法先把所有入度为零的任务入队；取出任务后，相当于完成它，于是所有后继入度减一，新变成零的后继才具备执行资格。
+## 恢复路径沿 parent 反向走
 
-```ts
-function topologicalOrder(nodeCount: number, edges: Array<[number, number]>): number[] {
-  const graph = Array.from({ length: nodeCount }, () => [] as number[])
-  const indegree = Array<number>(nodeCount).fill(0)
-  const uniqueEdges = new Set<string>()
+target 不在 distance 中表示不可达。start 到自身的路径为 `[start]`，距离为 0。恢复时若 parent 链断裂，应报告结构错误，不能静默返回半条路径。
+
+多个最短路径存在时，邻接表顺序决定记录哪一个 parent。若要求所有最短路径，需要保存前驱集合，输出规模可能快速增长。
+
+## 拓扑排序维护剩余入度
+
+有向无环图中，入度为零的节点没有未完成前置依赖，可以立即输出。删除它的出边后，新的入度零节点进入队列。
+
+~~~ts
+type Edge = readonly [from: string, to: string]
+
+function topologicalOrder(
+  nodes: readonly string[],
+  edges: readonly Edge[],
+): string[] | null {
+  const outgoing = new Map<string, string[]>()
+  const indegree = new Map(nodes.map((node) => [node, 0]))
 
   for (const [from, to] of edges) {
-    const key = `${from}:${to}`
-    if (uniqueEdges.has(key)) continue
-    uniqueEdges.add(key)
-    graph[from].push(to)
-    indegree[to] += 1
+    if (!indegree.has(from) || !indegree.has(to)) {
+      throw new Error('edge references unknown node')
+    }
+    outgoing.set(from, [...(outgoing.get(from) ?? []), to])
+    indegree.set(to, (indegree.get(to) ?? 0) + 1)
   }
 
-  const queue: number[] = []
-  for (let node = 0; node < nodeCount; node += 1) {
-    if (indegree[node] === 0) queue.push(node)
-  }
+  const queue = nodes.filter((node) => indegree.get(node) === 0)
+  let head = 0
+  const order: string[] = []
 
-  const order: number[] = []
-  for (let head = 0; head < queue.length; head += 1) {
+  while (head < queue.length) {
     const node = queue[head]
+    head += 1
     order.push(node)
-    for (const next of graph[node]) {
-      indegree[next] -= 1
-      if (indegree[next] === 0) queue.push(next)
+
+    for (const neighbor of outgoing.get(node) ?? []) {
+      const next = (indegree.get(neighbor) ?? 0) - 1
+      indegree.set(neighbor, next)
+      if (next === 0) queue.push(neighbor)
     }
   }
 
-  return order.length === nodeCount ? order : []
+  return order.length === nodes.length ? order : null
 }
-```
+~~~
 
-重复边若不去重，会把入度多加一次；如果邻接表只保存一次，入度最终无法归零。实现选择显式去重。孤立节点入度为零，会正常出现在结果中。有多个零入度节点时拓扑序不唯一；若需要字典序最小结果，要把普通队列换成最小堆。
+循环中 indegree 表示尚未输出节点收到的剩余前置边数。每条边只在其起点输出时删除一次。最后仍有节点未输出，说明它们位于环中或依赖环内节点。
 
-## 环为什么能被剩余入度识别
+## 重复边会改变入度模型
 
-若图中存在环，环内每个节点至少有一条来自环内的入边。环外节点全部移除后，它们仍不会变成零入度，因此处理数量小于节点总数。返回部分顺序会伪装成成功，必须用数量比较决定最终结果。
+若 edges 中同一条边重复出现，上例把它当作两条独立依赖，outgoing 也保留两次，最终仍能成对减掉。业务若把重复边视为同一关系，应在构图时去重；只去重一侧会产生永远无法归零的入度。
 
-BFS 的 `visited` 表示“已经确定最短层级”，拓扑排序的 `indegree` 表示“仍有多少依赖未完成”。二者都使用队列，不代表能互换状态模型。DFS 也能拓扑排序，但需要三色访问状态区分未访问、当前路径和已完成，单个布尔值无法可靠识别回边。
+拓扑序通常不唯一。使用普通 FIFO 会按输入顺序给出一种合法结果；需要字典序最小时，把零入度集合换成最小堆。
 
-## 验证与复杂度
+## 复杂度与验证
 
-邻接表构建和遍历都只处理每个节点与边有限次，时间复杂度 `O(V + E)`，空间复杂度同阶。路径恢复额外使用父指针，但不会改变数量级。
+BFS 和 Kahn 拓扑排序在邻接表上都是 `O(V + E)` 时间、`O(V + E)` 存储。验证 BFS 时检查每条树边满足 `dist[v] = dist[u] + 1`，并确认所有图边不会把终点距离缩短两层以上。
 
-验证时准备链、菱形、多条最短路、孤立点、重复边、自环和多节点环。对拓扑结果逐边检查 `position[from] < position[to]`；对最短路检查相邻节点确实有边，并与只记录距离的 BFS 结果一致。排查错误时先打印队列、入度或距离的每次变化，不要只看最终数组。
-
-面试追问通常会从无权最短路扩展到加权图、从任意拓扑序扩展到唯一性、从内存图扩展到并行任务调度。回答时先说明当前算法依赖的边权和图方向，再选择数据结构。
-
-## BFS 的层不变量与拓扑的入度不变量
-
-BFS 出队距离 d 的节点时，队列中未处理节点距离只能是 d 或 d+1；第一次访问节点就得到最短边数，因为任何更短路径必须先经过更早层。若要恢复路径，只有在首次入队时写 parent，重复边不能覆盖已确定父节点。
-
-Kahn 拓扑排序维护“已输出节点的所有前驱都完成”。每次取 indegree=0 的节点，输出后把其出边目标减一；若多个节点同时为 0，顺序不唯一。若业务要求稳定结果，需要按 id 排序的优先队列，但这改变的是选择策略，不是拓扑合法性。
-
-无权最短路遇到加权边就失效：0/1 权重可用 0-1 BFS，非负任意权重用 Dijkstra，负权需其他模型。先声明 V/E、边方向、权重和可达性，再谈复杂度。
-
-实现依据可以和 [CP-Algorithms 的 BFS 说明](https://cp-algorithms.com/graph/breadth-first-search.html)、[拓扑排序说明](https://cp-algorithms.com/graph/topological-sort.html) 以及 [MDN 的 `Map` 参考](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) 对照。验证仍应以本文的距离、入度和路径契约为准，而不是只检查输出数组看起来合理。
+验证拓扑序时建立节点到位置的 Map，对每条边断言 `position[from] < position[to]`。null 结果再用独立 DFS 颜色法确认是否有环，避免实现自身错误被同一逻辑掩盖。

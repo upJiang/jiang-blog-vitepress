@@ -8,47 +8,31 @@ order: 240
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 递归与回溯思维
 
-从 `[1,2,3]` 生成所有排列：第一层选择第一个数字，第二层从剩余数字继续，得到完整长度后保存答案；返回上一层时撤销刚才的选择，才能探索另一个分支。
+回溯在一棵隐式搜索树上做深度优先遍历。每个节点表示当前路径状态，边表示一次选择；进入子节点前应用选择，返回后撤销，使兄弟分支看到相同的父状态。
 
-本篇用全排列建立“选择、递归、撤销”的主线，再解释组合、子集、括号和剪枝怎样改变状态。回溯的难点是定义状态与证明剪枝，不是记住 `push/dfs/pop`。
+## 排列问题的状态
 
-## 先画搜索树
+给定互不相同的 values，生成所有排列。状态由 path 和 used 组成：path 保存已选顺序，used[index] 表示该输入位置是否已在当前路径。
 
-```mermaid
-flowchart TD
-  R[空路径] --> A[选 1]
-  R --> B[选 2]
-  R --> C[选 3]
-  A --> A2[再选 2]
-  A --> A3[再选 3]
-  A2 --> X[1,2,3]
-  A3 --> Y[1,3,2]
-```
-
-状态包含当前 path 与哪些下标已经使用。叶子条件是 path 长度等于输入长度。used 属于当前路径，回到父节点时要恢复；它不是图遍历中“永远访问过”的全局 Set。
-
-## 步骤一：写出选择与撤销
-
-输入假定元素位置各不相同，输出所有排列。保存结果时复制 path，否则所有结果会引用同一个可变数组。
-
-```ts
+~~~ts
 function permutations<T>(values: readonly T[]): T[][] {
-  const output: T[][] = []
+  const result: T[][] = []
   const path: T[] = []
-  const used = new Array(values.length).fill(false)
+  const used = new Array<boolean>(values.length).fill(false)
 
-  function search() {
+  const search = (): void => {
     if (path.length === values.length) {
-      output.push([...path])
+      result.push([...path])
       return
     }
+
     for (let index = 0; index < values.length; index += 1) {
       if (used[index]) continue
+
       used[index] = true
-      path.push(values[index]!)
+      path.push(values[index])
       search()
       path.pop()
       used[index] = false
@@ -56,28 +40,72 @@ function permutations<T>(values: readonly T[]): T[][] {
   }
 
   search()
-  return output
+  return result
 }
-```
+~~~
 
-输出有 n! 项，每项复制 n 个元素，时间和输出空间至少 `Ω(n · n!)`。递归栈与当前 path 为 O(n)。完整枚举本身是指数级，不能靠一个技巧变成多项式。
+进入 search 时，path 与 used 表示同一组选中位置，且没有位置重复。递归返回后必须执行两次撤销，让下一轮循环恢复父节点状态。忘记复制 path 会让 result 中所有项指向同一个数组。
 
-## 步骤二：重复值需要同层去重
+## 重复值需要同层去重
 
-输入 `[1,1,2]` 时，按位置排列会得到重复值序列。先排序，同一层遇到与前一个值相同、且前一个相同位置尚未在当前路径使用时跳过。这个条件只删除同层等价选择；前一个相同值已经使用时，当前值位于下一层，仍合法。
+输入含重复值时，按位置 used 仍会生成重复排列。先排序，在同一层跳过与前一个值相等且前一个位置尚未使用的候选。
 
-## 步骤三：组合与子集改变候选范围
+~~~ts
+function uniquePermutations(values: readonly number[]): number[][] {
+  const sorted = [...values].sort((a, b) => a - b)
+  const result: number[][] = []
+  const path: number[] = []
+  const used = new Array<boolean>(sorted.length).fill(false)
 
-组合不关心顺序，下一层只从当前 index 之后选择，使用 startIndex 消除 `[1,2]` 与 `[2,1]` 重复。选 k 个时，剩余元素不足以补满 path 可以安全停止，因为这个分支已不可能达到叶子。
+  const search = (): void => {
+    if (path.length === sorted.length) {
+      result.push([...path])
+      return
+    }
 
-子集则在每个节点都记录当前 path，共有 2^n 个。生成有效括号用 `(open, close)` 作为状态，并保持每个前缀 `close <= open <= n`；禁止 close 超过 open 不会丢失合法答案，因为任何合法括号串的前缀都满足该不变量。
+    for (let index = 0; index < sorted.length; index += 1) {
+      if (used[index]) continue
+      if (
+        index > 0 &&
+        sorted[index] === sorted[index - 1] &&
+        !used[index - 1]
+      ) {
+        continue
+      }
 
-## 步骤四：剪枝要写出前提
+      used[index] = true
+      path.push(sorted[index])
+      search()
+      path.pop()
+      used[index] = false
+    }
+  }
 
-组合总和中，候选全为正数时 remaining 小于 0 可以停止；出现负数后剩余值可能再次增加，这个剪枝不再成立。棋盘放置使用列与对角线 Set 排除冲突，状态范围比每次扫描整个棋盘更清楚。
+  search()
+  return result
+}
+~~~
 
-Memo 只适合“相同状态的未来结果与到达路径无关”。若答案包含当前 path，缓存要返回可组合的后缀，不能缓存可变 path 引用。只求最优值或计数时，动态规划常比枚举所有路径更合适。
+条件中的 `!used[index - 1]` 表示前一个相等值不在当前路径，两个相等候选正在竞争同一层位置，只保留第一个。若前一个已在路径中，当前值位于更深层，是合法选择。
 
-## 验证
+## 组合与子集改变候选范围
 
-检查每个排列长度、元素多重集合和唯一性；组合下标递增；括号每个前缀合法。故意忘记 pop、忘记复制 path 或错误去重，测试应出现缺失、重复或所有结果相同。每一处剪枝都要能解释“为什么不可能丢解”。
+排列每层都能选择任意未使用位置。组合不关心顺序，可以传入 start，让下一层只看更后位置。子集在每个节点都能输出当前 path，不必等到固定长度。
+
+状态设计先回答“顺序是否重要、元素能否重复使用、答案何时完成”。模板中的循环起点和 used 只是这些答案的编码。
+
+## 剪枝必须有单调前提
+
+求和组合中，若候选全为正数且已排序，当前和超过目标后，继续添加只会更大，可以停止分支。存在负数时，这个剪枝不成立；后续负数可能把和拉回目标。
+
+剪枝要写成可证明的必要条件，不能因为某批样例通过就保留。启发式排序可以让更早命中，但不应删除潜在答案。
+
+## 输出规模是复杂度的一部分
+
+n 个不同元素有 `n!` 个排列，算法至少要花与输出规模同阶的时间和空间。无法靠局部优化把完整枚举降成多项式。只需要第 k 个、计数或判断存在性时，应改写问题，避免生成所有结果。
+
+深度 n 的递归还受调用栈限制。大搜索需要显式栈、生成器、取消信号、节点预算和分批输出。
+
+## 用穷举和不变量验证
+
+检查每个结果长度、元素多重集合、无重复结果和输出数量。对短输入与集合参考实现比较，覆盖空数组、单元素、全重复和部分重复。搜索中可在调试模式断言 `path.length === used.filter(Boolean).length`，让撤销错误在发生位置暴露。

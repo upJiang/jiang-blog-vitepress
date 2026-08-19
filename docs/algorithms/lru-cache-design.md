@@ -23,113 +23,144 @@ practice:
 evidence: public-source
 updated: 2026-08-11
 ---
-
 # LRU Cache：哈希表与双向链表的协作
 
-缓存容量为 2，依次写入 A、B，读取 A，再写入 C。被淘汰的应该是 B，因为读取 A 已经更新了“最近使用”顺序。若只用 `Map` 查找很快，却无法在通用数据结构语义下明确维护任意节点顺序；只用链表能维护顺序，查找又会退化为线性。
-
-LRU 的约束是 `get`、`put` 和淘汰都达到均摊 `O(1)`。这直接推导出两种结构协作：哈希表负责 key 到节点的定位，双向链表负责常数时间删除、移动和尾部淘汰。
+LRU（Least Recently Used，最近最少使用）缓存容量满时淘汰最久未访问的键。Map 提供按键 `O(1)` 平均查找，双向链表提供已知节点的 `O(1)` 移动和删除。任何一边单独使用，都无法同时满足两个操作。
 
 ## 四条结构不变量
 
-链表从头到尾按“最近使用到最久未使用”排列。头尾哨兵节点不保存业务数据，消除空链表、首节点和尾节点的分支。
+实现始终维持：
 
-1. `head.next` 是最近使用节点，`tail.prev` 是淘汰候选。
-2. Map 中每个条目恰好对应链表中的一个业务节点。
-3. 业务节点的 `prev.next` 和 `next.prev` 始终指回它。
-4. 业务节点数不超过容量，容量为零时始终为空。
+- Map 中每个键恰好指向链表中的一个真实节点。
+- 链表从头到尾按最近使用到最久未使用排序。
+- head.next 是最新节点，tail.prev 是最旧节点。
+- size 等于 Map 大小，且不超过 capacity。
 
-读取命中会改变顺序，所以 `get` 不是纯查询。写入已有 key 要更新原节点并移到头部，不能新建第二个同 key 节点。写入新 key 超容后，必须先从链表移除尾节点，再从 Map 删除相同 key。
+两个哨兵节点让插入和删除不需要区分空表、头和尾。
 
-## TypeScript 实现
-
-下面实现接收正整数或零容量。输入 key/value，输出命中的值或 `undefined`；如果业务值本身允许 `undefined`，调用方应改成 `{ found, value }` 联合类型，避免混淆未命中。
-
-```ts
-class LruNode<K, V> {
-  prev!: LruNode<K, V>
-  next!: LruNode<K, V>
-
-  constructor(public key: K, public value: V) {}
+~~~ts
+type Node<K, V> = {
+  key: K
+  value: V
+  previous: Node<K, V> | null
+  next: Node<K, V> | null
 }
 
-class LruCache<K, V> {
-  private readonly nodes = new Map<K, LruNode<K, V>>()
-  private readonly head = new LruNode<K, V>(undefined as K, undefined as V)
-  private readonly tail = new LruNode<K, V>(undefined as K, undefined as V)
+export class LruCache<K, V> {
+  private readonly nodes = new Map<K, Node<K, V>>()
+  private readonly head: Node<K, V>
+  private readonly tail: Node<K, V>
 
   constructor(private readonly capacity: number) {
-    if (!Number.isInteger(capacity) || capacity < 0) throw new Error('invalid_capacity')
+    if (!Number.isInteger(capacity) || capacity < 0) {
+      throw new RangeError('capacity must be a non-negative integer')
+    }
+
+    this.head = {
+      key: undefined as K,
+      value: undefined as V,
+      previous: null,
+      next: null,
+    }
+    this.tail = {
+      key: undefined as K,
+      value: undefined as V,
+      previous: this.head,
+      next: null,
+    }
     this.head.next = this.tail
-    this.tail.prev = this.head
+  }
+
+  get size(): number {
+    return this.nodes.size
   }
 
   get(key: K): V | undefined {
     const node = this.nodes.get(key)
-    if (!node) return undefined
+    if (node === undefined) return undefined
+
     this.moveToFront(node)
     return node.value
   }
 
-  put(key: K, value: V): void {
-    if (this.capacity === 0) return
+  set(key: K, value: V): void {
     const existing = this.nodes.get(key)
-    if (existing) {
+
+    if (existing !== undefined) {
       existing.value = value
       this.moveToFront(existing)
       return
     }
 
-    const node = new LruNode(key, value)
+    if (this.capacity === 0) return
+
+    const node: Node<K, V> = {
+      key,
+      value,
+      previous: null,
+      next: null,
+    }
+
     this.nodes.set(key, node)
-    this.addAfterHead(node)
+    this.insertAfterHead(node)
 
     if (this.nodes.size > this.capacity) {
-      const evicted = this.tail.prev
-      this.detach(evicted)
-      this.nodes.delete(evicted.key)
+      const oldest = this.tail.previous
+      if (oldest === null || oldest === this.head) {
+        throw new Error('LRU invariant broken')
+      }
+      this.detach(oldest)
+      this.nodes.delete(oldest.key)
     }
   }
 
-  private moveToFront(node: LruNode<K, V>): void {
+  private moveToFront(node: Node<K, V>): void {
     this.detach(node)
-    this.addAfterHead(node)
+    this.insertAfterHead(node)
   }
 
-  private detach(node: LruNode<K, V>): void {
-    node.prev.next = node.next
-    node.next.prev = node.prev
+  private detach(node: Node<K, V>): void {
+    if (node.previous === null || node.next === null) {
+      throw new Error('detached node')
+    }
+    node.previous.next = node.next
+    node.next.previous = node.previous
+    node.previous = null
+    node.next = null
   }
 
-  private addAfterHead(node: LruNode<K, V>): void {
-    node.prev = this.head
-    node.next = this.head.next
-    this.head.next.prev = node
+  private insertAfterHead(node: Node<K, V>): void {
+    const first = this.head.next
+    if (first === null) throw new Error('LRU invariant broken')
+
+    node.previous = this.head
+    node.next = first
     this.head.next = node
+    first.previous = node
   }
 }
-```
+~~~
 
-`detach` 必须在覆盖指针前同时修复左右邻居；`addAfterHead` 先让新节点连接旧首节点，再更新旧首节点和头哨兵。操作次序错一行就可能产生断链或环，因此测试除了返回值，还应遍历链表检查双向关系。
+## get 为什么也要修改结构
 
-## 执行轨迹
+命中表示该键刚被使用，必须移到链首。若 get 只返回值不更新顺序，缓存退化成“最早写入淘汰”，那是 FIFO。
 
-容量 2 的初始链表是 `head <-> tail`。写 A 后为 `head <-> A <-> tail`；写 B 后为 `head <-> B <-> A <-> tail`。读取 A 先摘除 A，再插到头部，得到 `head <-> A <-> B <-> tail`。写 C 后暂时有三个节点，淘汰 `tail.prev` 的 B，最终顺序为 C、A。
+返回 `V | undefined` 在 V 本身允许 undefined 时有歧义。公共 API 可以提供 `has`，或返回判别联合 `{ hit: true, value } | { hit: false }`。
 
-覆盖 A 的值不会改变 Map 大小，只把 A 移到最前。若实现选择删除旧节点再新建，也能保持复杂度，但更容易在 Map 与链表之间出现短暂不一致。
+## 更新与插入走不同路径
 
-## 测试、工程边界与追问
+已有键更新 value 后移动到链首，Map 大小不变，不触发淘汰。新键先进入 Map 和链表，再检查容量。也可以先淘汰再插入，只要 capacity 0 和异常路径保持原子性。
 
-测试应覆盖容量 0/1、未命中、重复覆盖、读取刷新顺序、连续淘汰以及 key 为对象的情况。再增加内部诊断方法，在每次随机操作后验证 Map 大小、链表节点数、双向指针和 key 集合完全一致。
+每个结构修改都要同步两边。先从 Map 删除后链表断链失败，会留下无法查找但仍占顺序位置的节点。内存实现通常让私有方法不抛业务异常，并用不变量测试发现程序错误。
 
-算法题中的 LRU 是单进程内存结构。真实浏览器或服务缓存还要处理 TTL、大小权重、并发、持久化和多实例一致性。LRU 也不保证最佳命中率：顺序扫描大数据可能污染缓存，LFU、分段 LRU 或业务感知策略会更合适。
+## O(1) 不包含 value 的成本
 
-面试继续追问时，可以从“为什么必须双向链表”回答：已知节点时单链表仍不知道前驱，删除要重新扫描；也可以解释 JavaScript `Map` 保持插入顺序，但用删除再插入模拟 LRU 是语言容器特性，无法展示通用组合结构，也需要明确迭代与更新语义。
+Map 查找和链表改指针按平均 `O(1)` 讨论。缓存值构造、序列化、过期检查和释放资源可能很贵，不在这个数据结构证明里。
 
-## 组合结构的不变量
+LRU 只按最近访问淘汰，不考虑值大小、计算成本、TTL 和并发请求合并。生产缓存常需要容量按字节、过期时间、single-flight 和命中观测，这会引入堆、时钟和异步状态。
 
-Map 保存 `key -> node`，双向链表保存最近使用顺序；两者必须满足双射：每个 Map 节点都在链表中，每个链表节点都能从 Map 取回，且 `size <= capacity`。哨兵 head/tail 让插入、删除不需要分支处理空头/空尾，任何操作都只改相邻四个指针。
+## 随机操作验证不变量
 
-`get` 是读语义却会改变顺序，因此并发实现要明确是否需要锁/原子操作；异步 JS 单线程不代表 Worker/多实例共享安全。TTL、最大权重和淘汰回调会把 O(1) 核心扩展成额外时间/资源协议，淘汰回调抛错不能破坏 Map/链表一致性。
+用一个简单但较慢的数组模型记录使用顺序，随机执行 get/set，与 LRU 比较返回值和淘汰键。每一步遍历链表，检查前后指针互相对应、没有环、节点数等于 Map 大小、每个 Map 节点可达。
 
-如果要把内存 LRU 扩展到服务缓存，可对照 [Redis 的淘汰策略说明](https://redis.io/docs/latest/develop/reference/eviction/)；容器语义可对照 [MDN 的 `Map` 参考](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map)。这些资料解释外部语义，本文测试仍以 Map/链表双射和容量不变量为准。
+覆盖容量 0、容量 1、重复 set、get miss、值为 undefined 和对象键。复杂度测试再观察操作规模增长，正确性测试不要依赖计时。

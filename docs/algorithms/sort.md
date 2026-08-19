@@ -8,63 +8,81 @@ order: 190
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 排序算法
 
-用户列表先按部门排序，再按姓名排序。如果第二次排序会打乱同部门内的原顺序，多字段结果就不稳定。排序不仅要看 `O(n log n)`，还要看稳定性、是否原地、比较器语义和数据分布。
+排序把元素按比较关系重新排列。实现前要确定比较器是否形成全序、是否要求稳定、能否修改输入、额外空间预算和数据分布。只说“用快排”缺少这些前提。
 
-本篇用归并排序理解分治与稳定合并，再比较插入、快速和计数类排序的适用条件。现代 ECMAScript 规定 `Array.prototype.sort` 稳定，但比较器仍由调用者正确提供。
+## 比较器必须一致
 
-## 排序前先写比较器
+JavaScript 比较器返回负数、零或正数。它应满足自反、反对称、传递和对同一输入结果稳定。比较器矛盾时，任何排序算法都无法保证有意义的结果。
 
-比较器返回负数、0、正数表示先后关系，并应满足一致性、反对称和传递。数值升序使用 `(a, b) => a - b`；直接 `sort()` 会按字符串形式比较。比较器里不要执行网络、随机数或修改数组。
+~~~ts
+type RecordItem = {
+  score: number
+  createdAt: number
+}
 
-```mermaid
-flowchart LR
-  A[原数组] --> L[递归排序左半]
-  A --> R[递归排序右半]
-  L --> M[按比较器稳定合并]
-  R --> M
-  M --> O[有序结果]
-```
+const compareRecord = (left: RecordItem, right: RecordItem): number =>
+  right.score - left.score || left.createdAt - right.createdAt
+~~~
 
-## 步骤一：归并时保持稳定
+数值减法遇到 NaN、Infinity 或超大整数要单独定义策略。字符串按用户语言排序应使用固定 locale 与 `Intl.Collator`，直接比较 UTF-16 码元不等于自然语言顺序。
 
-两半已经有序时，每次取较小的头。值相等时先取左半元素，保留它们在原数组中的相对顺序。
+## 归并排序的合并不变量
 
-```ts
+归并排序递归排序左右两半，再线性合并。合并时结果已经包含两个输入中所有确定较小的前缀，left 和 right 指向各自最小未处理元素。
+
+~~~ts
 function mergeSort<T>(
   values: readonly T[],
-  compare: (left: T, right: T) => number
+  compare: (left: T, right: T) => number,
 ): T[] {
-  if (values.length < 2) return [...values]
+  if (values.length <= 1) return [...values]
+
   const middle = Math.floor(values.length / 2)
   const left = mergeSort(values.slice(0, middle), compare)
   const right = mergeSort(values.slice(middle), compare)
-  const output: T[] = []
-  let i = 0, j = 0
+  const result: T[] = []
 
-  while (i < left.length && j < right.length) {
-    output.push(compare(left[i]!, right[j]!) <= 0 ? left[i++]! : right[j++]!)
+  let leftIndex = 0
+  let rightIndex = 0
+
+  while (leftIndex < left.length && rightIndex < right.length) {
+    if (compare(left[leftIndex], right[rightIndex]) <= 0) {
+      result.push(left[leftIndex])
+      leftIndex += 1
+    } else {
+      result.push(right[rightIndex])
+      rightIndex += 1
+    }
   }
-  return output.concat(left.slice(i), right.slice(j))
+
+  return result
+    .concat(left.slice(leftIndex))
+    .concat(right.slice(rightIndex))
 }
-```
+~~~
 
-每层合并 O(n)，递归约 log n 层，总时间 O(n log n)。这个实现创建切片与输出，额外空间 O(n)，调用栈 O(log n)。
+比较相等时先取左边，保留原相对顺序，因此实现稳定。若改成 `< 0`，相等元素会优先取右边，稳定性消失。
 
-函数输入是只读数组和比较器，输出新数组，不修改原输入。合并阶段的 `<= 0` 是稳定性的关键：比较结果为 0 时先取左半，因而相等元素继续保持它们在输入中的先后关系。
+递推为 `T(n) = 2T(n/2) + O(n)`，时间 `O(n log n)`。此实现切片和结果数组使用 `O(n log n)` 总分配量，峰值辅助空间通常按 `O(n)` 讨论；常数可通过复用缓冲区降低。
 
-## 其他排序何时合适
+## 快速排序依赖 pivot 与分区
 
-插入排序最坏 O(n²)，但小数组或接近有序时简单且常数低。快速排序平均 O(n log n)，分区选择不佳时退化；实际库会使用随机化、三数取中或混合算法。堆排序最坏 O(n log n)、额外空间小，但通常不稳定。
+快速排序把小于 pivot 和大于 pivot 的元素分到两侧，再递归。平均 `O(n log n)`，不良 pivot 可退化到 `O(n²)` 和深递归。随机 pivot、三数取中和三路分区能改善特定分布，不能消除全部最坏情况。
 
-计数排序依赖有限整数范围，时间 O(n+k)，k 很大时空间不可接受。桶和基数排序同样需要明确 Key 模型，不是所有数字都自动线性排序。
+原地快排通常不稳定。需要稳定、多键排序或可预测最坏复杂度时，归并、堆排序或运行时内建实现可能更合适。
 
-## JavaScript sort 的工程边界
+## 线性排序有更强前提
 
-`sort()` 原地修改数组；状态管理中需要先复制。`toSorted()` 返回新数组，兼容性按目标环境确认。包含 `NaN`、`undefined`、Locale 字符串与日期时，比较规则需要显式设计；用户语言排序使用 `Intl.Collator`，不靠简单大小比较。
+计数排序和基数排序可以绕开比较下界，但需要有限整数范围、可提取位或其他结构。键范围远大于 n 时，计数数组的空间不可接受。声称 `O(n)` 时必须把键范围或位数写进复杂度。
 
-## 验证
+## JavaScript sort 的合同
 
-除了有序性，还检查结果是输入的排列，没有丢失或新增元素。稳定性用带原始序号的相同 Key 记录验证。比较器属性可以用随机三元组检查传递性。基准覆盖随机、已排序、逆序、大量重复和小数组，不能只测一种输入。
+现代 ECMAScript 要求 Array.prototype.sort 稳定，但默认比较会把值转换为字符串。数值排序必须传比较器。sort 会修改原数组；toSorted 返回新数组，兼容性取决于目标环境。
+
+稀疏数组、undefined 和带副作用的 getter/comparator 会产生额外可观察行为。比较器中不要修改待排序数组，也不要依赖调用次数。
+
+## 用性质而非固定样例测试
+
+结果应满足有序性、元素多重集合守恒和长度不变。稳定算法还要给相等键元素附原始序号，断言序号递增。随机小数组与可信内建排序对比，覆盖空、单元素、重复、已排序、逆序、NaN 策略和大规模输入。

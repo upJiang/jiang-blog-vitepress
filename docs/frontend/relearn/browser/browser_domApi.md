@@ -8,313 +8,108 @@ order: 560
 depth: reference
 series: "重学前端"
 ---
-DOM API 是最早被设计出来的一批 API，也是用途最广的 API，所以早年的技术社区，常常用 DOM 来泛指浏览器中所有的 API。不过今天这里我们要介绍的 DOM，指的就是狭义的文档对象模型。
+# DOM API 与节点操作
 
-## DOM API 介绍
+DOM API 操作的是一棵有身份的树。节点移动会改变原树，克隆才会产生新身份；属性字符串、IDL property、样式声明和事件监听器也各有自己的存储位置。理解这些边界，比记住一长串方法名更重要。
 
-首先我们先来讲一讲什么叫做文档对象模型。
+## 节点身份决定比较结果
 
-顾名思义，文档对象模型是用来描述文档，这里的文档，是特指 HTML 文档（也用于 XML 文档，但是本课不讨论 XML）。同时它又是一个“对象模型”，这意味着它使用的是对象这样的概念来描述 HTML 文档。
+`Node` 是 Document、Element、Text、Comment 和 DocumentFragment 等节点的共同接口。节点用对象身份比较，两个内容相同的元素仍不相等。
 
-说起 HTML 文档，这是大家最熟悉的东西了，我们都知道，HTML 文档是一个由标签嵌套而成的树形结构，因此，**DOM 也是使用树形的对象模型来描述一个 HTML 文档。**
+~~~js
+const a = document.createElement('p')
+const b = document.createElement('p')
 
-DOM API 大致会包含 4 个部分。
+console.log(a === b) // false
+console.log(a.isEqualNode(b)) // true
+~~~
 
-- 节点：DOM 树形结构中的节点相关 API。
+`isEqualNode` 比较节点类型、名称、属性和子树，不能证明两个节点在文档中的位置相同。需要判断包含关系使用 `contains`，需要判断相对位置使用 `compareDocumentPosition`。
 
-- 事件：触发和监听事件相关 API。
+## 插入 API 会移动已有节点
 
-- Range：操作文字范围相关 API。
+`append`、`appendChild`、`insertBefore` 和 `replaceWith` 接收的节点如果已有父节点，会先从旧位置移除，再插入新位置。它们不会隐式复制。
 
-- 遍历：遍历 DOM 需要的 API。
+~~~js
+const list = document.querySelector('ul')
+const first = list.querySelector('li:first-child')
+const second = list.querySelector('li:nth-child(2)')
 
-## 节点
+second.appendChild(first)
+~~~
 
-DOM 的树形结构所有的节点有统一的接口 Node，我们按照继承关系，给你介绍一下节点的类型。
+执行后 first 成为 second 的子节点，事件监听器和节点身份仍然保留。跨 Document 移动节点可能需要 `adoptNode`，从另一个文档复制则使用 `importNode`。跨文档的自定义元素还可能触发 adoptedCallback。
 
-<a data-fancybox title="image.png" href="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d1147098ea2e4e909d4499f25bacf7b4~tplv-k3u1fbpfcp-watermark.image?">![image.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d1147098ea2e4e909d4499f25bacf7b4~tplv-k3u1fbpfcp-watermark.image?)</a>
+`DocumentFragment` 是临时的父节点。把 fragment 插入文档时，实际插入的是它的子节点，fragment 本身会变空。它适合组织批量插入，但“使用 fragment 必然更快”不是语言保证，最终成本取决于布局失效和节点数量。
 
-在这些节点中，除了 Document 和 DocumentFrangment，都有与之对应的 HTML 写法，我们可以看一下。
+## cloneNode 只复制树和属性
 
-```
-Element: <tagname>...</tagname>
-Text: text
-Comment: <!-- comments -->
-DocumentType: <!Doctype html>
-ProcessingInstruction: <?a 1?>
-```
+`cloneNode(false)` 复制当前节点，`cloneNode(true)` 递归复制子树。它不会复制通过 `addEventListener` 注册的监听器、闭包状态或某些外部资源连接。复制带 id 的模板还要重新生成唯一标识，避免标签和 ARIA 引用冲突。
 
-我们在编写 HTML 代码并且运行后，就会在内存中得到这样一棵 DOM 树，HTML 的写法会被转化成对应的文档模型，而我们则可以通过 JavaScript 等语言去访问这个文档模型。
+文本修改优先使用 `textContent`。把不可信字符串写入 `innerHTML` 会把它交给 HTML 解析器，形成注入风险。需要解析受控模板时，也要把来源、允许标签和清洗策略写进边界。
 
-这里我们每天都需要用到，要重点掌握的是：Document、Element、Text 节点。
+## Attribute 与 property 是两层状态
 
-DocumentFragment 也非常有用，它常常被用来高性能地批量添加节点。因为 Comment、DocumentType 和 ProcessingInstruction 很少需要运行时去修改和操作，所以有所了解即可。
+HTML attribute 是元素节点上的字符串特性。DOM property 是 JavaScript 对象暴露的 IDL 属性，两者只在规范明确映射时同步。
 
-## Node
+~~~html
+<input id="age" value="18" disabled>
+~~~
 
-Node 是 DOM 树继承关系的根节点，它定义了 DOM 节点在 DOM 树上的操作，首先，Node 提供了一组属性，来表示它在 DOM 树中的关系，它们是：
+~~~js
+const input = document.querySelector('#age')
 
-- parentNode
+console.log(input.getAttribute('value')) // 18
+console.log(input.value) // 当前控件值
+input.value = '20'
+console.log(input.getAttribute('value')) // 18
+~~~
 
-- childNodes
+表单的 `value` attribute 常作为初始值，`value` property 保存当前值。`checked`、`selected` 也有类似的默认状态与当前状态区别。布尔 attribute 只要存在就表示 true，`disabled="false"` 仍然是禁用。
 
-- firstChild
+## 查询结果的时间语义不同
 
-- lastChild
+`querySelectorAll` 返回静态 NodeList。旧式的 `getElementsByClassName`、`getElementsByTagName` 通常返回 live collection，后续 DOM 变化会改变其长度与成员。
 
-- nextSibling
+~~~js
+const live = document.getElementsByClassName('item')
+const snapshot = document.querySelectorAll('.item')
 
-- previousSibling
+const added = document.createElement('div')
+added.className = 'item'
+document.body.append(added)
 
-从命名上，我们可以很清晰地看出，这一组属性提供了前、后、父、子关系，有了这几个属性，我们可以很方便地根据相对位置获取元素。当然，Node 中也提供了操作 DOM 树的 API，主要有下面几种。
+console.log(live.length)
+console.log(snapshot.length)
+~~~
 
-- appendChild
+循环修改 live collection 时，索引可能因节点移动而变化。要固定遍历对象，先用 `Array.from` 复制。不要根据“某选择器更快”做长期结论，现代引擎会对不同查询建立索引和缓存，真实页面应以性能记录为准。
 
-- insertBefore
+## Range 记录两个边界点
 
-- removeChild
+`Range` 不只是保存两个元素。边界由容器节点和 offset 组成，文本节点的 offset 是字符位置，元素节点的 offset 是子节点之间的位置。
 
-- replaceChild
+~~~js
+const paragraph = document.querySelector('p')
+const range = document.createRange()
 
-这个命名跟上面一样，我们基本可以知道 API 的作用。这几个 API 的设计可以说是饱受诟病。其中最主要的批评是它不对称——只有 before，没有 after，而 jQuery 等框架都对其做了补充。
+range.selectNodeContents(paragraph)
+const fragment = range.extractContents()
+document.querySelector('#preview').append(fragment)
+~~~
 
-实际上，appendChild 和 insertBefore 的这个设计，是一个“最小原则”的设计，这两个 API 是满足插入任意位置的必要 API，而 insertAfter，则可以由这两个 API 实现出来。
+`extractContents` 会从原树移走范围内内容，跨节点范围可能拆分文本节点并克隆部分祖先。Selection API 通常持有一个或多个 Range，但用户选区、编辑器模型和 DOM Range 不是同一层的数据结构。
 
-这里从设计的角度还想要谈一点，那就是，**所有这几个修改型的 API，全都是在`父元素`上操作的**，比如我们要想实现“删除一个元素的上一个元素”，必须要先用 parentNode 获取其父元素。
+## 观察变更要区分时机
 
-到此为止，Node 提供的 API 已经可以很方便（大概吧）地对树进行增、删、遍历等操作了。
+MutationObserver 在当前任务结束后的微任务检查点交付记录。它报告节点、属性和字符数据变化，不会替代事件，也不会告诉你最终布局尺寸。
 
-除此之外，Node 还提供了一些高级 API，我们来认识一下它们。
+观察回调里继续修改 DOM，新的记录可能进入下一次微任务处理。批量更新时应合并记录，避免在回调中逐条触发布局读取。要观察用户输入、焦点和默认行为，使用事件系统；要观察尺寸，使用 ResizeObserver；要观察可见区域交叉，使用 IntersectionObserver。
 
-- compareDocumentPosition 是一个用于比较两个节点中关系的函数。
+## 命名空间和自定义元素不能靠字符串猜
 
-- contains 检查一个节点是否包含另一个节点的函数。
+SVG、MathML 和 HTML 的元素创建需要正确命名空间。使用 `document.createElementNS` 时要传入目标 namespace，否则同名标签可能得到错误接口和样式行为。
 
-- isEqualNode 检查两个节点是否完全相同。
+自定义元素的构造、升级、连接和属性变化由 Custom Elements 生命周期控制。直接写入未知标签的 attribute 后，元素何时升级取决于定义注册时机。测试时要覆盖“先创建后 define”和“先 define 后创建”两种顺序。
 
-- isSameNode 检查两个节点是否是同一个节点，实际上在 JavaScript 中可以用“===”。
-
-- cloneNode 复制一个节点，如果传入参数 true，则会连同子元素做深拷贝。
-
-DOM 标准规定了节点必须从文档的 create 方法创建出来，不能够使用原生的 JavaScript 的 new 运算。于是 document 对象有这些方法。
-
-- createElement
-
-- createTextNode
-
-- createCDATASection
-
-- createComment
-
-- createProcessingInstruction
-
-- createDocumentFragment
-
-- createDocumentType
-
-上面的这些方法都是用于创建对应的节点类型
-
-## Element 与 Attribute
-
-Node 提供了树形结构上节点相关的操作。而大部分时候，我们比较关注的是元素。Element 表示元素，它是 Node 的子类。
-
-元素对应了 HTML 中的标签，它既有子节点，又有属性。所以 Element 子类中，有一系列操作属性的方法。
-
-我们需要注意，对 DOM 而言，Attribute 和 Property 是完全不同的含义，只有特性场景下，两者才会互相关联
-
-首先，我们可以把元素的 Attribute 当作字符串来看待，这样就有以下的 API：
-
-- getAttribute
-
-- setAttribute
-
-- removeAttribute
-
-- hasAttribute
-
-如果你追求极致的性能，还可以把 Attribute 当作节点：
-
-- getAttributeNode
-
-- setAttributeNode
-
-此外，如果你喜欢 property 一样的访问 attribute，还可以使用 attributes 对象，比如 document.body.attributes.class = “a” 等效于 document.body.setAttribute(“class”, “a”)。
-
-## 查找元素
-
-document 节点提供了查找元素的能力。比如有下面的几种。
-
-- querySelector
-
-- querySelectorAll
-
-- getElementById
-
-- getElementsByName
-
-- getElementsByTagName
-
-- getElementsByClassName
-
-我们需要注意，getElementById、getElementsByName、getElementsByTagName、getElementsByClassName，这几个 API 的性能高于 querySelector。
-
-而 getElementsByName、getElementsByTagName、getElementsByClassName 获取的集合并非数组，而是一个能够动态更新的集合。
-
-我们看一个例子：
-
-```
-var collection = document.getElementsByClassName('winter');
-console.log(collection.length);
-var winter = document.createElement('div');
-winter.setAttribute('class', 'winter')
-document.documentElement.appendChild(winter)
-console.log(collection.length);
-```
-
-在这段代码中，我们先获取了页面的 className 为 winter 的元素集合，不出意外的话，应该是空。
-
-我们通过 console.log 可以看到集合的大小为 0。之后我们添加了一个 class 为 winter 的 div，这时候我们再看集合，可以发现，集合中出现了新添加的元素。
-
-这说明浏览器内部是有高速的索引机制，来动态更新这样的集合的。所以，尽管 querySelector 系列的 API 非常强大，我们还是应该尽量使用 getElement 系列的 API。
-
-## 遍历
-
-前面已经提到过，通过 Node 的相关属性，我们可以用 JavaScript 遍历整个树。实际上，DOM API 中还提供了 NodeIterator 和 TreeWalker 来遍历树。
-
-比起直接用属性来遍历，NodeIterator 和 TreeWalker 提供了过滤功能，还可以把属性节点也包含在遍历之内。
-
-NodeIterator 的基本用法示例如下：
-
-```
-var iterator = document.createNodeIterator(document.body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_COMMENT, null, false);
-var node;
-while(node = iterator.nextNode())
-{
-    console.log(node);
-}
-```
-
-这个 API 的设计非常老派，这么讲的原因主要有两点，一是循环并没有类似“hasNext”这样的方法，而是直接以 nextNode 返回 null 来标志结束，二是第二个参数是掩码，这两个设计都是传统 C 语言里比较常见的用法。
-
-放到今天看，这个迭代器无法匹配 JavaScript 的迭代器语法，而且 JavaScript 位运算并不高效，掩码的设计就徒增复杂性了。
-
-这里请你注意一下这个例子中的处理方法，通常掩码型参数，我们都是用按位或运算来叠加。而针对这种返回 null 表示结束的迭代器，我使用了在 while 循环条件中赋值，来保证循环次数和调用 next 次数严格一致（但这样写可能违反了某些编码规范）。
-
-我们再来看一下 TreeWalker 的用法。
-
-```
-var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT, null, false)
-var node;
-while(node = walker.nextNode())
-{
-    if(node.tagName === "p")
-        node.nextSibling();
-    console.log(node);
-}
-```
-
-比起 NodeIterator，TreeWalker 多了在 DOM 树上自由移动当前节点的能力，一般来说，这种 API 用于“跳过”某些节点，或者重复遍历某些节点。
-
-总的来说，我个人不太喜欢 TreeWalker 和 NodeIterator 这两个 API，建议需要遍历 DOM 的时候，直接使用递归和 Node 的属性。
-
-## Range
-
-Range API 是一个比较专业的领域，如果不做富文本编辑类的业务，不需要太深入。这里我们就仅介绍概念和给出基本用法的示例，你只要掌握即可。
-
-Range API 表示一个 HTML 上的范围，这个范围是以文字为最小单位的，所以 Range 不一定包含完整的节点，它可能是 Text 节点中的一段，也可以是头尾两个 Text 的一部分加上中间的元素。
-
-我们通过 Range API 可以比节点 API 更精确地操作 DOM 树，凡是 节点 API 能做到的，Range API 都可以做到，而且可以做到更高性能，但是 Range API 使用起来比较麻烦，所以在实际项目中，并不常用，只有做底层框架和富文本编辑对它有强需求。
-
-创建 Range 一般是通过设置它的起止来实现，我们可以看一个例子：
-
-```
-var range = new Range(),
-    firstText = p.childNodes[1],
-    secondText = em.firstChild
-range.setStart(firstText, 9) // do not forget the leading space
-range.setEnd(secondText, 4)
-```
-
-此外，通过 Range 也可以从用户选中区域创建，这样的 Range 用于处理用户选中区域:
-
-```
-var range = document.getSelection().getRangeAt(0);
-```
-
-更改 Range 选中区段内容的方式主要是取出和插入，分别由 extractContents 和 insertNode 来实现。
-
-```
-var fragment = range.extractContents()
-range.insertNode(document.createTextNode("aaaa"))
-```
-
-最后我们看一个完整的例子。
-
-```
-var range = new Range(),
-    firstText = p.childNodes[1],
-    secondText = em.firstChild
-range.setStart(firstText, 9) // do not forget the leading space
-range.setEnd(secondText, 4)
-
-var fragment = range.extractContents()
-range.insertNode(document.createTextNode("aaaa"))
-```
-
-这个例子展示了如何使用 range 来取出元素和在特定位置添加新元素。
-
-## 总结
-
-DOM API 大致会包含 4 个部分。
-
-- 节点：DOM 树形结构中的节点相关 API。
-
-- 事件：触发和监听事件相关 API。
-
-- Range：操作文字范围相关 API。
-
-- 遍历：遍历 DOM 需要的 API。
-
-DOM API 中还提供了 NodeIterator 和 TreeWalker 来遍历树。比起直接用属性来遍历，NodeIterator 和 TreeWalker 提供了过滤功能，还可以把属性节点也包含在遍历之内。
-
-除此之外，我们还谈到了 Range 的一些基础知识点，这里你掌握即可。
-
-## 命名空间
-
-在 HTML 场景中，需要考虑命名空间的场景不多。最主要的场景是 SVG。创建元素和属性相关的 API 都有带命名空间的版本：
-
-- document
-
-  - createElementNS
-
-  - createAttributeNS
-
-- Element
-
-  - getAttributeNS
-
-  - setAttributeNS
-
-  - getAttributeNodeNS
-
-  - setAttributeNodeNS
-
-  - removeAttributeNS
-
-  - hasAttributeNS
-
-  - attributes.setNamedItemNS
-
-  - attributes.getNamedItemNS
-
-  - attributes.removeNamedItemNS
-
-若要创建 Document 或者 Doctype，也必须要考虑命名空间问题。DOM 要求从 document.implementation 来创建。
-
-- document.implementation.createDocument
-
-- document.implementation.createDocumentType
-
-除此之外，还提供了一个快捷方式，你也可以动手尝试一下。
-
-- document.implementation.createHTMLDocument
+排查 DOM 问题时，记录节点身份、父子关系、attribute、property、事件监听注册点和观察器回调顺序。不要只截一张 Elements 面板截图，截图无法说明节点是被移动、克隆还是重新创建。

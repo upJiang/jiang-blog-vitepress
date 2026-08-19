@@ -8,24 +8,44 @@ order: 300
 depth: reference
 series: "重学前端"
 ---
-## 学习方法
+# 重学前端：学习方法
 
-建立知识架构、追本溯源
+前端问题同时经过语言、浏览器和工程系统。框架把常见流程封装起来，遇到边界时仍要回到 JavaScript 语义、Web 标准和运行证据。学习的目标是建立能定位问题的因果链，不是记住更多 API。
 
-## 基础
+## 从一个可观察问题往下追
 
-- JavaScript
+比如按钮点击后页面卡顿，可以依次问：
 
-- CSS 和 HTML
+1. 事件何时派发，监听器做了什么。
+2. Promise、任务和微任务怎样安排后续工作。
+3. DOM 与样式写入让哪些阶段失效。
+4. 构建产物和第三方脚本从哪里进入。
+5. 监控能否重现相同版本、设备和输入。
 
-- 浏览器的实现原理和 API
+每一层都给出自己的证据，不能用框架术语替代浏览器行为，也不能用一张性能分数替代 trace。
 
-### 知识架构图
+## 三类知识需要分开保存
 
-<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/6a/9b/6aec0a09381a2f74014ec604ef99c19b.png">![img](https://static001.geekbang.org/resource/image/6a/9b/6aec0a09381a2f74014ec604ef99c19b.png)</a>
+规范知识描述语言和平台允许什么，例如 ECMAScript、HTML、DOM、CSSOM、Fetch。实现知识描述某个浏览器版本怎样优化和暴露工具。工程知识负责版本、构建、发布、测试和回滚。
 
-<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/41/62/4153891927afac7f4c21ccf6a141f062.png">![img](https://static001.geekbang.org/resource/image/41/62/4153891927afac7f4c21ccf6a141f062.png)</a>
+规范可以解释边界，实现实验能确认当前环境，工程门禁保证团队重复得到同一结果。文章或笔记应注明结论属于哪一层。
 
-<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/cb/cb/cbb6d198ccfb95af4906eeb0581333cb.png">![img](https://static001.geekbang.org/resource/image/cb/cb/cbb6d198ccfb95af4906eeb0581333cb.png)</a>
+## 最小实验要控制变量
 
-<a data-fancybox title="img" href="https://static001.geekbang.org/resource/image/d1/a8/d1cb4040d91207075e0591abffe1b9a8.jpg">![img](https://static001.geekbang.org/resource/image/d1/a8/d1cb4040d91207075e0591abffe1b9a8.jpg)</a>
+最小样本只保留一个待验证因素，固定浏览器、运行时、页面结构和输入。先写预期，再运行，记录代码、版本、输出和异常。结果与预期不同，继续缩小样本或查看规范，不要在原项目里凭感觉加补丁。
+
+~~~js
+const events = []
+
+queueMicrotask(() => events.push('microtask'))
+setTimeout(() => events.push('task'), 0)
+events.push('sync')
+~~~
+
+这个样本只能说明给定宿主中的可观察顺序，不能证明渲染发生在哪一行，也不能解释 Node.js 的事件循环。
+
+## 以输出反推学习是否完成
+
+学完一个概念后，应能给出定义、机制、失败边界和验证方式。再把它迁移到一个没见过的样本中，解释哪些条件变化会让结论失效。
+
+阅读顺序可以从 JavaScript、HTML/CSS、浏览器、工程系统逐层推进；遇到真实问题则沿调用链往返。知识树提供地图，实验和源码决定当前落点。

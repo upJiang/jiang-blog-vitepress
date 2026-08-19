@@ -8,69 +8,108 @@ order: 200
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 二叉树的迭代遍历
 
-递归遍历把“稍后还要访问什么”保存在调用栈里。树很深时，JavaScript 调用栈可能溢出；迭代遍历把这份状态显式放进数组，因此能够控制深度和观察每一步。
+二叉树遍历要规定节点在什么时刻进入结果。前序在访问子树前处理根，中序在左子树完成后处理根，后序在两个子树都完成后处理根。递归把暂停位置放在调用栈，迭代实现必须显式保存同样的状态。
 
-本篇以中序遍历为主：先一路压入左链，无法再向左时弹出节点并访问，再转向右子树。前序和后序只改变访问时机或栈帧状态。
-
-## 中序遍历的不变量
-
-栈保存“左子树正在处理或已经处理，但节点自身尚未输出”的祖先。current 指向下一棵要展开的子树。current 为空时，栈顶就是下一节点。
-
-```mermaid
-flowchart LR
-  C[current 子树] --> L[沿 left 压栈]
-  L --> P[弹出栈顶并访问]
-  P --> R[转到 right]
-  R --> L
-```
-
-## 最小实现
-
-输入是普通二叉树根，输出中序值数组。二叉树不默认有序；只有 BST 的中序结果才按其比较规则有序。
-
-```ts
-interface TreeNode<T> {
+~~~ts
+type TreeNode<T> = {
   value: T
   left: TreeNode<T> | null
   right: TreeNode<T> | null
 }
+~~~
 
+## 中序遍历保存未处理祖先
+
+~~~ts
 function inorder<T>(root: TreeNode<T> | null): T[] {
-  const output: T[] = []
+  const result: T[] = []
   const stack: TreeNode<T>[] = []
   let current = root
 
-  while (current || stack.length > 0) {
-    while (current) {
+  while (current !== null || stack.length > 0) {
+    while (current !== null) {
       stack.push(current)
       current = current.left
     }
-    current = stack.pop()!
-    output.push(current.value)
-    current = current.right
+
+    const node = stack.pop()
+    if (node === undefined) break
+
+    result.push(node.value)
+    current = node.right
   }
 
-  return output
+  return result
 }
-```
+~~~
 
-每个节点压栈和弹栈一次，时间 O(n)，空间 O(h)，h 为树高。退化链时 h=n，平衡树时约 log n。
+内层循环把左路径压栈。弹出节点时，它的左子树已经处理，节点自身和右子树尚未处理。访问节点后转向右子树，不变量再次成立。
 
-函数输入空根时输出空数组，非空时按“左子树、节点、右子树”顺序生成值。内层 while 只负责保存左侧祖先，弹栈后才输出节点，随后把右子树交回同一流程；这三步与递归中序的调用顺序完全对应。
+每个节点压栈、弹栈一次，时间 `O(n)`。栈深等于树高 h，额外空间 `O(h)`；平衡树是 `O(log n)`，退化链是 `O(n)`。
 
-## 前序与后序怎样改变
+## 前序可以在入栈前处理
 
-前序在节点第一次入栈时访问，常见做法是弹出节点后先压右再压左，保证左先处理。后序要在左右子树完成后访问节点，可以给栈帧加入 visited 标记，或维护 lastVisited 判断右子树是否完成。
+~~~ts
+function preorder<T>(root: TreeNode<T> | null): T[] {
+  if (root === null) return []
 
-统一栈帧 `{node, phase}` 最容易解释三种顺序：phase 表示进入节点、左完成或右完成。代码会稍长，却能扩展表达式树求值和带进入/离开事件的遍历。
+  const result: T[] = []
+  const stack: TreeNode<T>[] = [root]
 
-## 失败与边界
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (node === undefined) break
 
-空树返回空数组，单节点返回一个值。外部输入可能实际是带共享节点或环的图，此时树遍历会重复或无限；协议要么先验证树结构，要么使用 Set 和节点上限保护。
+    result.push(node.value)
+    if (node.right !== null) stack.push(node.right)
+    if (node.left !== null) stack.push(node.left)
+  }
 
-测试用递归版本作为小规模 oracle，覆盖空树、只有左链、只有右链、完全树和深链。验证输出长度等于节点数，并确保输入节点引用没有被修改。
+  return result
+}
+~~~
 
-下一篇比较递归 DFS 与队列 BFS，学习层序遍历为何需要记录当前层大小。
+栈后进先出，所以先压右子树，再压左子树，左边才能先访问。调换两行会得到根、右、左的遍历，不是实现细节。
+
+## 后序需要记住访问阶段
+
+一种实现给每个栈帧加 visited 标记。第一次弹出节点时，安排“稍后处理根”，再压右、左子树；第二次弹出才输出节点。
+
+~~~ts
+function postorder<T>(root: TreeNode<T> | null): T[] {
+  const result: T[] = []
+  const stack: Array<{ node: TreeNode<T>; expanded: boolean }> = []
+
+  if (root !== null) stack.push({ node: root, expanded: false })
+
+  while (stack.length > 0) {
+    const frame = stack.pop()
+    if (frame === undefined) break
+
+    if (frame.expanded) {
+      result.push(frame.node.value)
+      continue
+    }
+
+    stack.push({ node: frame.node, expanded: true })
+    if (frame.node.right !== null) {
+      stack.push({ node: frame.node.right, expanded: false })
+    }
+    if (frame.node.left !== null) {
+      stack.push({ node: frame.node.left, expanded: false })
+    }
+  }
+
+  return result
+}
+~~~
+
+expanded 相当于递归函数从两个子调用返回后的程序计数器。只压节点却不保存阶段，往往需要额外的 lastVisited 指针或反转结果。
+
+## 输入若不是树会失去终止保证
+
+算法假设节点没有环，且每个节点最多由一个父节点拥有。共享子树会被访问多次，环会导致无限循环。通用对象图遍历要增加 visited Set，复杂度按可达节点和边计算。
+
+验证遍历时，生成随机小树，与递归参考实现比较三种序列。覆盖空树、单节点、全左、全右、重复值和深树；节点值重复时，测试可给每个节点附唯一 id，避免序列相同掩盖访问错误。

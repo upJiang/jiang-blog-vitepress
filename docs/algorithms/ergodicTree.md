@@ -8,61 +8,75 @@ order: 210
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 二叉树的递归与层序遍历
 
-要找树的最大深度，递归很自然：当前深度等于左右子树最大深度加一。要按层展示组织结构，队列更自然：同一时刻队列中先保存当前层节点，再加入下一层孩子。
+递归 DFS 沿一个分支深入，BFS 用队列按层推进。两者都访问每个节点一次，差别在于保存什么边界：DFS 保存未返回的祖先，BFS 保存下一批尚未展开的同层或后续层节点。
 
-本篇比较 DFS 与 BFS，不把它们简化为“递归和循环”。差别是待处理状态放在调用栈、显式栈还是队列。
+~~~ts
+type TreeNode<T> = {
+  value: T
+  left: TreeNode<T> | null
+  right: TreeNode<T> | null
+}
+~~~
 
-## DFS：先把一个分支走深
+## 递归定义直接映射树结构
 
-最大深度的定义是：空树为 0，非空树为 `1 + max(leftDepth, rightDepth)`。这个递归严格进入更小子树，基线清楚。
+~~~ts
+function depth<T>(node: TreeNode<T> | null): number {
+  if (node === null) return 0
+  return 1 + Math.max(depth(node.left), depth(node.right))
+}
+~~~
 
-深度优先适合子树聚合、路径与结构验证，但树退化成很长链时会占用 O(h) 调用栈。输入不可信或可能极深时使用显式栈。
+基线定义空树深度为 0。递归假设能正确求出左右子树深度，再取较大值加根这一层。证明可按树高归纳。
 
-## BFS：同一层一起处理
+时间 `O(n)`，调用栈 `O(h)`。退化树深度 n 时，JavaScript 可能超过最大调用栈，生产输入不可信时用显式栈并设置节点预算。
 
-层序遍历使用 Queue。每轮开始读取当前有效队列长度，这个长度就是本层节点数；处理这些节点时加入的孩子属于下一层，不应混入当前输出。
+## 层序遍历要冻结当前层长度
 
-```mermaid
-flowchart LR
-  Q[队列当前层] --> N[记录 levelSize]
-  N --> P[出队 levelSize 个节点]
-  P --> C[孩子加入队尾]
-  C --> Q
-```
+~~~ts
+function levels<T>(root: TreeNode<T> | null): T[][] {
+  if (root === null) return []
 
-下面输入树根，输出按层分组的值。使用 head 索引避免 `shift()`。
-
-```ts
-function levelOrder<T>(root: TreeNode<T> | null): T[][] {
-  if (!root) return []
   const queue: TreeNode<T>[] = [root]
-  const output: T[][] = []
   let head = 0
+  const result: T[][] = []
 
   while (head < queue.length) {
     const levelSize = queue.length - head
     const level: T[] = []
-    for (let index = 0; index < levelSize; index += 1) {
-      const node = queue[head++]!
+
+    for (let count = 0; count < levelSize; count += 1) {
+      const node = queue[head]
+      head += 1
       level.push(node.value)
-      if (node.left) queue.push(node.left)
-      if (node.right) queue.push(node.right)
+
+      if (node.left !== null) queue.push(node.left)
+      if (node.right !== null) queue.push(node.right)
     }
-    output.push(level)
+
+    result.push(level)
   }
-  return output
+
+  return result
 }
-```
+~~~
 
-每个节点入队一次，时间 O(n)。队列最大占用等于最宽一层 w，空间 O(w)；DFS 则为 O(h)。宽树与深树的资源风险不同。
+进入外层循环时，队列未消费前缀后的前 levelSize 个节点正好属于当前层。处理过程中追加的是下一层，冻结长度可以防止它们提前进入当前结果。
 
-## 怎样选择遍历方式
+使用 head 指针避免 `shift()` 反复移动数组。一次性遍历后数组仍保留所有节点，若持续处理无限数据应改用环形队列。
 
-找无权树中距离根最近的目标，BFS 第一次命中就是最小边数；判断所有根到叶路径或做子树聚合，DFS 更直接。需要节点进入和离开事件时，显式栈帧比简单 value 栈更合适。
+## DFS 与 BFS 的空间峰值不同
 
-## 验证
+DFS 峰值与树高 h 相关，BFS 峰值与最宽一层 w 相关。完全平衡树中 h 较小而最后一层很宽，DFS 更省空间；极深窄树中 BFS 队列可能很小，而递归 DFS 会栈溢出。
 
-空树、单节点、左右不平衡和宽树都要覆盖。BFS 输出拍平后应包含每个节点一次；每一层孩子只出现在父层之后。若把 `levelSize` 放在 for 循环中动态读取，新增孩子会被错误并入当前层，测试应抓到。
+寻找无权树中离根最近的目标，BFS 第一次命中就能返回最短边数。需要后序聚合子树信息，DFS 更自然。选择依据是目标和空间形状，不能只凭习惯。
+
+## 遍历期间修改树会改变证明
+
+在访问回调里追加子节点，BFS 可能把新节点加入后续层，DFS 也可能进入新分支。需要快照语义时，先复制结构或禁止回调修改；需要动态语义时，明确新增节点是否应被本轮看到。
+
+## 验证层边界
+
+构造完全树、退化树、左右不对称树和重复值树。断言所有节点访问一次、每层顺序、深度与层数一致。再用唯一节点 id 和 visited Set 检测输入是否含环或共享节点，避免把图误当成树。

@@ -8,62 +8,93 @@ order: 170
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 链表倒数节点与快慢指针
 
-要删除链表倒数第 2 个节点，最容易先遍历得到长度，再定位正数位置，需要两次扫描。快慢指针让 fast 先走 n 步，随后 slow 与 fast 同速移动；两者间距始终为 n，fast 到尾部时 slow 正好在目标附近。
+寻找单链表倒数第 k 个节点时，无法从尾部直接向前走。快慢指针让两个引用保持固定距离：fast 先走 k 步，随后 fast 与 slow 同速前进；fast 到达链尾时，slow 恰好位于目标。
 
-本篇使用 dummy 节点统一删除头节点的情况，并明确 n 非法时的行为。
+## 合同先决定 k 的含义
 
-## 固定间距是不变量
+这里使用从 1 开始的 k：k 为 1 返回尾节点，k 等于链表长度返回头节点。k 不是正整数或大于长度时返回 null。
 
-```mermaid
-flowchart LR
-  D[dummy] --> S[slow]
-  S --> A[...] --> F[fast]
-  F --> T[剩余后缀]
-```
-
-从 dummy 开始，让 fast 前进 n+1 次后，slow 与 fast 间隔 n 个真实节点。当 fast 到 null，slow 位于待删除节点的前驱，执行 `slow.next = slow.next.next` 即可。
-
-为什么多走的是 `n+1` 而不是 n？因为删除操作需要目标节点的前驱。dummy 提供了一个位于真实头节点之前的位置，于是删除第一个真实节点也拥有统一前驱。循环之后 slow 不指向目标本身，而是准确停在目标前一格。
-
-## 最小实现
-
-输入 n 从 1 开始，链表为空、n 小于 1 或超过长度时抛出 RangeError。输出仍是原节点组成的链表，目标节点被断开。
-
-```ts
-function removeNthFromEnd<T>(
-  head: ListNode<T> | null,
-  n: number
-): ListNode<T> | null {
-  if (!Number.isInteger(n) || n < 1) throw new RangeError('INVALID_N')
-
-  const dummy: ListNode<T | null> = { value: null, next: head }
-  let fast: ListNode<T | null> | null = dummy
-  let slow: ListNode<T | null> = dummy
-
-  for (let step = 0; step <= n; step += 1) {
-    fast = fast.next
-    if (fast === null && step < n) throw new RangeError('N_TOO_LARGE')
-  }
-
-  while (fast) {
-    fast = fast.next
-    slow = slow.next!
-  }
-
-  slow.next = slow.next?.next ?? null
-  return dummy.next
+~~~ts
+type ListNode<T> = {
+  value: T
+  next: ListNode<T> | null
 }
-```
 
-对 `1 -> 2 -> 3`、n=3，slow 最终仍在 dummy，删除的就是头节点 1。dummy 把“删除头”和“删除中间”统一成修改前驱 next。
+function kthFromEnd<T>(
+  head: ListNode<T> | null,
+  k: number,
+): ListNode<T> | null {
+  if (!Number.isInteger(k) || k <= 0) return null
 
-输入 n 采用从 1 开始的倒数位置，返回值是可能变化的新头。算法只扫描一次并使用两个节点引用，时间 O(n)、额外空间 O(1)；越界在修改任何 next 之前被发现，因此失败不会留下半修改链表。
+  let fast = head
+  for (let step = 0; step < k; step += 1) {
+    if (fast === null) return null
+    fast = fast.next
+  }
 
-## 同类问题
+  let slow = head
+  while (fast !== null && slow !== null) {
+    fast = fast.next
+    slow = slow.next
+  }
 
-找中点时 fast 每次两步、slow 一步；长度为偶数时返回前中点还是后中点，需要由循环条件决定。判断回文链表可以找中点、反转后半段并比较，若调用方仍需要原链表，应在结束前恢复结构。
+  return slow
+}
+~~~
 
-快慢指针的正确性来自速度或间距关系，不是变量名。空链、单节点、删除头、删除尾和 n 越界都要覆盖。下一篇让 fast 每次两步，在环中分析相遇与入口。
+先行阶段结束后，fast 比 slow 超前 k 条边。同步移动保持距离不变。fast 走出链表时，slow 后方恰好还有 k 个节点，因此 slow 是倒数第 k 个。
+
+## 为什么不能先算长度就结束讨论
+
+先扫描长度 L，再从头走 `L - k` 步同样是 `O(n)` 时间和 `O(1)` 空间，也更直观。快慢指针的优势是单次通过，适合流式访问或希望减少第二次遍历的接口。
+
+若链表节点位于慢速外部存储，两次扫描的 I/O 成本可能明显不同；普通内存链表则要通过基准判断常数差异。复杂度相同不代表工程成本相同。
+
+## 删除倒数节点需要哨兵
+
+删除倒数第 k 个节点时，需要修改目标的前驱。给头节点前放一个 sentinel，可把“删除头”纳入同一路径。
+
+~~~ts
+function removeKthFromEnd<T>(
+  head: ListNode<T> | null,
+  k: number,
+): ListNode<T> | null {
+  if (!Number.isInteger(k) || k <= 0) return head
+
+  const sentinel: ListNode<T | undefined> = {
+    value: undefined,
+    next: head,
+  }
+
+  let fast: ListNode<T | undefined> | null = sentinel
+  let slow: ListNode<T | undefined> | null = sentinel
+
+  for (let step = 0; step < k + 1; step += 1) {
+    if (fast === null) return head
+    fast = fast.next
+  }
+
+  while (fast !== null && slow !== null) {
+    fast = fast.next
+    slow = slow.next
+  }
+
+  if (slow?.next !== null && slow?.next !== undefined) {
+    slow.next = slow.next.next
+  }
+
+  return sentinel.next as ListNode<T> | null
+}
+~~~
+
+这里让 fast 领先 k + 1 条边，使 slow 最终停在待删除节点前驱。非法 k 保持原链不变，这是接口选择，也可以改成抛错，但要统一测试。
+
+## 固定间距模式的迁移
+
+相同不变量可用于找中点、分隔窗口和判断两个位置距离。找中点时 fast 每轮走两步、slow 走一步，fast 到尾部时 slow 走了约一半。偶数长度返回左中点还是右中点，取决于循环条件。
+
+快慢指针假设链表无环。有环时 fast 不会到达 null，算法可能无限循环。若输入不可信，先判环或设置步数预算。
+
+测试覆盖空链、单节点、k 为 1、k 等于长度、k 越界、非整数和删除头尾。除了值序列，还要断言未删除节点身份保持不变。

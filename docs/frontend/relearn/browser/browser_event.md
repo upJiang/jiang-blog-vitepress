@@ -8,162 +8,93 @@ order: 570
 depth: reference
 series: "重学前端"
 ---
-## 事件概述
+# DOM 事件系统
 
-在开始接触具体的 API 之前，我们要先了解一下事件。一般来说，事件来自输入设备，我们平时的个人设备上，输入设备有三种：
+事件系统把宿主发生的输入或状态变化封装成 Event，再沿一条事件路径调用监听器。路径包含捕获、目标和冒泡阶段；Shadow DOM、默认行为、取消策略和指针捕获会改变可观察结果。
 
-- 键盘；
+## 事件对象记录一次派发
 
-- 鼠标；
+Event 至少包含 type、target、currentTarget、bubbles、cancelable 和 defaultPrevented 等信息。target 是最初的目标，currentTarget 在每个监听器执行时指向当前节点。
 
-- 触摸屏。
+~~~js
+button.addEventListener('click', (event) => {
+  console.log(event.target)
+  console.log(event.currentTarget)
+})
+~~~
 
-**这其中，触摸屏和鼠标又有一定的共性，它们被称作 pointer 设备，所谓 pointer 设备，是指它的输入最终会被抽象成屏幕上面的一个点。**但是触摸屏和鼠标又有一定区别，它们的精度、反应时间和支持的点的数量都不一样。
+同一个 Event 对象会在一次 dispatch 中被多个监听器看到。异步回调里再读取 currentTarget 往往得到 null，因为派发已经结束。需要跨异步保存时，显式保存节点或必要字段。
 
-我们现代的 UI 系统，都源自 WIMP 系统。WIMP 即 Window Icon Menu Pointer 四个要素，它最初由施乐公司研发，后来被微软和苹果两家公司应用在了自己的操作系统上（关于这个还有一段有趣的故事，我附在文末了）。
+## 浏览器先计算事件路径
 
-WIMP 是如此成功，以至于今天很多的前端工程师会有一个观点，认为我们能够“点击一个按钮”，实际上并非如此，我们只能够点击鼠标上的按钮或者触摸屏，是操作系统和浏览器把这个信息对应到了一个逻辑上的按钮，再使得它的视图对点击事件有反应。这就引出了我们第一个要讲解的机制：`捕获与冒泡`。
+调用 `dispatchEvent` 或宿主派发事件时，浏览器会根据目标、祖先、Shadow root 和相关窗口建立 event path。事件进入 Shadow DOM 时可能被 retarget，外部代码看到的 target 不一定是内部真实节点；`event.composedPath()` 才能查看允许暴露的路径。
 
-注意：
+事件路径建立后，后续 DOM 移动不会把同一次派发改成另一条路径。监听器内部删除节点、添加监听器或改变冒泡属性，不会重新计算已经开始的阶段。
 
-- JS 代码只能执行捕获或者冒泡其中的一个阶段
+## 捕获、目标、冒泡是三个阶段
 
-- onclick 和 attachEvent 只能得到冒泡阶段
+祖先监听器使用 `capture: true` 在捕获阶段先运行。到达 target 后，目标节点上的捕获监听器和冒泡监听器按注册顺序参与。事件若 `bubbles: true`，再沿祖先向上冒泡。
 
-- addEventListener (type, listener[, useCapture]) 第三个参数如果是 true，表示在事件捕获阶段调用事件处理程序；如果是 false（不写默认就是 false），表示在事件冒泡阶段电泳事件处理程序。
-
-- 在实际开发中，我们很少使用事件捕获(低版本 ie 不兼容)，我们更关注事件冒泡
-
-- 有些事件是没有冒泡的，比如 onblur、onfocus、onmouseover、onmouseleave
-
-## 捕获与冒泡
-
-很多文章会讲到捕获过程是从外向内，冒泡过程是从内向外，但是这里我希望讲清楚，为什么会有捕获过程和冒泡过程。
-
-我们刚提到，实际上点击事件来自触摸屏或者鼠标，鼠标点击并没有位置信息，但是一般操作系统会根据位移的累积计算出来，跟触摸屏一样，提供一个坐标给浏览器。
-
-那么，把这个坐标转换为具体的元素上事件的过程，就是捕获过程了。而冒泡过程，则是符合人类理解逻辑的：当你按电视机开关时，你也按到了电视机。
-
-所以我们可以认为，**捕获是计算机处理事件的逻辑，而冒泡是人类处理事件的逻辑**。
-
-以下代码展示了事件传播顺序：
-
-```
-<body>
-  <input id="i"/>
-</body>
-```
-
-```
-document.body.addEventListener("mousedown", () => {
-  console.log("key1")
-}, true)
-
-document.getElementById("i").addEventListener("mousedown", () => {
-  console.log("key2")
-}, true)
-
-document.body.addEventListener("mousedown", () => {
-  console.log("key11")
-}, false)
-
-document.getElementById("i").addEventListener("mousedown", () => {
-  console.log("key22")
-}, false)
-```
-
-我们监听了 body 和一个 body 的子元素上的鼠标按下事件，捕获和冒泡分别监听，可以看到，最终产生的顺序是：
-
-- “key1”
-
-- “key2”
-
-- “key22”
-
-- “key11”
-
-这是捕获和冒泡发生的完整顺序。
-
-在一个事件发生时，捕获过程跟冒泡过程总是先后发生，跟你是否监听毫无关联。
-
-在我们实际监听事件时，我建议这样使用冒泡和捕获机制：**默认使用冒泡模式，当开发组件时，遇到需要父元素控制子元素的行为，可以使用捕获机制。**
-
-理解了冒泡和捕获的过程，我们再看监听事件的 API，就非常容易理解了。
-
-addEventListener 有三个参数：
-
-- 事件名称；
-
-- 事件处理函数；
-
-- 捕获还是冒泡。
-
-事件处理函数不一定是函数，也可以是个 JavaScript 具有 handleEvent 方法的对象，看下例子：
-
-```
-var o = {
-  handleEvent: event => console.log(event)
+~~~js
+for (const [node, label] of [
+  [document, 'document'],
+  [container, 'container'],
+  [button, 'button'],
+]) {
+  node.addEventListener('click', () => console.log(`${label}:bubble`))
+  node.addEventListener('click', () => console.log(`${label}:capture`), { capture: true })
 }
-document.body.addEventListener("keydown", o, false);
-```
+~~~
 
-第三个参数不一定是 bool 值，也可以是个对象，它提供了更多选项。
+事件委托依赖冒泡，在稳定的祖先节点上监听一次，再用 `closest` 和 `contains` 判断业务目标。委托边界要考虑 Shadow DOM 和 `composed`，不能假设所有事件都能跨根冒泡。
 
-- once：只执行一次。
+## stopPropagation 不等于停止当前节点
 
-- passive：承诺此事件监听不会调用 preventDefault，这有助于性能。
+`stopPropagation()` 阻止事件继续向其他节点传播，但当前节点上尚未执行的同类型监听器仍可能运行。`stopImmediatePropagation()` 才会阻止当前节点后续监听器，并继续阻止传播。
 
-- useCapture：是否捕获（否则冒泡）。
+取消默认行为使用 `preventDefault()`，前提是事件 `cancelable`。它不会停止冒泡，也不会撤销已经由脚本执行的副作用。passive 监听器中调用 preventDefault 通常会被忽略并产生警告。
 
-实际使用，在现代浏览器中，还可以不传第三个参数，我建议默认不传第三个参数，因为我认为冒泡是符合正常的人类心智模型的，大部分业务开发者不需要关心捕获过程。除非你是组件或者库的使用者，那就总是需要关心冒泡和捕获了。
+~~~js
+link.addEventListener('click', (event) => {
+  if (!event.ctrlKey) {
+    event.preventDefault()
+  }
+})
+~~~
 
-## 焦点
+事件取消、传播停止和业务状态回滚是三件事，代码里应分开表达。
 
-我们讲完了 pointer 事件是由坐标控制，而我们还没有讲到键盘事件。
+## 监听器选项决定生命周期
 
-键盘事件是由焦点系统控制的，一般来说，操作系统也会提供一套焦点系统，但是现代浏览器一般都选择在自己的系统内覆盖原本的焦点系统。
+`once` 在第一次调用后移除监听器，`signal` 可以由 AbortController 统一取消，`capture` 参与路径阶段，`passive` 向浏览器声明监听器不会取消默认滚动。
 
-焦点系统也是视障用户访问的重要入口，所以设计合理的焦点系统是非常重要的产品需求，尤其是不少国家对可访问性有明确的法律要求。
+移除监听器时，type、callback 和 capture 需要匹配。把匿名函数重复传给 `removeEventListener` 不会成功。组件卸载时用 AbortSignal 集中清理，能减少跨页面泄漏。
 
-在旧时代，有一个经典的问题是如何去掉输入框上的虚线框，这个虚线框就是 Windows 焦点系统附带的 UI 表现。
+## 焦点事件与键盘事件有不同路径
 
-现在 Windows 的焦点已经不是用虚线框表示了，但是焦点系统的设计几十年间没有太大变化。
+focus 和 blur 默认不冒泡，focusin 和 focusout 可以冒泡。键盘事件反映按键输入，不应直接当成字符，输入法组合、快捷键和可访问性设备都可能改变事件序列。
 
-焦点系统认为整个 UI 系统中，有且仅有一个“聚焦”的元素，所有的键盘事件的目标元素都是这个聚焦元素。
+自定义控件要维护 focus ring、键盘操作、`aria-* ` 状态和真实按钮语义。只监听 click 会漏掉键盘和辅助技术触发的激活。
 
-Tab 键被用来切换到下一个可聚焦的元素，焦点系统占用了 Tab 键，但是可以用 JavaScript 来阻止这个行为。
+## 指针捕获会改变后续目标
 
-浏览器 API 还提供了 API 来操作焦点，如：
+拖拽开始后调用 `setPointerCapture(pointerId)`，后续指针事件会继续发给捕获元素，即使指针离开它的几何区域。结束、取消或元素移除时要释放状态，并处理 pointercancel。
 
-```
-document.body.focus();
+触摸、鼠标和笔输入优先使用 Pointer Events 统一模型。滚动区域上的 touch/pointer 监听应根据是否需要取消默认滚动选择 passive 策略，不能为了“保险”全部设为非 passive。
 
-document.body.blur();
-```
+## 自定义事件是同步派发
 
-其实原本键盘事件不需要捕获过程，但是为了跟 pointer 设备保持一致，也规定了从外向内传播的捕获过程。
+`dispatchEvent` 会同步执行监听器，并返回是否没有被取消。它不会把回调安排到任务队列，也不会自动跨窗口传播。
 
-## 自定义事件
+~~~js
+const changed = new CustomEvent('settingschange', {
+  bubbles: true,
+  cancelable: true,
+  detail: { source: 'user' },
+})
 
-除了来自输入设备的事件，还可以自定义事件，实际上事件也是一种非常好的代码架构，但是 DOM API 中的事件并不能用于普通对象，所以很遗憾，我们只能在 DOM 元素上使用自定义事件。
+const accepted = panel.dispatchEvent(changed)
+console.log(accepted)
+~~~
 
-自定义事件的代码示例如下（来自 MDN）：
-
-```
-var evt = new Event("look", {"bubbles":true, "cancelable":false});
-document.dispatchEvent(evt);
-```
-
-这里使用 Event 构造器来创造了一个新的事件，然后调用 dispatchEvent 来在特定元素上触发。
-
-我们可以给这个 Event 添加自定义属性、方法。
-
-注意，这里旧的自定义事件方法（使用 document.createEvent 和 initEvent）已经被废弃。
-
-## 总结
-
-我们分别介绍了事件的捕获与冒泡机制、焦点机制和自定义事件。
-
-捕获与冒泡机制来自 pointer 设备输入的处理，捕获是计算机处理输入的逻辑，冒泡是人类理解事件的思维，捕获总是在冒泡之前发生。
-
-焦点机制则来自操作系统的思路，用于处理键盘事件。除了我们讲到的这些，随着输入设备的不断丰富，还有很多新的事件加入，如 Geolocation 和陀螺仪等.
+跨组件通信如果需要异步解耦，应使用消息、状态存储或任务调度；自定义事件只解决当前 DOM 树中的同步通知。

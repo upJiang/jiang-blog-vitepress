@@ -307,3 +307,8 @@ Workflow 终态事件和业务终态提交最好通过 Outbox 或可重试的同
 测试环境不要让开发 Worker 连接共享生产 Namespace。为本地服务设置独立 Task Queue，使用脱敏输入和可回收对象。部署脚本在启动前检查 Namespace、Task Queue、Worker 版本和凭证来源，启动后用无副作用 Workflow 验证 Signal、Query、Timer 与 Activity 路由，完成后清理测试历史。
 
 Temporal 让长流程在 Worker 重启、浏览器断线和等待数小时后仍能恢复，但恢复正确性仍由确定性 Workflow、幂等 Activity、版本策略和业务证据共同决定。下一篇进入生产架构，把 Runtime、队列、事件、检索与安全边界放在一张组件图上。
+
+## Workflow 记录编排，Activity 承担副作用
+Workflow 代码要确定性，可重放；Activity 负责模型、数据库、网络和文件等外部调用，并以幂等键和超时保护。Signal、Timer 和 Retry 改变流程状态，不能在 Activity 内偷偷修改 Workflow 变量。
+
+事件历史完整不等于答案正确。Activity 返回的 Evidence、Release 和验证结果必须经过业务门禁，长历史用批处理和 Continue-As-New 控制成本。

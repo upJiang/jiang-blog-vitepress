@@ -271,3 +271,8 @@ Citation 展示可以缓存，但跳转时仍检查权限。受限 Evidence 撤�
 生产看板按策略版本统计 unsupported、partial、conflict、unknown Evidence、ACL 阻断、缺失 Citation 和修复次数。告警要对应动作：未知 ID 增多检查状态合并，错误 Release 检查快照，Locator 失效检查发布映射，unsupported 上升再区分检索缺失与生成新增事实。
 
 Claim、Evidence 与 Citation 建立了答案事实与来源之间的可验证关系。下一篇会在这些对象之上执行事实、引用、权限、隐私和时效验证，并说明哪些问题可以有限修复，哪些情况必须拒答。
+
+## 引用是可计算的关系
+Citation 是 Claim、Evidence、Source Version 与定位信息之间的结构化关系，答案末尾的一串链接无法表达这些约束。验证器应能检查每条 Claim 是否有当前用户可见的 Evidence，定位是否仍指向同一版本。
+
+答案摘要、图表和翻译都保留父 Claim 关系。证据不足时缩小断言或拒答，不能用相似文本、旧缓存或模型置信度填补缺口。

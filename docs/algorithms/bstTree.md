@@ -8,62 +8,108 @@ order: 220
 depth: reference
 series: "算法与数据结构"
 ---
-
 # 二叉搜索树
 
-普通二叉树查找一个值可能访问所有节点。二叉搜索树（BST）增加有序不变量：按比较器，左子树所有值小于节点，右子树所有值大于节点。每次比较可以排除一侧，平均路径更短。
+二叉搜索树（BST）为每个节点维护顺序不变量。若采用严格策略，左子树所有键小于节点键，右子树所有键大于节点键。查找、插入和删除只沿一条根到叶路径，成本取决于树高。
 
-本篇完成查找和删除，并说明重复值与树高怎样影响复杂度。BST 不会自动平衡，顺序插入会退化成链。
+~~~ts
+type TreeNode<K, V> = {
+  key: K
+  value: V
+  left: TreeNode<K, V> | null
+  right: TreeNode<K, V> | null
+}
+~~~
 
-## 先确定重复值策略
+## 重复键策略必须先选
 
-可以禁止重复、把重复统一放一侧，或在节点保存 count。策略必须贯穿插入、验证和删除。本文使用严格小于/大于，因此重复值不插入。
+可以禁止重复键、让重复统一进入一侧、在节点内保存计数，或把 value 变成列表。本文选择键唯一，插入相同 key 时覆盖 value。比较器必须满足稳定的全序关系，否则搜索路径无法证明。
 
-```mermaid
-flowchart LR
-  V[目标与节点比较] --> E{相等?}
-  E -->|是| F[找到]
-  E -->|更小| L[进入左子树]
-  E -->|更大| R[进入右子树]
-```
+## 查找每步排除一棵子树
 
-## 步骤一：查找沿一条路径
+~~~ts
+function find<K, V>(
+  root: TreeNode<K, V> | null,
+  key: K,
+  compare: (left: K, right: K) => number,
+): TreeNode<K, V> | null {
+  let current = root
 
-每次比较只进入左或右，时间 O(h)，h 为树高。平衡时约 O(log n)，退化时 O(n)。比较器要满足稳定全序，不能对同一对象随机返回不同结果。
-
-## 步骤二：删除分三种情况
-
-叶节点直接移除；只有一个孩子时用孩子替代；两个孩子时找到右子树最小节点（中序后继），用它的值替换当前节点，再从右子树删除这个后继。后继不可能有左孩子，因此第二次删除更简单。
-
-```ts
-function remove(
-  root: TreeNode<number> | null,
-  target: number
-): TreeNode<number> | null {
-  if (!root) return null
-  if (target < root.value) root.left = remove(root.left, target)
-  else if (target > root.value) root.right = remove(root.right, target)
-  else {
-    if (!root.left) return root.right
-    if (!root.right) return root.left
-
-    let successor = root.right
-    while (successor.left) successor = successor.left
-    root.value = successor.value
-    root.right = remove(root.right, successor.value)
+  while (current !== null) {
+    const order = compare(key, current.key)
+    if (order === 0) return current
+    current = order < 0 ? current.left : current.right
   }
+
+  return null
+}
+~~~
+
+若 key 小于当前键，根据不变量，当前节点和整个右子树都不可能命中，可以安全进入左子树。时间 `O(h)`，平衡时约 `O(log n)`，退化时 `O(n)`。
+
+## 插入把新节点放在空边
+
+插入沿查找路径前进，遇到 null 时连接新节点。覆盖重复键不能改变左右子树关系。
+
+~~~ts
+function insert<K, V>(
+  root: TreeNode<K, V> | null,
+  key: K,
+  value: V,
+  compare: (left: K, right: K) => number,
+): TreeNode<K, V> {
+  if (root === null) return { key, value, left: null, right: null }
+
+  const order = compare(key, root.key)
+  if (order < 0) root.left = insert(root.left, key, value, compare)
+  else if (order > 0) root.right = insert(root.right, key, value, compare)
+  else root.value = value
+
   return root
 }
-```
+~~~
 
-输入不存在目标时结构不变。函数原地修改部分节点并返回可能变化的新根，调用方必须接住返回值，尤其删除根节点时。
+递归实现会修改原树。不可变结构需要沿搜索路径复制节点，未变化子树可共享引用，额外空间 `O(h)`。
 
-## 步骤三：验证不能只看父子
+## 删除分三种结构情况
 
-只检查 `left < node < right` 会漏掉更深违规。验证函数需要传递允许范围：进入左子树时上界变为当前值，进入右子树时下界变为当前值。若支持重复，边界的开闭也要对应策略。
+叶节点直接变成 null；只有一个孩子时，用孩子替代节点；有两个孩子时，用右子树最小节点作为后继，复制其键值后，再从右子树删除后继。
 
-中序遍历严格递增可以作为另一种验证，但仍要处理比较器与重复值。删除后检查节点多重集合、BST 不变量和目标数量。
+~~~ts
+function remove<K, V>(
+  root: TreeNode<K, V> | null,
+  key: K,
+  compare: (left: K, right: K) => number,
+): TreeNode<K, V> | null {
+  if (root === null) return null
 
-## 边界与演进
+  const order = compare(key, root.key)
+  if (order < 0) {
+    root.left = remove(root.left, key, compare)
+    return root
+  }
+  if (order > 0) {
+    root.right = remove(root.right, key, compare)
+    return root
+  }
 
-空树查找失败，删除为空；删除叶、单子、双子和根都要测试。顺序插入 1..n 会让递归深度与查询都退化，工程中使用 AVL、红黑树、B-Tree 或运行时提供的有序结构，取决于更新、范围查询与存储位置。
+  if (root.left === null) return root.right
+  if (root.right === null) return root.left
+
+  let successor = root.right
+  while (successor.left !== null) successor = successor.left
+
+  root.key = successor.key
+  root.value = successor.value
+  root.right = remove(root.right, successor.key, compare)
+  return root
+}
+~~~
+
+右子树最小键大于原节点左子树全部键，且不大于右子树其他键，因此替换后仍保持顺序。若允许重复键，删除后继的规则要与重复策略配套。
+
+## 验证必须检查上下界
+
+只比较节点与直接孩子会漏掉深层违规。递归验证时向左传递新的上界，向右传递新的下界。
+
+中序遍历严格递增也能验证唯一键策略。测试插入和删除后同时检查键集合、搜索结果、顺序不变量和节点数。再用递增输入观察树高退化，说明普通 BST 不提供平衡保证；需要稳定对数高度时选择 AVL、红黑树或由库提供的有序结构。

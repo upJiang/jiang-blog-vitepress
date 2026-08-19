@@ -337,3 +337,8 @@ Worker B 只有在 A 的 Execution Lease 过期后才能接管。它读到 Actio
 运行手册从一个 `turn_id` 开始，依次查看领域状态与 Deadline、Execution Owner、Celery Task 和 Delivery、最后 Checkpoint 和 Action 回执。手动重投前先确认没有活动 Owner；手动删除消息前先确认 Turn 已终态或另有恢复路径。清空队列、无条件删 Lease 和直接把 Running 改成 Completed 都会丢失证据。
 
 Celery 适合由应用状态机承担业务恢复、任务步骤相对清晰的异步执行。跨天等待、人工信号、大量定时器和复杂补偿越来越多时，持久化工作流引擎更容易表达历史与恢复；即便迁移，Turn、Action ID、权限快照和幂等边界仍然保留。下一篇先处理结果交付：SSE 如何用事件序号完成断线重放，而不把浏览器连接绑在 Worker 生命周期上。
+
+## ACK 只说明消息处理，不说明业务完成
+Celery 的 ACK、重试和可见性超时属于消息层语义。业务状态仍由 Turn、Task 和 Action 账本确认，Worker 在外部副作用后崩溃时必须依靠幂等键与回执判断是否重做。
+
+晚 ACK、Worker 丢失、Lease 过期和版本不兼容都要进入独立错误类。旧消息不能被无限重试，协议版本错误应保留原消息并转人工或隔离队列。
