@@ -3,6 +3,9 @@ from __future__ import annotations
 import unittest
 import asyncio
 from pathlib import Path
+from types import SimpleNamespace
+
+from pydantic import ValidationError
 
 from agent_loop import FinalAnswer, ScriptedModel, ToolCall as AgentToolCall, run_agent
 from context_budget import ContextPart, assemble, compile_context
@@ -38,7 +41,13 @@ from prompt_prefix import first_difference, fork_request, render_request
 from contracts import AuthContext, authorize_search, parse_search_arguments
 from evidence import Claim, Evidence, validate_claim
 from model_gateway import FakeModel, answer_once
-from openai_responses import create_response
+from openai_responses import (
+    ExecutionSpec,
+    SdkErrorTypes,
+    build_request,
+    execute_stream,
+    execute_sync,
+)
 from harness import Action, Capability, authorize_action
 from hook_runtime import Action as HookAction
 from hook_runtime import Approval, ControlledRuntime, EventStore
@@ -100,30 +109,333 @@ from tool_runtime import ToolCall, execute_parallel
 from watchdog import Progress, watchdog_decision
 
 
+class FakeConnectionError(Exception):
+    pass
+
+
+class FakeTimeoutError(FakeConnectionError):
+    pass
+
+
+class FakeStatusError(Exception):
+    def __init__(self, status_code: int, request_id: str) -> None:
+        super().__init__(f"status:{status_code}")
+        self.status_code = status_code
+        self.request_id = request_id
+
+
+FAKE_SDK_ERRORS = SdkErrorTypes(
+    timeout=(FakeTimeoutError,),
+    connection=(FakeConnectionError,),
+    status=(FakeStatusError,),
+)
+
+
+class FakeResponses:
+    def __init__(self, result: object = None, error: BaseException | None = None) -> None:
+        self.result = result
+        self.error = error
+        self.arguments: dict[str, object] = {}
+
+    def create(self, **kwargs: object) -> object:
+        self.arguments = kwargs
+        if self.error is not None:
+            raise self.error
+        return self.result
+
+
+class BreakingStream:
+    def __init__(self, error: BaseException) -> None:
+        self.error = error
+
+    def __iter__(self):
+        yield SimpleNamespace(
+            type="response.output_text.delta",
+            delta="partial",
+            sequence_number=4,
+        )
+        raise self.error
+
+
+def response(
+    status: str,
+    *,
+    output_text: str | None = None,
+    output: list[object] | None = None,
+    usage: object | None = None,
+    error: object | None = None,
+    incomplete_details: object | None = None,
+) -> object:
+    return SimpleNamespace(
+        id="provider-response",
+        status=status,
+        output_text=output_text,
+        output=output or [],
+        usage=usage,
+        error=error,
+        incomplete_details=incomplete_details,
+    )
+
+
+def request():
+    return build_request(
+        "test-model",
+        "为什么申请被拒绝？",
+        "远程访问需要设备通过合规检查。",
+    )
+
+
 class ExampleTests(unittest.TestCase):
-    def test_openai_adapter_passes_model_and_input(self) -> None:
-        class FakeResponses:
-            def __init__(self) -> None:
-                self.arguments: dict[str, object] = {}
+    def test_openai_sync_and_stream_share_request_semantics(self) -> None:
+        sync = FakeResponses(response("completed", output_text="需要先通过设备检查。"))
+        sync_record = execute_sync(
+            sync,
+            request(),
+            ExecutionSpec(mode="sync"),
+            FAKE_SDK_ERRORS,
+        )
 
-            def create(self, **kwargs: object) -> object:
-                self.arguments = kwargs
-                return object()
+        completed = SimpleNamespace(
+            type="response.completed",
+            response=response("completed", output_text="需要先通过设备检查。"),
+            sequence_number=3,
+        )
+        stream = FakeResponses([completed])
+        stream_record = execute_stream(
+            stream,
+            request(),
+            ExecutionSpec(mode="stream"),
+            FAKE_SDK_ERRORS,
+        )
 
-        import os
+        self.assertEqual(sync.arguments["input"], stream.arguments["input"])
+        self.assertNotIn("stream", sync.arguments)
+        self.assertTrue(stream.arguments["stream"])
+        self.assertEqual(sync_record.outcome, "answer")
+        self.assertEqual(stream_record.terminal_event, "response.completed")
 
-        previous = os.environ.get("OPENAI_MODEL")
-        os.environ["OPENAI_MODEL"] = "test-model"
-        try:
-            client = FakeResponses()
-            create_response(client, "什么是 Agent？")
-            self.assertEqual(client.arguments["model"], "test-model")
-            self.assertEqual(client.arguments["input"], "什么是 Agent？")
-        finally:
-            if previous is None:
-                os.environ.pop("OPENAI_MODEL", None)
-            else:
-                os.environ["OPENAI_MODEL"] = previous
+    def test_openai_completed_response_still_needs_content_classification(self) -> None:
+        refusal = SimpleNamespace(
+            type="message",
+            content=[SimpleNamespace(type="refusal", refusal="无法协助该请求。")],
+        )
+        samples = [
+            (response("completed", output_text="设备未通过检查。"), "answer"),
+            (response("completed", output=[refusal]), "refusal"),
+            (response("completed"), "completed_without_text"),
+        ]
+
+        for provider_response, expected in samples:
+            with self.subTest(expected=expected):
+                record = execute_sync(
+                    FakeResponses(provider_response),
+                    request(),
+                    ExecutionSpec(mode="sync"),
+                    FAKE_SDK_ERRORS,
+                )
+                self.assertEqual(record.provider_status, "completed")
+                self.assertEqual(record.outcome, expected)
+                self.assertTrue(record.terminal_response_observed)
+
+    def test_openai_records_each_non_completed_status_without_fabricating_detail(self) -> None:
+        incomplete = execute_sync(
+            FakeResponses(
+                response(
+                    "incomplete",
+                    incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+                )
+            ),
+            request(),
+            ExecutionSpec(mode="sync"),
+            FAKE_SDK_ERRORS,
+        )
+        failed = execute_sync(
+            FakeResponses(
+                response(
+                    "failed",
+                    error=SimpleNamespace(code="server_error", message="generation failed"),
+                )
+            ),
+            request(),
+            ExecutionSpec(mode="sync"),
+            FAKE_SDK_ERRORS,
+        )
+        cancelled = execute_sync(
+            FakeResponses(response("cancelled")),
+            request(),
+            ExecutionSpec(mode="sync"),
+            FAKE_SDK_ERRORS,
+        )
+        pending = execute_sync(
+            FakeResponses(response("queued")),
+            request(),
+            ExecutionSpec(mode="sync", background=True),
+            FAKE_SDK_ERRORS,
+        )
+        unobservable = execute_sync(
+            FakeResponses(response("in_progress")),
+            request(),
+            ExecutionSpec(mode="sync"),
+            FAKE_SDK_ERRORS,
+        )
+
+        self.assertEqual(incomplete.error, {"reason": "max_output_tokens"})
+        self.assertEqual(failed.error["code"], "server_error")
+        self.assertEqual(cancelled.outcome, "cancelled")
+        self.assertIsNone(cancelled.error)
+        self.assertEqual(pending.outcome, "pending")
+        self.assertEqual(unobservable.outcome, "unknown")
+
+    def test_openai_sdk_exceptions_keep_known_errors_separate_from_unknown(self) -> None:
+        samples = [
+            (FakeTimeoutError("slow"), "transport_unknown", "timeout"),
+            (FakeConnectionError("offline"), "transport_unknown", "connection"),
+            (FakeStatusError(429, "provider-request"), "provider_http_error", None),
+        ]
+
+        for error, expected_outcome, expected_reason in samples:
+            with self.subTest(error=type(error).__name__):
+                record = execute_sync(
+                    FakeResponses(error=error),
+                    request(),
+                    ExecutionSpec(mode="sync"),
+                    FAKE_SDK_ERRORS,
+                )
+                self.assertEqual(record.phase, "create")
+                self.assertEqual(record.outcome, expected_outcome)
+                self.assertFalse(record.terminal_response_observed)
+                if expected_reason is not None:
+                    self.assertEqual(record.error["reason"], expected_reason)
+                else:
+                    self.assertEqual(record.error["status_code"], 429)
+                    self.assertEqual(record.error["request_id"], "provider-request")
+
+    def test_openai_stream_terminal_events_use_the_same_response_classifier(self) -> None:
+        usage = SimpleNamespace(input_tokens=20, output_tokens=8, total_tokens=28)
+        samples = [
+            (
+                "response.completed",
+                response("completed", output_text="设备未通过检查。", usage=usage),
+                "answer",
+            ),
+            (
+                "response.failed",
+                response(
+                    "failed",
+                    error=SimpleNamespace(code="server_error", message="generation failed"),
+                ),
+                "failed",
+            ),
+            (
+                "response.incomplete",
+                response(
+                    "incomplete",
+                    incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+                ),
+                "incomplete",
+            ),
+        ]
+
+        for event_type, final_response, expected_outcome in samples:
+            with self.subTest(event_type=event_type):
+                event = SimpleNamespace(
+                    type=event_type,
+                    response=final_response,
+                    sequence_number=7,
+                )
+                record = execute_stream(
+                    FakeResponses([event]),
+                    request(),
+                    ExecutionSpec(mode="stream"),
+                    FAKE_SDK_ERRORS,
+                )
+                self.assertEqual(record.outcome, expected_outcome)
+                self.assertEqual(record.terminal_event, event_type)
+                self.assertEqual(record.last_sequence_number, 7)
+
+        completed_record = execute_stream(
+            FakeResponses([SimpleNamespace(
+                type="response.completed",
+                response=samples[0][1],
+                sequence_number=8,
+            )]),
+            request(),
+            ExecutionSpec(mode="stream"),
+            FAKE_SDK_ERRORS,
+        )
+        self.assertEqual(completed_record.usage["total_tokens"], 28)
+
+    def test_openai_stream_error_event_and_transport_break_have_different_evidence(self) -> None:
+        provider_error = execute_stream(
+            FakeResponses(
+                [
+                    SimpleNamespace(
+                        type="error",
+                        code="server_error",
+                        message="stream failed",
+                        param=None,
+                        sequence_number=5,
+                    )
+                ]
+            ),
+            request(),
+            ExecutionSpec(mode="stream"),
+            FAKE_SDK_ERRORS,
+        )
+        transport_break = execute_stream(
+            FakeResponses(BreakingStream(FakeTimeoutError("slow"))),
+            request(),
+            ExecutionSpec(mode="stream"),
+            FAKE_SDK_ERRORS,
+        )
+
+        self.assertEqual(provider_error.outcome, "provider_stream_error")
+        self.assertEqual(provider_error.terminal_event, "error")
+        self.assertEqual(provider_error.error["code"], "server_error")
+        self.assertEqual(transport_break.outcome, "transport_unknown")
+        self.assertEqual(transport_break.phase, "stream")
+        self.assertTrue(transport_break.partial_output_observed)
+        self.assertEqual(transport_break.last_sequence_number, 4)
+
+    def test_openai_stream_without_terminal_event_stays_unknown(self) -> None:
+        in_progress = SimpleNamespace(
+            type="response.in_progress",
+            response=response("in_progress"),
+            sequence_number=2,
+        )
+        record = execute_stream(
+            FakeResponses([in_progress]),
+            request(),
+            ExecutionSpec(mode="stream"),
+            FAKE_SDK_ERRORS,
+        )
+
+        self.assertEqual(record.outcome, "unknown")
+        self.assertEqual(record.provider_status, "in_progress")
+        self.assertEqual(record.error["reason"], "stream_ended_without_terminal_event")
+        self.assertFalse(record.terminal_response_observed)
+
+    def test_openai_stream_creation_error_is_recorded_before_iteration(self) -> None:
+        record = execute_stream(
+            FakeResponses(error=FakeConnectionError("offline")),
+            request(),
+            ExecutionSpec(mode="stream"),
+            FAKE_SDK_ERRORS,
+        )
+
+        self.assertEqual(record.phase, "create")
+        self.assertEqual(record.outcome, "transport_unknown")
+        self.assertIsNone(record.last_sequence_number)
+
+    def test_openai_usage_can_be_absent_without_inventing_a_count(self) -> None:
+        record = execute_sync(
+            FakeResponses(response("completed", output_text="设备未通过检查。")),
+            request(),
+            ExecutionSpec(mode="sync"),
+            FAKE_SDK_ERRORS,
+        )
+
+        self.assertIsNone(record.usage)
 
     def test_model_gateway_rejects_empty_question(self) -> None:
         with self.assertRaises(ValueError):
@@ -189,8 +501,14 @@ class ExampleTests(unittest.TestCase):
         self.assertEqual(tool_calls, 2)
 
     def test_model_cannot_supply_trusted_scope(self) -> None:
-        with self.assertRaisesRegex(ValueError, "untrusted_fields"):
-            parse_search_arguments({"query": "访问权限", "scope_ids": ["other"]})
+        with self.assertRaises(ValidationError) as caught:
+            parse_search_arguments(
+                {"query": "访问权限", "limit": 3, "scope_ids": ["other"]}
+            )
+        self.assertIn(
+            "extra_forbidden",
+            {item["type"] for item in caught.exception.errors()},
+        )
         arguments = parse_search_arguments({"query": "访问权限", "limit": 3})
         command = authorize_search(arguments, AuthContext("u-1", ("team-a",), "r-4"))
         self.assertEqual(command.scope_ids, ("team-a",))

@@ -3,7 +3,10 @@ import path from 'node:path'
 
 const root = process.cwd()
 const docsRoot = path.join(root, 'docs')
+const evidenceRoot = '/tmp/jiang-blog-rewrite'
 const baseline = 'docs/ai-agent/llm-workflow-rag-agent.md'
+const views = ['beginner', 'engineer', 'editorSeo']
+const allowedVerdicts = new Set(['pass', 'repair_allowed', 'rewrite_required'])
 
 function walk(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -16,66 +19,21 @@ function relative(file) {
   return path.relative(root, file).split(path.sep).join('/')
 }
 
-function stripFrontmatter(source) {
-  return source.replace(/^---\n[\s\S]*?\n---\n?/, '')
+function contentId(file) {
+  return relative(file).replace(/^docs\//, '').replace(/\.md$/, '').replaceAll('/', '__')
 }
 
-function isFence(line) {
-  return /^\s*(?:```|~~~)/.test(line)
+function nonEmptyFile(file) {
+  return fs.existsSync(file) && fs.readFileSync(file, 'utf8').trim().length > 0
 }
 
-function isStructural(line) {
-  return /^\s*(#{1,6}\s|[-*+]\s|\d+\.\s|\||:::|>|<!--|<[^>]|!\[)/.test(line)
+function hasLineLocation(location) {
+  return typeof location === 'string' && /(?:\bline\s*\d+\b|:\d+\b|第\s*\d+\s*行|标题|^h[1-6]\b)/i.test(location)
 }
 
-function headings(source) {
-  const result = []
-  let inFence = false
-  source.split('\n').forEach((line, index) => {
-    if (isFence(line)) {
-      inFence = !inFence
-      return
-    }
-    if (inFence) return
-    const match = /^(#{1,6})\s+(.+?)\s*$/.exec(line)
-    if (match) result.push({ level: match[1].length, text: match[2], line: index + 1 })
-  })
-  return result
-}
-
-function paragraphs(source) {
-  const result = []
-  let inFence = false
-  let buffer = []
-  let startLine = 1
-  const flush = () => {
-    const text = buffer.join('\n').trim()
-    if (text) result.push({ text, line: startLine })
-    buffer = []
-  }
-
-  source.split('\n').forEach((line, index) => {
-    if (isFence(line)) {
-      flush()
-      inFence = !inFence
-      startLine = index + 2
-      return
-    }
-    if (inFence || !line.trim() || isStructural(line)) {
-      flush()
-      startLine = index + 2
-      return
-    }
-    if (!buffer.length) startLine = index + 1
-    buffer.push(line)
-  })
-  flush()
-  return result
-}
-
-function routeExists(route) {
-  const clean = route.split('#')[0].split('?')[0].replace(/^\//, '')
-  return fs.existsSync(path.join(root, `${clean}.md`)) || fs.existsSync(path.join(root, clean, 'index.md'))
+function hasEvidence(evidence) {
+  if (Array.isArray(evidence)) return evidence.length > 0 && evidence.every((item) => typeof item === 'string' && item.trim())
+  return typeof evidence === 'string' && evidence.trim().length > 0
 }
 
 const files = walk(docsRoot)
@@ -83,75 +41,103 @@ const files = walk(docsRoot)
   .filter((file) => !file.endsWith(`${path.sep}index.md`))
   .filter((file) => relative(file) !== baseline)
 
-const results = []
-for (const file of files) {
-  const rel = relative(file)
-  const source = stripFrontmatter(fs.readFileSync(file, 'utf8'))
-  const hs = headings(source)
-  const ps = paragraphs(source)
+const results = files.map((file) => {
+  const id = contentId(file)
+  const directory = path.join(evidenceRoot, id)
   const findings = []
-  const views = {
-    beginner: 'pass',
-    engineer: 'pass',
-    editorSeo: 'pass'
-  }
+  const requiredFiles = ['concept-model.md', 'title-contract.md', 'contract.md', 'self-check.md', 'render-check.json', 'third-party-review.json']
 
-  const h1 = hs.filter((heading) => heading.level === 1)
-  if (h1.length !== 1) {
-    findings.push({ view: 'beginner', verdict: 'rewrite_required', line: h1[0]?.line ?? 1, reason: `需要唯一 H1，当前为 ${h1.length} 个` })
-    views.beginner = 'rewrite_required'
-  }
-  if (hs.length < 2) {
-    findings.push({ view: 'beginner', verdict: 'repair_allowed', line: h1[0]?.line ?? 1, reason: '标题树不足以表达问题、机制和边界' })
-    if (views.beginner === 'pass') views.beginner = 'repair_allowed'
-  }
-
-  const fenceCount = (source.match(/^\s*(?:```|~~~)/gm) || []).length
-  if (fenceCount % 2 !== 0) {
-    findings.push({ view: 'engineer', verdict: 'rewrite_required', line: 1, reason: '代码或 Mermaid 围栏未闭合' })
-    views.engineer = 'rewrite_required'
-  }
-
-  for (const paragraph of ps) {
-    if (paragraph.text.replace(/\s+/g, ' ').length > 240) {
-      findings.push({ view: 'editorSeo', verdict: 'rewrite_required', line: paragraph.line, reason: '段落超过排版红线，需要按逻辑拆分' })
-      views.editorSeo = 'rewrite_required'
+  for (const name of requiredFiles) {
+    if (!nonEmptyFile(path.join(directory, name))) {
+      findings.push({ view: 'process', verdict: 'rewrite_required', location: `${name}:1`, reason: `缺少 ${name}，不能证明文章经过 v3 流程` })
     }
   }
 
-  const seen = new Map()
-  for (const paragraph of ps) {
-    const normalized = paragraph.text.replace(/\s+/g, ' ')
-    if (normalized.length < 100) continue
-    const locations = seen.get(normalized) ?? []
-    locations.push(paragraph.line)
-    seen.set(normalized, locations)
+  const selfCheckFile = path.join(directory, 'self-check.md')
+  if (nonEmptyFile(selfCheckFile) && !/^status:\s*ready_for_third_party\s*$/m.test(fs.readFileSync(selfCheckFile, 'utf8'))) {
+    findings.push({ view: 'process', verdict: 'rewrite_required', location: 'self-check.md:1', reason: '作者自测必须只声明 ready_for_third_party' })
   }
-  for (const [text, locations] of seen) {
-    if (locations.length > 1) {
-      findings.push({ view: 'editorSeo', verdict: 'rewrite_required', line: locations[1], reason: `重复段落：${text.slice(0, 70)}` })
-      views.editorSeo = 'rewrite_required'
+
+  const renderFile = path.join(directory, 'render-check.json')
+  let render = null
+  if (nonEmptyFile(renderFile)) {
+    try {
+      render = JSON.parse(fs.readFileSync(renderFile, 'utf8'))
+      for (const viewport of [375, 768, 1024, 1440]) {
+        const item = render.viewports?.[String(viewport)]
+        if (!item || item.horizontalOverflow !== false || item.markdownLeak !== false || item.navigationOccluded !== false) {
+          findings.push({ view: 'render', verdict: 'rewrite_required', location: `render-check.json:viewport-${viewport}`, reason: '渲染证据必须明确证明无横向溢出、无裸露 Markdown、无导航遮挡' })
+        }
+      }
+    } catch (error) {
+      findings.push({ view: 'render', verdict: 'rewrite_required', location: 'render-check.json:1', reason: `渲染报告不是有效 JSON：${error.message}` })
     }
   }
 
-  for (const match of source.matchAll(/\]\((\/docs\/[^)\s#?]+(?:#[^)]*)?)\)/g)) {
-    if (!routeExists(match[1])) {
-      findings.push({ view: 'editorSeo', verdict: 'repair_allowed', line: source.slice(0, match.index).split('\n').length, reason: `站内路由不存在：${match[1]}` })
-      if (views.editorSeo === 'pass') views.editorSeo = 'repair_allowed'
+  const reviewFile = path.join(directory, 'third-party-review.json')
+  let review = null
+  if (nonEmptyFile(reviewFile)) {
+    try {
+      review = JSON.parse(fs.readFileSync(reviewFile, 'utf8'))
+    } catch (error) {
+      findings.push({ view: 'process', verdict: 'rewrite_required', location: 'third-party-review.json:1', reason: `第三者报告不是有效 JSON：${error.message}` })
     }
   }
 
-  const verdict = views.beginner === 'rewrite_required' || views.engineer === 'rewrite_required' || views.editorSeo === 'rewrite_required'
+  if (review) {
+    const independent = review.independentContext
+    if (independent?.mode !== 'fresh_context' || independent?.authorProcessVisible !== false || independent?.blindRead !== true) {
+      findings.push({ view: 'process', verdict: 'rewrite_required', location: 'third-party-review.json:independentContext', reason: '报告必须声明使用不共享作者过程的全新上下文，并完成盲读' })
+    }
+    const readback = review.readback
+    if (!readback || !readback.mainQuestion || !readback.concepts || !readback.relationships || !readback.outlinePath) {
+      findings.push({ view: 'process', verdict: 'rewrite_required', location: 'third-party-review.json:readback', reason: '第三者必须先独立复述主问题、概念、关系和标题树路径' })
+    }
+    for (const view of views) {
+      const item = review.views?.[view]
+      if (!item || !allowedVerdicts.has(item.verdict)) {
+        findings.push({ view, verdict: 'rewrite_required', location: 'third-party-review.json:views', reason: `缺少 ${view} 视角或 verdict 不合法` })
+        continue
+      }
+      if (!hasLineLocation(item.location) || !item.problem || !hasEvidence(item.evidence) || !item.impact || !item.required_action) {
+        findings.push({ view, verdict: 'rewrite_required', location: item.location ?? `third-party-review.json:${view}`, reason: `${view} 必须提供带行号或标题位置的问题、证据、影响和行动` })
+      }
+    }
+  }
+
+  const viewVerdicts = views.map((view) => review?.views?.[view]?.verdict)
+  const verdict = findings.length > 0
     ? 'rewrite_required'
-    : Object.values(views).includes('repair_allowed')
-      ? 'repair_allowed'
-      : 'pass'
-  results.push({ file: rel, verdict, views, findings })
-}
+    : viewVerdicts.includes('rewrite_required')
+      ? 'rewrite_required'
+      : viewVerdicts.includes('repair_allowed')
+        ? 'repair_allowed'
+        : 'pass'
+
+  return {
+    file: relative(file),
+    contentId: id,
+    verdict,
+    views: review?.views ?? null,
+    renderChecked: Boolean(render),
+    findings
+  }
+})
 
 const summary = results.reduce((acc, item) => {
   acc[item.verdict] += 1
   return acc
 }, { pass: 0, repair_allowed: 0, rewrite_required: 0 })
 
-console.log(JSON.stringify({ baseline, files: results.length, summary, results }, null, 2))
+console.log(JSON.stringify({
+  kind: 'independent-semantic-review-evidence-gate',
+  semanticAssessment: 'evidence_presence_only',
+  baseline,
+  evidenceRoot,
+  files: results.length,
+  summary,
+  results,
+  note: '本脚本只校验第三者报告的独立性声明、证据位置和渲染证据结构，不阅读文章，也不推断语义质量。'
+}, null, 2))
+
+if (summary.pass !== results.length) process.exitCode = 1
