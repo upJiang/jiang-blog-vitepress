@@ -243,7 +243,7 @@ PYTHONPATH=examples/ai-agent \
 
 下一篇会继续追问：当应用允许模型在多个动作之间选择时，Agent 的自主性究竟来自哪里，哪些决定仍然必须留在运行时。
 
-接着阅读：[Agent 的定义、自主性与责任边界](/docs/ai-agent/agent-essence-autonomy-boundaries)
+接着阅读：[什么是 AI Agent：自主性从哪里来，责任边界怎么划分](/docs/ai-agent/agent-essence-autonomy-boundaries)
 
 官方资料：
 

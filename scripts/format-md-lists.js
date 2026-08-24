@@ -1,6 +1,5 @@
-const fs = require('fs')
-const path = require('path')
-const { globSync } = require('glob')
+import fs from 'node:fs'
+import path from 'node:path'
 
 /**
  * 格式化 Markdown 列表，在每个列表项之间添加空行
@@ -51,10 +50,46 @@ function formatMarkdownLists(filePath) {
  * 处理目录下的所有 Markdown 文件
  * @param {string} pattern - glob 模式，用于查找 Markdown 文件
  */
+function collectMarkdownFiles(directory) {
+  const files = []
+
+  if (!fs.existsSync(directory)) {
+    return files
+  }
+
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (entry.name.startsWith('.')) {
+      continue
+    }
+
+    const entryPath = path.join(directory, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...collectMarkdownFiles(entryPath))
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.md')) {
+      files.push(entryPath)
+    }
+  }
+
+  return files
+}
+
+/**
+ * 查找 Markdown 文件。默认 docs 目录由 Node 20 兼容的递归遍历处理。
+ * @param {string} pattern - glob 模式或单个文件路径
+ */
+function findMarkdownFiles(pattern) {
+  const recursiveMatch = pattern.match(/^(.*)\/\*\*\/\*\.md$/)
+  if (recursiveMatch) {
+    return collectMarkdownFiles(recursiveMatch[1])
+  }
+
+  return fs.existsSync(pattern) && fs.statSync(pattern).isFile() ? [pattern] : []
+}
+
 function processAllMarkdownFiles(pattern = 'docs/**/*.md') {
   try {
     // 查找所有匹配的 Markdown 文件
-    const files = globSync(pattern)
+    const files = findMarkdownFiles(pattern)
 
     if (files.length === 0) {
       console.log(`没有找到匹配的 Markdown 文件: ${pattern}`)

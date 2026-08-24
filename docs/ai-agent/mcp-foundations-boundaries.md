@@ -13,7 +13,7 @@ tags:
   - Protocol
 sourceKey: ai-mcp-foundations-boundaries
 dependsOn:
-  - tool-calling-contracts
+  - parallel-tool-execution
 updated: '2026-08-17'
 lastUpdated: false
 ---

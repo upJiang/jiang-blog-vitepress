@@ -1,76 +1,254 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable, Literal, Protocol
+from dataclasses import dataclass, replace
+from typing import Callable, Literal, Protocol, Sequence, TypeAlias
+
+Scalar: TypeAlias = str | int | bool
+Arguments: TypeAlias = tuple[tuple[str, Scalar], ...]
+RunStatus: TypeAlias = Literal[
+    "running",
+    "waiting_approval",
+    "completed",
+    "failed",
+    "exhausted",
+]
+ObservationStatus: TypeAlias = Literal[
+    "success",
+    "empty",
+    "denied",
+    "timeout",
+    "unknown",
+    "completion_rejected",
+]
+ToolStatus: TypeAlias = Literal["success", "empty", "denied", "unknown"]
 
 
 @dataclass(frozen=True)
 class ToolCall:
     name: str
-    arguments: dict[str, object]
+    arguments: Arguments = ()
 
 
 @dataclass(frozen=True)
-class FinalAnswer:
-    text: str
+class RequestApproval:
+    action: str
+    arguments: Arguments = ()
 
 
-Decision = ToolCall | FinalAnswer
+@dataclass(frozen=True)
+class Finish:
+    answer: str
+
+
+Decision: TypeAlias = ToolCall | RequestApproval | Finish
+
+
+@dataclass(frozen=True)
+class Observation:
+    action: str
+    status: ObservationStatus
+    data: tuple[tuple[str, str], ...] = ()
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentState:
+    goal: str
+    observations: tuple[Observation, ...] = ()
+    steps: int = 0
+    status: RunStatus = "running"
+    stop_reason: str | None = None
+    final_answer: str | None = None
+    pending_approval: RequestApproval | None = None
+
+
+@dataclass(frozen=True)
+class ModelInput:
+    goal: str
+    observations: tuple[Observation, ...]
 
 
 class DecisionModel(Protocol):
-    def decide(self, question: str, observations: list[str]) -> Decision: ...
+    def decide(self, model_input: ModelInput) -> Decision: ...
 
 
-@dataclass
-class AgentState:
-    question: str
-    observations: list[str] = field(default_factory=list)
-    steps: int = 0
-    status: Literal["running", "completed", "failed"] = "running"
+@dataclass(frozen=True)
+class ToolResult:
+    status: ToolStatus
+    data: tuple[tuple[str, str], ...] = ()
+    error: str | None = None
 
 
-Tool = Callable[[dict[str, object]], str]
+Tool: TypeAlias = Callable[[Arguments], ToolResult]
+
+
+@dataclass(frozen=True)
+class CompletionCheck:
+    accepted: bool
+    missing_evidence: tuple[str, ...] = ()
+
+
+CompletionValidator: TypeAlias = Callable[[AgentState, Finish], CompletionCheck]
+
+
+@dataclass(frozen=True)
+class Continue:
+    observation: Observation
+
+
+@dataclass(frozen=True)
+class Pause:
+    request: RequestApproval
+
+
+@dataclass(frozen=True)
+class Complete:
+    answer: str
+
+
+@dataclass(frozen=True)
+class Fail:
+    reason: str
+
+
+StepOutcome: TypeAlias = Continue | Pause | Complete | Fail
+
+
+def handle_decision(
+    state: AgentState,
+    decision: Decision,
+    tools: dict[str, Tool],
+    completion_validator: CompletionValidator,
+    approval_actions: frozenset[str],
+) -> StepOutcome:
+    if isinstance(decision, Finish):
+        check = completion_validator(state, decision)
+        if check.accepted:
+            return Complete(decision.answer)
+        return Continue(
+            Observation(
+                action="finish",
+                status="completion_rejected",
+                data=tuple(
+                    ("missing_evidence", item) for item in check.missing_evidence
+                ),
+                error="completion_evidence_missing",
+            )
+        )
+
+    action = decision.name if isinstance(decision, ToolCall) else decision.action
+    arguments = decision.arguments
+    argument_names = [name for name, _value in arguments]
+    if len(argument_names) != len(set(argument_names)):
+        return Continue(Observation(action, "denied", error="duplicate_argument"))
+
+    if isinstance(decision, RequestApproval):
+        if action not in approval_actions:
+            return Continue(
+                Observation(action, "denied", error="approval_not_configured")
+            )
+        return Pause(decision)
+
+    if action in approval_actions:
+        return Pause(RequestApproval(action, arguments))
+
+    tool = tools.get(action)
+    if tool is None:
+        return Continue(Observation(action, "denied", error="tool_not_available"))
+
+    try:
+        result = tool(arguments)
+    except TimeoutError:
+        return Continue(Observation(action, "timeout", error="tool_timeout"))
+    except ValueError:
+        return Continue(Observation(action, "denied", error="invalid_arguments"))
+    except Exception as error:  # noqa: BLE001 - unexpected tool failures stop the run
+        return Fail(f"tool_execution_failed:{type(error).__name__}")
+
+    return Continue(Observation(action, result.status, result.data, result.error))
+
+
+def advance(state: AgentState, outcome: StepOutcome) -> AgentState:
+    if state.status != "running":
+        raise ValueError("only a running state can advance")
+
+    next_step = state.steps + 1
+    if isinstance(outcome, Continue):
+        return replace(
+            state,
+            observations=state.observations + (outcome.observation,),
+            steps=next_step,
+        )
+    if isinstance(outcome, Pause):
+        return replace(
+            state,
+            steps=next_step,
+            status="waiting_approval",
+            stop_reason="approval_required",
+            pending_approval=outcome.request,
+        )
+    if isinstance(outcome, Complete):
+        return replace(
+            state,
+            steps=next_step,
+            status="completed",
+            stop_reason="completion_verified",
+            final_answer=outcome.answer,
+        )
+    return replace(
+        state,
+        steps=next_step,
+        status="failed",
+        stop_reason=outcome.reason,
+    )
 
 
 def run_agent(
     model: DecisionModel,
     tools: dict[str, Tool],
-    question: str,
+    initial_state: AgentState,
+    completion_validator: CompletionValidator,
     *,
-    max_steps: int = 4,
-) -> tuple[AgentState, str]:
-    state = AgentState(question=question)
-    while state.steps < max_steps:
-        decision = model.decide(state.question, list(state.observations))
-        state.steps += 1
+    approval_actions: frozenset[str] = frozenset(),
+    max_steps: int = 6,
+) -> AgentState:
+    if max_steps <= 0:
+        raise ValueError("max_steps must be positive")
 
-        if isinstance(decision, FinalAnswer):
-            state.status = "completed"
-            return state, decision.text
+    state = initial_state
+    while state.status == "running" and state.steps < max_steps:
+        model_input = ModelInput(state.goal, state.observations)
+        decision = model.decide(model_input)
+        outcome = handle_decision(
+            state,
+            decision,
+            tools,
+            completion_validator,
+            approval_actions,
+        )
+        state = advance(state, outcome)
 
-        tool = tools.get(decision.name)
-        if tool is None:
-            state.status = "failed"
-            raise LookupError(f"unknown_tool:{decision.name}")
-
-        try:
-            observation = tool(decision.arguments)
-        except (TimeoutError, ValueError) as error:
-            state.observations.append(f"tool_error:{type(error).__name__}")
-            continue
-        state.observations.append(observation)
-
-    state.status = "failed"
-    raise RuntimeError("step_limit_reached")
+    if state.status == "running":
+        return replace(
+            state,
+            status="exhausted",
+            stop_reason="step_limit_reached",
+        )
+    return state
 
 
 class ScriptedModel:
-    """A fixed policy for testing the runtime without an API key."""
+    """A deterministic test double; it does not simulate language understanding."""
 
-    def decide(self, question: str, observations: list[str]) -> Decision:
-        if not observations:
-            return ToolCall("search_notes", {"query": question, "limit": 2})
-        if observations[-1].startswith("tool_error:"):
-            return FinalAnswer("检索失败，当前无法核对答案。")
-        return FinalAnswer(f"根据检索结果：{observations[-1]}")
+    def __init__(self, decisions: Sequence[Decision]) -> None:
+        self._decisions = tuple(decisions)
+        self.calls = 0
+        self.inputs: list[ModelInput] = []
+
+    def decide(self, model_input: ModelInput) -> Decision:
+        if self.calls >= len(self._decisions):
+            raise RuntimeError("scripted decisions exhausted")
+        self.inputs.append(model_input)
+        decision = self._decisions[self.calls]
+        self.calls += 1
+        return decision
