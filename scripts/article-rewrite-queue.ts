@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { articles, articleFile, articlePath, sections, type ChapterMeta } from '../.vitepress/content'
 import { aiAgentCurriculum } from '../.vitepress/ai-agent-curriculum'
 
@@ -131,7 +132,28 @@ function readEvidence(contentId: string, name: string): string | null {
   return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null
 }
 
-function evidenceState(contentId: string): Pick<ArticleRecord, 'status' | 'failureReason' | 'conceptModelStatus' | 'argumentMode' | 'carrierType'> {
+function modifiedAt(file: string): number {
+  return fs.existsSync(file) ? fs.statSync(file).mtimeMs : 0
+}
+
+function hasLineLocation(value: unknown): boolean {
+  return typeof value === 'string' && /(?:\bline\s*\d+(?:\s*[-–]\s*\d+)?\b|:\d+(?:[-–]\d+)?\b|第\s*\d+(?:\s*[-–]\s*\d+)?\s*行|标题|^h[1-6]\b)/i.test(value)
+}
+
+function hasReviewEvidence(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length > 0 && value.every((item) => typeof item === 'string' && item.trim().length > 0)
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function conceptDigest(source: string): string {
+  const normalized = source
+    .replace(/^status:\s*\S+\s*$/m, 'status: concept_model_ready')
+    .replace(/^verified_by:\s*\S+\s*\n?/m, '')
+    .replace(/^verified_sha256:\s*\S+\s*\n?/m, '')
+  return createHash('sha256').update(normalized).digest('hex')
+}
+
+function evidenceState(contentId: string, sourceFile: string): Pick<ArticleRecord, 'status' | 'failureReason' | 'conceptModelStatus' | 'argumentMode' | 'carrierType'> {
   const concept = readEvidence(contentId, 'concept-model.md')
   const titleContract = readEvidence(contentId, 'title-contract.md')
   const contract = readEvidence(contentId, 'contract.md')
@@ -144,9 +166,19 @@ function evidenceState(contentId: string): Pick<ArticleRecord, 'status' | 'failu
   if (!concept) {
     return { status: 'queued', failureReason: '待建立概念模型，旧契约不能作为新稿输入。', conceptModelStatus: 'not_started', argumentMode, carrierType }
   }
-  const conceptVerified = /^status:\s*verified\s*$/m.test(concept)
+  const conceptReviewName = concept.match(/^verified_by:\s*(\S+)\s*$/m)?.[1]
+  const verifiedDigest = concept.match(/^verified_sha256:\s*([a-f0-9]{64})\s*$/m)?.[1]
+  const conceptReviewFile = conceptReviewName ? evidenceFile(contentId, conceptReviewName) : ''
+  const conceptReview = conceptReviewFile && fs.existsSync(conceptReviewFile)
+    ? fs.readFileSync(conceptReviewFile, 'utf8')
+    : null
+  const conceptVerified = /^status:\s*concept_model_verified\s*$/m.test(concept) &&
+    verifiedDigest === conceptDigest(concept) &&
+    Boolean(conceptReview) &&
+    /(?:^|`)verdict:\s*pass(?:`|$)/m.test(conceptReview!) &&
+    new RegExp(`^concept_sha256:\\s*${verifiedDigest}$`, 'm').test(conceptReview!)
   if (!conceptVerified) {
-    return { status: 'concept_model_ready', failureReason: '概念模型尚未通过独立验证。', conceptModelStatus: 'invalid', argumentMode, carrierType }
+    return { status: 'concept_model_ready', failureReason: '概念模型缺少当前版本的独立 pass 审查，或状态不是 concept_model_verified。', conceptModelStatus: 'invalid', argumentMode, carrierType }
   }
   if (!titleContract || !contract) {
     return { status: 'concept_model_verified', failureReason: '概念模型已验证，标题契约或文章契约尚未完成。', conceptModelStatus: 'verified', argumentMode, carrierType }
@@ -154,21 +186,48 @@ function evidenceState(contentId: string): Pick<ArticleRecord, 'status' | 'failu
   if (!selfCheck || !/^status:\s*ready_for_third_party\s*$/m.test(selfCheck)) {
     return { status: 'outline_ready', failureReason: '契约已存在，作者自测尚未声明 ready_for_third_party。', conceptModelStatus: 'verified', argumentMode, carrierType }
   }
+  const articleModifiedAt = modifiedAt(path.join(root, sourceFile))
+  const selfCheckModifiedAt = modifiedAt(evidenceFile(contentId, 'self-check.md'))
+  if (selfCheckModifiedAt < Math.max(articleModifiedAt, modifiedAt(evidenceFile(contentId, 'title-contract.md')), modifiedAt(evidenceFile(contentId, 'contract.md')))) {
+    return { status: 'outline_ready', failureReason: '作者自测早于当前正文或契约，必须重新执行。', conceptModelStatus: 'verified', argumentMode, carrierType }
+  }
   if (!reviewSource) {
     return { status: 'self_checked', failureReason: '等待独立第三者盲审报告。', conceptModelStatus: 'verified', argumentMode, carrierType }
   }
 
-  let review: { views?: Record<string, { verdict?: string }> } | null = null
+  let review: {
+    verdict?: string
+    independentContext?: { mode?: string; authorProcessVisible?: boolean; blindRead?: boolean }
+    readback?: { mainQuestion?: string; concepts?: string; relationships?: string; outlinePath?: string }
+    views?: Record<string, { verdict?: string; location?: string; problem?: string; evidence?: string; impact?: string; required_action?: string }>
+  } | null = null
   try {
     review = JSON.parse(reviewSource)
   } catch {
     return { status: 'independent_blind_review', failureReason: '第三者报告不是有效 JSON。', conceptModelStatus: 'verified', argumentMode, carrierType }
   }
-  const viewVerdicts = ['beginner', 'engineer', 'editorSeo'].map((view) => review?.views?.[view]?.verdict)
+  if (modifiedAt(evidenceFile(contentId, 'third-party-review.json')) < Math.max(articleModifiedAt, selfCheckModifiedAt)) {
+    return { status: 'independent_blind_review', failureReason: '第三者报告早于当前正文或作者自测，必须重新盲审。', conceptModelStatus: 'verified', argumentMode, carrierType }
+  }
+  const independent = review?.independentContext
+  const readback = review?.readback
+  if (independent?.mode !== 'fresh_context' || independent.authorProcessVisible !== false || independent.blindRead !== true ||
+    !readback?.mainQuestion || !readback.concepts || !readback.relationships || !readback.outlinePath) {
+    return { status: 'independent_blind_review', failureReason: '第三者报告缺少全新上下文、盲读声明或独立复述。', conceptModelStatus: 'verified', argumentMode, carrierType }
+  }
+  const reviewViews = ['beginner', 'engineer', 'editorSeo']
+  const completeViews = reviewViews.every((view) => {
+    const item = review?.views?.[view]
+    return item && hasLineLocation(item.location) && item.problem && hasReviewEvidence(item.evidence) && item.impact && item.required_action
+  })
+  if (!completeViews) {
+    return { status: 'independent_blind_review', failureReason: '第三者报告缺少带位置的问题、证据、影响或行动。', conceptModelStatus: 'verified', argumentMode, carrierType }
+  }
+  const viewVerdicts = reviewViews.map((view) => review?.views?.[view]?.verdict)
   if (viewVerdicts.includes('rewrite_required')) {
     return { status: 'concept_model_ready', failureReason: '第三者发现语义问题，必须退回概念模型阶段。', conceptModelStatus: 'invalid', argumentMode, carrierType }
   }
-  if (viewVerdicts.some((verdict) => verdict !== 'pass')) {
+  if (review?.verdict !== 'pass' || viewVerdicts.some((verdict) => verdict !== 'pass')) {
     return { status: 'evidence_review', failureReason: '第三者报告尚未达到三视角 pass。', conceptModelStatus: 'verified', argumentMode, carrierType }
   }
   if (!renderSource) {
@@ -176,11 +235,22 @@ function evidenceState(contentId: string): Pick<ArticleRecord, 'status' | 'failu
   }
   try {
     const render = JSON.parse(renderSource)
+    const renderModifiedAt = modifiedAt(evidenceFile(contentId, 'render-check.json'))
+    const checkedAt = Date.parse(render.checkedAt ?? '')
+    if (renderModifiedAt < articleModifiedAt || !Number.isFinite(checkedAt) || checkedAt < articleModifiedAt) {
+      return { status: 'evidence_review', failureReason: '渲染报告早于当前正文，必须重新检查四个视口。', conceptModelStatus: 'verified', argumentMode, carrierType }
+    }
     const renderPassed = [375, 768, 1024, 1440].every((viewport) => {
       const item = render.viewports?.[String(viewport)]
-      return item && item.horizontalOverflow === false && item.markdownLeak === false && item.navigationOccluded === false
+      return item &&
+        item.horizontalOverflow === false &&
+        item.markdownLeak === false &&
+        item.navigationOccluded === false &&
+        item.h1Count === 1 &&
+        Array.isArray(item.consoleErrors) && item.consoleErrors.length === 0 &&
+        Number.isFinite(item.maxParagraphLines) && item.maxParagraphLines <= 6
     })
-    if (!renderPassed) return { status: 'evidence_review', failureReason: '渲染证据未覆盖四个视口或存在排版红线。', conceptModelStatus: 'verified', argumentMode, carrierType }
+    if (!renderPassed) return { status: 'evidence_review', failureReason: '渲染证据未覆盖四个视口，或存在 H1、控制台、段落行数和排版红线。', conceptModelStatus: 'verified', argumentMode, carrierType }
   } catch {
     return { status: 'evidence_review', failureReason: '渲染报告不是有效 JSON。', conceptModelStatus: 'verified', argumentMode, carrierType }
   }
@@ -213,7 +283,7 @@ function recordFor(article: ChapterMeta): ArticleRecord {
   const isBaseline = articleFile(article) === baselineFile
   const state = isBaseline
     ? { status: 'read_only_baseline' as const, failureReason: null, conceptModelStatus: 'verified' as const, argumentMode: null, carrierType: null }
-    : evidenceState(idFor(article))
+    : evidenceState(idFor(article), articleFile(article))
 
   return {
     contentId: idFor(article),

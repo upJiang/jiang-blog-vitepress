@@ -47,6 +47,7 @@ class CallRecord:
     provider_status: str | None = None
     response_id: str | None = None
     terminal_event: str | None = None
+    observed_error_event: str | None = None
     last_sequence_number: int | None = None
     text: str | None = None
     usage: dict[str, int | None] | None = None
@@ -115,6 +116,7 @@ def _record(
     provider_status: str | None = None,
     response_id: str | None = None,
     terminal_event: str | None = None,
+    observed_error_event: str | None = None,
     last_sequence_number: int | None = None,
     text: str | None = None,
     usage: dict[str, int | None] | None = None,
@@ -130,6 +132,7 @@ def _record(
         provider_status=provider_status,
         response_id=response_id,
         terminal_event=terminal_event,
+        observed_error_event=observed_error_event,
         last_sequence_number=last_sequence_number,
         text=text,
         usage=usage,
@@ -282,6 +285,7 @@ def _record_sdk_exception(
     errors: SdkErrorTypes,
     *,
     phase: Literal["create", "stream"],
+    provider_status: str | None = None,
     response_id: str | None = None,
     last_sequence_number: int | None = None,
     partial_output_observed: bool = False,
@@ -308,6 +312,7 @@ def _record_sdk_exception(
         phase=phase,
         outcome=outcome,
         terminal_response_observed=False,
+        provider_status=provider_status,
         response_id=response_id,
         last_sequence_number=last_sequence_number,
         error=detail,
@@ -411,7 +416,8 @@ def execute_stream(
                     outcome="provider_stream_error",
                     terminal_response_observed=False,
                     response_id=last_response_id,
-                    terminal_event="error",
+                    observed_error_event="error",
+                    provider_status=last_provider_status,
                     last_sequence_number=last_sequence_number,
                     error=_stream_error(event),
                     partial_output_observed=partial_output_observed,
@@ -423,6 +429,7 @@ def execute_stream(
             exc,
             errors,
             phase="stream",
+            provider_status=last_provider_status,
             response_id=last_response_id,
             last_sequence_number=last_sequence_number,
             partial_output_observed=partial_output_observed,

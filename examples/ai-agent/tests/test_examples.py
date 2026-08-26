@@ -389,7 +389,8 @@ class ExampleTests(unittest.TestCase):
         )
 
         self.assertEqual(provider_error.outcome, "provider_stream_error")
-        self.assertEqual(provider_error.terminal_event, "error")
+        self.assertIsNone(provider_error.terminal_event)
+        self.assertEqual(provider_error.observed_error_event, "error")
         self.assertEqual(provider_error.error["code"], "server_error")
         self.assertEqual(transport_break.outcome, "transport_unknown")
         self.assertEqual(transport_break.phase, "stream")

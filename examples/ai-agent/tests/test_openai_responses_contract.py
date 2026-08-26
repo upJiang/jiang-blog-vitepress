@@ -399,7 +399,8 @@ class OpenAIResponsesContractTests(unittest.TestCase):
         )
 
         self.assertEqual(provider_error.outcome, "provider_stream_error")
-        self.assertEqual(provider_error.terminal_event, "error")
+        self.assertIsNone(provider_error.terminal_event)
+        self.assertEqual(provider_error.observed_error_event, "error")
         self.assertEqual(provider_error.last_sequence_number, 5)
         self.assertEqual(
             provider_error.error,
@@ -407,6 +408,7 @@ class OpenAIResponsesContractTests(unittest.TestCase):
         )
         self.assertEqual(transport_break.outcome, "transport_unknown")
         self.assertEqual(transport_break.phase, "stream")
+        self.assertEqual(transport_break.provider_status, "in_progress")
         self.assertEqual(transport_break.response_id, "provider-response")
         self.assertTrue(transport_break.partial_output_observed)
         self.assertEqual(transport_break.last_sequence_number, 4)

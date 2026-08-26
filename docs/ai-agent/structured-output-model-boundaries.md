@@ -1,6 +1,6 @@
 ---
-title: 结构化输出约束格式，不证明业务事实
-description: 用一份 Pydantic 候选合同连接 Responses API 与本地验证，再从认证上下文构造只读命令，分清格式、事实和权限各自的证据边界。
+title: 结构化输出能约束什么，为什么仍不能证明业务事实
+description: 从一个搜索候选拆开 Structured Outputs、JSON Schema、Pydantic 与认证上下文，说明格式正确为什么仍不能直接执行。
 category: ai-agent
 part: 模型、调用与 Agent 基础
 stageKey: foundations
@@ -14,14 +14,28 @@ tags:
 sourceKey: ai-structured-output-model-boundaries
 dependsOn:
   - python-openai-responses-first-call
-updated: '2026-08-20'
+updated: '2026-08-24'
 lastUpdated: false
 ---
-# 结构化输出约束格式，不证明业务事实
+# 结构化输出能约束什么，为什么仍不能证明业务事实
 
-[上一篇](/docs/ai-agent/python-openai-responses-first-call)把一次 Responses API 调用分成了请求、响应终态、流式事件和 SDK 异常。只有完整、可解析的结果才会进入本篇。现在的问题是：模型已经返回一个符合结构的对象，应用为什么还不能直接执行它？
+[上一篇](/docs/ai-agent/python-openai-responses-first-call)把一次 Responses API 调用归一化成了 `answer`、`refusal`、`incomplete` 或 `unknown`。
 
-继续使用远程访问申请这个例子。模型不负责判断申请是否真的被拒绝，也不负责决定当前用户能查看哪些资料。它只提出一个搜索候选：
+现在假设调用得到的是一段可以交给程序处理的结果，新的问题随之出现：对象结构正确，应用为什么仍然不能直接执行它？
+
+继续看远程访问申请。用户问：“为什么我的申请被拒绝？”模型提出一个搜索候选：查询“设备合规要求”，最多返回 5 条结果。
+
+这个候选需要稳定的字段形状，但它不应该自己携带用户身份、可见范围或知识版本。
+
+本文沿着一个候选对象走完四层边界：结构合同、本地验证、可信上下文和领域命令。
+
+最后还要接到权威检索结果，因为“申请被拒绝”是业务事实，不能从模型选出的字符串推出来。
+
+## 稳定字段是程序接住模型的前提
+
+如果模型只返回自然语言，程序要从句子里猜查询词和数量。字段缺失、类型变化或混入权限参数时，错误会在更晚的执行阶段暴露。
+
+结构化输出把这一步提前成一个候选合同。本文的候选只包含两个字段：
 
 ```json
 {
@@ -30,27 +44,41 @@ lastUpdated: false
 }
 ```
 
-这两个字段即使类型正确，也只表达模型建议搜索什么。事实来自后续检索结果，权限来自认证上下文，执行结果来自搜索组件。结构化输出解决的是候选能否被程序稳定接住，不会把候选自动升级成可信命令。
+这两个字段有明确的局限。`query` 是模型对问题的检索表达，`limit` 是它建议的数量。`user_id`、`scope_ids` 和 `release_id` 不属于模型候选，它们要从认证和发布系统读取。
 
-## 模型只负责提出搜索候选
-
-先从下游需要的输入倒推模型职责。只读搜索需要查询词和返回数量，还需要当前用户、允许范围和知识版本。前两个值可以由模型建议，后三个值必须来自应用维护的可信上下文。
-
-| 字段 | 来源 | 为什么 |
+| 字段 | 来源 | 责任 |
 | --- | --- | --- |
-| `query` | 模型候选 | 需要从自然语言问题提炼检索表达 |
-| `limit` | 模型候选 | 允许模型按任务选择有限结果数 |
-| `user_id` | 认证上下文 | 模型不能声明自己代表谁 |
-| `scope_ids` | 授权结果 | 模型不能扩大可见范围 |
-| `release_id` | 当前知识版本 | 模型不知道哪个版本仍然有效 |
+| `query` | 模型候选 | 提炼检索表达，仍需验证 |
+| `limit` | 模型候选 | 选择有限结果数，仍需限界 |
+| `user_id` | 认证上下文 | 指定当前主体 |
+| `scope_ids` | 授权结果 | 指定可见范围 |
+| `release_id` | 知识发布状态 | 指定有效版本 |
 
-如果把五个字段放进同一个模型输出对象，代码审查很难看出哪些值可以采信。本文因此保留两个类型：`SearchCandidate` 只装模型字段，`SearchCommand` 只在应用完成认证注入后创建。
+字段来源先分开，后面的结构验证和权限注入才有清晰责任。如果把它们全部放进一个模型输出，代码很难看出哪些值可以采信。
 
-## 一份 Pydantic 模型连接 SDK 与本地边界
+## JSON mode 和 Structured Outputs 约束的范围不同
 
-同一组字段如果在服务端 JSON Schema、Pydantic 模型和手写解析器里各声明一次，很快就会出现合同漂移。服务端可能要求 `limit` 必填，本地解析器却在缺失时补成 `5`；只覆盖本地规则的测试依然会通过。
+JSON mode 关注结果是否是可解析 JSON。它不能保证对象有 `query` 和 `limit`，也不能保证 `limit` 是整数。
 
-新实现只保留一个候选类型：
+Structured Outputs 在受支持的模型和 JSON Schema 子集内进一步要求结果符合指定结构。它可以排除缺少必填字段、错误类型、额外字段和越界值，但它没有访问审批数据库的能力。
+
+如果 Responses API 返回 refusal 或 incomplete，应用拿到的是调用结果分支，不存在可以授权的候选对象。结构合同不会把拒绝或截断结果转换成 `SearchCandidate`。
+
+| 能力 | 可解析 JSON | 符合指定 Schema | 证明字段描述的现实状态 |
+| --- | --- | --- | --- |
+| JSON mode | 是 | 不保证 | 否 |
+| Structured Outputs | 是 | 在支持范围内保证 | 否 |
+| 权威系统查询 | 不负责 | 不负责 | 只能证明它拥有的记录 |
+
+因此，Structured Outputs 的结果应该叫“候选对象”。候选通过合同后，才能进入应用自己的身份、范围和事实校验。
+
+## 用一个 Pydantic 类型保存候选合同
+
+同一组字段如果分别写在远端 Schema、Pydantic 模型和手写 `dict` 解析器里，合同很容易分叉。
+
+比如服务端把 `limit` 设为必填，本地解析器却在缺失时补成 5，Fake 测试就会掩盖真实请求的错误。
+
+当前实现只保留一个 `SearchCandidate`：
 
 ```python
 from typing import Annotated
@@ -68,9 +96,9 @@ class SearchCandidate(BaseModel):
     limit: Annotated[int, Field(ge=1, le=20)]
 ```
 
-`extra="forbid"` 拒绝未声明字段，严格模式不把字符串 `"5"` 转成整数。`query` 会先去掉两端空白，再检查长度；`limit` 没有默认值，因此远端和本地都把它当作必填字段。
+`extra="forbid"` 会拒绝未声明字段，`strict=True` 不会把字符串 `"5"` 偷换成整数。`query` 去掉两端空白后检查长度，`limit` 没有默认值，所以缺字段会直接失败。
 
-Python SDK 的结构化解析入口可以直接接收这个类型：
+Python SDK 的 `responses.parse` 可以把这个模型交给结构化输出入口：
 
 ```python
 response = client.responses.parse(
@@ -82,65 +110,64 @@ response = client.responses.parse(
 candidate = response.output_parsed
 ```
 
-官方 Structured Outputs 指南把这种用法定义为 Python SDK 的解析 helper。SDK 会根据 Pydantic 类型生成用于请求的结构合同，并把成功结果解析回同一个类型。应用不再手写第二份 Schema，也不需要用另一套 `dict` 规则重复解释字段。
+这段调用说明 SDK 与 Pydantic 的连接方式。它不能替代上一篇对 Response 状态的处理。
 
-`response.output_parsed` 只属于结构化成功分支。拒绝、不完整响应和调用失败仍要先按上一篇的响应语义处理，不能把它们统称为 Pydantic 错误。若应用只拿到 `None`，也不能构造命令。
+拒绝、不完整、失败或没有结构化结果时，没有可授权的 `SearchCandidate`，应用不能因为读取了 `output_parsed` 就跳过状态判断。
 
-## Structured Outputs 的保证停在候选对象
+## Pydantic 的本地规则不会自动变成服务端规则
 
-Structured Outputs 和 JSON mode 都能产生有效 JSON，保证范围不同。JSON mode 不保证对象符合应用 Schema；Structured Outputs 在受支持模型与 Schema 子集内提供 Schema adherence。
+Pydantic 模型可以生成 JSON Schema，也可以在本地执行校验。
 
-| 能力 | 有效 JSON | 符合指定 Schema | 证明字段为真 |
-| --- | --- | --- | --- |
-| JSON mode | 是 | 否 | 否 |
-| Structured Outputs | 是 | 是 | 否 |
-| 权威系统查询 | 不适用 | 不适用 | 只能证明它负责的当前记录 |
+SDK 还要把这份 Schema 转成供应商支持的子集。模型配置、Python validator 或自定义清理逻辑，不会因为写在同一个类里就自动在服务端运行。
 
-Schema adherence 能排除缺失必填字段、错误类型、非法枚举和额外字段。它无法查询审批数据库，也不知道调用者身份。下面的对象完全可能符合某个 Schema：
+这意味着同一个类型承担两次检查：
 
-```json
-{"decision":"approved"}
-```
+1. SDK 用它声明服务端要遵守的结构合同。
+2. 应用收到候选后，用它验证本地输入并做有限的规范化。
 
-如果 Schema 允许 `approved`，结构检查会通过。这个结果仍然不能证明审批发生过，因为模型只是在允许值中选了一个字符串。
+两次检查共享类型，证据来源却不同。前者需要真实 SDK 和供应商集成测试，后者可以用固定输入做单元测试。不要用本地 `model_validate` 的通过结果，替代真实模型 adherence 的证据。
 
-### Pydantic 能表达的规则不一定都进入服务端
+## 失败输入要在候选边界被拒绝
 
-Pydantic 模型是代码中的单一合同来源，不代表每一段 Python 逻辑都会变成服务端约束。SDK 需要把模型转换成 OpenAI 支持的 JSON Schema 子集；不受支持的 Schema 会使严格请求失败，Python validator 和本地清理逻辑也不会自动在模型服务内部运行。
+合同真正有用的地方在失败分支。下面的输入都不应进入命令构造：
 
-所以同一个类型要承担两次不同的检查：
-
-1. SDK 用它声明供应商结构化输出合同。
-2. 应用收到候选后，再用它执行本地严格验证和规范化。
-
-两次检查复用同一个类型，但证据来源不同。前者需要真实 SDK 与模型集成测试，后者可以用固定输入完成单元测试。
-
-## 四份错误输入在同一合同里失败
-
-候选合同统一以后，可以直接观察不同输入为什么失败。下面每一行都进入 `SearchCandidate.model_validate`，不再经过手写默认值或宽松类型转换。
-
-| 输入变化 | Pydantic 错误 | 应用判断 |
+| 输入变化 | 本地错误 | 为什么停止 |
 | --- | --- | --- |
-| 缺少 `limit` | `missing` | 合同不完整，不能补本地默认值 |
-| `limit` 是字符串 `"5"` | `int_type` | 类型不符合严格合同 |
-| 增加 `scope_ids` | `extra_forbidden` | 模型尝试提供可信字段，整份候选拒绝 |
-| `query` 只有空格 | `string_too_short` | 规范化后没有可执行查询 |
+| 缺少 `limit` | `missing` | 服务端和本地不能各自补默认值 |
+| `limit` 为字符串 `"5"` | `int_type` | 严格合同拒绝隐式转换 |
+| 增加 `scope_ids` | `extra_forbidden` | 模型不能声明可信范围 |
+| `query` 只有空格 | `string_too_short` | 规范化后没有查询内容 |
+| `limit` 为 0 或 21 | 范围错误 | 数量超出应用合同 |
 
-额外权限字段采用“拒绝”策略，不采用“忽略后继续”。若输入带有 `scope_ids`，调用方要停止当前候选并记录校验失败；它不能删除危险字段后假装原对象可信。
+额外权限字段采用整体拒绝，而不是删除后继续。删除字段会让程序看起来像是“修复”了一个候选，实际上掩盖了模型试图越过输入边界的事实。
 
-缺少 `limit` 也直接失败。Structured Outputs 要求对象字段列入 `required`，本地再补默认值会制造两套协议：真实服务端不会产生的对象，却能通过本地替身。合同测试必须专门锁住这个分支。
+缺少 `limit` 也不能由本地默认值补齐。否则供应商合同和本地合同就出现差异，生产环境可能永远收不到一个本地测试中允许的对象。
 
-## 认证上下文把候选变成命令
+## 通过候选以后，可信上下文才进入命令
 
-候选通过只说明 `query` 和 `limit` 可被应用读取。接下来由认证系统提供当前用户、允许范围和知识版本：
+候选通过只说明 `query` 和 `limit` 可以被应用读取。身份、范围和知识版本需要由认证系统和发布系统提供：
 
 ```python
-candidate = parse_search_arguments(model_payload)
-command = authorize_search(candidate, auth_context)
-result = read_only_search(command)
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class AuthContext:
+    user_id: str
+    scope_ids: tuple[str, ...]
+    release_id: str
+
+
+@dataclass(frozen=True)
+class SearchCommand:
+    query: str
+    limit: int
+    user_id: str
+    scope_ids: tuple[str, ...]
+    release_id: str
 ```
 
-`authorize_search` 不接收模型提供的权限字段。它只能从 `AuthContext` 构造命令：
+命令构造函数只接受已经解析的候选和认证上下文：
 
 ```python
 def authorize_search(
@@ -159,45 +186,36 @@ def authorize_search(
     )
 ```
 
-这段转换建立的是输入来源边界。即使模型猜中了当前用户的范围，那个值也不能被采信；如果模型通过提示注入换成另一个范围，结果仍然是在候选解析阶段失败。
+`authorize_search` 没有读取模型提供的 `user_id` 或 `scope_ids`。即使模型猜中的范围恰好与认证结果相同，也不能改变字段的可信来源。
 
-`SearchCommand` 构造成功也不是搜索成功。执行组件还要把 `scope_ids` 和 `release_id` 落到真实查询条件中，空结果、存储错误和版本失效各有自己的终态。类型只能让责任变得可见，不能替代实际执行。
+`SearchCommand` 构造成功仍然不是搜索成功。执行组件需要把范围和版本落实到查询条件里，存储错误、空结果和版本失效分别记录。类型让输入责任可见，不能替代真实执行。
 
-## 测试锁住同一份合同
+## 测试要把合同和权限分开证明
 
-专用测试先检查 Pydantic 生成的本地 Schema。`query` 和 `limit` 必须同时出现在 `required`，对象必须关闭额外字段，字符串与整数边界也要保留：
+第一组测试检查 Pydantic 生成的本地 Schema：`query` 和 `limit` 都是必填，额外字段被关闭，字符串长度和数量范围存在。
+
+第二组测试逐一提交失败输入，确保解析器不会补默认值或吞掉权限字段。
+
+第三组测试只检查认证注入：干净候选可以构造成命令，缺少任一认证值就抛出 `PermissionError`。
+
+这三组测试分别证明结构、输入边界和可信上下文，没有一组能证明真实模型或业务事实。
 
 ```python
 schema = search_candidate_schema()
 
 assert schema["required"] == ["query", "limit"]
 assert schema["additionalProperties"] is False
-assert schema["properties"]["query"]["minLength"] == 1
 assert schema["properties"]["limit"]["maximum"] == 20
-```
-
-这条断言能发现候选模型被改成可选字段或宽松对象，却不能证明 SDK 最终发送的 Schema 与真实模型行为。供应商边界仍需要隔离环境中的集成测试。
-
-权限测试分成两步。带 `scope_ids` 的模型对象必须整体拒绝；只有干净候选才能与认证上下文组合：
-
-```python
-with self.assertRaises(ValidationError):
-    parse_search_arguments({
-        "query": "设备合规要求",
-        "limit": 5,
-        "scope_ids": ["other"],
-    })
 
 candidate = parse_search_arguments({
     "query": "设备合规要求",
     "limit": 5,
 })
 command = authorize_search(candidate, auth_context)
-
 assert command.scope_ids == auth_context.scope_ids
 ```
 
-上面的短片段只展示断言关系。页面末尾展开的文件是构建时读取的完整实现和测试，覆盖 Schema、缺失字段、额外字段、严格类型、范围、认证注入和认证信息缺失。
+上面只展示断言关系，完整实现和测试由构建时从当前工作树引入：
 
 ::: details 展开候选合同与命令构造
 <<< ../../examples/ai-agent/contracts.py
@@ -215,37 +233,30 @@ PYTHONPATH=examples/ai-agent \
   python -m unittest examples/ai-agent/tests/test_contracts.py -v
 ```
 
-当前 8 项专用测试和 235 项 AI Agent Python 测试全部通过。这个结果证明当前工作树里的本地合同和控制流一致，不证明真实模型总会产生正确搜索意图，也不证明外部数据可靠。
+这些测试证明当前工作树里的合同和控制流一致。它们不证明真实模型总能提炼正确查询，也不证明检索结果足以回答申请原因。
 
-## 格式通过以后还缺事实与执行结果
+## 事实证据来自候选以外的系统
 
-回到开头的候选：
-
-```json
-{
-  "query": "设备合规要求",
-  "limit": 5
-}
-```
-
-结构化输出能证明两个字段符合候选合同。认证上下文能证明应用用哪个身份和范围构造命令。搜索组件执行后返回的、带来源和版本的资料，才可能支持“申请为什么被拒绝”这个事实判断。
+把候选、认证上下文和命令放回远程访问问题：
 
 ```text
-结构化结果
-→ SearchCandidate
-→ 认证上下文注入
-→ SearchCommand
-→ 范围过滤后的检索结果
-→ 有证据的回答
+模型候选
+    ↓ 结构合同与本地验证
+SearchCandidate
+    ↓ 注入认证身份、范围和版本
+SearchCommand
+    ↓ 范围过滤后的只读查询
+带来源和版本的检索证据
 ```
 
-这条链路里没有一步可以越级。格式正确不能跳过授权，授权通过不能跳过范围过滤，检索命中也不能跳过证据核验。
+只有最后一层的权威记录，才可能支持“申请为什么被拒绝”。候选查询词帮助系统找到材料，却不能证明材料内容；认证上下文决定谁能读取，也不能制造制度条款。
 
-下一篇会继续追问：当应用允许模型在多个动作之间选择时，Agent 的自主性究竟来自哪里，哪些决定仍然必须留在运行时。
+最小反例是：在另一个明确允许 `decision` 字段的 Schema 中，模型返回 `{"decision":"approved"}`。结构检查只能证明值在允许集合里，无法证明审批系统真的保存过这条决定。
+
+这就是本文的边界。结构化输出解决程序如何稳定接收候选，认证系统解决候选能否在当前范围内运行。
+
+权威数据和执行结果解决事实是否成立。下一篇继续追问，当模型可以在多个动作之间选择时，选择空间和责任边界如何构成 Agent。
 
 接着阅读：[什么是 AI Agent：自主性从哪里来，责任边界怎么划分](/docs/ai-agent/agent-essence-autonomy-boundaries)
 
-官方资料：
-
-- [OpenAI Structured Outputs 指南](https://developers.openai.com/api/docs/guides/structured-outputs)
-- [Pydantic Models](https://docs.pydantic.dev/latest/concepts/models/)
+参考资料：[OpenAI Structured Outputs 指南](https://developers.openai.com/api/docs/guides/structured-outputs)；[Pydantic Models](https://docs.pydantic.dev/latest/concepts/models/)。
